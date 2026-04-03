@@ -1,0 +1,1320 @@
+
+============================================================
+Op.100: Merkenstein
+  OLD: "Song Merkenstein (1814, about the Merkenstein ruins)"
+  ADDED: category=vocal, pub_year=1814
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.101: piano sonata #28
+  OLD: "Piano Sonata No. 28 in A major (1816)"
+  ADDED: form=piano sonata, number=28, key=A major, category=piano, pub_year=1816
+  ADDED: 4 movements from iTunes:
+    1. Etwas lebhaft und mit der innigsten Empfindung. Allegretto, ma non troppo
+    2. Lebhaft. Marschmäßig. Vivace alla Marcia
+    3. Langsam und sehnsuchtvoll. Adagio, ma non troppo, con affetto - Zeitmaß des ersten Stückes. Tempo del primo pezzo: tutto il Cembalo, ma piano - Presto
+    4. Geschwinde, doch nicht zu sehr, und mit Entschlossenheit. Allegro
+  REMOVED: title field
+
+============================================================
+Op.105: Six National Airs with Variations
+  OLD: "Six National Airs with Variations for Flute (or Violin) and Piano (1819)"
+  ADDED: form=variations, title="Six National Airs with Variations", category=piano, pub_year=1819
+  ADDED: 6 movements from iTunes:
+    1. Air écossais. Andantino quasi allegretto
+    2. Air écossais. Allegretto scherzo
+    3. Air autrichien. Andantino
+    4. Air écossais. Andante espressivo assai
+    5. Air écossais. Allegretto spiritoso
+    6. Air écossais. Allegretto più tosto vivace
+  REMOVED: title field
+
+============================================================
+Op.106: piano sonata #29
+  OLD: "Piano Sonata No. 29 in B♭ major (Hammerklavier) (1818)"
+  ADDED: form=piano sonata, number=29, key=B-flat major, nickname="Hammerklavier", category=piano, pub_year=1818
+  ADDED: 4 movements from iTunes:
+    1. Allegro
+    2. Scherzo. Assai vivace - Presto - Prestissimo - Tempo I
+    3. Adagio sostenuto. Appassionato e con molto sentimento
+    4. Introduzione. Largo - Allegro - Fuga. Allegro risoluto
+  REMOVED: title field
+
+============================================================
+Op.107: Ten National Airs with Variations
+  OLD: "Ten National Airs with Variations for Flute (or Violin) and Piano (1820)"
+  ADDED: form=variations, title="Ten National Airs with Variations", category=piano, pub_year=1820
+  ADDED: 10 movements from iTunes:
+    1. Air tirolien. Moderato
+    2. Air écossais. Allegretto, quasi vivace
+    3. Air de la petite Russie. Vivace
+    4. Air écossais. Allegretto scherzo
+    5. Air tirolien. Moderato
+    6. Air écossais. Andante commodo
+    7. Air russe. Andante
+    8. Air écossais. Andantino quasi allegretto
+    9. Air écossais. Allegretto più tosto vivace
+    10. Air écossais. Spirituoso e marciale
+  REMOVED: title field
+
+============================================================
+Op.109: piano sonata #30
+  OLD: "Piano Sonata No. 30 in E major (1820)"
+  ADDED: form=piano sonata, number=30, key=E major, category=piano, pub_year=1820
+  ADDED: 3 movements from iTunes:
+    1. Vivace, ma non troppo - Adagio espressivo - Tempo I - Adagio espressivo - Tempo I
+    2. Prestissimo
+    3. Gesangvoll, mit innigster Empfindung. Andante molto cantabile ed espressivo - Var. 1–6
+  REMOVED: title field
+
+============================================================
+Op.110: piano sonata #31
+  OLD: "Piano Sonata No. 31 in A♭ major (1821)"
+  ADDED: form=piano sonata, number=31, key=A-flat major, category=piano, pub_year=1821
+  ADDED: 3 movements from iTunes:
+    1. Moderato cantabile molto espressivo
+    2. Allegro molto
+    3. Adagio ma non troppo - Arioso dolente - Fuga. Allegro ma non troppo - L'istesso tempo di Arioso - L'istesso tempo di Fuga - Meno allegro
+  REMOVED: title field
+
+============================================================
+Op.111: piano sonata #32
+  OLD: "Piano Sonata No. 32 in C minor (1822)"
+  ADDED: form=piano sonata, number=32, key=C minor, category=piano, pub_year=1822
+  ADDED: 2 movements from iTunes:
+    1. Maestoso - Allegro con brio ed appassionato
+    2. Arietta. Adagio molto semplice e cantabile
+  REMOVED: title field
+
+============================================================
+Op.112: Meeresstille und Glückliche Fahrt
+  OLD: "Meeresstille und glückliche Fahrt (Calm Sea and Prosperous Voyage), for chorus and orchestra (1815)"
+  ADDED: category=choral, pub_year=1815
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.113: The Ruins of Athens
+  OLD: "Die Ruinen von Athen (The ruins of Athens), overture and incidental music (1811)"
+  ADDED: category=piano, pub_year=1811
+  ADDED: 9 movements from iTunes:
+    1. Overture
+    2. Chorus. Tochter des mächtigen Zeus
+    3. Duet. Ohne Verschulden
+    4. Chorus. Du hast in deines Ärmels Falten
+    5. Marcia alla turca
+    6. Music Behind the Scene. Assai allegro ma non troppo
+    7. March and Chorus. Schmückt die Altäre!
+    8. Chorus. Wir tragen empfängliche Herzen
+    9. Chorus. Heil unserm König!
+  REMOVED: title field
+
+============================================================
+Op.115: For the Name Day
+  OLD: "Zur Namensfeier (Feastday), overture (1815)"
+  ADDED: category=orchestra, pub_year=1815
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.117: König Stephan
+  OLD: "König Stephan (King Stephen), overture and incidental music (1811)"
+  ADDED: category=orchestra, pub_year=1811
+  ADDED: 8 movements from iTunes:
+    0. Overture
+    1. Ruhend von seinen Thaten
+    2. Auf dunkelm in finstern Hainen Wandelten
+    3. Siegesmarsch
+    6. Eine neue strahlende Sonne
+    7. Melodrama
+    8. Heil unserm Könige!
+    9. Heil! Heil unserm Enkeln!
+  REMOVED: title field
+
+============================================================
+Op.118: Elegischer Gesang
+  OLD: "Elegischer Gesang for four voices and string quartet (1814)"
+  ADDED: category=choral, pub_year=1814
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.119: Eleven Bagatelles
+  OLD: "Eleven new Bagatelles for piano (1822)"
+  ADDED: category=piano, pub_year=1822
+  ADDED: 11 movements from iTunes:
+    1. Allegretto
+    2. Andante con moto
+    3. A l'allemande
+    4. Andante cantabile
+    5. Risoluto
+    6. Andante - Allegretto leggiermente
+    7. Allegro ma non troppo
+    8. Moderato cantabile
+    9. Vivace moderato
+    10. Allegramente
+    11. Andante, ma non troppo
+  REMOVED: title field
+
+============================================================
+Op.120: 33 Variations on a Waltz by Anton Diabelli
+  OLD: "Thirty-three variations on a waltz by Diabelli for piano in C major (Diabelli Variations) (1823)"
+  ADDED: category=piano, pub_year=1823
+  ADDED: 34 movements from iTunes:
+    1. Tema. Vivace
+    2. Var. 1 Alla Marcia maestoso
+    3. Var. 2 Poco allegro
+    4. Var. 3 L'istesso tempo
+    5. Var. 4 Un poco più vivace
+    6. Var. 5 Allegro vivace
+    7. Var. 6 Allegro ma non troppo e serioso
+    8. Var. 7 Un poco più allegro
+    9. Var. 8 Poco vivace
+    10. Var. 9 Allegro pesante e risoluto
+    11. Var. 10 Presto
+    12. Var. 11 Allegretto
+    13. Var. 12 Un poco più moto
+    14. Var. 13 Vivace
+    15. Var. 14 Grave e maestoso
+    16. Var. 15 Presto scherzando
+    17. Var. 16 Allegro
+    18. Var. 17
+    19. Var. 18 Poco moderato
+    20. Var. 19 Presto
+    21. Var. 20 Andante
+    22. Var. 21 Allegro con brio - Meno allegro - Tempo I
+    23. Var. 22. Allegro molto alla "Notte e giorno faticar" di Mozart
+    24. Var. 23 Allegro assai
+    25. Var. 24 Fughetta. Andante
+    26. Var. 25 Allegro
+    27. Var. 26
+    28. Var. 27 Vivace
+    29. Var. 28 Allegro
+    30. Var. 29 Adagio ma non troppo
+    31. Var. 30 Andante, sempre cantabile
+    32. Var. 31 Largo, molto espressivo
+    33. Var. 32 Fuga. Allegro - Poco adagio
+    34. Var. 33 Tempo di Menuetto moderato (ma non tirarsi dietro)
+  REMOVED: title field
+
+============================================================
+Op.122: Bundeslied
+  OLD: "Bundeslied for soprano, alto, chorus and wind instruments (1824)"
+  ADDED: category=choral, pub_year=1824
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.124: The Consecration of the House
+  OLD: "Die Weihe des Hauses (The Consecration of the House), overture and incidental music (1822)"
+  ADDED: category=orchestra, pub_year=1822
+  ADDED: 1 movements from iTunes:
+    0. Overture
+  REMOVED: title field
+
+============================================================
+Op.125: symphony #9
+  OLD: "Symphony No. 9 in D minor (Choral) (1824)"
+  ADDED: form=symphony, number=9, key=D minor, category=orchestra, pub_year=1824
+  ADDED: 4 movements from iTunes:
+    1. Allegro ma non troppo, un poco maestoso
+    2. Molto vivace - Presto - Molto vivace - Presto
+    3. Adagio molto e cantabile - Andante moderato - Tempo I - Andante moderato - Adagio - Lo stesso tempo
+    4. Presto - Allegro assai - Presto - Allegro assai - Alla marcia. Allegro assai vivace - Andante maestoso - Allegro energico, sempre ben marcato - Allegro ma non tanto - Prestissimo
+  REMOVED: title field
+
+============================================================
+Op.126: Six Bagatelles
+  OLD: "Six Bagatelles for piano (1824)"
+  ADDED: category=piano, pub_year=1824
+  ADDED: 6 movements from iTunes:
+    1. Andante con moto
+    2. Allegro
+    3. Andante
+    4. Presto
+    5. Quasi allegretto
+    6. Presto - Andante amabile e con moto - Tempo I
+  REMOVED: title field
+
+============================================================
+Op.127: string quartet #12
+  OLD: "String Quartet No. 12 in E♭ major (1825)"
+  ADDED: form=string quartet, number=12, key=E-flat major, category=chamber, pub_year=1825
+  ADDED: 4 movements from iTunes:
+    1. Maestoso - Allegro - Maestoso - Allegro
+    2. Adagio, ma non troppo e molto cantabile - Andante con moto - Adagio molto espressivo - Tempo I
+    3. Scherzando vivace - Allegro - Tempo I - Allegro - Tempo I - Presto - Tempo I - Allegro - Tempo I - Allegro - Tempo I - Presto - Tempo I
+    4. Finale - Allegro con moto
+  REMOVED: title field
+
+============================================================
+Op.128: Der Kuß
+  OLD: "Song, Der Kuss (1822)"
+  ADDED: category=vocal, pub_year=1822
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.129: Rondo a capriccio
+  OLD: "Rondo à Capriccio for piano in G major (Rage over a lost penny) (1795)"
+  ADDED: form=rondo, title="Rondo a capriccio", nickname="Rage over a Lost Penny", category=piano, pub_year=1795
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.130: string quartet #13
+  OLD: "String Quartet No. 13 in B♭ major (1825–1826)"
+  ADDED: form=string quartet, number=13, key=B-flat major, category=chamber, pub_year=1825
+  ADDED: 6 movements from iTunes:
+    1. Adagio ma non troppo - Allegro
+    2. Presto
+    3. Andante con moto ma non troppo
+    4. Alla danza tedesca. Allegro assai
+    5. Cavatina. Adagio molto espressivo
+    6. Finale. Allegro
+  REMOVED: title field
+
+============================================================
+Op.131: string quartet #14
+  OLD: "String Quartet No. 14 in C♯ minor (1826)"
+  ADDED: form=string quartet, number=14, key=C-sharp minor, category=chamber, pub_year=1826
+  ADDED: 7 movements from iTunes:
+    1. Adagio ma non troppo e molto espressivo
+    2. Allegro molto vivace
+    3. Allegro moderato - Adagio
+    4. Andante ma non troppo e molto cantabile - Più mosso - Andante moderato e lusinghiero - Adagio - Allegretto - Adagio ma non troppo e semplice - Allegretto
+    5. Presto
+    6. Adagio quasi un poco andante
+    7. Allegro
+  REMOVED: title field
+
+============================================================
+Op.132: string quartet #15
+  OLD: "String Quartet No. 15 in A minor (1825)"
+  ADDED: form=string quartet, number=15, key=A minor, category=chamber, pub_year=1825
+  ADDED: 5 movements from iTunes:
+    1. Allegro sostenuto - Allegro - Adagio - Allegro
+    2. Allegro ma non tanto
+    3. Heiliger Dankgesang eines Genesenen an die Gottheit, in der Lydischen Tonart. Molto adagio - Nene Kraft fühlend. Andante - Molto adagio - Andante - Molto adagio
+    4. Alla Marcia, assai vivace - Più allegro - Presto - Poco adagio
+    5. Allegro appassionato - Presto
+  REMOVED: title field
+
+============================================================
+Op.133: Grosse Fuge
+  OLD: "Große Fuge in B♭ major for string quartet (originally finale of Opus 130) (1825)"
+  ADDED: category=chamber, pub_year=1825
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.135: string quartet #16
+  OLD: "String Quartet No. 16 in F major (1826)"
+  ADDED: form=string quartet, number=16, key=F major, category=chamber, pub_year=1826
+  ADDED: 4 movements from iTunes:
+    1. Allegretto
+    2. Vivace
+    3. Lento assai, cantante e tranquillo
+    4. Der schwer gefaßte Entschluß. Grave ma non troppo tratto - Adagio - Allegro - Grave ma non troppo tratto - Allegro - Poco adagio - Tempo I
+  REMOVED: title field
+
+============================================================
+Op.138: Leonore Overture #1
+  OLD: "Leonore, opera (earlier version of Fidelio, with Leonore Overture No. 1) (1807)"
+  ADDED: form=overture, title="Leonore Overture", number=1, category=orchestra, pub_year=1807
+  ADDED: 2 movements from iTunes:
+    1. Andante con moto
+    2. Allegro con brio
+  REMOVED: title field
+
+============================================================
+Op.32: An die Hoffnung
+  OLD: "Song An die Hoffnung (1805)"
+  ADDED: category=vocal, pub_year=1805
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.33: Seven Bagatelles
+  OLD: "Seven Bagatelles for piano (1802)"
+  ADDED: category=piano, pub_year=1802
+  ADDED: 7 movements from iTunes:
+    1. Andante grazioso, quasi allegretto
+    2. Scherzo. Allegro
+    3. Allegretto
+    4. Andante
+    5. Allegro, ma non troppo
+    6. Allegretto quasi andante
+    7. Presto
+  REMOVED: title field
+
+============================================================
+Op.34: Six Variations
+  OLD: "Six variations on an original theme for piano in F major (1802)"
+  ADDED: form=variations, title="Six Variations", key=F major, category=piano, pub_year=1802
+  ADDED: 7 movements from iTunes:
+    1. Thema. Adagio
+    2. Var. 1
+    3. Var. 2. Allegro ma non troppo
+    4. Var. 3. Allegretto
+    5. Var. 4. Tempo di Menuetto
+    6. Var. 5. Marcia. Allegretto
+    7. Variation VI. Allegretto - Coda
+  REMOVED: title field
+
+============================================================
+Op.35: Variations and Fugue
+  OLD: "Fifteen variations and a fugue for piano on an original theme in E♭ major (Eroica Variations) (1802)"
+  ADDED: form=variations, title="Variations and Fugue", nickname="Eroica Variations", category=piano, pub_year=1802
+  ADDED: 17 movements from iTunes:
+    1. Introduzione col basso del tema - Tema
+    2. Var. 1
+    3. Var. 2
+    4. Var. 3
+    5. Var. 4
+    6. Var. 5
+    7. Var. 6
+    8. Var. 8
+    9. Var. 8
+    10. Var. 9
+    11. Var. 11
+    12. Var. 11
+    13. Var. 12
+    14. Var. 13
+    15. Var. 14. Minore
+    16. Var. 15. Maggiore. Largo - Coda
+    17. Finale. Alla Fuga. Allegro con brio - Adagio - Andante con moto
+  REMOVED: title field
+
+============================================================
+Op.36: symphony #2
+  OLD: "Symphony No. 2 in D major (1802)"
+  ADDED: form=symphony, number=2, key=D major, category=orchestra, pub_year=1802
+  ADDED: 4 movements from iTunes:
+    1. Adagio molto - Allegro con brio
+    2. Larghetto
+    3. Scherzo. Allegro
+    4. Allegro molto
+  REMOVED: title field
+
+============================================================
+Op.37: piano concerto #3
+  OLD: "Piano Concerto No. 3 in C minor (1800)"
+  ADDED: form=piano concerto, number=3, key=C minor, category=concerto, pub_year=1800
+  ADDED: 3 movements from iTunes:
+    1. Allegro con brio
+    2. Largo
+    3. Rondo. Allegro
+  REMOVED: title field
+
+============================================================
+Op.40: romance #1
+  OLD: "Romance for Violin and Orchestra No. 1 in G major (1802)"
+  ADDED: form=romance, number=1, key=G major, category=concerto, pub_year=1802
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.41: Serenade for Flute and Piano
+  OLD: "Serenade for Piano and Flute (or Violin) in D major (1803) (Arrangement of Op. 25 Serenade for Flute, Violin and Viola)"
+  ADDED: form=serenade, title="Serenade for Flute and Piano", key=D major, category=chamber, pub_year=1803
+  ADDED: 7 movements from iTunes:
+    1. Entrata. Allegro
+    2. Tempo ordinario d'un Menuetto
+    3. Allegro molto
+    4. Andante con variazioni
+    5. Allegro scherzando e vivace
+    6. Adagio
+    7. Allegro vivace disinvolto - Presto
+  REMOVED: title field
+
+============================================================
+Op.43: The Creatures of Prometheus
+  OLD: "The Creatures of Prometheus, overture and ballet music (1801)"
+  ADDED: category=orchestra, pub_year=1801
+  ADDED: 17 movements from iTunes:
+    0. Overture
+    1. Poco adagio
+    2. Adagio - Allegro con brio
+    3. Allegro vivace
+    4. Maestoso - Andante
+    5. Adagio - Andante quasi Allegretto
+    6. Un poco Adagio - Allegro
+    7. Grave
+    8. Allegro con brio
+    9. Adagio
+    10. Pastorale. Allegro
+    11. Andante. Coro di Gioja
+    12. Maestoso. Solo di Gioja
+    13. Allegro. Terzettino "Grotteschi"
+    14. Andante. Solo della Casentini
+    15. Andantino. Solo di Viganò
+    16. Finale. Allegretto. Danze festive
+  REMOVED: title field
+
+============================================================
+Op.44: variations
+  OLD: "Variations on an original theme in E♭ major for piano trio (1792)"
+  ADDED: form=variations, key=E-flat major, category=piano, pub_year=1792
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.46: Adelaide
+  OLD: "Song – Adelaide (1795)"
+  ADDED: category=vocal, pub_year=1795
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.47: violin sonata #9
+  OLD: "Violin Sonata No. 9 in A major (Kreutzer) (1803)"
+  ADDED: form=violin sonata, number=9, key=A major, nickname="Kreutzer", category=chamber, pub_year=1803
+  ADDED: 3 movements from iTunes:
+    1. Adagio sostenuto - Presto - Adagio - Tempo I
+    2. Andante con variazioni
+    3. Finale. Presto
+  REMOVED: title field
+
+============================================================
+Op.48: Sechs Lieder nach Chr. F. Gellert
+  OLD: "Six Songs (1802)"
+  ADDED: category=vocal, pub_year=1802
+  ADDED: 6 movements from iTunes:
+    1. Bitten
+    2. Die Liebe des Nächsten
+    3. Vom Tade
+    4. Die Ehre Gottes aus der Natur
+    5. Gottes Macht und Vorsehung
+    6. Bußlied
+  REMOVED: title field
+
+============================================================
+Op.50: romance #2
+  OLD: "Romance for Violin and Orchestra No. 2 in F major (1798)"
+  ADDED: form=romance, number=2, key=F major, category=concerto, pub_year=1798
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.52: Acht Lieder
+  OLD: "Eight Songs (1804–1805)"
+  ADDED: category=vocal, pub_year=1804
+  ADDED: 8 movements from iTunes:
+    1. Urians Reise um die Welt
+    2. Feuerfarb'
+    3. Das Liedchen von der Ruhe
+    4. Mailied
+    5. Mollys Abschied
+    6. Lied
+    7. Marmotte
+    8. Das Blümchen Wunderhold
+  REMOVED: title field
+
+============================================================
+Op.53: piano sonata #21
+  OLD: "Piano Sonata No. 21 in C major (Waldstein) (1804)"
+  ADDED: form=piano sonata, number=21, key=C major, nickname="Waldstein", category=piano, pub_year=1804
+  ADDED: 3 movements from iTunes:
+    1. Allegro con brio
+    2. Introduzione. Adagio molto
+    3. Rondo. Allegretto moderato - Prestissimo
+  REMOVED: title field
+
+============================================================
+Op.54: piano sonata #22
+  OLD: "Piano Sonata No. 22 in F major (1804)"
+  ADDED: form=piano sonata, number=22, key=F major, category=piano, pub_year=1804
+  ADDED: 2 movements from iTunes:
+    1. In Tempo d'un Menuetto
+    2. Allegretto - Più allegro
+  REMOVED: title field
+
+============================================================
+Op.55: symphony #3
+  OLD: "Symphony No. 3 in E♭ major (Eroica) (1805)"
+  ADDED: form=symphony, number=3, key=E-flat major, nickname="Eroica", category=orchestra, pub_year=1805
+  ADDED: 4 movements from iTunes:
+    1. Allegro con brio
+    2. Marcia funebre. Adagio assai
+    3. Scherzo. Allegro vivace
+    4. Finale. Allegro molto - Poco andante - Presto
+  REMOVED: title field
+
+============================================================
+Op.56: triple concerto
+  OLD: "Triple Concerto for violin, cello, and piano in C major (1804–1805)"
+  ADDED: form=triple concerto, key=C major, category=concerto, pub_year=1804
+  ADDED: 3 movements from iTunes:
+    1. Allegro
+    2. Largo
+    3. Rondo alla polacca
+  REMOVED: title field
+
+============================================================
+Op.57: piano sonata #23
+  OLD: "Piano Sonata No. 23 in F minor (Appassionata) (1805–1806)"
+  ADDED: form=piano sonata, number=23, key=F minor, nickname="Appassionata", category=piano, pub_year=1805
+  ADDED: 3 movements from iTunes:
+    1. Allegro assai - Più Allegro
+    2. Andante con moto
+    3. Allegro ma non troppo - Presto
+  REMOVED: title field
+
+============================================================
+Op.58: piano concerto #4
+  OLD: "Piano Concerto No. 4 in G major (1805–1806)"
+  ADDED: form=piano concerto, number=4, key=G major, category=concerto, pub_year=1805
+  ADDED: 3 movements from iTunes:
+    1. Allegro moderato
+    2. Andante con moto
+    3. Rondo. Vivace
+  REMOVED: title field
+
+============================================================
+Op.60: symphony #4
+  OLD: "Symphony No. 4 in B♭ major (1806)"
+  ADDED: form=symphony, number=4, key=B-flat major, category=orchestra, pub_year=1806
+  ADDED: 4 movements from iTunes:
+    1. Adagio - Allegro vivace
+    2. Adagio
+    3. Menuetto. Allegro vivace - Un poco meno Allegro - Tempo I
+    4. Allegro ma non troppo
+  REMOVED: title field
+
+============================================================
+Op.61: violin concerto
+  OLD: "Violin Concerto in D major (1806)"
+  ADDED: form=violin concerto, key=D major, category=concerto, pub_year=1806
+  ADDED: 3 movements from iTunes:
+    1. Allegro ma non troppo
+    2. Larghetto
+    3. Rondo. Allegro
+  REMOVED: title field
+
+============================================================
+Op.62: Coriolan Overture
+  OLD: "Coriolan Overture (1807)"
+  ADDED: form=overture, title="Coriolan Overture", category=orchestra, pub_year=1807
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.66: Twelve Variations on
+  OLD: "12 Variations for cello and piano in F major on Ein Mädchen oder Weibchen from Mozart's The Magic Flute (1796)"
+  ADDED: nickname="Ein Mädchen oder Weibchen", category=chamber, pub_year=1796
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.67: symphony #5
+  OLD: "Symphony No. 5 in C minor (1807–1808)"
+  ADDED: form=symphony, number=5, key=C minor, category=orchestra, pub_year=1807
+  ADDED: 4 movements from iTunes:
+    1. Allegro con brio
+    2. Andante con moto
+    3. Allegro
+    4. Allegro
+  REMOVED: title field
+
+============================================================
+Op.68: symphony #6
+  OLD: "Symphony No. 6 in F major (Pastoral) (1807–1808)"
+  ADDED: form=symphony, number=6, key=F major, nickname="Pastoral", category=orchestra, pub_year=1807
+  ADDED: 5 movements from iTunes:
+    1. Allegro ma non troppo
+    2. Andante molto mosso
+    3. Allegro
+    4. Allegro
+    5. Allegretto
+  REMOVED: title field
+
+============================================================
+Op.69: cello sonata #3
+  OLD: "Cello Sonata No. 3 in A major (1808)"
+  ADDED: form=cello sonata, number=3, key=A major, category=chamber, pub_year=1808
+  ADDED: 3 movements from iTunes:
+    1. Allegro ma non tanto
+    2. Scherzo. Allegro molto
+    3. Adagio cantabile - Allegro vivace
+  REMOVED: title field
+
+============================================================
+Op.73: piano concerto #5
+  OLD: "Piano Concerto No. 5 in E♭ major (Emperor) (1809)"
+  ADDED: form=piano concerto, number=5, key=E-flat major, nickname="Emperor", category=concerto, pub_year=1809
+  ADDED: 3 movements from iTunes:
+    1. Allegro
+    2. Adagio un poco moto
+    3. Rondo. Allegro, ma non troppo - Adagio - Più allegro
+  REMOVED: title field
+
+============================================================
+Op.74: string quartet #10
+  OLD: "String Quartet No. 10 in E♭ major (Harp) (1809)"
+  ADDED: form=string quartet, number=10, key=E-flat major, nickname="Harp", category=chamber, pub_year=1809
+  ADDED: 4 movements from iTunes:
+    1. Poco Adagio
+    2. Adagio ma non troppo
+    3. Presto - Più presto quasi prestissimo - Tempo I - Più presto quasi prestissimo - Tempo I
+    4. Allegretto con Variazioni - un poco più vivace - Allego
+  REMOVED: title field
+
+============================================================
+Op.75: Sechs Lieder
+  OLD: "Six Songs (1809)"
+  ADDED: category=vocal, pub_year=1809
+  ADDED: 6 movements from iTunes:
+    1. Mignon
+    2. Neue Liebe, neues Leben
+    3. Aus Goethes Faust
+    4. Gretels Warnung
+    5. An den fernen Geliebten
+    6. Der Zufriedene
+  REMOVED: title field
+
+============================================================
+Op.78: piano sonata #24
+  OLD: "Piano Sonata No. 24 in F♯ major (1809)"
+  ADDED: form=piano sonata, number=24, key=F-sharp major, category=piano, pub_year=1809
+  ADDED: 2 movements from iTunes:
+    1. Adagio cantabile - Allegro ma non troppo
+    2. Allegro vivace
+  REMOVED: title field
+
+============================================================
+Op.79: piano sonata #25
+  OLD: "Piano Sonata No. 25 in G major (1809)"
+  ADDED: form=piano sonata, number=25, key=G major, category=piano, pub_year=1809
+  ADDED: 3 movements from iTunes:
+    1. Presto alla tedesca
+    2. Andante
+    3. Vivace
+  REMOVED: title field
+
+============================================================
+Op.80: Choral Fantasy
+  OLD: "Choral Fantasy (Fantasia in C minor for piano, chorus, and orchestra) (1808)"
+  ADDED: form=fantasia, title="Choral Fantasy", category=piano, pub_year=1808
+  ADDED: 2 movements from iTunes:
+    1. Adagio
+    2. Finale. Allegro - Allegretto - Allegro molto - Adagio ma non troppo - Marcia assai vivace - Allegro - Allegretto ma non troppo quasi Andante con moto - Presto
+  REMOVED: title field
+
+============================================================
+Op.82: Vier Arietten und ein Duett
+  OLD: "Four Ariettas and a Duet (1809)"
+  ADDED: category=vocal, pub_year=1809
+  ADDED: 5 movements from iTunes:
+    1. Hoffnung
+    2. Liebes-Klage
+    3. L'amante impaziente. Arietta buffa
+    4. L'amante impaziente. Arietta assai seriosa
+    5. Lebensgenuß
+  REMOVED: title field
+
+============================================================
+Op.83: Drei Lieder
+  OLD: "Three Songs (1810)"
+  ADDED: category=vocal, pub_year=1810
+  ADDED: 3 movements from iTunes:
+    1. Wonne der Wehmut
+    2. Sehnsucht
+    3. Mit einem gemalten Band
+  REMOVED: title field
+
+============================================================
+Op.84: Egmont
+  OLD: "Egmont, overture and incidental music (1810)"
+  ADDED: category=orchestra, pub_year=1810
+  ADDED: 10 movements from iTunes:
+    1. Overture
+    2. Die Trommel gerühret
+    3. Entr'acte I. Andante
+    4. Entr'acte II. Larghetto
+    5. Freudvoll und leidvoll
+    6. Entr'acte III. Allegro
+    7. Entr'acte IV. Poco sostenuto e risoluto
+    8. Klärchens Tod
+    9. Melodrama
+    10. Symphony of Victory
+  REMOVED: title field
+
+============================================================
+Op.88: Das Glück der Freundschaft
+  OLD: "Song Das Glück der Freundschaft (1803)"
+  ADDED: category=vocal, pub_year=1803
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.90: piano sonata #27
+  OLD: "Piano Sonata No. 27 in E minor (1814)"
+  ADDED: form=piano sonata, number=27, key=E minor, category=piano, pub_year=1814
+  ADDED: 2 movements from iTunes:
+    1. Mit Lebhaftigkeit und durchaus mit Empfindung und Ausdruck
+    2. Nicht zu geschwind und sehr singbar vorgetragen
+  REMOVED: title field
+
+============================================================
+Op.92: symphony #7
+  OLD: "Symphony No. 7 in A major (1812)"
+  ADDED: form=symphony, number=7, key=A major, category=orchestra, pub_year=1812
+  ADDED: 4 movements from iTunes:
+    1. Poco sostenuto - Vivace
+    2. Allegretto
+    3. Presto - Assai meno presto - Presto
+    4. Allegro con brio
+  REMOVED: title field
+
+============================================================
+Op.93: symphony #8
+  OLD: "Symphony No. 8 in F major (1812)"
+  ADDED: form=symphony, number=8, key=F major, category=orchestra, pub_year=1812
+  ADDED: 4 movements from iTunes:
+    1. Allegro vivace e con brio
+    2. Allegretto scherzando
+    3. Tempo di menuetto
+    4. Allegro vivace
+  REMOVED: title field
+
+============================================================
+Op.94: An die Hoffnung
+  OLD: "Song An die Hoffnung (1814)"
+  ADDED: category=vocal, pub_year=1814
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+Op.95: string quartet #11
+  OLD: "String Quartet No. 11 in F minor (Serioso) (1810)"
+  ADDED: form=string quartet, number=11, key=F minor, nickname="Quartetto serioso", category=chamber, pub_year=1810
+  ADDED: 4 movements from iTunes:
+    1. Allegro con brio
+    2. Allegretto ma non troppo
+    3. Allegro assai vivace ma serioso
+    4. Larghetto espressivo - Allegretto agitato
+  REMOVED: title field
+
+============================================================
+Op.96: violin sonata #10
+  OLD: "Violin Sonata No. 10 in G major (1812)"
+  ADDED: form=violin sonata, number=10, key=G major, category=chamber, pub_year=1812
+  ADDED: 4 movements from iTunes:
+    1. Allegro moderato
+    2. Adagio espressivo
+    3. Scherzo. Allegro
+    4. Poco allegretto
+  REMOVED: title field
+
+============================================================
+Op.97: piano trio
+  OLD: "Piano Trio No. 7 in B♭ major (Archduke) (1811)"
+  ADDED: form=piano trio, key=B-flat major, nickname="Archduke", category=chamber, pub_year=1811
+  ADDED: 4 movements from iTunes:
+    1. Allegro moderato
+    2. Scherzo. Allegro
+    3. Andante cantabile, ma però con moto
+    4. Allegro moderato
+  REMOVED: title field
+
+============================================================
+Op.98: song cycle
+  OLD: "An die ferne Geliebte, song cycle (1816)"
+  ADDED: form=song cycle, category=vocal, pub_year=1816
+  ADDED: 6 movements from iTunes:
+    1. Auf dem Hügel sitz ich spähend
+    2. Wo die Berge so blau
+    3. Leichte Segler in den Höhen
+    4. Diese Wolken in den Höhen
+    5. Es kehret der Maien, es blühet die Au
+    6. Nimm sie hin denn Diese Lieder
+  REMOVED: title field
+
+============================================================
+Op.99: Der Mann von Wort
+  OLD: "Song Der Mann von Wort (1816)"
+  ADDED: category=vocal, pub_year=1816
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO105: Hochzeitslied
+  OLD: "Song for solo voice, chorus and piano 'Hochzeitslied'"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO106: Lobkowitz-Kantate
+  OLD: "Birthday Cantata for Prince Lobkowitz"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO107: Schilderung eines Mädchens
+  OLD: "Schilderung eines Mädchens"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO108: An einen Säugling
+  OLD: "An einen Säugling"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO109: Trinklied
+  OLD: "Trinklied"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO110: Elegie auf den Tod eines Pudels
+  OLD: "Elegie auf den Tod eines Pudels"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO111: Punschlied
+  OLD: "Punschlied"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO112: An Laura
+  OLD: "An Laura"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO113: Klage
+  OLD: "Klage"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO114: Ein Selbstgepräch
+  OLD: "Ein Selbstgepräch"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO115: An Minna
+  OLD: "An Minna"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO116: Moll und Dur
+  OLD: "Moll und Dur"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO117: Der freie Mann
+  OLD: "Der freie Mann"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO118: Seufzer eines Ungeliebten
+  OLD: "Seufzer eines Ungeliebten und Gegenliebe"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO119: O care selve
+  OLD: "'O care selve'"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO120: Pour Madame Weißenthurn
+  OLD: "Seufzer eines Ungeliebten"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO121: Abschiedgesang an Wiens Bürger
+  OLD: "Abschiedgesang an Wiens Bürger"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO122: Kriegslied der Österreicher
+  OLD: "Kriegslied der Österreicher"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO123: Zärtliche Liebe
+  OLD: "Zärtliche Liebe"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO124: La partenza
+  OLD: "La Partenza"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO125: La tiranna
+  OLD: "La tiranna"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO126: Opferlied
+  OLD: "Opferlied"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO128: Plaisir d'aimer
+  OLD: "Plaisir d’aimer"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO129: Der Wachtelschlag
+  OLD: "Der Wachtelschlag"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO130: Gedenke mein
+  OLD: "'Gedenke mein'"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO132: Als die Geliebte sich trennen wollte
+  OLD: "Als die Geliebte sich trennen wollte"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO133: In questa tomba oscura
+  OLD: "'In questa tomba oscura'"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO134: Sehnsucht
+  OLD: "Sehnsucht"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO135: Die laute Klage
+  OLD: "Die laute Klage"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO136: Andenken
+  OLD: "Andenken"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO137: Lied aus der Ferne
+  OLD: "Lied aus der Ferne"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO138: Der Jüngling in der Fremde
+  OLD: "Der Jüngling in der Fremde"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO139: Der Liebende
+  OLD: "Der Liebende"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO140: An die Geliebte
+  OLD: "An die Geliebte"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO141: Der Gesang der Nachtigall
+  OLD: "Der Gesang der Nachtigall"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO142: Der Bardengeist
+  OLD: "Der Bardengeist"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO143: Des Kriegers Abschied
+  OLD: "Des Krieger Abschied"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO144: Merkenstein
+  OLD: "Merkenstein"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO145: Das Geheimnis
+  OLD: "Das Geheimnis"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO146: Sehnsucht
+  OLD: "Sehnsucht"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO147: Ruf vom Berge
+  OLD: "Ruf vom Berge"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO148: So oder so
+  OLD: "So oder so"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO149: Resignation
+  OLD: "Resignation"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO150: Abendlied unterm gestirnten Himmel
+  OLD: "Abendlied unterm gestirnten Himmel"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO151: Der edle Mensch sei hilfreich und gut
+  OLD: "'Der edle Mensch sei hilfreich und gut'"
+  ADDED: category=vocal
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO26: Duo for Two Flutes
+  OLD: "Duo for two flutes (1792)"
+  ADDED: form=duo, title="Duo for Two Flutes", category=chamber, pub_year=1792
+  ADDED: 2 movements from iTunes:
+    1. Allegro con brio
+    2. Minuetto quasi allegretto
+  REMOVED: title field
+
+============================================================
+WoO37: Trio for Piano, Flute, and Bassoon
+  OLD: "Trio for piano, flute, and bassoon in G major (1786)"
+  ADDED: form=trio, title="Trio for Piano, Flute, and Bassoon", key=G major, category=chamber, pub_year=1786
+  ADDED: 3 movements from iTunes:
+    1. Allegro
+    2. Adagio
+    3. Thema andante con Variazioni
+  REMOVED: title field
+
+============================================================
+WoO38: piano trio
+  OLD: "Piano Trio in E♭ major (Piano Trio No. 8) (1791)"
+  ADDED: form=piano trio, key=B-flat major, category=chamber, pub_year=1791
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO46: Seven Variations on
+  OLD: "Seven Variations for cello and piano in E♭ major on 'Bei Männern welche Liebe fühlen' from Mozart's The Magic Flute (1801)"
+  ADDED: nickname="Bei Männern, welche Liebe fühlen", category=chamber, pub_year=1801
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO47: Set of 3 pieces
+  OLD: "Three piano sonatas (E♭ major, F minor, D major) ('Kurfürsten Sonatas') (1783)"
+  ADDED: form=set, category=piano, pub_year=1783
+  SUBPIECE #1: piano sonata in E-flat major
+    3 movements:
+      1. Allegro cantabile
+      2. Andante
+      3. Rondo vivace
+  SUBPIECE #2: piano sonata in F minor
+    3 movements:
+      1. Larghetto maestoso - Allegro assai
+      2. 2. Andante
+      3. 3. Presto
+  SUBPIECE #3: piano sonata in D major
+    3 movements:
+      1. Allegro
+      2. Menuetto - Sostenuto
+      3. Scherzando. Allegretto, ma non troppo
+  REMOVED: title field
+
+============================================================
+WoO51: piano sonata
+  OLD: "Piano Sonata in C major (1797–98, fragment) completed Ferdinand Ries, 1830"
+  ADDED: form=piano sonata, key=C major, category=piano, pub_year=1797
+  ADDED: 2 movements from iTunes:
+    1. Allegro
+    2. Adagio
+  REMOVED: title field
+
+============================================================
+WoO53: Allegretto
+  OLD: "Allegretto (Bagatelle) for piano in C minor (1796–97)"
+  ADDED: key=C minor, category=piano, pub_year=1796
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO57: Andante favori
+  OLD: "Andante favori – original middle movement from Piano Sonata No. 21 (Waldstein) (1805)"
+  ADDED: key=F major, category=piano, pub_year=1805
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO59: bagatelle
+  OLD: "Poco moto (Bagatelle) for piano in A minor ('Für Elise') (c. 1810)"
+  ADDED: form=bagatelle, key=A minor, nickname="Für Elise", category=piano, pub_year=1810
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO60: bagatelle
+  OLD: "Ziemlich lebhaft (Bagatelle) for piano in B♭ major (1818))"
+  ADDED: form=bagatelle, key=B-flat major, category=piano, pub_year=1818
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+WoO70: Six Variations on
+  OLD: "Six variations for piano on 'Nel cor più non mi sento' from Giovanni Paisiello's opera La Molinara (1795)"
+  ADDED: nickname="Nel cor più non mi sento", category=piano, pub_year=1795
+  ADDED: 7 movements from iTunes:
+    1. Thema. Andantino
+    2. Variation I
+    3. Variation II
+    4. Variation III
+    5. Variation IV
+    6. Variation V
+    7. Variation VI
+  REMOVED: title field
+
+============================================================
+WoO79: Five Variations on
+  OLD: "Five variations for piano on 'Rule Britannia!' (1803)"
+  ADDED: nickname="Rule Britannia", category=piano, pub_year=1803
+  ADDED: 6 movements from iTunes:
+    1. Thema. Tempo moderato
+    2. Variation I
+    3. Variation II
+    4. Variation III
+    5. Variation IV
+    6. Variation V - Coda
+  REMOVED: title field
+
+============================================================
+WoO80: 32 Variations
+  OLD: "Thirty-two variations on an original theme in C minor for piano (1806)"
+  ADDED: form=variations, title="32 Variations", key=C minor, category=piano, pub_year=1806
+  ADDED: 25 movements from iTunes:
+    1. Thema. Allegretto
+    2. Var. 1
+    3. Var. 2
+    4. Var. 3
+    5. Var. 4
+    6. Var. 5
+    7. Var. 6
+    8. Var. 7
+    9. Var. 8
+    10. Var. 9
+    11. Var. 10
+    12. Var. 11
+    13. Var. 12
+    14. Var. 13
+    15. Var. 14
+    20. Var. 19
+    23. Var. 22
+    24. Var. 23
+    25. Var. 24
+    26. Var. 25
+    27. Var. 26
+    28. Var. 27
+    29. Var. 28
+    32. Var. 31
+    33. Var. 32
+  REMOVED: title field
+
+============================================================
+WoO83: Six Ecossaises
+  OLD: "Six Écossaises for piano in E♭ major (1806)"
+  ADDED: category=piano, pub_year=1806
+  NOTE: No movement data extracted
+  REMOVED: title field
+
+============================================================
+SUMMARY
+============================================================
+  Source: iTunes Music Library.xml (CD archive tracks)
+  Total pieces updated: 134
+  Total movements added: 364
+  Abbreviated entries remaining: 209

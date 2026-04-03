@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CDArchive.App/CDArchive.App.csproj" />
+    <Project Path="src/CDArchive.Core/CDArchive.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CDArchive.Core.Tests/CDArchive.Core.Tests.csproj" />
+  </Folder>
+</Solution>

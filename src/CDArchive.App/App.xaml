@@ -1,0 +1,32 @@
+<Application x:Class="CDArchive.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:views="clr-namespace:CDArchive.App.Views">
+    <Application.Resources>
+        <DataTemplate DataType="{x:Type vm:NewAlbumViewModel}">
+            <views:NewAlbumView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ArchiveBrowserViewModel}">
+            <views:ArchiveBrowserView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ValidationViewModel}">
+            <views:ValidationView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ConversionViewModel}">
+            <views:ConversionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ConversionStatusViewModel}">
+            <views:ConversionStatusView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CatalogueViewModel}">
+            <views:CatalogueView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CanonViewModel}">
+            <views:CanonView />
+        </DataTemplate>
+    </Application.Resources>
+</Application>

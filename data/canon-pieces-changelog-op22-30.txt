@@ -1,0 +1,156 @@
+============================================================
+Op. 22: Piano Sonata No. 11 in B-flat major
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "22"}], "composer": "Beethoven, Ludwig van", "title": "Piano Sonata No. 11 in B♭ major (1800)"}
+  ADDED: form=piano sonata, number=11, key=B-flat major
+  ADDED: instrumentation=[piano], category=piano
+  ADDED: publication_year=1800
+  ADDED: 4 movements from iTunes:
+    1. Allegro con brio
+    2. Adagio con molta espressione
+    3. Minuetto
+    4. Rondo. Allegretto
+  REMOVED: title field (now derived from form/number/key/catalog)
+
+============================================================
+Op. 23: Violin Sonata No. 4 in A minor
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "23"}], "composer": "Beethoven, Ludwig van", "title": "Violin Sonata No. 4 in A minor (1801)"}
+  ADDED: form=violin sonata, number=4, key=A minor
+  ADDED: instrumentation=[violin, piano], category=chamber
+  ADDED: publication_year=1801
+  ADDED: 3 movements from iTunes:
+    1. Presto
+    2. Andante scherzoso, più allegretto
+    3. Allegro molto
+  REMOVED: title field
+
+============================================================
+Op. 24: Violin Sonata No. 5 in F major "Spring"
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "24"}], "composer": "Beethoven, Ludwig van", "title": "Violin Sonata No. 5 in F major (Spring) (1801)"}
+  ADDED: form=violin sonata, number=5, key=F major, nickname=Spring
+  ADDED: instrumentation=[violin, piano], category=chamber
+  ADDED: publication_year=1801
+  ADDED: 4 movements from iTunes:
+    1. Allegro
+    2. Adagio molto espressivo
+    3. Scherzo. Allegro molto
+    4. Rondo. Allegro ma non troppo
+  REMOVED: title field
+
+============================================================
+Op. 25: Serenade for Flute, Violin and Viola in D major
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "25"}], "composer": "Beethoven, Ludwig van", "title": "Serenade for Flute, Violin and Viola in D major (1801)"}
+  NOTE: Not found in iTunes CD archive - consulted web sources
+  Sources: Wikipedia, IMSLP (first pub. Cappi, Vienna, 1802)
+  ADDED: form=serenade, key=D major
+  ADDED: instrumentation=[flute, violin, viola], category=chamber
+  UPDATED: publication_year 1801 -> 1802 (per IMSLP first publication date)
+  ADDED: 6 movements from web sources:
+    1. Entrata. Allegro
+    2. Tempo ordinario d'un minuetto
+    3. Allegro molto
+    4. Andante con variazioni
+    5. Allegro scherzando e vivace
+    6. Adagio - Allegro vivace e disinvolto
+  REMOVED: title field
+
+============================================================
+Op. 26: Piano Sonata No. 12 in A-flat major
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "26"}], "composer": "Beethoven, Ludwig van", "title": "Piano Sonata No. 12 in A♭ major (1801)"}
+  ADDED: form=piano sonata, number=12, key=A-flat major
+  ADDED: instrumentation=[piano], category=piano
+  ADDED: publication_year=1801
+  ADDED: 4 movements from iTunes:
+    1. Andante con variazioni
+    2. Scherzo. Allegro molto
+    3. Marcia funebre sulla morte d'un eroe
+    4. Allegro
+  REMOVED: title field
+
+============================================================
+Op. 27: Two Piano Sonatas (set)
+  OLD: had title + subpieces with title-only entries
+  ADDED: form=set, instrumentation=[piano], category=piano
+  ADDED: publication_year=1801
+  UPDATED: subpiece Op. 27 #1 - Piano Sonata No. 13 in E-flat major:
+    ADDED: form=piano sonata, number=13, key=E-flat major
+    ADDED: 4 movements from iTunes:
+      1. Andante - Allegro - Tempo I
+      2. Allegro molto e vivace
+      3. Adagio con espressione
+      4. Allegro vivace - Adagio - Presto
+    REMOVED: title field
+  UPDATED: subpiece Op. 27 #2 - Piano Sonata No. 14 in C-sharp minor "Moonlight":
+    ADDED: form=piano sonata, number=14, key=C-sharp minor, nickname=Moonlight
+    ADDED: 3 movements from iTunes:
+      1. Adagio sostenuto
+      2. Allegretto
+      3. Presto agitato - Adagio - Tempo I
+    REMOVED: title field
+  REMOVED: top-level title field
+
+============================================================
+Op. 28: Piano Sonata No. 15 in D major "Pastoral"
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "28"}], "composer": "Beethoven, Ludwig van", "title": "Piano Sonata No. 15 in D major (Pastoral) (1801)"}
+  ADDED: form=piano sonata, number=15, key=D major, nickname=Pastoral
+  ADDED: instrumentation=[piano], category=piano
+  ADDED: publication_year=1801
+  ADDED: 4 movements from iTunes:
+    1. Allegro
+    2. Andante
+    3. Scherzo. Allegro vivace
+    4. Rondo. Allegro, ma non troppo - Più allegro quasi presto
+  REMOVED: title field
+
+============================================================
+Op. 29: String Quintet in C major
+  OLD: title-only entry: {"catalog_info": [{"catalog": "Op.", "catalog_number": "29"}], "composer": "Beethoven, Ludwig van", "title": "String Quintet in C major (1801)"}
+  ADDED: form=string quintet, key=C major
+  ADDED: instrumentation=[violin, violin, viola, viola, cello], category=chamber
+  ADDED: publication_year=1801
+  ADDED: 4 movements from iTunes:
+    1. Allegro moderato
+    2. Adagio molto espressivo
+    3. Scherzo. Allegro
+    4. Presto
+  REMOVED: title field
+
+============================================================
+Op. 30: Three Violin Sonatas (set)
+  OLD: had title + subpieces with title-only entries
+  ADDED: form=set, instrumentation=[violin, piano], category=chamber
+  ADDED: publication_year=1802
+  UPDATED: subpiece Op. 30 #1 - Violin Sonata No. 6 in A major:
+    ADDED: form=violin sonata, number=6, key=A major
+    ADDED: 3 movements from iTunes:
+      1. Allegro
+      2. Adagio molto espressivo
+      3. Allegretto con variazioni
+    REMOVED: title field
+  UPDATED: subpiece Op. 30 #2 - Violin Sonata No. 7 in C minor:
+    ADDED: form=violin sonata, number=7, key=C minor
+    ADDED: 4 movements from iTunes:
+      1. Allegro con brio
+      2. Adagio cantabile
+      3. Scherzo. Allegro
+      4. Finale. Allegro - Presto
+    REMOVED: title field
+  UPDATED: subpiece Op. 30 #3 - Violin Sonata No. 8 in G major:
+    ADDED: form=violin sonata, number=8, key=G major
+    ADDED: 3 movements from iTunes:
+      1. Allegro assai
+      2. Tempo di minuetto, ma molto moderato e grazioso
+      3. Allegro vivace
+    REMOVED: title field
+  REMOVED: top-level title field
+
+============================================================
+SUMMARY
+============================================================
+  Source: iTunes Music Library.xml (CD archive tracks)
+  Total pieces updated: 9 (Op. 22-30)
+  Pieces with full movement data from iTunes: 8
+  Pieces with movement data from web sources: 1 (Op. 25 Serenade — Wikipedia, IMSLP)
+  Total movements added: 42
+  Fields added per piece: form, key_tonality, key_mode, number,
+    instrumentation, instrumentation_category, publication_year, subpieces
+  Fields removed: title (replaced by derived display from structured fields)

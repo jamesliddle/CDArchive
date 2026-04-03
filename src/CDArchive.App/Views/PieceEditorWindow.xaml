@@ -1,0 +1,283 @@
+<Window x:Class="CDArchive.App.Views.PieceEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit Piece" Width="560" Height="685"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="#555" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="Margin" Value="0,3" />
+        </Style>
+        <Style x:Key="FieldCombo" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="IsEditable" Value="True" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+        <!-- Buttons at bottom -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="Edit Pick Lists..." Width="110" Padding="0,6"
+                    HorizontalAlignment="Left" Click="OnEditPickListsClick" />
+            <Border Width="80" />
+            <Button Content="OK" Width="80" Padding="0,6"
+                    IsDefault="True" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Padding="0,6"
+                    Margin="8,0,0,0" IsCancel="True" />
+        </StackPanel>
+
+        <!-- Form fields -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+          <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Form" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                           x:Name="FormCombo" />
+
+                <TextBlock Grid.Row="1" Text="Title" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="TitleBox" />
+
+                <TextBlock Grid.Row="2" Text="Title (English)" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="TitleEnglishBox"
+                           ToolTip="English translation of a non-English title" />
+
+                <TextBlock Grid.Row="3" Text="Subtitle" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="SubtitleBox" />
+
+                <TextBlock Grid.Row="4" Text="Nickname" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="NicknameBox" />
+
+                <TextBlock Grid.Row="5" Text="Number" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="NumberBox" Width="80" HorizontalAlignment="Left" />
+
+                <TextBlock Grid.Row="6" Text="Key Tonality" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                           x:Name="KeyTonalityCombo" Width="120" HorizontalAlignment="Left" />
+
+                <TextBlock Grid.Row="7" Text="Key Mode" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="7" Grid.Column="1" Width="120" HorizontalAlignment="Left"
+                           Margin="0,3" Padding="4,4" FontSize="13"
+                           x:Name="KeyModeCombo">
+                    <ComboBoxItem Content="" />
+                    <ComboBoxItem Content="major" />
+                    <ComboBoxItem Content="minor" />
+                </ComboBox>
+
+                <!-- Catalogue — supports multiple catalog systems (e.g. Op. + B.) -->
+                <TextBlock Grid.Row="8" Text="Catalogue" Style="{StaticResource FieldLabel}"
+                           VerticalAlignment="Top" Margin="0,6,8,0" />
+                <Border Grid.Row="8" Grid.Column="1" Margin="0,3"
+                        BorderThickness="1" BorderBrush="#CCC">
+                    <StackPanel>
+                        <DockPanel MinHeight="20" MaxHeight="72">
+                            <Button DockPanel.Dock="Right" Content="✕" Padding="6,3" FontSize="11"
+                                    VerticalAlignment="Top" Margin="2"
+                                    ToolTip="Remove selected entry"
+                                    Click="OnRemoveCatalogClick" />
+                            <ListBox x:Name="CatalogList" FontSize="12" BorderThickness="0" />
+                        </DockPanel>
+                        <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
+                        <Grid Margin="4,4,4,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0" Style="{StaticResource FieldCombo}"
+                                      x:Name="CatalogPrefixCombo" Margin="0,0,4,0" />
+                            <TextBox  Grid.Column="1" Style="{StaticResource FieldBox}"
+                                      x:Name="CatalogNumberBox" />
+                            <Button   Grid.Column="2" Content="Add" Padding="8,3" FontSize="11"
+                                      Margin="4,3,0,3" Click="OnAddCatalogClick" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="9" Text="Category" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="9" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                           x:Name="CategoryCombo" Width="160" HorizontalAlignment="Left" />
+
+                <TextBlock Grid.Row="10" Text="Instrumentation" Style="{StaticResource FieldLabel}"
+                           VerticalAlignment="Top" Margin="0,6,8,0" />
+                <Grid Grid.Row="10" Grid.Column="1" Margin="0,3" Height="160">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Piece instruments (left) with edit buttons above -->
+                    <DockPanel Grid.Column="0">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,2">
+                            <TextBlock Text="Piece" FontSize="10" Foreground="#888"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <Button Content="Edit" Padding="6,1" FontSize="10" Margin="0,0,4,0"
+                                    Click="OnEditInstrumentClick" />
+                            <Button Content="✕" Padding="6,1" FontSize="10" Margin="0,0,4,0"
+                                    ToolTip="Remove" Click="OnRemoveInstrumentClick" />
+                            <Button Content="↑" Padding="6,1" FontSize="10" Margin="0,0,4,0"
+                                    Click="OnMoveInstrumentUpClick" />
+                            <Button Content="↓" Padding="6,1" FontSize="10"
+                                    Click="OnMoveInstrumentDownClick" />
+                        </StackPanel>
+                        <ListBox x:Name="InstrumentsList" FontSize="12"
+                                 BorderThickness="1" BorderBrush="#CCC"
+                                 MouseDoubleClick="OnInstrumentDoubleClick" />
+                    </DockPanel>
+                    <!-- Arrow buttons (centre) -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0">
+                        <Button Content="&#x2190;" FontSize="14" Padding="6,2" Margin="0,2"
+                                ToolTip="Remove from piece"
+                                Click="OnRemoveInstrumentClick" />
+                        <Button Content="&#x2192;" FontSize="14" Padding="6,2" Margin="0,2"
+                                ToolTip="Add to piece"
+                                Click="OnAddFromAvailableClick" />
+                    </StackPanel>
+                    <!-- Available instruments (right) -->
+                    <DockPanel Grid.Column="2">
+                        <TextBlock DockPanel.Dock="Top" Text="Available" FontSize="10"
+                                   Foreground="#888" Margin="0,0,0,2" />
+                        <ListBox x:Name="AvailableInstrumentsList" FontSize="12"
+                                 BorderThickness="1" BorderBrush="#CCC"
+                                 MouseDoubleClick="OnAvailableInstrumentDoubleClick" />
+                    </DockPanel>
+                </Grid>
+
+                <TextBlock Grid.Row="11" Text="Pub. Year" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="11" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="PubYearBox" Width="80" HorizontalAlignment="Left" />
+
+                <TextBlock Grid.Row="12" Text="Comp. Years" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="12" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="CompYearsBox"
+                           ToolTip="Year(s) of composition, e.g. 1803, 1803-1804, c1893" />
+
+                <TextBlock Grid.Row="13" Text="Librettist" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="13" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="LibrettistBox"
+                           ToolTip="Librettist(s), comma-separated if more than one" />
+
+                <TextBlock Grid.Row="14" Text="Text Author" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="14" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="TextAuthorBox"
+                           ToolTip="Poet or text source for songs and song cycles" />
+
+                <TextBlock Grid.Row="15" Text="Descriptive Title" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="15" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="DescriptiveTitleBox" />
+
+                <TextBlock Grid.Row="16" Text="Name" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="16" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="NameBox" />
+            </Grid>
+
+            <!-- Subpieces (movements) section -->
+            <TextBlock Text="Movements / Subpieces" FontWeight="SemiBold" FontSize="12"
+                       Foreground="#555" Margin="0,14,0,6" />
+
+            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                    Padding="6" MinHeight="80">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
+                        <Button Content="Add" Padding="8,3" FontSize="11"
+                                Margin="0,0,0,0" Click="OnAddSubpieceClick" />
+                        <Button Content="Edit" Padding="8,3" FontSize="11"
+                                Margin="0,4,0,0" Click="OnEditSubpieceClick" />
+                        <Button Content="Remove" Padding="8,3" FontSize="11"
+                                Margin="0,4,0,0" Click="OnRemoveSubpieceClick" />
+                        <Border Height="8" />
+                        <Button Content="Up" Padding="8,3" FontSize="11"
+                                Margin="0,0,0,0" Click="OnMoveSubpieceUpClick" />
+                        <Button Content="Down" Padding="8,3" FontSize="11"
+                                Margin="0,4,0,0" Click="OnMoveSubpieceDownClick" />
+                    </StackPanel>
+                    <ListBox x:Name="SubpieceList" FontSize="12" MinHeight="60"
+                             BorderThickness="1" BorderBrush="#CCC"
+                             MouseDoubleClick="OnSubpieceDoubleClick" />
+                </DockPanel>
+            </Border>
+
+            <!-- Versions section -->
+            <TextBlock Text="Versions" FontWeight="SemiBold" FontSize="12"
+                       Foreground="#555" Margin="0,14,0,6" />
+
+            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                    Padding="6" MinHeight="60">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
+                        <Button Content="Add"    Padding="8,3" FontSize="11" Margin="0,0,0,0" Click="OnAddVersionClick" />
+                        <Button Content="Edit"   Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnEditVersionClick" />
+                        <Button Content="Remove" Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnRemoveVersionClick" />
+                        <Border Height="8" />
+                        <Button Content="Up"     Padding="8,3" FontSize="11" Margin="0,0,0,0" Click="OnMoveVersionUpClick" />
+                        <Button Content="Down"   Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnMoveVersionDownClick" />
+                    </StackPanel>
+                    <ListBox x:Name="VersionList" FontSize="12" MinHeight="40"
+                             BorderThickness="1" BorderBrush="#CCC"
+                             MouseDoubleClick="OnVersionDoubleClick" />
+                </DockPanel>
+            </Border>
+            <!-- Roles section -->
+            <TextBlock Text="Roles" FontWeight="SemiBold" FontSize="12"
+                       Foreground="#555" Margin="0,14,0,6" />
+
+            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                    Padding="6" MinHeight="60">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
+                        <Button Content="Add"    Padding="8,3" FontSize="11" Margin="0,0,0,0" Click="OnAddRoleClick" />
+                        <Button Content="Edit"   Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnEditRoleClick" />
+                        <Button Content="Remove" Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnRemoveRoleClick" />
+                        <Border Height="8" />
+                        <Button Content="Up"     Padding="8,3" FontSize="11" Margin="0,0,0,0" Click="OnMoveRoleUpClick" />
+                        <Button Content="Down"   Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnMoveRoleDownClick" />
+                    </StackPanel>
+                    <ListBox x:Name="RoleList" FontSize="12" MinHeight="40"
+                             BorderThickness="1" BorderBrush="#CCC"
+                             MouseDoubleClick="OnRoleDoubleClick" />
+                </DockPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

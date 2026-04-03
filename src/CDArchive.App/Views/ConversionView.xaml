@@ -1,0 +1,126 @@
+<UserControl x:Class="CDArchive.App.Views.ConversionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:converters="clr-namespace:CDArchive.App.Converters"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ConversionViewModel}">
+
+    <UserControl.Resources>
+        <converters:ConversionStatusToColorConverter x:Key="StatusToColorConverter" />
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- Top Controls -->
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,15">
+            <!-- Album Selection Row -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <Button Content="Load Albums"
+                        Command="{Binding LoadAlbumsCommand}"
+                        FontSize="14"
+                        Padding="20,8"
+                        Background="#007ACC"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Margin="0,0,12,0" />
+
+                <ComboBox ItemsSource="{Binding Albums}"
+                          SelectedItem="{Binding SelectedAlbum}"
+                          DisplayMemberPath="Name"
+                          FontSize="14"
+                          Padding="8,6"
+                          Width="300"
+                          VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Action Buttons Row -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <Button Content="Convert"
+                        Command="{Binding ConvertCommand}"
+                        FontSize="14"
+                        Padding="20,8"
+                        Background="#2E7D32"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Margin="0,0,12,0" />
+
+                <Button Content="Cancel"
+                        Command="{Binding CancelCommand}"
+                        FontSize="14"
+                        Padding="20,8"
+                        Background="#D32F2F"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand" />
+            </StackPanel>
+
+            <!-- Overall Progress Bar -->
+            <TextBlock Text="Overall Progress"
+                       FontSize="12"
+                       Foreground="#777777"
+                       Margin="0,0,0,4" />
+            <ProgressBar Value="{Binding OverallProgress}"
+                         Minimum="0"
+                         Maximum="100"
+                         Height="20"
+                         Foreground="#007ACC"
+                         Background="#E0E0E0"
+                         BorderThickness="0" />
+        </StackPanel>
+
+        <!-- Status Message -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="{Binding StatusMessage}"
+                   FontSize="13"
+                   Foreground="#555555"
+                   Margin="0,10,0,0" />
+
+        <!-- Jobs DataGrid -->
+        <DataGrid ItemsSource="{Binding Jobs}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  BorderThickness="1"
+                  BorderBrush="#E0E0E0"
+                  Background="White"
+                  RowBackground="White"
+                  AlternatingRowBackground="#FAFAFA"
+                  FontSize="13"
+                  Margin="0,12,0,0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Source File"
+                                    Binding="{Binding SourceFlacPath}"
+                                    Width="*" />
+                <DataGridTemplateColumn Header="Status" Width="110">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Status}"
+                                       Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
+                                       FontWeight="SemiBold" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Progress" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ProgressBar Value="{Binding ProgressPercent, Mode=OneWay}"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Height="14"
+                                         Foreground="#007ACC"
+                                         Background="#E0E0E0"
+                                         BorderThickness="0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

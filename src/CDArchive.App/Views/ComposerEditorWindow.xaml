@@ -1,0 +1,94 @@
+<Window x:Class="CDArchive.App.Views.ComposerEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit Composer" Width="480" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="#555" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="Margin" Value="0,3" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+        <!-- Buttons at bottom -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="OK" Width="80" Padding="0,6"
+                    IsDefault="True" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Padding="0,6"
+                    Margin="8,0,0,0" IsCancel="True" />
+        </StackPanel>
+
+        <!-- Form fields -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="NameBox" />
+
+            <TextBlock Grid.Row="1" Text="Sort Name" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="SortNameBox" />
+
+            <TextBlock Grid.Row="2" Text="Birth Date" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="BirthDateBox" Width="120" HorizontalAlignment="Left" />
+
+            <TextBlock Grid.Row="3" Text="Birth Place" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="BirthPlaceBox" />
+
+            <TextBlock Grid.Row="4" Text="Birth State" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="BirthStateBox" />
+
+            <TextBlock Grid.Row="5" Text="Birth Country" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="BirthCountryBox" />
+
+            <TextBlock Grid.Row="6" Text="Death Date" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="DeathDateBox" Width="120" HorizontalAlignment="Left" />
+
+            <TextBlock Grid.Row="7" Text="Death Place" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="7" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="DeathPlaceBox" />
+
+            <TextBlock Grid.Row="8" Text="Death State" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="8" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="DeathStateBox" />
+
+            <TextBlock Grid.Row="9" Text="Death Country" Style="{StaticResource FieldLabel}" />
+            <TextBox   Grid.Row="9" Grid.Column="1" Style="{StaticResource FieldBox}"
+                       x:Name="DeathCountryBox" />
+        </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

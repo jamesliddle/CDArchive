@@ -1,0 +1,108 @@
+<UserControl x:Class="CDArchive.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}">
+
+    <StackPanel MaxWidth="600" HorizontalAlignment="Left">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="15" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="15" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Archive Root Path -->
+            <TextBlock Grid.Row="0" Grid.Column="0"
+                       Text="Archive Root Path"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       VerticalAlignment="Center" />
+            <TextBox Grid.Row="0" Grid.Column="1"
+                     Text="{Binding ArchiveRootPath, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                     FontSize="14"
+                     Padding="8,6"
+                     Margin="0,0,10,0" />
+            <Button Grid.Row="0" Grid.Column="2"
+                    Content="Browse..."
+                    Command="{Binding BrowseArchivePathCommand}"
+                    FontSize="13"
+                    Padding="15,6"
+                    Background="#555555"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand" />
+
+            <!-- FFmpeg Path -->
+            <TextBlock Grid.Row="2" Grid.Column="0"
+                       Text="FFmpeg Path"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       VerticalAlignment="Center" />
+            <TextBox Grid.Row="2" Grid.Column="1"
+                     Text="{Binding FfmpegPath, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                     FontSize="14"
+                     Padding="8,6"
+                     Margin="0,0,10,0" />
+            <Button Grid.Row="2" Grid.Column="2"
+                    Content="Browse..."
+                    Command="{Binding BrowseFfmpegPathCommand}"
+                    FontSize="13"
+                    Padding="15,6"
+                    Background="#555555"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand" />
+
+            <!-- MP3 Bitrate -->
+            <TextBlock Grid.Row="4" Grid.Column="0"
+                       Text="MP3 Bitrate"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       VerticalAlignment="Center" />
+            <ComboBox Grid.Row="4" Grid.Column="1"
+                      SelectedItem="{Binding Mp3Bitrate, Mode=TwoWay}"
+                      FontSize="14"
+                      Padding="8,6"
+                      Width="120"
+                      HorizontalAlignment="Left">
+                <sys:Int32>128</sys:Int32>
+                <sys:Int32>192</sys:Int32>
+                <sys:Int32>256</sys:Int32>
+                <sys:Int32>320</sys:Int32>
+            </ComboBox>
+        </Grid>
+
+        <!-- Save Button -->
+        <Button Content="Save Settings"
+                Command="{Binding SaveCommand}"
+                FontSize="14"
+                Padding="20,8"
+                HorizontalAlignment="Left"
+                Background="#007ACC"
+                Foreground="White"
+                BorderThickness="0"
+                Cursor="Hand"
+                Margin="0,25,0,15" />
+
+        <!-- Status Message -->
+        <TextBlock Text="{Binding StatusMessage}"
+                   FontSize="14"
+                   Foreground="#555555"
+                   TextWrapping="Wrap" />
+    </StackPanel>
+</UserControl>

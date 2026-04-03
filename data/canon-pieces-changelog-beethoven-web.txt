@@ -1,0 +1,257 @@
+
+============================================================
+Op. 31: set
+  OLD: "Three Piano Sonatas (1802)"
+  ADDED: form=set, category=piano, pub_year=1802
+  ADDED: 10 movements/sections from web sources
+    #1: piano sonata #16 in G major (3 movements)
+    #2: piano sonata #17 in D minor (3 movements)
+    #3: piano sonata #18 in E-flat major (4 movements)
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 38: Piano Trio (arrangement of Septet, Op. 20)
+  OLD: "Piano Trio in E♭ major (arrangement of the Septet, Opus 20) (1803) (for clarinet (or violin), cello, and piano)"
+  ADDED: form=piano trio, title="Piano Trio (arrangement of Septet, Op. 20)", key=E-flat major, category=chamber, pub_year=1803
+  ADDED: 6 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 39: Two Preludes through All Twelve Major Keys
+  OLD: "Two Preludes through all twelve major keys for piano (1789)"
+  ADDED: form=prelude, title="Two Preludes through All Twelve Major Keys", category=piano, pub_year=1803
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 42: Notturno (arrangement of Serenade, Op. 8)
+  OLD: "Notturno for Viola and Piano in D major (1803) (Arrangement of Opus 8 Serenade for Violin, Viola and Cello)"
+  ADDED: form=notturno, title="Notturno (arrangement of Serenade, Op. 8)", key=D major, category=chamber, pub_year=1803
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 45: Three Marches for Piano, Four Hands
+  OLD: "Three Marches for Piano, 4 hands (1803)"
+  ADDED: form=set, title="Three Marches for Piano, Four Hands", category=piano, pub_year=1803
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 49: set
+  OLD: "Two Piano Sonatas (between 1795 and 1798)"
+  ADDED: form=set, category=piano, pub_year=1805
+  ADDED: 4 movements/sections from web sources
+    #1: piano sonata #19 in G minor (2 movements)
+    #2: piano sonata #20 in G major (2 movements)
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 51: set
+  OLD: "Two Rondos for Piano (1797)"
+  ADDED: form=set, category=piano, pub_year=1797
+  ADDED: 2 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 59: set
+  OLD: "Three String Quartets (Rasumovsky) (1806)"
+  ADDED: form=set, nickname="Rasumovsky", category=chamber, pub_year=1808
+  ADDED: 12 movements/sections from web sources
+    #1: string quartet #7 in F major (4 movements)
+    #2: string quartet #8 in E minor (4 movements)
+    #3: string quartet #9 in C major (4 movements)
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 63: Piano Trio (arrangement of String Quintet, Op. 4)
+  OLD: "Arrangement of String Quintet (Opus 4) for Piano Trio (1806) (doubtful)"
+  ADDED: form=piano trio, title="Piano Trio (arrangement of String Quintet, Op. 4)", key=E-flat major, category=chamber, pub_year=1806
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 64: Sonata for Piano and Cello (arrangement of String Trio, Op. 3)
+  OLD: "Arrangement of String Trio (Opus 3) for Piano and Cello (1807) (spurious – author unknown)"
+  ADDED: form=sonata, title="Sonata for Piano and Cello (arrangement of String Trio, Op. 3)", key=E-flat major, category=chamber, pub_year=1807
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 65: Ah! perfido
+  OLD: "Aria, Ah! perfido (1796)"
+  ADDED: form=aria, title="Ah! perfido", category=vocal, pub_year=1805
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 70: set
+  OLD: "Two Piano Trios (1808)"
+  ADDED: form=set, category=chamber, pub_year=1809
+  ADDED: 7 movements/sections from web sources
+    #1: piano trio #5 in D major (3 movements)
+    #2: piano trio #6 in E-flat major (4 movements)
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 71: sextet
+  OLD: "Wind sextet in E♭ (1796)"
+  ADDED: form=sextet, key=E-flat major, category=chamber, pub_year=1810
+  ADDED: 3 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 76: Six Variations on an Original Theme
+  OLD: "Six variations on an original theme for piano in D major (includes the Turkish March from The Ruins of Athens) (1809)"
+  ADDED: form=variations, title="Six Variations on an Original Theme", key=D major, category=piano, pub_year=1810
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 77: fantasia
+  OLD: "Piano Fantasia in G minor (1809)"
+  ADDED: form=fantasia, key=G minor, category=piano, pub_year=1810
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 85: Christus am Ölberge
+  OLD: "Oratorio, Christus am Ölberge (Christ on the Mount of Olives) (1803)"
+  ADDED: form=oratorio, title="Christus am Ölberge", category=choral, pub_year=1811
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 86: mass
+  OLD: "Mass in C major (1807)"
+  ADDED: form=mass, key=C major, category=choral, pub_year=1812
+  ADDED: 5 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 87: trio
+  OLD: "Trio for two Oboes and English Horn in C major (1795)"
+  ADDED: form=trio, key=C major, category=chamber, pub_year=1806
+  ADDED: 4 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 89: polonaise
+  OLD: "Polonaise in C major (1814)"
+  ADDED: form=polonaise, key=C major, category=piano, pub_year=1815
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 91: Wellington's Victory
+  OLD: "Wellington's Victory (Battle Symphony) (1813)"
+  ADDED: form=symphony, title="Wellington's Victory", category=orchestra, pub_year=1816
+  ADDED: 2 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 102: set
+  OLD: "Two Cello Sonatas (1815)"
+  ADDED: form=set, category=chamber, pub_year=1817
+  ADDED: 5 movements/sections from web sources
+    #1: cello sonata #4 in C major (2 movements)
+    #2: cello sonata #5 in D major (3 movements)
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 103: octet
+  OLD: "Octet in E♭ (1792)"
+  ADDED: form=octet, key=E-flat major, category=chamber, pub_year=1834
+  ADDED: 3 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 104: String Quintet (arrangement of Piano Trio No. 3, Op. 1 #3)
+  OLD: "String Quintet (arrangement of Piano Trio No. 3, 1817)"
+  ADDED: form=string quintet, title="String Quintet (arrangement of Piano Trio No. 3, Op. 1 #3)", key=C minor, category=chamber, pub_year=1819
+  ADDED: 4 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 108: Twenty-Five Scottish Songs
+  OLD: "Twenty-Five Scottish Songs (1818)"
+  ADDED: form=song, title="Twenty-Five Scottish Songs", category=vocal, pub_year=1818
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 114: March and Chorus from Die Ruinen von Athen
+  OLD: "March and Chorus for Die Weihe des Hauses (The Consecration of the House) from Die Ruinen von Athen (The ruins of Athens) (1822)"
+  ADDED: form=march, title="March and Chorus from Die Ruinen von Athen", category=choral, pub_year=1822
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 116: Tremate, empi, tremate
+  OLD: "Tremate, empi tremate, vocal trio with orchestra (1802)"
+  ADDED: form=aria, title="Tremate, empi, tremate", category=vocal, pub_year=1826
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 123: Missa solemnis
+  OLD: "Missa solemnis in D major (1823)"
+  ADDED: form=mass, title="Missa solemnis", key=D major, category=choral, pub_year=1827
+  ADDED: 5 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 134: Grosse Fuge (piano four-hand arrangement of Op. 133)
+  OLD: "Piano arrangement (4 hands) of the Große Fuge, Opus 133 (1826)"
+  ADDED: form=fugue, title="Grosse Fuge (piano four-hand arrangement of Op. 133)", key=B-flat major, category=piano, pub_year=1827
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 136: Der glorreiche Augenblick
+  OLD: "Cantata, Der glorreiche Augenblick (1814)"
+  ADDED: form=cantata, title="Der glorreiche Augenblick", category=choral, pub_year=1837
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 137: fugue
+  OLD: "Fugue for String Quintet in D major (1817)"
+  ADDED: form=fugue, key=D major, category=chamber, pub_year=1827
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 61a: Piano Concerto (transcription of Violin Concerto, Op. 61)
+  OLD: "Piano Transcription of Violin Concerto, Opus 61"
+  ADDED: form=piano concerto, title="Piano Concerto (transcription of Violin Concerto, Op. 61)", key=D major, category=concerto
+  ADDED: 3 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 72a: Leonore (with Leonore Overture No. 2)
+  OLD: "Leonore (earlier version of Fidelio, with Leonore Overture No. 2) (1805)"
+  ADDED: form=opera, title="Leonore (with Leonore Overture No. 2)", category=vocal, pub_year=1805
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 72b: Leonore (with Leonore Overture No. 3)
+  OLD: "Leonore (earlier version of Fidelio, with Leonore Overture No. 3) (1806)"
+  ADDED: form=opera, title="Leonore (with Leonore Overture No. 3)", category=vocal, pub_year=1806
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 81a: piano sonata #26
+  OLD: "Piano Sonata No. 26 in E♭ major (Les Adieux) (1809)"
+  ADDED: form=piano sonata, number=26, key=E-flat major, nickname="Les Adieux", category=piano, pub_year=1811
+  ADDED: 3 movements/sections from web sources
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 81b: sextet
+  OLD: "Sextet in E♭ major (1795)"
+  ADDED: form=sextet, key=E-flat major, category=chamber, pub_year=1810
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 121a: Kakadu Variations
+  OLD: "Kakadu Variations, for Piano Trio (Variations on Ich bin der Schneider Kakadu) (1803)"
+  ADDED: form=variations, title="Kakadu Variations", key=G minor, category=chamber, pub_year=1824
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+Op. 121b: Opferlied
+  OLD: "Opferlied for soprano, chorus and orchestra (1822)"
+  ADDED: form=song, title="Opferlied", category=choral, pub_year=1825
+  SOURCE: Web (Wikipedia, IMSLP, AllMusic)
+
+============================================================
+SUMMARY
+============================================================
+  Source: Web (Wikipedia, IMSLP, AllMusic, Hyperion, earsense.org)
+  Total pieces updated: 37
+  Total movements/sections added: 78

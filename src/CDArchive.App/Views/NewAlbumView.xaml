@@ -1,0 +1,84 @@
+<UserControl x:Class="CDArchive.App.Views.NewAlbumView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:NewAlbumViewModel}">
+
+    <StackPanel MaxWidth="500" HorizontalAlignment="Left">
+        <!-- Album Name -->
+        <TextBlock Text="Album Name"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   Foreground="#333333"
+                   Margin="0,0,0,5" />
+        <TextBox Text="{Binding AlbumName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                 FontSize="14"
+                 Padding="8,6"
+                 Margin="0,0,0,15" />
+
+        <!-- Disc Count -->
+        <TextBlock Text="Disc Count"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   Foreground="#333333"
+                   Margin="0,0,0,5" />
+        <TextBox Text="{Binding DiscCount, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                 FontSize="14"
+                 Padding="8,6"
+                 Width="100"
+                 HorizontalAlignment="Left"
+                 Margin="0,0,0,20" />
+
+        <!-- Create Button -->
+        <Button Content="Create Album"
+                Command="{Binding CreateAlbumCommand}"
+                FontSize="14"
+                Padding="20,8"
+                HorizontalAlignment="Left"
+                Background="#007ACC"
+                Foreground="White"
+                BorderThickness="0"
+                Cursor="Hand"
+                Margin="0,0,0,20" />
+
+        <!-- Duplicate Warnings -->
+        <ItemsControl ItemsSource="{Binding DuplicateWarnings}"
+                      Margin="0,0,0,15">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="#FFF3CD"
+                            BorderBrush="#FFECB5"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,8"
+                            Margin="0,0,0,5">
+                        <TextBlock Text="{Binding}"
+                                   Foreground="#856404"
+                                   FontSize="13"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Status Message -->
+        <TextBlock Text="{Binding StatusMessage}"
+                   FontSize="14"
+                   TextWrapping="Wrap"
+                   Margin="0,5,0,0">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="#D32F2F" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSuccess}" Value="True">
+                            <Setter Property="Foreground" Value="#2E7D32" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+    </StackPanel>
+</UserControl>

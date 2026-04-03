@@ -1,0 +1,57 @@
+<UserControl x:Class="CDArchive.App.Views.ConversionStatusView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ConversionStatusViewModel}">
+
+    <DockPanel>
+        <!-- Top Controls -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,15">
+            <Button Content="Refresh"
+                    Command="{Binding RefreshCommand}"
+                    FontSize="14"
+                    Padding="20,8"
+                    Background="#007ACC"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand" />
+        </StackPanel>
+
+        <!-- Status Message -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="{Binding StatusMessage}"
+                   FontSize="13"
+                   Foreground="#555555"
+                   Margin="0,10,0,0" />
+
+        <!-- Missing Items DataGrid -->
+        <DataGrid ItemsSource="{Binding MissingItems}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  BorderThickness="1"
+                  BorderBrush="#E0E0E0"
+                  Background="White"
+                  RowBackground="White"
+                  AlternatingRowBackground="#FAFAFA"
+                  FontSize="13">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Album Name"
+                                    Binding="{Binding AlbumName}"
+                                    Width="*" />
+                <DataGridTextColumn Header="Disc Folder"
+                                    Binding="{Binding DiscFolder}"
+                                    Width="200" />
+                <DataGridTextColumn Header="Missing Files"
+                                    Binding="{Binding MissingFileCount}"
+                                    Width="120" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>
