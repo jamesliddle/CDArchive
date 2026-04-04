@@ -100,14 +100,41 @@ public class CanonPiece
     /// Full display title including catalogue info, for tooltips and general use.
     /// </summary>
     [JsonIgnore]
-    public string DisplayTitle => BuildDisplayTitle(includeCatalog: true);
+    public string DisplayTitle => BuildDisplayTitle(includeCatalog: true) + RolesSuffix;
 
     /// <summary>
     /// Display title without catalogue info, for use in the pieces list
     /// where the catalogue is shown in its own column.
     /// </summary>
     [JsonIgnore]
-    public string DisplayTitleShort => BuildDisplayTitle(includeCatalog: false);
+    public string DisplayTitleShort => BuildDisplayTitle(includeCatalog: false) + RolesSuffix;
+
+    /// <summary>
+    /// Display title for use when rendered as a subpiece.
+    /// Sub-works (those with their own subpieces) use the top-level "Form #N" format;
+    /// leaf movements use the "N. Form / N. Tempo" format.
+    /// </summary>
+    [JsonIgnore]
+    public string SubpieceDisplayTitle => BuildDisplayTitle(includeCatalog: false, isSubpiece: !HasSubpieces) + RolesSuffix;
+
+    /// <summary>
+    /// Roles suffix for movement-level display: " (Role1, Role2)".
+    /// Only applies when Roles is a JSON string array (movements), not an object array (pieces).
+    /// </summary>
+    [JsonIgnore]
+    private string RolesSuffix
+    {
+        get
+        {
+            if (Roles?.ValueKind != JsonValueKind.Array) return "";
+            var roles = Roles.Value.EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString() ?? "")
+                .Where(s => s.Length > 0)
+                .ToList();
+            return roles.Count > 0 ? $" ({string.Join(", ", roles)})" : "";
+        }
+    }
 
     /// <summary>
     /// Multi-line tooltip text. For movements with multiple tempo indications,
@@ -133,7 +160,7 @@ public class CanonPiece
         }
     }
 
-    private string BuildDisplayTitle(bool includeCatalog)
+    private string BuildDisplayTitle(bool includeCatalog, bool isSubpiece = false)
     {
         // If there's an explicit title, use it (append key, optionally catalog, nickname)
         if (!string.IsNullOrEmpty(Title))
@@ -173,13 +200,25 @@ public class CanonPiece
             return $"{prefix}{tempo}";
         }
 
-        // Derive a title from form + number + key + optionally catalog
+        // Vocal number with a first line but no tempo indication
+        // e.g., "1. Duet. Jetzt, Schätzchen, jetzt sind wir allein"
+        if (!string.IsNullOrEmpty(FirstLine))
+        {
+            var prefix = Number.HasValue ? $"{Number}. " : "";
+            if (!string.IsNullOrEmpty(Form))
+                return $"{prefix}{TitleCase(Form)}. {FirstLine}";
+            return $"{prefix}{FirstLine}";
+        }
+
+        // Derive a title from form + number + key + optionally catalog.
+        // Subpieces: "N. Form [in Key]"  (e.g. "6. March")
+        // Top-level: "Form #N [in Key]"  (e.g. "String Quartet #13")
         var mainPart = "";
 
         if (!string.IsNullOrEmpty(Form))
         {
             mainPart = TitleCase(Form);
-            if (Number.HasValue)
+            if (!isSubpiece && Number.HasValue)
                 mainPart += $" #{Number}";
         }
 
@@ -195,7 +234,9 @@ public class CanonPiece
         if (includeCatalog && !string.IsNullOrEmpty(Catalog))
             suffixes.Add(Catalog);
 
-        var result = suffixes.Count > 0 ? string.Join(", ", suffixes) : "(untitled)";
+        var body      = suffixes.Count > 0 ? string.Join(", ", suffixes) : "";
+        var numPrefix = isSubpiece && Number.HasValue ? $"{Number}. " : "";
+        var result    = body.Length > 0 ? $"{numPrefix}{body}" : Number.HasValue ? $"{Number}" : "(untitled)";
 
         if (!string.IsNullOrEmpty(Subtitle))
             result += $", {Subtitle}";
@@ -239,20 +280,7 @@ public class CanonPiece
         return result;
     }
 
-    /// <summary>
-    /// Title-cases a form string: "piano sonata" → "Piano Sonata".
-    /// </summary>
-    private static string TitleCase(string form)
-    {
-        if (string.IsNullOrEmpty(form)) return form;
-        var words = form.Split(' ');
-        for (int i = 0; i < words.Length; i++)
-        {
-            if (words[i].Length > 0)
-                words[i] = char.ToUpper(words[i][0]) + words[i][1..];
-        }
-        return string.Join(' ', words);
-    }
+    private static string TitleCase(string value) => CanonFormat.TitleCase(value);
 
     /// <summary>
     /// Simple English pluralization for musical forms.
@@ -413,7 +441,9 @@ public class CanonPiece
         {
             if (Versions is { Count: > 0 } && Versions.Any(v => v.Subpieces is { Count: > 0 }))
                 return Versions.Select(v => new VersionDisplayNode(v)).ToList();
-            return HasSubpieces ? (System.Collections.IList)Subpieces! : null;
+            return HasSubpieces
+                ? Subpieces!.Select(sp => new SubpieceDisplayNode(sp)).ToList()
+                : null;
         }
     }
 
@@ -622,7 +652,7 @@ public class RoleEntry
         {
             var label = Name;
             if (!string.IsNullOrEmpty(VoiceType))
-                label += $" — {VoiceType}";
+                label += $" — {CanonFormat.TitleCase(VoiceType)}";
             if (!string.IsNullOrEmpty(Description))
                 label += $" ({Description})";
             return label;
@@ -701,10 +731,10 @@ public class InstrumentEntry
     {
         get
         {
-            var name = Instrument;
-            if (!string.IsNullOrEmpty(Key))      name += $" in {Key}";
-            if (PartNumber.HasValue)             name += $" {PartNumber}";
-            if (!string.IsNullOrEmpty(Alternate)) name += $" (or {Alternate})";
+            var name = CanonFormat.TitleCase(Instrument);
+            if (!string.IsNullOrEmpty(Key))       name += $" in {CanonFormat.TitleCase(Key)}";
+            if (PartNumber.HasValue)              name += $" {PartNumber}";
+            if (!string.IsNullOrEmpty(Alternate)) name += $" (or {CanonFormat.TitleCase(Alternate)})";
             return name;
         }
     }
@@ -811,6 +841,30 @@ public class InstrumentEntry
 }
 
 /// <summary>
+/// A display node wrapping a subpiece (movement/section) for display in the piece tree.
+/// Uses the "N. Form" prefix format rather than the top-level "Form #N" format.
+/// This class has no WPF dependencies — it lives in CDArchive.Core.
+/// </summary>
+public class SubpieceDisplayNode
+{
+    public SubpieceDisplayNode(CanonPiece piece) { Piece = piece; }
+
+    public CanonPiece Piece { get; }
+
+    /// <summary>Display label using subpiece-style numbering.</summary>
+    public string DisplayTitle => Piece.SubpieceDisplayTitle;
+
+    /// <summary>Whether this subpiece has its own sub-movements.</summary>
+    public bool HasChildren => Piece.Subpieces is { Count: > 0 };
+
+    /// <summary>Sub-movements of this subpiece, also wrapped as SubpieceDisplayNodes.</summary>
+    public List<SubpieceDisplayNode>? Children =>
+        HasChildren ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp)).ToList() : null;
+
+    public override string ToString() => DisplayTitle;
+}
+
+/// <summary>
 /// A display node representing a version in the piece tree.
 /// Used as the intermediate level when versions have their own subpieces (movements).
 /// This class has no WPF dependencies — it lives in CDArchive.Core.
@@ -827,8 +881,9 @@ public class VersionDisplayNode
     /// <summary>Label shown in the tree row (e.g., "1909" or "1928").</summary>
     public string DisplayTitle => Version.Description ?? "(no description)";
 
-    /// <summary>Movements belonging to this version.</summary>
-    public List<CanonPiece>? Subpieces => Version.Subpieces;
+    /// <summary>Movements belonging to this version, wrapped for subpiece display.</summary>
+    public List<SubpieceDisplayNode>? Children =>
+        Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp)).ToList();
 
     /// <summary>Whether this version has movements to expand.</summary>
     public bool HasSubpieces => Version.Subpieces is { Count: > 0 };
@@ -860,4 +915,32 @@ public class CanonPieceVersion
     public JsonElement? ContributingComposers { get; set; }
 
     public override string ToString() => Description ?? "(no description)";
+}
+
+/// <summary>
+/// Shared text-formatting helpers for canon data display.
+/// </summary>
+public static class CanonFormat
+{
+    // Small connector/article words that stay lowercase unless they open the string.
+    private static readonly HashSet<string> _lowerWords =
+        new(StringComparer.OrdinalIgnoreCase) { "and", "or", "of", "in", "for", "the", "a", "an" };
+
+    /// <summary>
+    /// Title-cases a value: the first letter of each word is uppercased,
+    /// except for small connector words (and, or, of, in, for, the, a, an)
+    /// when they are not the first word.
+    /// Examples: "aria and chorus" → "Aria and Chorus", "french horn" → "French Horn".
+    /// </summary>
+    public static string TitleCase(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return value ?? "";
+        var words = value.Split(' ');
+        for (int i = 0; i < words.Length; i++)
+        {
+            if (words[i].Length > 0 && (i == 0 || !_lowerWords.Contains(words[i])))
+                words[i] = char.ToUpper(words[i][0]) + words[i][1..];
+        }
+        return string.Join(' ', words);
+    }
 }

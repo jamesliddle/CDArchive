@@ -1,7 +1,7 @@
 [
   {
     "title": "L'éventail de Jeanne",
-    "form": "ballet",
+    "form": "Ballet",
     "publication_year": 1929,
     "subpieces": [
       {
@@ -15,12 +15,12 @@
           }
         ],
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ],
         "versions": [
           {
             "instrumentation": [
-              "piano, four hands"
+              "Piano, Four Hands"
             ]
           }
         ]
@@ -30,7 +30,7 @@
         "title": "Marche",
         "number": 2,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -38,7 +38,7 @@
         "title": "Valse",
         "number": 3,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -46,7 +46,7 @@
         "title": "Canarie",
         "number": 4,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -54,7 +54,7 @@
         "title": "Bourrée",
         "number": 5,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -62,7 +62,7 @@
         "title": "Sarabande",
         "number": 6,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -70,7 +70,7 @@
         "title": "Polka",
         "number": 7,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -78,12 +78,12 @@
         "title": "Pastourelle",
         "number": 8,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ],
         "versions": [
           {
             "instrumentation": [
-              "piano"
+              "Piano"
             ]
           }
         ]
@@ -93,7 +93,7 @@
         "title": "Rondeau",
         "number": 9,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       },
       {
@@ -102,7 +102,7 @@
         "form": "Finale",
         "number": 10,
         "instrumentation": [
-          "orchestra"
+          "Orchestra"
         ]
       }
     ]
@@ -117,15 +117,15 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello"
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1795,
     "subpieces": [
       {
-        "form": "piano trio",
+        "form": "Piano Trio",
         "number": 1,
         "key_tonality": "E♭",
         "key_mode": "major",
@@ -178,7 +178,7 @@
         ]
       },
       {
-        "form": "piano trio",
+        "form": "Piano Trio",
         "number": 2,
         "key_tonality": "G",
         "key_mode": "major",
@@ -245,7 +245,7 @@
         ]
       },
       {
-        "form": "piano trio",
+        "form": "Piano Trio",
         "number": 3,
         "key_tonality": "C",
         "key_mode": "minor",
@@ -309,13 +309,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1798,
     "subpieces": [
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 5,
         "key_tonality": "C",
         "key_mode": "minor",
@@ -358,7 +358,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 6,
         "key_tonality": "F",
         "key_mode": "major",
@@ -401,7 +401,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 7,
         "key_tonality": "D",
         "key_mode": "major",
@@ -464,12 +464,12 @@
         "catalog_number": "100"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1814
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 28,
     "key_tonality": "A",
     "key_mode": "major",
@@ -480,9 +480,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1816,
     "subpieces": [
       {
@@ -541,14 +541,14 @@
       }
     ],
     "instrumentation": [
-      "cello",
-      "piano"
+      "Cello",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1817,
     "subpieces": [
       {
-        "form": "cello sonata",
+        "form": "Cello Sonata",
         "number": 4,
         "key_tonality": "C",
         "key_mode": "major",
@@ -589,7 +589,7 @@
         ]
       },
       {
-        "form": "cello sonata",
+        "form": "Cello Sonata",
         "number": 5,
         "key_tonality": "D",
         "key_mode": "major",
@@ -638,7 +638,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "octet",
+    "form": "Octet",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -648,16 +648,16 @@
       }
     ],
     "instrumentation": [
-      "oboe",
-      "oboe",
-      "clarinet",
-      "clarinet",
-      "horn",
-      "horn",
-      "bassoon",
-      "bassoon"
+      "Oboe",
+      "Oboe",
+      "Clarinet",
+      "Clarinet",
+      "Horn",
+      "Horn",
+      "Bassoon",
+      "Bassoon"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1834,
     "subpieces": [
       {
@@ -696,7 +696,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "String Quintet (arr. of Piano Trio No. 3, Op. 1 #3)",
-    "form": "string quintet",
+    "form": "String Quintet",
     "key_tonality": "C",
     "key_mode": "minor",
     "catalog_info": [
@@ -706,13 +706,13 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1819,
     "subpieces": [
       {
@@ -758,7 +758,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Six National Airs with Variations",
-    "form": "variations",
+    "form": "Variations",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -766,9 +766,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1819,
     "subpieces": [
       {
@@ -830,7 +830,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Hammerklavier",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 29,
     "key_tonality": "B♭",
     "key_mode": "major",
@@ -841,9 +841,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1818,
     "subpieces": [
       {
@@ -909,7 +909,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Ten National Airs with Variations",
-    "form": "variations",
+    "form": "Variations",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -917,9 +917,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1820,
     "subpieces": [
       {
@@ -1017,7 +1017,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Twenty-Five Scottish Songs",
-    "form": "song",
+    "form": "Song",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -1025,17 +1025,17 @@
       }
     ],
     "instrumentation": [
-      "voice",
-      "piano",
-      "violin",
-      "cello"
+      "Voice",
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1818
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 30,
     "key_tonality": "E",
     "key_mode": "major",
@@ -1046,9 +1046,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1820,
     "subpieces": [
       {
@@ -1122,7 +1122,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano trio",
+    "form": "Piano Trio",
     "number": 4,
     "key_tonality": "B♭",
     "key_mode": "major",
@@ -1138,12 +1138,12 @@
           "instrument": "clarinet",
           "key": "B-flat"
         },
-        "instrument": "violin"
+        "instrument": "Violin"
       },
-      "cello",
-      "piano"
+      "Cello",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1798,
     "subpieces": [
       {
@@ -1165,7 +1165,7 @@
         ]
       },
       {
-        "form": "Tema con variazioni",
+        "form": "Tema Con Variazioni",
         "number": 3,
         "tempos": [
           {
@@ -1178,7 +1178,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 31,
     "key_tonality": "A♭",
     "key_mode": "major",
@@ -1189,9 +1189,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1821,
     "subpieces": [
       {
@@ -1245,7 +1245,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 32,
     "key_tonality": "C",
     "key_mode": "minor",
@@ -1256,9 +1256,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1822,
     "subpieces": [
       {
@@ -1294,7 +1294,7 @@
         "catalog_number": "112"
       }
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1815
   },
   {
@@ -1306,7 +1306,7 @@
         "catalog_number": "113"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1811,
     "subpieces": [
       {
@@ -1390,7 +1390,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "March and Chorus from Die Ruinen von Athen",
-    "form": "march",
+    "form": "March",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -1398,10 +1398,10 @@
       }
     ],
     "instrumentation": [
-      "chorus",
-      "orchestra"
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1822
   },
   {
@@ -1413,13 +1413,13 @@
         "catalog_number": "115"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1815
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Tremate, empi, tremate",
-    "form": "aria",
+    "form": "Aria",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -1427,12 +1427,12 @@
       }
     ],
     "instrumentation": [
-      "soprano",
-      "tenor",
-      "bass",
-      "orchestra"
+      "Soprano",
+      "Tenor",
+      "Bass",
+      "Orchestra"
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1826
   },
   {
@@ -1444,7 +1444,7 @@
         "catalog_number": "117"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1811,
     "subpieces": [
       {
@@ -1525,7 +1525,7 @@
         "catalog_number": "118"
       }
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1814
   },
   {
@@ -1537,7 +1537,7 @@
         "catalog_number": "119"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1822,
     "subpieces": [
       {
@@ -1655,14 +1655,14 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "piano"
+      "Violin",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1798,
     "subpieces": [
       {
-        "form": "violin sonata",
+        "form": "Violin Sonata",
         "number": 1,
         "key_tonality": "D",
         "key_mode": "major",
@@ -1684,7 +1684,7 @@
             ]
           },
           {
-            "form": "Tema con variazioni",
+            "form": "Tema Con Variazioni",
             "number": 2,
             "tempos": [
               {
@@ -1706,7 +1706,7 @@
         ]
       },
       {
-        "form": "violin sonata",
+        "form": "Violin Sonata",
         "number": 2,
         "key_tonality": "A",
         "key_mode": "major",
@@ -1748,7 +1748,7 @@
         ]
       },
       {
-        "form": "violin sonata",
+        "form": "Violin Sonata",
         "number": 3,
         "key_tonality": "E♭",
         "key_mode": "major",
@@ -1801,7 +1801,7 @@
         "catalog_number": "120"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1823,
     "subpieces": [
       {
@@ -2128,7 +2128,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Kakadu Variations",
-    "form": "variations",
+    "form": "Variations",
     "key_tonality": "G",
     "key_mode": "minor",
     "catalog_info": [
@@ -2138,17 +2138,17 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello"
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1824
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Opferlied",
-    "form": "song",
+    "form": "Song",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -2156,11 +2156,11 @@
       }
     ],
     "instrumentation": [
-      "soprano",
-      "chorus",
-      "orchestra"
+      "Soprano",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1825
   },
   {
@@ -2172,13 +2172,13 @@
         "catalog_number": "122"
       }
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1824
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Missa solemnis",
-    "form": "mass",
+    "form": "Mass",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -2188,11 +2188,11 @@
       }
     ],
     "instrumentation": [
-      "soloists",
-      "chorus",
-      "orchestra"
+      "Soloists",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1827,
     "subpieces": [
       {
@@ -2226,7 +2226,7 @@
         "catalog_number": "124"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1822,
     "subpieces": [
       {
@@ -2237,7 +2237,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 9,
     "key_tonality": "D",
     "key_mode": "minor",
@@ -2248,9 +2248,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1824,
     "subpieces": [
       {
@@ -2364,7 +2364,7 @@
         "catalog_number": "126"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1824,
     "subpieces": [
       {
@@ -2433,7 +2433,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 12,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -2444,12 +2444,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1825,
     "subpieces": [
       {
@@ -2575,14 +2575,14 @@
         "catalog_number": "128"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1822
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Rondo a capriccio",
     "nickname": "Rage over a Lost Penny",
-    "form": "rondo",
+    "form": "Rondo",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -2590,15 +2590,15 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1795
   },
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Pathétique",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 8,
     "key_tonality": "C",
     "key_mode": "minor",
@@ -2609,9 +2609,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1799,
     "subpieces": [
       {
@@ -2650,7 +2650,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 13,
     "key_tonality": "B♭",
     "key_mode": "major",
@@ -2661,12 +2661,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1825,
     "subpieces": [
       {
@@ -2733,7 +2733,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 14,
     "key_tonality": "C♯",
     "key_mode": "minor",
@@ -2744,12 +2744,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1826,
     "subpieces": [
       {
@@ -2847,7 +2847,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 15,
     "key_tonality": "A",
     "key_mode": "minor",
@@ -2858,12 +2858,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1825,
     "subpieces": [
       {
@@ -2966,13 +2966,13 @@
         "catalog_number": "133"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1825
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Grosse Fuge (piano four-hand arr. of Op. 133)",
-    "form": "fugue",
+    "form": "Fugue",
     "key_tonality": "B♭",
     "key_mode": "major",
     "catalog_info": [
@@ -2982,14 +2982,14 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1827
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 16,
     "key_tonality": "F",
     "key_mode": "major",
@@ -3000,12 +3000,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1826,
     "subpieces": [
       {
@@ -3073,7 +3073,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Der glorreiche Augenblick",
-    "form": "cantata",
+    "form": "Cantata",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -3081,17 +3081,17 @@
       }
     ],
     "instrumentation": [
-      "soloists",
-      "chorus",
-      "orchestra"
+      "Soloists",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1837
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Fugue for String Quintet",
-    "form": "fugue",
+    "form": "Fugue",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -3101,11 +3101,11 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Viola",
+      "Cello"
     ],
     "instrumentation_category": "Chamber",
     "publication_year": 1827,
@@ -3119,7 +3119,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Leonore Overture",
-    "form": "overture",
+    "form": "Overture",
     "number": 1,
     "catalog_info": [
       {
@@ -3128,9 +3128,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1807,
     "subpieces": [
       {
@@ -3163,13 +3163,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1799,
     "subpieces": [
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "key_tonality": "E",
         "key_mode": "major",
         "catalog_info": [
@@ -3232,7 +3232,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "key_tonality": "G",
         "key_mode": "major",
         "catalog_info": [
@@ -3277,7 +3277,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano concerto",
+    "form": "Piano Concerto",
     "number": 1,
     "key_tonality": "C",
     "key_mode": "major",
@@ -3288,7 +3288,7 @@
       }
     ],
     "instrumentation": [
-      "piano",
+      "Piano",
       {
         "orchestra": [
           "flute",
@@ -3366,7 +3366,7 @@
         ]
       }
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -3474,7 +3474,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Quintet for Piano and Winds",
-    "form": "quintet",
+    "form": "Quintet",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -3484,19 +3484,19 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "oboe",
+      "Piano",
+      "Oboe",
       {
-        "instrument": "clarinet",
+        "instrument": "Clarinet",
         "key": "B-flat"
       },
       {
-        "instrument": "horn",
+        "instrument": "Horn",
         "key": "E-flat"
       },
-      "bassoon"
+      "Bassoon"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -3547,7 +3547,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "horn sonata",
+    "form": "Horn Sonata",
     "key_tonality": "F",
     "key_mode": "major",
     "catalog_info": [
@@ -3557,7 +3557,7 @@
       }
     ],
     "instrumentation": [
-      "piano",
+      "Piano",
       {
         "alternate_instrument": "cello",
         "instrument": {
@@ -3566,7 +3566,7 @@
         }
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -3608,11 +3608,11 @@
         "catalog_number": "18"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801,
     "subpieces": [
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 1,
         "key_tonality": "F",
         "key_mode": "major",
@@ -3664,7 +3664,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 2,
         "key_tonality": "G",
         "key_mode": "major",
@@ -3724,7 +3724,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 3,
         "key_tonality": "D",
         "key_mode": "major",
@@ -3775,7 +3775,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 4,
         "key_tonality": "C",
         "key_mode": "minor",
@@ -3831,7 +3831,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 5,
         "key_tonality": "A",
         "key_mode": "major",
@@ -3882,7 +3882,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 6,
         "key_tonality": "B♭",
         "key_mode": "major",
@@ -3942,7 +3942,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano concerto",
+    "form": "Piano Concerto",
     "number": 2,
     "key_tonality": "B♭",
     "key_mode": "major",
@@ -3953,7 +3953,7 @@
       }
     ],
     "instrumentation": [
-      "piano",
+      "Piano",
       {
         "orchestra": [
           "flute",
@@ -4003,7 +4003,7 @@
         ]
       }
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -4070,13 +4070,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1796,
     "subpieces": [
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 1,
         "key_tonality": "F",
         "key_mode": "minor",
@@ -4128,7 +4128,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 2,
         "key_tonality": "A",
         "key_mode": "major",
@@ -4181,7 +4181,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 3,
         "key_tonality": "C",
         "key_mode": "major",
@@ -4236,7 +4236,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "septet",
+    "form": "Septet",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -4247,20 +4247,20 @@
     ],
     "instrumentation": [
       {
-        "instrument": "clarinet",
+        "instrument": "Clarinet",
         "key": "B-flat"
       },
-      "bassoon",
+      "Bassoon",
       {
-        "instrument": "horn",
+        "instrument": "Horn",
         "key": "E-flat"
       },
-      "violin",
-      "viola",
-      "cello",
-      "double bass"
+      "Violin",
+      "Viola",
+      "Cello",
+      "Double Bass"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -4295,7 +4295,7 @@
         ]
       },
       {
-        "form": "Tema con variazioni",
+        "form": "Tema Con Variazioni",
         "number": 4,
         "tempos": [
           {
@@ -4443,7 +4443,7 @@
         ]
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -4495,7 +4495,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 11,
     "key_tonality": "B♭",
     "key_mode": "major",
@@ -4506,9 +4506,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1800,
     "subpieces": [
       {
@@ -4548,7 +4548,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "violin sonata",
+    "form": "Violin Sonata",
     "number": 4,
     "key_tonality": "A",
     "key_mode": "minor",
@@ -4559,10 +4559,10 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "piano"
+      "Violin",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -4597,7 +4597,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Spring",
-    "form": "violin sonata",
+    "form": "Violin Sonata",
     "number": 5,
     "key_tonality": "F",
     "key_mode": "major",
@@ -4608,10 +4608,10 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "piano"
+      "Violin",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -4656,7 +4656,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "serenade",
+    "form": "Serenade",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -4666,11 +4666,11 @@
       }
     ],
     "instrumentation": [
-      "flute",
-      "violin",
-      "viola"
+      "Flute",
+      "Violin",
+      "Viola"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -4736,7 +4736,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 12,
     "key_tonality": "A♭",
     "key_mode": "major",
@@ -4747,9 +4747,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -4801,14 +4801,14 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1801,
     "subpieces": [
       {
         "subtitle": "Sonata quasi una Fantasia",
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 13,
         "key_tonality": "E♭",
         "key_mode": "major",
@@ -4877,7 +4877,7 @@
       {
         "nickname": "Moonlight",
         "subtitle": "Sonata quasi una Fantasia",
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 14,
         "key_tonality": "C♯",
         "key_mode": "minor",
@@ -4931,7 +4931,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Pastoral",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 15,
     "key_tonality": "D",
     "key_mode": "major",
@@ -4942,9 +4942,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -4993,7 +4993,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quintet",
+    "form": "String Quintet",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -5003,13 +5003,13 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -5053,7 +5053,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano trio",
+    "form": "Piano Trio",
     "number": 1,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -5064,11 +5064,11 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1794,
     "subpieces": [
       {
@@ -5140,14 +5140,14 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "piano"
+      "Violin",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1802,
     "subpieces": [
       {
-        "form": "violin sonata",
+        "form": "Violin Sonata",
         "number": 6,
         "key_tonality": "A",
         "key_mode": "major",
@@ -5189,7 +5189,7 @@
         ]
       },
       {
-        "form": "violin sonata",
+        "form": "Violin Sonata",
         "number": 7,
         "key_tonality": "C",
         "key_mode": "minor",
@@ -5246,7 +5246,7 @@
         ]
       },
       {
-        "form": "violin sonata",
+        "form": "Violin Sonata",
         "number": 8,
         "key_tonality": "G",
         "key_mode": "major",
@@ -5299,13 +5299,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1802,
     "subpieces": [
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 16,
         "key_tonality": "G",
         "key_mode": "major",
@@ -5349,7 +5349,7 @@
       },
       {
         "nickname": "Tempest",
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 17,
         "key_tonality": "D",
         "key_mode": "minor",
@@ -5396,7 +5396,7 @@
       },
       {
         "nickname": "The Hunt",
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 18,
         "key_tonality": "E♭",
         "key_mode": "major",
@@ -5459,7 +5459,7 @@
         "catalog_number": "32"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1805
   },
   {
@@ -5471,7 +5471,7 @@
         "catalog_number": "33"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -5543,7 +5543,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Six Variations",
-    "form": "variations",
+    "form": "Variations",
     "key_tonality": "F",
     "key_mode": "major",
     "catalog_info": [
@@ -5553,9 +5553,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -5631,7 +5631,7 @@
     "composer": "Beethoven, Ludwig van",
     "title": "Variations and Fugue",
     "nickname": "Eroica Variations",
-    "form": "variations",
+    "form": "Variations",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -5639,9 +5639,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -5818,7 +5818,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 2,
     "key_tonality": "D",
     "key_mode": "major",
@@ -5829,9 +5829,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -5879,7 +5879,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano concerto",
+    "form": "Piano Concerto",
     "number": 3,
     "key_tonality": "C",
     "key_mode": "minor",
@@ -5890,10 +5890,10 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "orchestra"
+      "Piano",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1800,
     "subpieces": [
       {
@@ -5929,7 +5929,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Piano Trio (arr. of Septet, Op. 20)",
-    "form": "piano trio",
+    "form": "Piano Trio",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -5939,11 +5939,11 @@
       }
     ],
     "instrumentation": [
-      "clarinet",
-      "cello",
-      "piano"
+      "Clarinet",
+      "Cello",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1803,
     "subpieces": [
       {
@@ -6014,7 +6014,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Two Preludes through All Twelve Major Keys",
-    "form": "prelude",
+    "form": "Prelude",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -6022,14 +6022,14 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1803
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "string quintet",
+    "form": "String Quintet",
     "number": 1,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -6041,24 +6041,24 @@
     ],
     "instrumentation": [
       {
-        "instrument": "violin",
+        "instrument": "Violin",
         "number": 1
       },
       {
-        "instrument": "violin",
+        "instrument": "Violin",
         "number": 2
       },
       {
-        "instrument": "viola",
+        "instrument": "Viola",
         "number": 1
       },
       {
-        "instrument": "viola",
+        "instrument": "Viola",
         "number": 2
       },
-      "cello"
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1795,
     "subpieces": [
       {
@@ -6103,7 +6103,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "romance",
+    "form": "Romance",
     "number": 1,
     "key_tonality": "G",
     "key_mode": "major",
@@ -6114,16 +6114,16 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "orchestra"
+      "Violin",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1802
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Serenade for Flute and Piano",
-    "form": "serenade",
+    "form": "Serenade",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -6132,7 +6132,7 @@
         "catalog_number": "41"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1803,
     "subpieces": [
       {
@@ -6208,7 +6208,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Notturno (arr. of Serenade, Op. 8)",
-    "form": "notturno",
+    "form": "Notturno",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -6218,10 +6218,10 @@
       }
     ],
     "instrumentation": [
-      "viola",
-      "piano"
+      "Viola",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1803
   },
   {
@@ -6233,7 +6233,7 @@
         "catalog_number": "43"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1801,
     "subpieces": [
       {
@@ -6405,7 +6405,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "variations",
+    "form": "Variations",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -6415,9 +6415,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1792
   },
   {
@@ -6431,13 +6431,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1803,
     "subpieces": [
       {
-        "form": "march",
+        "form": "March",
         "number": 1,
         "key_tonality": "C",
         "key_mode": "major",
@@ -6450,7 +6450,7 @@
         ]
       },
       {
-        "form": "march",
+        "form": "March",
         "number": 2,
         "key_tonality": "E♭",
         "key_mode": "major",
@@ -6463,7 +6463,7 @@
         ]
       },
       {
-        "form": "march",
+        "form": "March",
         "number": 3,
         "key_tonality": "D",
         "key_mode": "major",
@@ -6486,13 +6486,13 @@
         "catalog_number": "46"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1795
   },
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Kreutzer",
-    "form": "violin sonata",
+    "form": "Violin Sonata",
     "number": 9,
     "key_tonality": "A",
     "key_mode": "major",
@@ -6503,10 +6503,10 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "piano"
+      "Violin",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1803,
     "subpieces": [
       {
@@ -6560,7 +6560,7 @@
         "catalog_number": "48"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1802,
     "subpieces": [
       {
@@ -6629,13 +6629,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1805,
     "subpieces": [
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 19,
         "key_tonality": "G",
         "key_mode": "minor",
@@ -6669,7 +6669,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "number": 20,
         "key_tonality": "G",
         "key_mode": "major",
@@ -6713,14 +6713,14 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "cello"
+      "Piano",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1796,
     "subpieces": [
       {
-        "form": "cello sonata",
+        "form": "Cello Sonata",
         "number": 1,
         "key_tonality": "F",
         "key_mode": "major",
@@ -6758,7 +6758,7 @@
         ]
       },
       {
-        "form": "cello sonata",
+        "form": "Cello Sonata",
         "number": 2,
         "key_tonality": "G",
         "key_mode": "minor",
@@ -6799,7 +6799,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "romance",
+    "form": "Romance",
     "number": 2,
     "key_tonality": "F",
     "key_mode": "major",
@@ -6810,10 +6810,10 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "orchestra"
+      "Violin",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1798
   },
   {
@@ -6826,13 +6826,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1797,
     "subpieces": [
       {
-        "form": "rondo",
+        "form": "Rondo",
         "number": 1,
         "key_tonality": "C",
         "key_mode": "major",
@@ -6851,7 +6851,7 @@
         ]
       },
       {
-        "form": "rondo",
+        "form": "Rondo",
         "number": 2,
         "key_tonality": "G",
         "key_mode": "major",
@@ -6880,7 +6880,7 @@
         "catalog_number": "52"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1804,
     "subpieces": [
       {
@@ -6960,7 +6960,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Waldstein",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 21,
     "key_tonality": "C",
     "key_mode": "major",
@@ -6971,9 +6971,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1804,
     "subpieces": [
       {
@@ -7013,7 +7013,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 22,
     "key_tonality": "F",
     "key_mode": "major",
@@ -7024,9 +7024,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1804,
     "subpieces": [
       {
@@ -7056,7 +7056,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Eroica",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 3,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -7067,9 +7067,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1805,
     "subpieces": [
       {
@@ -7122,7 +7122,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "triple concerto",
+    "form": "Triple Concerto",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -7132,12 +7132,12 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello",
-      "orchestra"
+      "Piano",
+      "Violin",
+      "Cello",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1804,
     "subpieces": [
       {
@@ -7172,7 +7172,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Appassionata",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 23,
     "key_tonality": "F",
     "key_mode": "minor",
@@ -7183,9 +7183,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1805,
     "subpieces": [
       {
@@ -7227,7 +7227,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano concerto",
+    "form": "Piano Concerto",
     "number": 4,
     "key_tonality": "G",
     "key_mode": "major",
@@ -7238,10 +7238,10 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "orchestra"
+      "Piano",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1805,
     "subpieces": [
       {
@@ -7285,16 +7285,16 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1808,
     "subpieces": [
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 7,
         "key_tonality": "F",
         "key_mode": "major",
@@ -7345,7 +7345,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 8,
         "key_tonality": "E",
         "key_mode": "minor",
@@ -7397,7 +7397,7 @@
         ]
       },
       {
-        "form": "string quartet",
+        "form": "String Quartet",
         "number": 9,
         "key_tonality": "C",
         "key_mode": "major",
@@ -7457,7 +7457,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Sonata for Piano Four Hands",
-    "form": "sonata",
+    "form": "Sonata",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -7467,7 +7467,7 @@
       }
     ],
     "instrumentation": [
-      "piano, four hands"
+      "Piano, Four Hands"
     ],
     "instrumentation_category": "Piano",
     "publication_year": 1797,
@@ -7495,7 +7495,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 4,
     "key_tonality": "B♭",
     "key_mode": "major",
@@ -7506,9 +7506,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1806,
     "subpieces": [
       {
@@ -7564,7 +7564,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "violin concerto",
+    "form": "Violin Concerto",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -7574,10 +7574,10 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "orchestra"
+      "Violin",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1806,
     "subpieces": [
       {
@@ -7613,7 +7613,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Piano Concerto (trans. of Violin Concerto, Op. 61)",
-    "form": "piano concerto",
+    "form": "Piano Concerto",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -7623,10 +7623,10 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "orchestra"
+      "Piano",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "subpieces": [
       {
         "number": 1,
@@ -7661,7 +7661,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Coriolan Overture",
-    "form": "overture",
+    "form": "Overture",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -7669,15 +7669,15 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1807
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Piano Trio (arr. of String Quintet, Op. 4)",
-    "form": "piano trio",
+    "form": "Piano Trio",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -7687,17 +7687,17 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello"
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1806
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Sonata for Piano and Cello (arr. of String Trio, Op. 3)",
-    "form": "sonata",
+    "form": "Sonata",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -7707,16 +7707,16 @@
       }
     ],
     "instrumentation": [
-      "cello",
-      "piano"
+      "Cello",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1807
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Ah! perfido",
-    "form": "aria",
+    "form": "Aria",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -7724,10 +7724,10 @@
       }
     ],
     "instrumentation": [
-      "soprano",
-      "orchestra"
+      "Soprano",
+      "Orchestra"
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1805
   },
   {
@@ -7740,12 +7740,12 @@
         "catalog_number": "66"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1796
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 5,
     "key_tonality": "C",
     "key_mode": "minor",
@@ -7756,9 +7756,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1807,
     "subpieces": [
       {
@@ -7802,7 +7802,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Pastoral",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 6,
     "key_tonality": "F",
     "key_mode": "major",
@@ -7813,9 +7813,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1807,
     "subpieces": [
       {
@@ -7867,7 +7867,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "cello sonata",
+    "form": "Cello Sonata",
     "number": 3,
     "key_tonality": "A",
     "key_mode": "major",
@@ -7878,10 +7878,10 @@
       }
     ],
     "instrumentation": [
-      "cello",
-      "piano"
+      "Cello",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1808,
     "subpieces": [
       {
@@ -7920,7 +7920,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 4,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -7931,9 +7931,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1797,
     "subpieces": [
       {
@@ -7985,16 +7985,16 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello"
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1809,
     "subpieces": [
       {
         "nickname": "Ghost",
-        "form": "piano trio",
+        "form": "Piano Trio",
         "number": 5,
         "key_tonality": "D",
         "key_mode": "major",
@@ -8036,7 +8036,7 @@
         ]
       },
       {
-        "form": "piano trio",
+        "form": "Piano Trio",
         "number": 6,
         "key_tonality": "E♭",
         "key_mode": "major",
@@ -8095,7 +8095,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "sextet",
+    "form": "Sextet",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -8105,14 +8105,14 @@
       }
     ],
     "instrumentation": [
-      "clarinet",
-      "clarinet",
-      "horn",
-      "horn",
-      "bassoon",
-      "bassoon"
+      "Clarinet",
+      "Clarinet",
+      "Horn",
+      "Horn",
+      "Bassoon",
+      "Bassoon"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1810,
     "subpieces": [
       {
@@ -8164,113 +8164,99 @@
       }
     ],
     "instrumentation": [
-      "mixed chorus",
+      "Mixed Chorus",
       {
-        "orchestra": [
-          {
-            "instrument": "flute",
-            "number": 1
-          },
-          {
-            "instrument": "flute",
-            "number": 2
-          },
-          {
-            "also_instrument": "piccolo"
-          },
-          {
-            "instrument": "oboe",
-            "number": 1
-          },
-          {
-            "instrument": "oboe",
-            "number": 2
-          },
-          {
-            "instrument": "clarinet",
-            "key": "A",
-            "number": 1
-          },
-          {
-            "instrument": "clarinet",
-            "key": "A",
-            "number": 2
-          },
-          {
-            "instrument": "bassoon",
-            "number": 1
-          },
-          {
-            "instrument": "bassoon",
-            "number": 2
-          },
-          "contrabassoon",
-          {
-            "instrument": "horn",
-            "key": "E",
-            "number": 1
-          },
-          {
-            "instrument": "horn",
-            "key": "E",
-            "number": 2
-          },
-          {
-            "instrument": "horn",
-            "key": "E",
-            "number": 3
-          },
-          {
-            "instrument": "horn",
-            "key": "E",
-            "number": 4
-          },
-          {
-            "instrument": "trumpet",
-            "key": "C",
-            "number": 1
-          },
-          {
-            "instrument": "trumpet",
-            "key": "C",
-            "number": 2
-          },
-          {
-            "instrument": "trumpet",
-            "key": "C",
-            "placement": "offstage"
-          },
-          "tenor trombone",
-          "bass trombone",
-          {
-            "instrument": "timpani",
-            "key": "E"
-          },
-          {
-            "instrument": "timpani",
-            "key": "B"
-          },
-          {
-            "number": 1,
-            "section": "violin"
-          },
-          {
-            "number": 2,
-            "section": "violin"
-          },
-          {
-            "section": "viola"
-          },
-          {
-            "section": "cello"
-          },
-          {
-            "section": "double bass"
-          }
-        ]
-      }
+        "instrument": "Flute",
+        "number": 1
+      },
+      {
+        "instrument": "Flute",
+        "number": 2
+      },
+      {
+        "instrument": "Oboe",
+        "number": 1
+      },
+      {
+        "instrument": "Oboe",
+        "number": 2
+      },
+      {
+        "instrument": "Clarinet",
+        "key": "A",
+        "number": 1
+      },
+      {
+        "instrument": "Clarinet",
+        "key": "A",
+        "number": 2
+      },
+      {
+        "instrument": "Bassoon",
+        "number": 1
+      },
+      {
+        "instrument": "Bassoon",
+        "number": 2
+      },
+      "Contrabassoon",
+      {
+        "instrument": "Horn",
+        "key": "E",
+        "number": 1
+      },
+      {
+        "instrument": "Horn",
+        "key": "E",
+        "number": 2
+      },
+      {
+        "instrument": "Horn",
+        "key": "E",
+        "number": 3
+      },
+      {
+        "instrument": "Horn",
+        "key": "E",
+        "number": 4
+      },
+      {
+        "instrument": "Trumpet",
+        "key": "C",
+        "number": 1
+      },
+      {
+        "instrument": "Trumpet",
+        "key": "C",
+        "number": 2
+      },
+      {
+        "instrument": "Trumpet",
+        "key": "C"
+      },
+      "Tenor Trombone",
+      "Bass Trombone",
+      {
+        "instrument": "Timpani",
+        "key": "E"
+      },
+      {
+        "instrument": "Timpani",
+        "key": "B"
+      },
+      {
+        "instrument": "Violin",
+        "number": 1
+      },
+      {
+        "instrument": "Violin",
+        "number": 2
+      },
+      "Viola",
+      "Cello",
+      "Double Bass"
     ],
-    "instrumentation_category": "opera",
+    "instrumentation_category": "Opera",
     "publication_year": 1826,
     "librettist": [
       "Sonnleithner, Joseph",
@@ -8451,66 +8437,66 @@
     ],
     "roles": [
       {
-        "description": "A prisoner",
         "name": "Florestan",
-        "voice_type": "tenor"
+        "voice_type": "Tenor",
+        "description": "A prisoner"
       },
       {
-        "description": "Florestan's wife, disguised as a man under the alias Fidelio",
         "name": "Leonore",
-        "voice_type": "tenor"
+        "voice_type": "Soprano",
+        "description": "Florestan's wife, disguised as a man under the alias Fidelio"
       },
       {
-        "description": "Jailer",
         "name": "Rocco",
-        "voice_type": "tenor"
+        "voice_type": "Bass",
+        "description": "Jailer"
       },
       {
-        "description": "Rocco's daughter",
         "name": "Marzelline",
-        "voice_type": "tenor"
+        "voice_type": "Soprano",
+        "description": "Rocco's daughter"
       },
       {
-        "description": "Assistant to Rocco",
         "name": "Jaquino",
-        "voice_type": "tenor"
+        "voice_type": "Tenor",
+        "description": "Assistant to Rocco"
       },
       {
-        "description": "Governor of the prison",
         "name": "Don Pizarro",
-        "voice_type": "tenor"
+        "voice_type": "Baritone",
+        "description": "Governor of the prison"
       },
       {
-        "description": "King's minister",
         "name": "Don Fernando",
-        "voice_type": "tenor"
+        "voice_type": "Baritone",
+        "description": "King's minister"
       },
       {
         "name": "First prisoner",
-        "voice_type": "tenor"
+        "voice_type": "Tenor"
       },
       {
         "name": "Second prisoner",
-        "voice_type": "bass"
+        "voice_type": "Bass"
       },
       {
         "name": "Chorus of guards",
-        "voice_type": "men's chorus"
+        "voice_type": "Men's Chorus"
       },
       {
         "name": "Chorus of prisoners",
-        "voice_type": "men's chorus"
+        "voice_type": "Men's Chorus"
       },
       {
         "name": "Chorus of townsfolk",
-        "voice_type": "mixed chorus"
+        "voice_type": "Mixed Chorus"
       }
     ]
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Leonore (with Leonore Overture No. 2)",
-    "form": "opera",
+    "form": "Opera",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -8518,17 +8504,17 @@
       }
     ],
     "instrumentation": [
-      "soloists",
-      "chorus",
-      "orchestra"
+      "Soloists",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1805
   },
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Leonore (with Leonore Overture No. 3)",
-    "form": "opera",
+    "form": "Opera",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -8536,17 +8522,17 @@
       }
     ],
     "instrumentation": [
-      "soloists",
-      "chorus",
-      "orchestra"
+      "Soloists",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1806
   },
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Emperor",
-    "form": "piano concerto",
+    "form": "Piano Concerto",
     "number": 5,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -8557,10 +8543,10 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "orchestra"
+      "Piano",
+      "Orchestra"
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "publication_year": 1809,
     "subpieces": [
       {
@@ -8604,7 +8590,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Harp",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 10,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -8615,12 +8601,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1809,
     "subpieces": [
       {
@@ -8629,6 +8615,10 @@
           {
             "number": 1,
             "tempo_description": "Poco Adagio"
+          },
+          {
+            "number": 2,
+            "tempo_description": "Allegro"
           }
         ]
       },
@@ -8694,7 +8684,7 @@
         "catalog_number": "75"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1809,
     "subpieces": [
       {
@@ -8756,7 +8746,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Six Variations on an Original Theme",
-    "form": "variations",
+    "form": "Variations",
     "key_tonality": "D",
     "key_mode": "major",
     "catalog_info": [
@@ -8766,14 +8756,14 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1810
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "fantasia",
+    "form": "Fantasia",
     "key_tonality": "G",
     "key_mode": "minor",
     "catalog_info": [
@@ -8783,14 +8773,14 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1810
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 24,
     "key_tonality": "F♯",
     "key_mode": "major",
@@ -8801,9 +8791,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1809,
     "subpieces": [
       {
@@ -8832,7 +8822,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 25,
     "key_tonality": "G",
     "key_mode": "major",
@@ -8843,9 +8833,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1809,
     "subpieces": [
       {
@@ -8889,11 +8879,11 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1797,
     "subpieces": [
       {
@@ -8978,7 +8968,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Choral Fantasy",
-    "form": "fantasia",
+    "form": "Fantasia",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -8986,9 +8976,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1808,
     "subpieces": [
       {
@@ -9043,7 +9033,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Les Adieux",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 26,
     "key_tonality": "E♭",
     "key_mode": "major",
@@ -9054,9 +9044,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1811,
     "subpieces": [
       {
@@ -9094,7 +9084,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "sextet",
+    "form": "Sextet",
     "key_tonality": "E♭",
     "key_mode": "major",
     "catalog_info": [
@@ -9104,14 +9094,14 @@
       }
     ],
     "instrumentation": [
-      "horn",
-      "horn",
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Horn",
+      "Horn",
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1810
   },
   {
@@ -9123,7 +9113,7 @@
         "catalog_number": "82"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1809,
     "subpieces": [
       {
@@ -9182,7 +9172,7 @@
         "catalog_number": "83"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1810,
     "subpieces": [
       {
@@ -9223,7 +9213,7 @@
         "catalog_number": "84"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1810,
     "subpieces": [
       {
@@ -9316,7 +9306,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Christus am Ölberge",
-    "form": "oratorio",
+    "form": "Oratorio",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -9324,16 +9314,16 @@
       }
     ],
     "instrumentation": [
-      "soloists",
-      "chorus",
-      "orchestra"
+      "Soloists",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1811
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "mass",
+    "form": "Mass",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -9343,11 +9333,11 @@
       }
     ],
     "instrumentation": [
-      "soloists",
-      "chorus",
-      "orchestra"
+      "Soloists",
+      "Chorus",
+      "Orchestra"
     ],
-    "instrumentation_category": "choral",
+    "instrumentation_category": "Choral",
     "publication_year": 1812,
     "subpieces": [
       {
@@ -9374,7 +9364,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "trio",
+    "form": "Trio",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -9384,11 +9374,11 @@
       }
     ],
     "instrumentation": [
-      "oboe",
-      "oboe",
-      "english horn"
+      "Oboe",
+      "Oboe",
+      "English Horn"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1806,
     "subpieces": [
       {
@@ -9439,12 +9429,12 @@
         "catalog_number": "88"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1803
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -9454,9 +9444,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1815
   },
   {
@@ -9469,15 +9459,15 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1798,
     "subpieces": [
       {
-        "form": "string trio",
+        "form": "String Trio",
         "number": 1,
         "key_tonality": "G",
         "key_mode": "major",
@@ -9533,7 +9523,7 @@
         ]
       },
       {
-        "form": "string trio",
+        "form": "String Trio",
         "number": 2,
         "key_tonality": "D",
         "key_mode": "major",
@@ -9586,7 +9576,7 @@
         ]
       },
       {
-        "form": "string trio",
+        "form": "String Trio",
         "number": 3,
         "key_tonality": "C",
         "key_mode": "minor",
@@ -9642,7 +9632,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "number": 27,
     "key_tonality": "E",
     "key_mode": "minor",
@@ -9653,9 +9643,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1814,
     "subpieces": [
       {
@@ -9681,7 +9671,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Wellington's Victory",
-    "form": "symphony",
+    "form": "Symphony",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -9689,9 +9679,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1816,
     "subpieces": [
       {
@@ -9706,7 +9696,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 7,
     "key_tonality": "A",
     "key_mode": "major",
@@ -9717,9 +9707,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1812,
     "subpieces": [
       {
@@ -9774,7 +9764,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "symphony",
+    "form": "Symphony",
     "number": 8,
     "key_tonality": "F",
     "key_mode": "major",
@@ -9785,9 +9775,9 @@
       }
     ],
     "instrumentation": [
-      "orchestra"
+      "Orchestra"
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "publication_year": 1812,
     "subpieces": [
       {
@@ -9837,13 +9827,13 @@
         "catalog_number": "94"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1814
   },
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Quartetto serioso",
-    "form": "string quartet",
+    "form": "String Quartet",
     "number": 11,
     "key_tonality": "F",
     "key_mode": "minor",
@@ -9854,12 +9844,12 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "violin",
-      "viola",
-      "cello"
+      "Violin",
+      "Violin",
+      "Viola",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1810,
     "subpieces": [
       {
@@ -9906,7 +9896,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "violin sonata",
+    "form": "Violin Sonata",
     "number": 10,
     "key_tonality": "G",
     "key_mode": "major",
@@ -9917,10 +9907,10 @@
       }
     ],
     "instrumentation": [
-      "violin",
-      "piano"
+      "Violin",
+      "Piano"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1812,
     "subpieces": [
       {
@@ -9965,7 +9955,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Archduke",
-    "form": "piano trio",
+    "form": "Piano Trio",
     "key_tonality": "B♭",
     "key_mode": "major",
     "catalog_info": [
@@ -9975,11 +9965,11 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello"
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1811,
     "subpieces": [
       {
@@ -10023,7 +10013,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "song cycle",
+    "form": "Song Cycle",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -10031,10 +10021,10 @@
       }
     ],
     "instrumentation": [
-      "voice",
-      "piano"
+      "Voice",
+      "Piano"
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1816,
     "subpieces": [
       {
@@ -10102,7 +10092,7 @@
         "catalog_number": "99"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "publication_year": 1816
   },
   {
@@ -10184,7 +10174,7 @@
         "catalog_number": "105"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10195,7 +10185,7 @@
         "catalog_number": "106"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10206,7 +10196,7 @@
         "catalog_number": "107"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10217,7 +10207,7 @@
         "catalog_number": "108"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10228,7 +10218,7 @@
         "catalog_number": "109"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10249,7 +10239,7 @@
         "catalog_number": "110"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10260,7 +10250,7 @@
         "catalog_number": "111"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10271,7 +10261,7 @@
         "catalog_number": "112"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10282,7 +10272,7 @@
         "catalog_number": "113"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10293,7 +10283,7 @@
         "catalog_number": "114"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10304,7 +10294,7 @@
         "catalog_number": "115"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10315,7 +10305,7 @@
         "catalog_number": "116"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10326,7 +10316,7 @@
         "catalog_number": "117"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10337,7 +10327,7 @@
         "catalog_number": "118"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10348,7 +10338,7 @@
         "catalog_number": "119"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10359,7 +10349,7 @@
         "catalog_number": "120"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10370,7 +10360,7 @@
         "catalog_number": "121"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10381,7 +10371,7 @@
         "catalog_number": "122"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10392,7 +10382,7 @@
         "catalog_number": "123"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10403,7 +10393,7 @@
         "catalog_number": "124"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10414,7 +10404,7 @@
         "catalog_number": "125"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10425,7 +10415,7 @@
         "catalog_number": "126"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10446,7 +10436,7 @@
         "catalog_number": "128"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10457,7 +10447,7 @@
         "catalog_number": "129"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10478,7 +10468,7 @@
         "catalog_number": "130"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10499,7 +10489,7 @@
         "catalog_number": "132"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10510,7 +10500,7 @@
         "catalog_number": "133"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10521,7 +10511,7 @@
         "catalog_number": "134"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10532,7 +10522,7 @@
         "catalog_number": "135"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10543,7 +10533,7 @@
         "catalog_number": "136"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10554,7 +10544,7 @@
         "catalog_number": "137"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10565,7 +10555,7 @@
         "catalog_number": "138"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10576,7 +10566,7 @@
         "catalog_number": "139"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10597,7 +10587,7 @@
         "catalog_number": "140"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10608,7 +10598,7 @@
         "catalog_number": "141"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10619,7 +10609,7 @@
         "catalog_number": "142"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10630,7 +10620,7 @@
         "catalog_number": "143"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10641,7 +10631,7 @@
         "catalog_number": "144"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10652,7 +10642,7 @@
         "catalog_number": "145"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10663,7 +10653,7 @@
         "catalog_number": "146"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10674,7 +10664,7 @@
         "catalog_number": "147"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10685,7 +10675,7 @@
         "catalog_number": "148"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10696,7 +10686,7 @@
         "catalog_number": "149"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10717,7 +10707,7 @@
         "catalog_number": "150"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -10728,7 +10718,7 @@
         "catalog_number": "151"
       }
     ],
-    "instrumentation_category": "vocal"
+    "instrumentation_category": "Vocal"
   },
   {
     "composer": "Beethoven, Ludwig van",
@@ -11663,14 +11653,14 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Duo for Two Flutes",
-    "form": "duo",
+    "form": "Duo",
     "catalog_info": [
       {
         "catalog": "WoO",
         "catalog_number": "26"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1792,
     "subpieces": [
       {
@@ -11826,7 +11816,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "Trio for Piano, Flute, and Bassoon",
-    "form": "trio",
+    "form": "Trio",
     "key_tonality": "G",
     "key_mode": "major",
     "catalog_info": [
@@ -11835,7 +11825,7 @@
         "catalog_number": "37"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1786,
     "subpieces": [
       {
@@ -11869,7 +11859,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano trio",
+    "form": "Piano Trio",
     "key_tonality": "B♭",
     "key_mode": "major",
     "catalog_info": [
@@ -11879,11 +11869,11 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin",
-      "cello"
+      "Piano",
+      "Violin",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1791
   },
   {
@@ -11996,7 +11986,7 @@
         "catalog_number": "46"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1801
   },
   {
@@ -12009,13 +11999,13 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1783,
     "subpieces": [
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "key_tonality": "E♭",
         "key_mode": "major",
         "catalog_info": [
@@ -12056,7 +12046,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "key_tonality": "F",
         "key_mode": "minor",
         "catalog_info": [
@@ -12101,7 +12091,7 @@
         ]
       },
       {
-        "form": "piano sonata",
+        "form": "Piano Sonata",
         "key_tonality": "D",
         "key_mode": "major",
         "catalog_info": [
@@ -12189,7 +12179,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "piano sonata",
+    "form": "Piano Sonata",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -12199,9 +12189,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1797,
     "subpieces": [
       {
@@ -12245,7 +12235,7 @@
         "catalog_number": "53"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1796
   },
   {
@@ -12289,7 +12279,7 @@
         "catalog_number": "57"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1805
   },
   {
@@ -12305,7 +12295,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "nickname": "Für Elise",
-    "form": "bagatelle",
+    "form": "Bagatelle",
     "key_tonality": "A",
     "key_mode": "minor",
     "catalog_info": [
@@ -12315,9 +12305,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1810
   },
   {
@@ -12332,7 +12322,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "form": "bagatelle",
+    "form": "Bagatelle",
     "key_tonality": "B♭",
     "key_mode": "major",
     "catalog_info": [
@@ -12342,9 +12332,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1818
   },
   {
@@ -12467,7 +12457,7 @@
         "catalog_number": "70"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1795,
     "subpieces": [
       {
@@ -12625,7 +12615,7 @@
         "catalog_number": "79"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1803,
     "subpieces": [
       {
@@ -12701,7 +12691,7 @@
   {
     "composer": "Beethoven, Ludwig van",
     "title": "32 Variations",
-    "form": "variations",
+    "form": "Variations",
     "key_tonality": "C",
     "key_mode": "minor",
     "catalog_info": [
@@ -12711,9 +12701,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1806,
     "subpieces": [
       {
@@ -12972,7 +12962,7 @@
         "catalog_number": "83"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1806
   },
   {
@@ -13399,7 +13389,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "G",
     "key_mode": "minor",
     "catalog_info": [
@@ -13408,12 +13398,12 @@
         "catalog_number": "1"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Rondo",
-    "form": "rondo",
+    "form": "Rondo",
     "key_tonality": "C",
     "key_mode": "minor",
     "catalog_info": [
@@ -13426,12 +13416,12 @@
         "catalog_number": "1"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Nocturne",
-    "form": "nocturne",
+    "form": "Nocturne",
     "key_tonality": "C",
     "key_mode": "minor",
     "catalog_info": [
@@ -13440,12 +13430,12 @@
         "catalog_number": "108"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Largo",
-    "form": "largo",
+    "form": "Largo",
     "key_tonality": "E-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13454,12 +13444,12 @@
         "catalog_number": "109"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "B-flat",
     "key_mode": "minor",
     "catalog_info": [
@@ -13468,7 +13458,7 @@
         "catalog_number": "13"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -13479,7 +13469,7 @@
         "catalog_number": "130"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -13513,7 +13503,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "E-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13522,12 +13512,12 @@
         "catalog_number": "133"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Mazurka",
-    "form": "mazurka",
+    "form": "Mazurka",
     "key_tonality": "A",
     "key_mode": "minor",
     "catalog_info": [
@@ -13536,7 +13526,7 @@
         "catalog_number": "134"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -13547,12 +13537,12 @@
         "catalog_number": "14"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Mazurka",
-    "form": "mazurka",
+    "form": "Mazurka",
     "key_tonality": "A",
     "key_mode": "minor",
     "catalog_info": [
@@ -13561,12 +13551,12 @@
         "catalog_number": "140"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Fugue",
-    "form": "fugue",
+    "form": "Fugue",
     "key_tonality": "A",
     "key_mode": "minor",
     "catalog_info": [
@@ -13575,12 +13565,12 @@
         "catalog_number": "144"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "A",
     "key_mode": "minor",
     "catalog_info": [
@@ -13589,7 +13579,7 @@
         "catalog_number": "150"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -13602,12 +13592,12 @@
         "catalog_number": "151"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Contredanse",
-    "form": "contredanse",
+    "form": "Contredanse",
     "key_tonality": "G-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13616,12 +13606,12 @@
         "catalog_number": "17"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13630,7 +13620,7 @@
         "catalog_number": "21"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -13645,12 +13635,12 @@
         "catalog_number": "2"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "B-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13659,12 +13649,12 @@
         "catalog_number": "3"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "G-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13673,7 +13663,7 @@
         "catalog_number": "36"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -13686,12 +13676,12 @@
         "catalog_number": "37"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "E",
     "key_mode": "major",
     "catalog_info": [
@@ -13700,12 +13690,12 @@
         "catalog_number": "44"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "E-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13714,12 +13704,12 @@
         "catalog_number": "46"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Nocturne",
-    "form": "nocturne",
+    "form": "Nocturne",
     "key_tonality": "C-sharp",
     "key_mode": "minor",
     "catalog_info": [
@@ -13728,12 +13718,12 @@
         "catalog_number": "49"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13742,12 +13732,12 @@
         "catalog_number": "5"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "E",
     "key_mode": "minor",
     "catalog_info": [
@@ -13756,12 +13746,12 @@
         "catalog_number": "56"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "G-sharp",
     "key_mode": "minor",
     "catalog_info": [
@@ -13770,12 +13760,12 @@
         "catalog_number": "6"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz \"Grande valse brillante\"",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "E-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13788,12 +13778,12 @@
         "catalog_number": "18"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Scherzo #1",
-    "form": "scherzo",
+    "form": "Scherzo",
     "number": 1,
     "key_tonality": "B",
     "key_mode": "minor",
@@ -13807,12 +13797,12 @@
         "catalog_number": "20"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Ballade #1",
-    "form": "ballade",
+    "form": "Ballade",
     "number": 1,
     "key_tonality": "G",
     "key_mode": "minor",
@@ -13826,12 +13816,12 @@
         "catalog_number": "23"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Rondo",
-    "form": "rondo",
+    "form": "Rondo",
     "key_tonality": "E-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13844,12 +13834,12 @@
         "catalog_number": "16"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "B.",
@@ -13860,7 +13850,7 @@
         "catalog_number": "17"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -13913,12 +13903,12 @@
         "catalog_number": "12"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Bolero",
-    "form": "bolero",
+    "form": "Bolero",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -13931,12 +13921,12 @@
         "catalog_number": "19"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Cantabile",
-    "form": "cantabile",
+    "form": "Cantabile",
     "key_tonality": "B-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13945,12 +13935,12 @@
         "catalog_number": "84"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Prelude",
-    "form": "prelude",
+    "form": "Prelude",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13959,12 +13949,12 @@
         "catalog_number": "86"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Andante spianato and Grande polonaise brillante",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "E-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -13981,12 +13971,12 @@
         "catalog_number": "22"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "B.",
@@ -13997,7 +13987,7 @@
         "catalog_number": "24"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14048,7 +14038,7 @@
         "catalog_number": "9"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -14059,7 +14049,7 @@
         "catalog_number": "10"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14256,7 +14246,7 @@
         "catalog_number": "11"
       }
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "subpieces": [
       {
         "number": 1,
@@ -14268,7 +14258,7 @@
         ]
       },
       {
-        "form": "romanze",
+        "form": "Romanze",
         "number": 2,
         "tempos": [
           {
@@ -14278,7 +14268,7 @@
         ]
       },
       {
-        "form": "rondo",
+        "form": "Rondo",
         "number": 3,
         "tempos": [
           {
@@ -14298,31 +14288,31 @@
         "catalog_number": "13"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Rondo à la Krakowiak",
-    "form": "rondo",
+    "form": "Rondo",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "14"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "15"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14383,7 +14373,7 @@
         "catalog_number": "21"
       }
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "subpieces": [
       {
         "number": 1,
@@ -14423,7 +14413,7 @@
         "catalog_number": "25"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "nickname": "Aeolian Harp",
@@ -14541,14 +14531,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Polonaises",
-    "form": "polonaise",
+    "form": "Polonaise",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "26"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14573,14 +14563,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "27"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14605,14 +14595,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "24 Preludes",
-    "form": "prelude",
+    "form": "Prelude",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "28"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14836,7 +14826,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Impromptu #1",
-    "form": "impromptu",
+    "form": "Impromptu",
     "number": 1,
     "key_tonality": "A-flat",
     "key_mode": "major",
@@ -14846,12 +14836,12 @@
         "catalog_number": "29"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Introduction and Polonaise brillante",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -14861,14 +14851,14 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "cello"
+      "Piano",
+      "Cello"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "versions": [
       {
         "instrumentation": [
-          "piano"
+          "Piano"
         ]
       }
     ]
@@ -14876,14 +14866,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "30"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14926,7 +14916,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Scherzo #2",
-    "form": "scherzo",
+    "form": "Scherzo",
     "number": 2,
     "key_tonality": "B-flat",
     "key_mode": "minor",
@@ -14936,19 +14926,19 @@
         "catalog_number": "31"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "32"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -14973,14 +14963,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "33"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15023,14 +15013,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Waltzes",
-    "form": "waltz",
+    "form": "Waltz",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "34"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15073,7 +15063,7 @@
         "catalog_number": "35"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15094,7 +15084,7 @@
         ]
       },
       {
-        "form": "marche funèbre",
+        "form": "Marche Funèbre",
         "number": 3,
         "tempos": [
           {
@@ -15104,7 +15094,7 @@
         ]
       },
       {
-        "form": "finale",
+        "form": "Finale",
         "number": 4,
         "tempos": [
           {
@@ -15118,7 +15108,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Impromptu #2",
-    "form": "impromptu",
+    "form": "Impromptu",
     "number": 2,
     "key_tonality": "F-sharp",
     "key_mode": "major",
@@ -15128,19 +15118,19 @@
         "catalog_number": "36"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "37"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15165,7 +15155,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Ballade #2",
-    "form": "ballade",
+    "form": "Ballade",
     "number": 2,
     "key_tonality": "F",
     "key_mode": "major",
@@ -15175,12 +15165,12 @@
         "catalog_number": "38"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Scherzo #3",
-    "form": "scherzo",
+    "form": "Scherzo",
     "number": 3,
     "key_tonality": "C-sharp",
     "key_mode": "minor",
@@ -15190,7 +15180,7 @@
         "catalog_number": "39"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -15204,7 +15194,7 @@
         "catalog_number": "4"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15234,7 +15224,7 @@
         ]
       },
       {
-        "form": "finale",
+        "form": "Finale",
         "number": 4,
         "tempos": [
           {
@@ -15248,14 +15238,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Polonaises",
-    "form": "polonaise",
+    "form": "Polonaise",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "40"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "nickname": "Military",
@@ -15281,14 +15271,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "41"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15331,7 +15321,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Waltz",
-    "form": "waltz",
+    "form": "Waltz",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -15340,12 +15330,12 @@
         "catalog_number": "42"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Tarantella",
-    "form": "tarantella",
+    "form": "Tarantella",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -15354,12 +15344,12 @@
         "catalog_number": "43"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "F-sharp",
     "key_mode": "minor",
     "catalog_info": [
@@ -15368,12 +15358,12 @@
         "catalog_number": "44"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Prelude",
-    "form": "prelude",
+    "form": "Prelude",
     "key_tonality": "C-sharp",
     "key_mode": "minor",
     "catalog_info": [
@@ -15382,7 +15372,7 @@
         "catalog_number": "45"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -15395,12 +15385,12 @@
         "catalog_number": "46"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Ballade #3",
-    "form": "ballade",
+    "form": "Ballade",
     "number": 3,
     "key_tonality": "A-flat",
     "key_mode": "major",
@@ -15410,19 +15400,19 @@
         "catalog_number": "47"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "48"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15447,7 +15437,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Fantaisie",
-    "form": "fantaisie",
+    "form": "Fantaisie",
     "key_tonality": "F",
     "key_mode": "minor",
     "catalog_info": [
@@ -15456,12 +15446,12 @@
         "catalog_number": "49"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Rondo",
-    "form": "rondo",
+    "form": "Rondo",
     "key_tonality": "F",
     "key_mode": "major",
     "catalog_info": [
@@ -15470,19 +15460,19 @@
         "catalog_number": "5"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "50"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15516,7 +15506,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Impromptu #3",
-    "form": "impromptu",
+    "form": "Impromptu",
     "number": 3,
     "key_tonality": "G-flat",
     "key_mode": "major",
@@ -15526,12 +15516,12 @@
         "catalog_number": "51"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Ballade #4",
-    "form": "ballade",
+    "form": "Ballade",
     "number": 4,
     "key_tonality": "F",
     "key_mode": "minor",
@@ -15541,12 +15531,12 @@
         "catalog_number": "52"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise",
-    "form": "polonaise",
+    "form": "Polonaise",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -15555,12 +15545,12 @@
         "catalog_number": "53"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Scherzo #4",
-    "form": "scherzo",
+    "form": "Scherzo",
     "number": 4,
     "key_tonality": "E",
     "key_mode": "major",
@@ -15570,19 +15560,19 @@
         "catalog_number": "54"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "55"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15607,14 +15597,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "56"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15648,7 +15638,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Berceuse",
-    "form": "berceuse",
+    "form": "Berceuse",
     "key_tonality": "D-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -15657,7 +15647,7 @@
         "catalog_number": "57"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -15671,7 +15661,7 @@
         "catalog_number": "58"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15683,7 +15673,7 @@
         ]
       },
       {
-        "form": "scherzo",
+        "form": "Scherzo",
         "number": 2,
         "tempos": [
           {
@@ -15702,7 +15692,7 @@
         ]
       },
       {
-        "form": "finale",
+        "form": "Finale",
         "number": 4,
         "tempos": [
           {
@@ -15716,14 +15706,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "59"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15757,14 +15747,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "6"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15807,7 +15797,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Barcarolle",
-    "form": "barcarolle",
+    "form": "Barcarolle",
     "key_tonality": "F-sharp",
     "key_mode": "major",
     "catalog_info": [
@@ -15816,12 +15806,12 @@
         "catalog_number": "60"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Polonaise-Fantaisie",
-    "form": "fantaisie",
+    "form": "Fantaisie",
     "key_tonality": "A-flat",
     "key_mode": "major",
     "catalog_info": [
@@ -15830,19 +15820,19 @@
         "catalog_number": "61"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "62"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15867,14 +15857,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "63"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -15908,14 +15898,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Waltzes",
-    "form": "waltz",
+    "form": "Waltz",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "64"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "nickname": "Minute",
@@ -15958,7 +15948,7 @@
         "catalog_number": "65"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -15970,7 +15960,7 @@
         ]
       },
       {
-        "form": "scherzo",
+        "form": "Scherzo",
         "number": 2,
         "tempos": [
           {
@@ -15989,7 +15979,7 @@
         ]
       },
       {
-        "form": "finale",
+        "form": "Finale",
         "number": 4,
         "tempos": [
           {
@@ -16003,7 +15993,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Fantaisie-Impromptu",
-    "form": "fantaisie",
+    "form": "Fantaisie",
     "key_tonality": "C-sharp",
     "key_mode": "minor",
     "catalog_info": [
@@ -16012,19 +16002,19 @@
         "catalog_number": "66"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "67"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16067,14 +16057,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Four Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "68"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16117,14 +16107,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Two Waltzes",
-    "form": "waltz",
+    "form": "Waltz",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "69"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16149,14 +16139,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Five Mazurkas",
-    "form": "mazurka",
+    "form": "Mazurka",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "7"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16208,14 +16198,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Waltzes",
-    "form": "waltz",
+    "form": "Waltz",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "70"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16249,14 +16239,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Polonaises",
-    "form": "polonaise",
+    "form": "Polonaise",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "71"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16290,7 +16280,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Nocturne",
-    "form": "nocturne",
+    "form": "Nocturne",
     "key_tonality": "E",
     "key_mode": "minor",
     "catalog_info": [
@@ -16299,7 +16289,7 @@
         "catalog_number": "72 #1"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -16312,19 +16302,19 @@
         "catalog_number": "72 #2"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Ecossaises",
-    "form": "écossaise",
+    "form": "Écossaise",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "72 #3"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16358,7 +16348,7 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Rondo",
-    "form": "rondo",
+    "form": "Rondo",
     "key_tonality": "C",
     "key_mode": "major",
     "catalog_info": [
@@ -16367,7 +16357,7 @@
         "catalog_number": "73"
       }
     ],
-    "instrumentation_category": "piano"
+    "instrumentation_category": "Piano"
   },
   {
     "composer": "Chopin, Frédéric",
@@ -16378,7 +16368,7 @@
         "catalog_number": "74"
       }
     ],
-    "instrumentation_category": "song",
+    "instrumentation_category": "Song",
     "subpieces": [
       {
         "number": 1,
@@ -16564,7 +16554,7 @@
         "catalog_number": "8"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -16576,7 +16566,7 @@
         ]
       },
       {
-        "form": "scherzo",
+        "form": "Scherzo",
         "number": 2,
         "tempos": [
           {
@@ -16595,7 +16585,7 @@
         ]
       },
       {
-        "form": "finale",
+        "form": "Finale",
         "number": 4,
         "tempos": [
           {
@@ -16609,14 +16599,14 @@
   {
     "composer": "Chopin, Frédéric",
     "title": "Three Nocturnes",
-    "form": "nocturne",
+    "form": "Nocturne",
     "catalog_info": [
       {
         "catalog": "Op.",
         "catalog_number": "9"
       }
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "subpieces": [
       {
         "number": 1,
@@ -16651,7 +16641,7 @@
     "composer": "Mussorgsky, Modest",
     "title": "Pictures at an Exhibition",
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
     "publication_year": 1886,
     "subpieces": [
@@ -16899,7 +16889,7 @@
             ]
           }
         ],
-        "instrumentation_category": "orchestra",
+        "instrumentation_category": "Orchestra",
         "publication_year": 1922,
         "subpieces": [
           {
@@ -16997,7 +16987,7 @@
   {
     "composer": "Ravel, Maurice",
     "title": "Deux épigrammes de Clément Marot",
-    "instrumentation_category": "song",
+    "instrumentation_category": "Song",
     "publication_year": 1900,
     "text_author": "Marot, Clément",
     "subpieces": [
@@ -17011,8 +17001,8 @@
           }
         ],
         "instrumentation": [
-          "voice",
-          "piano"
+          "Voice",
+          "Piano"
         ]
       },
       {
@@ -17025,10 +17015,10 @@
           }
         ],
         "instrumentation": [
-          "voice",
+          "Voice",
           {
             "alternate_instrument": "harpsichord",
-            "instrument": "piano"
+            "instrument": "Piano"
           }
         ]
       }
@@ -17038,10 +17028,10 @@
     "composer": "Ravel, Maurice",
     "title": "Cinq mélodies populaires grecques",
     "instrumentation": [
-      "voice",
-      "piano"
+      "Voice",
+      "Piano"
     ],
-    "instrumentation_category": "song",
+    "instrumentation_category": "Song",
     "publication_year": 1906,
     "text_author": "Calvocoressi, Michel Dimitri",
     "subpieces": [
@@ -17208,9 +17198,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1902
   },
   {
@@ -17359,7 +17349,7 @@
         "first_line": "À l'horizon les voiles blanches Ont disparu"
       },
       {
-        "form": "Description symphonique",
+        "form": "Description Symphonique",
         "number": 3
       },
       {
@@ -17390,15 +17380,15 @@
     "roles": [
       {
         "name": "Alcyone",
-        "voice_type": "soprano"
+        "voice_type": "Soprano"
       },
       {
         "name": "Sophrona",
-        "voice_type": "contralto"
+        "voice_type": "Contralto"
       },
       {
         "name": "La voix de Céyx",
-        "voice_type": "tenor"
+        "voice_type": "Tenor"
       }
     ]
   },
@@ -17490,10 +17480,10 @@
       }
     ],
     "instrumentation": [
-      "voice",
-      "piano"
+      "Voice",
+      "Piano"
     ],
-    "instrumentation_category": "song",
+    "instrumentation_category": "Song",
     "publication_year": 1975,
     "composition_years": "c1893",
     "text_author": "Roland de Marès"
@@ -17850,9 +17840,9 @@
       }
     ],
     "instrumentation": [
-      "piano, four hands"
+      "Piano, Four Hands"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1910,
     "subpieces": [
       {
@@ -17915,9 +17905,9 @@
       {
         "description": "piano",
         "instrumentation": [
-          "piano"
+          "Piano"
         ],
-        "instrumentation_category": "piano",
+        "instrumentation_category": "Piano",
         "publication_year": 1910,
         "contributing_composers": [
           {
@@ -18018,7 +18008,7 @@
             ]
           }
         ],
-        "instrumentation_category": "orchestra",
+        "instrumentation_category": "Orchestra",
         "publication_year": 1911,
         "subpieces": [
           {
@@ -18034,7 +18024,7 @@
           {
             "title": "Danse du rouet et scène",
             "title_English": "Spinning wheel dance and scene",
-            "form": "Premier tableau",
+            "form": "Premier Tableau",
             "number": 2,
             "tempos": [
               {
@@ -18046,7 +18036,7 @@
           {
             "title": "Pavane de la Belle au bois dormant",
             "title_English": "Pavane of Sleeping Beauty",
-            "form": "Deuxième tableau",
+            "form": "Deuxième Tableau",
             "number": 3,
             "tempos": [
               {
@@ -18068,7 +18058,7 @@
           {
             "title": "Les entretiens de la belle et de la bête",
             "title_English": "Conversation of Beauty and the Beast",
-            "form": "Troisième tableau",
+            "form": "Troisième Tableau",
             "number": 5,
             "tempos": [
               {
@@ -18090,7 +18080,7 @@
           {
             "title": "Petit Poucet",
             "title_English": "Little Tom Thumb / Hop-o'-My-Thumb",
-            "form": "Quatrième tableau",
+            "form": "Quatrième Tableau",
             "number": 7,
             "tempos": [
               {
@@ -18112,7 +18102,7 @@
           {
             "title": "Laideronnette, impératrice des pagodes",
             "title_English": "Little Ugly Girl, Empress of the Pagodas",
-            "form": "Cinquième tableau",
+            "form": "Cinquième Tableau",
             "number": 9,
             "tempos": [
               {
@@ -18242,9 +18232,9 @@
       }
     ],
     "instrumentation": [
-      "piano"
+      "Piano"
     ],
-    "instrumentation_category": "piano",
+    "instrumentation_category": "Piano",
     "publication_year": 1914,
     "subpieces": [
       {
@@ -18555,10 +18545,10 @@
       }
     ],
     "instrumentation": [
-      "piano",
-      "violin"
+      "Piano",
+      "Violin"
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1924,
     "versions": [
       {
@@ -18570,8 +18560,8 @@
           }
         ],
         "instrumentation": [
-          "violin",
-          "piano luthéal"
+          "Violin",
+          "Piano Luthéal"
         ]
       },
       {
@@ -18583,7 +18573,7 @@
           }
         ],
         "instrumentation": [
-          "violin",
+          "Violin",
           {
             "orchestra": [
               {
@@ -18665,7 +18655,7 @@
             ]
           }
         ],
-        "instrumentation_category": "concertante",
+        "instrumentation_category": "Concertante",
         "publication_year": 1924
       }
     ]
@@ -18909,50 +18899,39 @@
   {
     "composer": "Webern, Anton",
     "title": "Am Ufer",
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
     "title": "Bild der Liebe",
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
     "title": "Gefunden",
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
     "title": "Langsamer Satz",
-    "instrumentation_category": "chamber"
-  },
-  {
-    "composer": "Webern, Anton",
-    "title": "Movement for String Trio",
-    "catalog_info": [
-      {
-        "catalog": "Op.",
-        "catalog_number": "posth."
-      }
-    ],
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
     "title": "Rondo for String Quartet",
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1906
   },
   {
     "composer": "Webern, Anton",
     "title": "String Quartet",
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1905
   },
   {
     "composer": "Webern, Anton",
     "title": "Three Pieces for String Quartet",
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "publication_year": 1913,
     "subpieces": [
       {
@@ -18987,7 +18966,7 @@
   {
     "composer": "Webern, Anton",
     "title": "Vorfrühling",
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
@@ -18998,7 +18977,7 @@
         "catalog_number": "1"
       }
     ],
-    "instrumentation_category": "orchestra"
+    "instrumentation_category": "Orchestra"
   },
   {
     "composer": "Webern, Anton",
@@ -19009,7 +18988,7 @@
         "catalog_number": "10"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "subpieces": [
       {
         "number": 1,
@@ -19067,7 +19046,7 @@
         "catalog_number": "11"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19107,7 +19086,7 @@
         "catalog_number": "12"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19156,7 +19135,7 @@
         "catalog_number": "13"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19205,7 +19184,7 @@
         "catalog_number": "14"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19272,7 +19251,7 @@
         "catalog_number": "15"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19330,7 +19309,7 @@
         "catalog_number": "16"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19388,7 +19367,7 @@
         "catalog_number": "17"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19428,7 +19407,7 @@
         "catalog_number": "18"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19468,7 +19447,7 @@
         "catalog_number": "19"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19499,7 +19478,7 @@
         "catalog_number": "2"
       }
     ],
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
@@ -19510,7 +19489,7 @@
         "catalog_number": "20"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19541,7 +19520,7 @@
         "catalog_number": "21"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "subpieces": [
       {
         "number": 1,
@@ -19572,7 +19551,7 @@
         "catalog_number": "22"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19603,7 +19582,7 @@
         "catalog_number": "23"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19643,7 +19622,7 @@
         "catalog_number": "24"
       }
     ],
-    "instrumentation_category": "concertante",
+    "instrumentation_category": "Concertante",
     "subpieces": [
       {
         "number": 1,
@@ -19683,7 +19662,7 @@
         "catalog_number": "25"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19723,7 +19702,7 @@
         "catalog_number": "26"
       }
     ],
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
@@ -19734,7 +19713,7 @@
         "catalog_number": "27"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19774,7 +19753,7 @@
         "catalog_number": "28"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -19814,7 +19793,7 @@
         "catalog_number": "29"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19854,7 +19833,7 @@
         "catalog_number": "3"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19912,7 +19891,7 @@
         "catalog_number": "30"
       }
     ],
-    "instrumentation_category": "chamber"
+    "instrumentation_category": "Chamber"
   },
   {
     "composer": "Webern, Anton",
@@ -19923,7 +19902,7 @@
         "catalog_number": "31"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -19990,7 +19969,7 @@
         "catalog_number": "4"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -20048,7 +20027,7 @@
         "catalog_number": "5"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -20099,7 +20078,7 @@
     "versions": [
       {
         "description": "Orchestra",
-        "instrumentation_category": "orchestra"
+        "instrumentation_category": "Orchestra"
       }
     ]
   },
@@ -20112,7 +20091,7 @@
         "catalog_number": "6"
       }
     ],
-    "instrumentation_category": "orchestra",
+    "instrumentation_category": "Orchestra",
     "versions": [
       {
         "description": "1909",
@@ -20243,7 +20222,7 @@
         "catalog_number": "7"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -20292,7 +20271,7 @@
         "catalog_number": "8"
       }
     ],
-    "instrumentation_category": "vocal",
+    "instrumentation_category": "Vocal",
     "subpieces": [
       {
         "number": 1,
@@ -20323,7 +20302,7 @@
         "catalog_number": "9"
       }
     ],
-    "instrumentation_category": "chamber",
+    "instrumentation_category": "Chamber",
     "subpieces": [
       {
         "number": 1,
@@ -20380,5 +20359,16 @@
         ]
       }
     ]
+  },
+  {
+    "composer": "Webern, Anton",
+    "title": "Movement for String Trio",
+    "catalog_info": [
+      {
+        "catalog": "Op.",
+        "catalog_number": "posth."
+      }
+    ],
+    "instrumentation_category": "Chamber"
   }
 ]

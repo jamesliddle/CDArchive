@@ -79,18 +79,7 @@ public partial class VersionEditorWindow : Window
         }
     }
 
-    private static string FormatSubpieceLabel(CanonPiece sp)
-    {
-        var prefix = sp.Number.HasValue ? $"{sp.Number}. " : "";
-        var tempoDesc = sp.TempoDescription;
-        var form = sp.Form != null ? char.ToUpper(sp.Form[0]) + sp.Form[1..] : "";
-
-        if (!string.IsNullOrEmpty(sp.Title))  return $"{prefix}{sp.Title}";
-        if (!string.IsNullOrEmpty(form) && !string.IsNullOrEmpty(tempoDesc)) return $"{prefix}{form}. {tempoDesc}";
-        if (!string.IsNullOrEmpty(tempoDesc)) return $"{prefix}{tempoDesc}";
-        if (!string.IsNullOrEmpty(form))      return $"{prefix}{form}";
-        return $"{prefix}(untitled)";
-    }
+    private static string FormatSubpieceLabel(CanonPiece sp) => sp.SubpieceDisplayTitle;
 
     private CanonPiece? SelectedSubpiece =>
         (SubpieceList.SelectedItem as ListBoxItem)?.Tag as CanonPiece;

@@ -159,6 +159,20 @@ public partial class PiecesWindow : Window
                 _vm.StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
             }
         }
+        else if (item.DataContext is SubpieceDisplayNode node)
+        {
+            var window = new MovementEditorWindow(_vm.PickLists, node.Piece)
+            {
+                Owner = this
+            };
+
+            if (window.ShowDialog() == true)
+            {
+                ApplyFilter();
+                await SaveAllAsync();
+                _vm.StatusMessage = $"Updated: {node.Piece.SubpieceDisplayTitle}.";
+            }
+        }
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e)

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using CDArchive.Core.Models;
 
 namespace CDArchive.App.Views;
@@ -9,6 +10,8 @@ public partial class MovementEditorWindow : Window
     private readonly CanonPiece _movement;
     private readonly CanonPickLists _pickLists;
     private readonly List<TempoInfo> _tempos;
+    private readonly List<CanonPiece> _subpieces;
+    private readonly List<string> _roles = [];
 
     public CanonPiece Movement => _movement;
 
@@ -21,6 +24,7 @@ public partial class MovementEditorWindow : Window
         _tempos = _movement.Tempos != null
             ? _movement.Tempos.Select(CloneTempo).ToList()
             : [];
+        _subpieces = _movement.Subpieces?.ToList() ?? [];
 
         Title = movement == null ? "New Movement" : "Edit Movement";
 
@@ -29,6 +33,8 @@ public partial class MovementEditorWindow : Window
 
         LoadFromMovement();
         RefreshTempoList();
+        RefreshRoleList();
+        RefreshSubpieceList();
     }
 
     private void LoadFromMovement()
@@ -41,11 +47,10 @@ public partial class MovementEditorWindow : Window
         FirstLineBox.Text = _movement.FirstLine ?? "";
         KeyTonalityCombo.Text = _movement.KeyTonality ?? "";
 
-        // Roles — JSON string array, show comma-separated
-        RolesBox.Text = _movement.Roles?.ValueKind == System.Text.Json.JsonValueKind.Array
-            ? string.Join(", ", _movement.Roles.Value.EnumerateArray()
-                .Select(e => e.GetString() ?? "").Where(s => s.Length > 0))
-            : "";
+        // Roles — JSON string array
+        if (_movement.Roles?.ValueKind == System.Text.Json.JsonValueKind.Array)
+            _roles.AddRange(_movement.Roles.Value.EnumerateArray()
+                .Select(e => e.GetString() ?? "").Where(s => s.Length > 0));
 
         var mode = (_movement.KeyMode ?? "").ToLowerInvariant();
         foreach (ComboBoxItem item in KeyModeCombo.Items)
@@ -71,15 +76,46 @@ public partial class MovementEditorWindow : Window
         var selectedMode = (KeyModeCombo.SelectedItem as ComboBoxItem)?.Content as string;
         _movement.KeyMode = string.IsNullOrEmpty(selectedMode) ? null : selectedMode;
 
-        // Roles — split on commas, store as JSON string array
-        var rolesText = NullIfEmpty(RolesBox.Text);
-        _movement.Roles = rolesText != null
-            ? System.Text.Json.JsonSerializer.SerializeToElement(
-                rolesText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        // Roles — store as JSON string array
+        _movement.Roles = _roles.Count > 0
+            ? System.Text.Json.JsonSerializer.SerializeToElement(_roles.ToArray())
             : null;
 
         _movement.Tempos = _tempos.Count > 0 ? _tempos.ToList() : null;
+        _movement.Subpieces = _subpieces.Count > 0 ? _subpieces.ToList() : null;
     }
+
+    // --- Role list ---
+
+    private void RefreshRoleList()
+    {
+        var selected = RoleList.SelectedItem as string;
+        RoleList.Items.Clear();
+        foreach (var name in _roles)
+            RoleList.Items.Add(name);
+        if (selected != null && RoleList.Items.Contains(selected))
+            RoleList.SelectedItem = selected;
+    }
+
+    private void OnAddRoleClick(object sender, RoutedEventArgs e)
+    {
+        var name = RoleEntryBox.Text.Trim();
+        if (string.IsNullOrEmpty(name)) return;
+        _roles.Add(name);
+        RefreshRoleList();
+        RoleList.SelectedItem = name;
+        RoleEntryBox.Text = "";
+        RoleEntryBox.Focus();
+    }
+
+    private void OnRemoveRoleClick(object sender, RoutedEventArgs e)
+    {
+        if (RoleList.SelectedItem is not string name) return;
+        _roles.Remove(name);
+        RefreshRoleList();
+    }
+
+    // --- Tempo list ---
 
     private void RefreshTempoList()
     {
@@ -109,14 +145,16 @@ public partial class MovementEditorWindow : Window
         }
     }
 
-    private void OnEditTempoClick(object sender, RoutedEventArgs e)
+    private void OnEditTempoClick(object sender, RoutedEventArgs e) => EditSelectedTempo();
+
+    private void OnTempoDoubleClick(object sender, MouseButtonEventArgs e) => EditSelectedTempo();
+
+    private void EditSelectedTempo()
     {
         if (SelectedTempo is not { } tempo) return;
         var editor = new TempoEditorWindow(tempo) { Owner = this };
         if (editor.ShowDialog() == true)
-        {
             RefreshTempoList();
-        }
     }
 
     private void OnRemoveTempoClick(object sender, RoutedEventArgs e)
@@ -164,6 +202,81 @@ public partial class MovementEditorWindow : Window
             }
         }
     }
+
+    // --- Sub-movement management ---
+
+    private void RefreshSubpieceList()
+    {
+        var selectedTag = (SubpieceList.SelectedItem as ListBoxItem)?.Tag;
+        SubpieceList.Items.Clear();
+        foreach (var sp in _subpieces)
+        {
+            var item = new ListBoxItem { Content = FormatSubpieceLabel(sp), Tag = sp };
+            SubpieceList.Items.Add(item);
+            if (sp == selectedTag) SubpieceList.SelectedItem = item;
+        }
+    }
+
+    private static string FormatSubpieceLabel(CanonPiece sp) => sp.SubpieceDisplayTitle;
+
+    private CanonPiece? SelectedSubpiece =>
+        (SubpieceList.SelectedItem as ListBoxItem)?.Tag as CanonPiece;
+
+    private void OnAddSubpieceClick(object sender, RoutedEventArgs e)
+    {
+        var nextNumber = _subpieces.Count > 0
+            ? _subpieces.Where(s => s.Number.HasValue).Select(s => s.Number!.Value).DefaultIfEmpty(0).Max() + 1
+            : 1;
+        var newMovement = new CanonPiece { Number = nextNumber };
+
+        var editor = new MovementEditorWindow(_pickLists, newMovement) { Owner = this };
+        if (editor.ShowDialog() == true)
+        {
+            _subpieces.Add(editor.Movement);
+            RefreshSubpieceList();
+        }
+    }
+
+    private void OnEditSubpieceClick(object sender, RoutedEventArgs e) => EditSelectedSubpiece();
+
+    private void OnSubpieceDoubleClick(object sender, MouseButtonEventArgs e) => EditSelectedSubpiece();
+
+    private void EditSelectedSubpiece()
+    {
+        if (SelectedSubpiece is not { } sp) return;
+        var editor = new MovementEditorWindow(_pickLists, sp) { Owner = this };
+        if (editor.ShowDialog() == true)
+            RefreshSubpieceList();
+    }
+
+    private void OnRemoveSubpieceClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedSubpiece is not { } sp) return;
+        _subpieces.Remove(sp);
+        RefreshSubpieceList();
+    }
+
+    private void OnMoveSubpieceUpClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedSubpiece is not { } sp) return;
+        var idx = _subpieces.IndexOf(sp);
+        if (idx <= 0) return;
+        (_subpieces[idx], _subpieces[idx - 1]) = (_subpieces[idx - 1], _subpieces[idx]);
+        (sp.Number, _subpieces[idx].Number)     = (_subpieces[idx].Number, sp.Number);
+        RefreshSubpieceList();
+    }
+
+    private void OnMoveSubpieceDownClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedSubpiece is not { } sp) return;
+        var idx = _subpieces.IndexOf(sp);
+        if (idx < 0 || idx >= _subpieces.Count - 1) return;
+        (_subpieces[idx], _subpieces[idx + 1]) = (_subpieces[idx + 1], _subpieces[idx]);
+        (sp.Number, _subpieces[idx].Number)     = (_subpieces[idx].Number, sp.Number);
+        RefreshSubpieceList();
+    }
+
+    // --- OK ---
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {

@@ -15,6 +15,7 @@ public partial class PieceEditorWindow : Window
     private readonly List<RoleEntry> _roles;
     private readonly List<InstrumentEntry> _pieceInstruments = [];
     private readonly List<CatalogInfo> _catalogEntries = [];
+    private readonly List<string> _librettists = [];
 
     /// <summary>
     /// The piece being edited (or newly created).
@@ -80,11 +81,16 @@ public partial class PieceEditorWindow : Window
             ? _piece.CompositionYears.Value.GetString() ?? ""
             : _piece.CompositionYears?.ToString() ?? "";
 
-        // Librettist (stored as JSON array of strings — show comma-separated)
-        LibrettistBox.Text = _piece.Librettist?.ValueKind == System.Text.Json.JsonValueKind.Array
-            ? string.Join(", ", _piece.Librettist.Value.EnumerateArray()
-                .Select(e => e.GetString() ?? "").Where(s => s.Length > 0))
-            : _piece.Librettist?.GetString() ?? "";
+        // Librettist (stored as JSON array of strings)
+        if (_piece.Librettist?.ValueKind == System.Text.Json.JsonValueKind.Array)
+            _librettists.AddRange(_piece.Librettist.Value.EnumerateArray()
+                .Select(e => e.GetString() ?? "").Where(s => s.Length > 0));
+        else if (_piece.Librettist?.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            var s = _piece.Librettist.Value.GetString();
+            if (!string.IsNullOrWhiteSpace(s)) _librettists.Add(s.Trim());
+        }
+        RefreshLibrettistList();
 
         // Text author (stored as a JSON string value)
         TextAuthorBox.Text = _piece.TextAuthor?.ValueKind == System.Text.Json.JsonValueKind.String
@@ -138,11 +144,9 @@ public partial class PieceEditorWindow : Window
             ? System.Text.Json.JsonDocument.Parse($"\"{compYears}\"").RootElement.Clone()
             : null;
 
-        // Librettist — split on commas, store as JSON string array
-        var librettistText = NullIfEmpty(LibrettistBox.Text);
-        _piece.Librettist = librettistText != null
-            ? System.Text.Json.JsonSerializer.SerializeToElement(
-                librettistText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        // Librettist — store as JSON string array
+        _piece.Librettist = _librettists.Count > 0
+            ? System.Text.Json.JsonSerializer.SerializeToElement(_librettists.ToArray())
             : null;
 
         // Text author — store as JSON string
@@ -183,24 +187,7 @@ public partial class PieceEditorWindow : Window
         }
     }
 
-    private static string FormatSubpieceLabel(CanonPiece sp)
-    {
-        var prefix = sp.Number.HasValue ? $"{sp.Number}. " : "";
-        var tempoDesc = sp.TempoDescription;
-        var form = sp.Form != null ? char.ToUpper(sp.Form[0]) + sp.Form[1..] : "";
-
-        if (!string.IsNullOrEmpty(sp.Title))
-            return $"{prefix}{sp.Title}";
-        if (!string.IsNullOrEmpty(form) && !string.IsNullOrEmpty(tempoDesc))
-            return $"{prefix}{form}. {tempoDesc}";
-        if (!string.IsNullOrEmpty(tempoDesc))
-            return $"{prefix}{tempoDesc}";
-        if (!string.IsNullOrEmpty(form))
-            return $"{prefix}{form}";
-        if (!string.IsNullOrEmpty(sp.Name))
-            return $"{prefix}{sp.Name}";
-        return $"{prefix}(untitled)";
-    }
+    private static string FormatSubpieceLabel(CanonPiece sp) => sp.SubpieceDisplayTitle;
 
     private CanonPiece? SelectedSubpiece =>
         (SubpieceList.SelectedItem as ListBoxItem)?.Tag as CanonPiece;
@@ -373,6 +360,36 @@ public partial class PieceEditorWindow : Window
         RefreshCatalogList();
     }
 
+    // --- Librettist list ---
+
+    private void RefreshLibrettistList()
+    {
+        var selected = LibrettistList.SelectedItem as string;
+        LibrettistList.Items.Clear();
+        foreach (var name in _librettists)
+            LibrettistList.Items.Add(name);
+        if (selected != null && LibrettistList.Items.Contains(selected))
+            LibrettistList.SelectedItem = selected;
+    }
+
+    private void OnAddLibrettistClick(object sender, RoutedEventArgs e)
+    {
+        var name = LibrettistEntryBox.Text.Trim();
+        if (string.IsNullOrEmpty(name)) return;
+        _librettists.Add(name);
+        RefreshLibrettistList();
+        LibrettistList.SelectedItem = name;
+        LibrettistEntryBox.Text = "";
+        LibrettistEntryBox.Focus();
+    }
+
+    private void OnRemoveLibrettistClick(object sender, RoutedEventArgs e)
+    {
+        if (LibrettistList.SelectedItem is not string name) return;
+        _librettists.Remove(name);
+        RefreshLibrettistList();
+    }
+
     // --- Instrumentation list ---
 
     private void RefreshInstrumentList()
@@ -386,7 +403,7 @@ public partial class PieceEditorWindow : Window
 
         AvailableInstrumentsList.Items.Clear();
         foreach (var inst in _pickLists.Instruments.Order())
-            AvailableInstrumentsList.Items.Add(inst);
+            AvailableInstrumentsList.Items.Add(CanonFormat.TitleCase(inst));
     }
 
     /// <summary>
