@@ -165,12 +165,13 @@ public class CanonPiece
         // If there's an explicit title, use it (append key, optionally catalog, nickname)
         if (!string.IsNullOrEmpty(Title))
         {
+            var titleNumPrefix = isSubpiece && Number.HasValue ? $"{Number}. " : "";
             var parts = new List<string> { Title };
             if (!string.IsNullOrEmpty(Key))
                 parts[0] += $" in {Key}";
             if (includeCatalog && !string.IsNullOrEmpty(Catalog))
                 parts.Add(Catalog);
-            var titleResult = string.Join(", ", parts);
+            var titleResult = titleNumPrefix + string.Join(", ", parts);
             if (!string.IsNullOrEmpty(Subtitle))
                 titleResult += $", {Subtitle}";
             if (!string.IsNullOrEmpty(Nickname))

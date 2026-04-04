@@ -20392,7 +20392,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Moderato"
+            "tempo_description": "Moderato"
           }
         ]
       },
@@ -20401,7 +20401,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Vivace"
+            "tempo_description": "Vivace"
           }
         ]
       },
@@ -20410,7 +20410,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Molto adagio — Tempo primo"
+            "tempo_description": "Molto adagio — Tempo primo"
           }
         ]
       }
@@ -20521,7 +20521,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro ma non troppo"
+            "tempo_description": "Allegro ma non troppo"
           }
         ]
       },
@@ -20530,7 +20530,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro molto"
+            "tempo_description": "Allegro molto"
           }
         ]
       },
@@ -20539,7 +20539,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Andante tranquillo"
+            "tempo_description": "Andante tranquillo"
           }
         ]
       },
@@ -20548,7 +20548,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Con moto"
+            "tempo_description": "Con moto"
           }
         ]
       }
@@ -20607,7 +20607,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Molto allegro e appassionato"
+            "tempo_description": "Molto allegro e appassionato"
           }
         ]
       },
@@ -20616,7 +20616,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Molto adagio"
+            "tempo_description": "Molto adagio"
           }
         ]
       },
@@ -20625,7 +20625,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Molto allegro come prima"
+            "tempo_description": "Molto allegro come prima"
           }
         ]
       }
@@ -20725,7 +20725,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro"
+            "tempo_description": "Allegro"
           }
         ]
       },
@@ -20734,7 +20734,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Andante sostenuto"
+            "tempo_description": "Andante sostenuto"
           }
         ]
       },
@@ -20743,7 +20743,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Presto in moto perpetuo"
+            "tempo_description": "Presto in moto perpetuo"
           }
         ]
       }
@@ -20816,7 +20816,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro ma non troppo"
+            "tempo_description": "Allegro ma non troppo"
           }
         ]
       },
@@ -20825,7 +20825,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Andante un poco mosso"
+            "tempo_description": "Andante un poco mosso"
           }
         ]
       },
@@ -20834,7 +20834,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Presto"
+            "tempo_description": "Presto"
           }
         ]
       }
@@ -20861,7 +20861,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Un poco allegro"
+            "tempo_description": "Un poco allegro"
           }
         ]
       },
@@ -20870,7 +20870,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "In slow blues tempo"
+            "tempo_description": "In slow blues tempo"
           }
         ]
       },
@@ -20879,7 +20879,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegretto"
+            "tempo_description": "Allegretto"
           }
         ]
       },
@@ -20888,7 +20888,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro molto"
+            "tempo_description": "Allegro molto"
           }
         ]
       }
@@ -20916,7 +20916,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro moderato"
+            "tempo_description": "Allegro moderato"
           }
         ]
       },
@@ -20925,7 +20925,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Andante sostenuto"
+            "tempo_description": "Andante sostenuto"
           }
         ]
       },
@@ -20934,7 +20934,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Molto allegro e appassionato"
+            "tempo_description": "Molto allegro e appassionato"
           }
         ]
       }
@@ -21029,7 +21029,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro energico"
+            "tempo_description": "Allegro energico"
           }
         ]
       },
@@ -21038,7 +21038,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro vivace e leggero"
+            "tempo_description": "Allegro vivace e leggero"
           }
         ]
       },
@@ -21047,7 +21047,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Adagio mesto"
+            "tempo_description": "Adagio mesto"
           }
         ]
       },
@@ -21057,7 +21057,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Fuga: Allegro con spirito"
+            "tempo_description": "Fuga: Allegro con spirito"
           }
         ]
       }
@@ -21298,7 +21298,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro appassionato"
+            "tempo_description": "Allegro appassionato"
           }
         ]
       },
@@ -21307,7 +21307,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Canzone: Moderato"
+            "tempo_description": "Canzone: Moderato"
           }
         ]
       },
@@ -21316,7 +21316,7 @@
         "tempos": [
           {
             "number": 1,
-            "description": "Allegro molto"
+            "tempo_description": "Allegro molto"
           }
         ]
       }
