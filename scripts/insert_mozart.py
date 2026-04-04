@@ -183,7 +183,7 @@ def infer_category(form, work_title):
         return "Orchestral"
     if any(x in f for x in ("lied","song","notturno","villanelle","canzonetta")):
         return "Song"
-    if "church sonata" in f or "organ sonata" in f:          return "Church"
+    if "church sonata" in f or "organ sonata" in f:          return "Organ"
     if "canon" in f:                                         return "Choral"
     return "Orchestral"
 

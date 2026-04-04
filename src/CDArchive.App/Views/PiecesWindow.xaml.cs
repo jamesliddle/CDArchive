@@ -86,14 +86,30 @@ public partial class PiecesWindow : Window
     {
         return (_sortColumn, _sortAscending) switch
         {
-            ("Title", true) => pieces.OrderBy(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-            ("Title", false) => pieces.OrderByDescending(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-            ("Catalog", true) => CatalogAsc(pieces),
+            ("Title", true)    => pieces.OrderBy(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
+            ("Title", false)   => pieces.OrderByDescending(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
+            ("Catalog", true)  => CatalogAsc(pieces),
             ("Catalog", false) => CatalogDesc(pieces),
-            ("Category", true) => CatalogAsc(pieces.OrderBy(p => p.Category, StringComparer.OrdinalIgnoreCase)),
-            ("Category", false) => CatalogAsc(pieces.OrderByDescending(p => p.Category, StringComparer.OrdinalIgnoreCase)),
-            ("Year", true) => CatalogAsc(pieces.OrderBy(p => p.PublicationYear ?? int.MaxValue)),
-            ("Year", false) => CatalogAsc(pieces.OrderByDescending(p => p.PublicationYear ?? 0)),
+            ("Category", true) => pieces
+                .OrderBy(p => p.Category, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.CatalogSortNumber)
+                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
+            ("Category", false) => pieces
+                .OrderByDescending(p => p.Category, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.CatalogSortNumber)
+                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
+            ("Year", true) => pieces
+                .OrderBy(p => p.PublicationYear ?? int.MaxValue)
+                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.CatalogSortNumber)
+                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
+            ("Year", false) => pieces
+                .OrderByDescending(p => p.PublicationYear ?? 0)
+                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.CatalogSortNumber)
+                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
             _ => CatalogAsc(pieces),
         };
     }
