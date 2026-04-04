@@ -20410,7 +20410,11 @@
         "tempos": [
           {
             "number": 1,
-            "tempo_description": "Molto adagio — Tempo primo"
+            "tempo_description": "Molto adagio"
+          },
+          {
+            "number": 2,
+            "tempo_description": "Tempo primo"
           }
         ]
       }
@@ -21053,11 +21057,11 @@
       },
       {
         "number": 4,
-        "form": "Fugue",
+        "form": "Fuga",
         "tempos": [
           {
             "number": 1,
-            "tempo_description": "Fuga: Allegro con spirito"
+            "tempo_description": "Allegro con spirito"
           }
         ]
       }
@@ -21307,9 +21311,10 @@
         "tempos": [
           {
             "number": 1,
-            "tempo_description": "Canzone: Moderato"
+            "tempo_description": "Moderato"
           }
-        ]
+        ],
+        "form": "Canzone"
       },
       {
         "number": 3,
