@@ -56,6 +56,28 @@ PAREN_SUFFIX = re.compile(r'\s*\([^)]+\)\s*$')  # strip trailing (compl.), (arr.
 MVT_NUM_RE       = re.compile(r'^(\d+)[a-z]?\.\s+(.+)$')
 MVT_FULL_RE      = re.compile(r'^(\d+)([a-z]?)\.\s*(.+)$')   # num, letter, text
 INTERNAL_SPLIT   = re.compile(r'\s+-\s+(?=\d+[a-z]\.\s)')    # " - NNx. " split point
+ACT_PREFIX_RE    = re.compile(r'^(Act\s+[IVX]+|Part\s+[IVX]+)', re.IGNORECASE)
+
+def propagate_act_prefix(texts):
+    """
+    Within a list of opera sub-movement titles split from one track, propagate
+    the Act/Part prefix forward to any sub-movement that lacks one.
+
+    e.g. ["Act I. Scene 2. Cavatina. Se vuol ballare",
+           "Scene 3. Recitative. Ed aspettaste il giorno"]
+      →  ["Act I. Scene 2. Cavatina. Se vuol ballare",
+           "Act I. Scene 3. Recitative. Ed aspettaste il giorno"]
+    """
+    current_act = None
+    result = []
+    for text in texts:
+        m = ACT_PREFIX_RE.match(text)
+        if m:
+            current_act = m.group(1)  # e.g. "Act I", "Part II"
+        elif current_act:
+            text = f"{current_act}. {text}"
+        result.append(text)
+    return result
 
 def split_track_name(name):
     """
@@ -237,14 +259,20 @@ def build_pieces(tracks):
         if mvt_text:
             if opera_work:
                 # Split combined tracks: "03a. Title - 03b. Title - 03c. Title"
-                parts = INTERNAL_SPLIT.split(mvt_text)
-                for part in parts:
+                raw_parts = INTERNAL_SPLIT.split(mvt_text)
+                parsed = []
+                for part in raw_parts:
                     m = MVT_FULL_RE.match(part.strip())
                     if m:
-                        num, letter, text = int(m.group(1)), m.group(2), m.group(3).strip()
-                        sub_key = (num, letter)
-                        if sub_key not in works[key]["movements"]:
-                            works[key]["movements"][sub_key] = text
+                        parsed.append((int(m.group(1)), m.group(2), m.group(3).strip()))
+
+                # Propagate Act/Part context forward within this track's splits
+                texts = propagate_act_prefix([t for _, _, t in parsed])
+
+                for (num, letter, _), text in zip(parsed, texts):
+                    sub_key = (num, letter)
+                    if sub_key not in works[key]["movements"]:
+                        works[key]["movements"][sub_key] = text
             else:
                 mm = MVT_NUM_RE.match(mvt_text)
                 if mm:
