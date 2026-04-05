@@ -53,7 +53,9 @@ def parse_mozart_tracks(file):
 
 # ── Robust title parser ──────────────────────────────────────────────────────
 PAREN_SUFFIX = re.compile(r'\s*\([^)]+\)\s*$')  # strip trailing (compl.), (arr.), etc.
-MVT_NUM_RE   = re.compile(r'^(\d+)[a-z]?\.\s+(.+)$')
+MVT_NUM_RE       = re.compile(r'^(\d+)[a-z]?\.\s+(.+)$')
+MVT_FULL_RE      = re.compile(r'^(\d+)([a-z]?)\.\s*(.+)$')   # num, letter, text
+INTERNAL_SPLIT   = re.compile(r'\s+-\s+(?=\d+[a-z]\.\s)')    # " - NNx. " split point
 
 def split_track_name(name):
     """
@@ -195,11 +197,9 @@ FORM_TEMPO_RE = re.compile(
     r'\s+(.+)', re.IGNORECASE
 )
 
-def build_movement(num, mvt_text, is_opera_work):
+def build_instrument_movement(num, mvt_text):
+    """Build a subpiece dict for a non-opera movement (tempos / form)."""
     entry = {"number": num}
-    if is_opera_work:
-        entry["title"] = mvt_text
-        return entry
     m = FORM_TEMPO_RE.match(mvt_text)
     if m:
         entry["form"] = m.group(1)
@@ -226,18 +226,31 @@ def build_pieces(tracks):
             continue
 
         key = (work_title, kv_raw)
+        opera_work = is_opera(work_title)
         if key not in works:
             works[key] = {"work_title": work_title, "kv_raw": kv_raw,
-                          "nickname": nickname, "movements": OrderedDict()}
+                          "nickname": nickname, "is_opera": opera_work,
+                          "movements": OrderedDict()}
         elif nickname and not works[key]["nickname"]:
             works[key]["nickname"] = nickname
 
         if mvt_text:
-            mm = MVT_NUM_RE.match(mvt_text)
-            if mm:
-                num, text = int(mm.group(1)), mm.group(2).strip()
-                if num not in works[key]["movements"]:
-                    works[key]["movements"][num] = text
+            if opera_work:
+                # Split combined tracks: "03a. Title - 03b. Title - 03c. Title"
+                parts = INTERNAL_SPLIT.split(mvt_text)
+                for part in parts:
+                    m = MVT_FULL_RE.match(part.strip())
+                    if m:
+                        num, letter, text = int(m.group(1)), m.group(2), m.group(3).strip()
+                        sub_key = (num, letter)
+                        if sub_key not in works[key]["movements"]:
+                            works[key]["movements"][sub_key] = text
+            else:
+                mm = MVT_NUM_RE.match(mvt_text)
+                if mm:
+                    num, text = int(mm.group(1)), mm.group(2).strip()
+                    if num not in works[key]["movements"]:
+                        works[key]["movements"][num] = text
 
     pieces = []
     for (work_title, kv_raw), info in sorted(works.items(),
@@ -255,13 +268,20 @@ def build_pieces(tracks):
         piece["catalog_info"] = make_catalog(kv_raw)
         piece["instrumentation_category"] = infer_category(form, work_title)
 
-        opera_work = is_opera(work_title)
         movs = info["movements"]
         if movs:
-            piece["subpieces"] = [
-                build_movement(num, text, opera_work)
-                for num, text in sorted(movs.items())
-            ]
+            if info["is_opera"]:
+                # Sort by (num, letter) — number sequentially, store title
+                sorted_movs = sorted(movs.items(), key=lambda x: x[0])
+                piece["subpieces"] = [
+                    {"number": i + 1, "title": text}
+                    for i, (_, text) in enumerate(sorted_movs)
+                ]
+            else:
+                piece["subpieces"] = [
+                    build_instrument_movement(num, text)
+                    for num, text in sorted(movs.items())
+                ]
         pieces.append(piece)
 
     return pieces

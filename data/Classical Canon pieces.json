@@ -23312,39 +23312,67 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Sinfonia"
       },
       {
-        "number": 1,
-        "title": "Aria. Mit Jammer muß ich schauen"
-      },
-      {
         "number": 2,
-        "title": "Aria. Ein ergrimmter Löwe brüllet - Recitative. Was glaubtst du"
+        "title": "Recitative. Die löblich' und gerechte Bitte"
       },
       {
         "number": 3,
-        "title": "Aria. Erwache, fauler Knecht"
+        "title": "Aria. Mit Jammer muß ich schauen"
       },
       {
         "number": 4,
-        "title": "Aria. Hat der Schöpfer dieses Leben"
+        "title": "Recitative. So vieler Seelen Fall"
       },
       {
         "number": 5,
-        "title": "Jener Donnerworte Kraft"
+        "title": "Aria. Ein ergrimmter Löwe brüllet - Recitative. Was glaubtst du"
       },
       {
         "number": 6,
-        "title": "Aria. Schildre einen Philosophen"
+        "title": "Aria. Erwache, fauler Knecht"
       },
       {
         "number": 7,
-        "title": "Aria. Manches Übel will zuweilen"
+        "title": "Recititave. Er reget sich"
       },
       {
         "number": 8,
+        "title": "Aria. Hat der Schöpfer dieses Leben"
+      },
+      {
+        "number": 9,
+        "title": "Recitative. Daß Träume Träume sind"
+      },
+      {
+        "number": 10,
+        "title": "Jener Donnerworte Kraft"
+      },
+      {
+        "number": 11,
+        "title": "Recitative. Ist dieses, o so zweifle nimmermehr"
+      },
+      {
+        "number": 12,
+        "title": "Aria. Schildre einen Philosophen"
+      },
+      {
+        "number": 13,
+        "title": "Recitative. Wen hör' ich nun hier in der Nähe?"
+      },
+      {
+        "number": 14,
+        "title": "Aria. Manches Übel will zuweilen"
+      },
+      {
+        "number": 15,
+        "title": "Recitative. Er hält mich einem Kranken gleich - Hast du nunmehr erfahren"
+      },
+      {
+        "number": 16,
         "title": "Trio. Laßt mich eurer Gnade Schein"
       }
     ]
@@ -23415,43 +23443,79 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Intrada"
       },
       {
-        "number": 1,
-        "title": "Act I. Chorus and Solo. Numen o Latonium!"
-      },
-      {
         "number": 2,
-        "title": "Act I. Aria. Saepe terrent Numina"
+        "title": "Act I. Recitative. Amice! iam parata sunt omnia"
       },
       {
         "number": 3,
-        "title": "Act I. Aria. Iam pastor Apollo"
+        "title": "Act I. Chorus and Solo. Numen o Latonium!"
       },
       {
         "number": 4,
-        "title": "Act II. Aria. Laetari, Iocari"
+        "title": "Act I. Recitative. Heu me! perimus!"
       },
       {
         "number": 5,
-        "title": "Act II. Aria. En! duos conspicis"
+        "title": "Act I. Aria. Saepe terrent Numina"
       },
       {
         "number": 6,
-        "title": "Act II. Duet. Discede crudelis!"
+        "title": "Act I. Recitative. Ah nate! vera loqueris"
       },
       {
         "number": 7,
-        "title": "Act III. Aria. Ut navis in aequore luxuriante"
+        "title": "Act I. Aria. Iam pastor Apollo"
       },
       {
         "number": 8,
-        "title": "Act III. Duet. Natus cadit"
+        "title": "Act II. Recitative. Amare numquid filia"
       },
       {
         "number": 9,
+        "title": "Act II. Aria. Laetari, Iocari"
+      },
+      {
+        "number": 10,
+        "title": "Act II. Recitative. Rex! de salute filii est actum"
+      },
+      {
+        "number": 11,
+        "title": "Act II. Aria. En! duos conspicis"
+      },
+      {
+        "number": 12,
+        "title": "Act II. Recitative. Heu! Numen! ecce!"
+      },
+      {
+        "number": 13,
+        "title": "Act II. Duet. Discede crudelis!"
+      },
+      {
+        "number": 14,
+        "title": "Act III. Recitative. Non est - Quis ergo"
+      },
+      {
+        "number": 15,
+        "title": "Act III. Aria. Ut navis in aequore luxuriante"
+      },
+      {
+        "number": 16,
+        "title": "Act III. Recitative. Quocumque me converto"
+      },
+      {
+        "number": 17,
+        "title": "Act III. Duet. Natus cadit"
+      },
+      {
+        "number": 18,
+        "title": "Act III. Recitative. Rex! me redire cogit"
+      },
+      {
+        "number": 19,
         "title": "Act III. Trio. Tandem post turbida fulmina"
       }
     ]
@@ -24006,71 +24070,115 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Intrada"
       },
       {
-        "number": 1,
-        "title": "Aria. Mein liebster Freund hat mich verlassen - 01b. Dialogue. Bastien flieht mich!"
-      },
-      {
         "number": 2,
-        "title": "Aria. Ich geh jetzt auf die Weide"
+        "title": "Aria. Mein liebster Freund hat mich verlassen"
       },
       {
         "number": 3,
-        "title": "Entry of Colas - 04a. Aria. Befraget mich ein zartes Kind"
+        "title": "Dialogue. Bastien flieht mich!"
       },
       {
         "number": 4,
-        "title": "Dialogue. Guten Morgen, Herr Colas!"
+        "title": "Aria. Ich geh jetzt auf die Weide"
       },
       {
         "number": 5,
-        "title": "Aria. Wenn mein Bastien einst im Scherze - 05b. Dialogue. O, die Edelfrau com Schloß"
+        "title": "Entry of Colas"
       },
       {
         "number": 6,
-        "title": "Aria. Würd ich auch, wie manche Buhlerinnen - 06b. Dialogue. Gib dich zufrieden!"
+        "title": "Aria. Befraget mich ein zartes Kind"
       },
       {
         "number": 7,
-        "title": "Duet. Auf den Rat, den ich gegeben - 07b. Dialogue. Na, versteck dich, Bastienne!"
+        "title": "Dialogue. Guten Morgen, Herr Colas!"
       },
       {
         "number": 8,
-        "title": "Aria. Großen Dank dir abzustatten - 08b. Dialogue. Es freut mich, daß du endlich zu dir selber kommst"
+        "title": "Aria. Wenn mein Bastien einst im Scherze"
       },
       {
         "number": 9,
-        "title": "Aria. Geh! du sagst mir eine Fabel - 09b. Dialogue. Möglich! Trotzdem hat sie bereits"
+        "title": "Dialogue. O, die Edelfrau com Schloß"
       },
       {
         "number": 10,
-        "title": "Aria. Diggi, daggi - 10b. Ist die Hexerei zu Ende?"
+        "title": "Aria. Würd ich auch, wie manche Buhlerinnen"
       },
       {
         "number": 11,
-        "title": "Aria. Meiner Liebsten schöne Wangen - 11b. Dialogue. Bastienne! Ja, warum redest du nicht?"
+        "title": "Dialogue. Gib dich zufrieden!"
       },
       {
         "number": 12,
-        "title": "Aria. Er war mir sonst treu und ergeben - 12b. Dialogue. Aber schau, Bastienne!"
+        "title": "Duet. Auf den Rat, den ich gegeben"
       },
       {
         "number": 13,
-        "title": "Aria. Geh hin! - Ich will mich in die Stadt begeben"
+        "title": "Dialogue. Na, versteck dich, Bastienne!"
       },
       {
         "number": 14,
-        "title": "Recitative. Dein Trotz vermehrt sich durch mein Leiden? - 14b. Und sollte ich wohl ein solcher narr sein"
+        "title": "Aria. Großen Dank dir abzustatten"
       },
       {
         "number": 15,
-        "title": "Duet. Geh! Herz von Flandern!"
+        "title": "Dialogue. Es freut mich, daß du endlich zu dir selber kommst"
       },
       {
         "number": 16,
+        "title": "Aria. Geh! du sagst mir eine Fabel"
+      },
+      {
+        "number": 17,
+        "title": "Dialogue. Möglich! Trotzdem hat sie bereits"
+      },
+      {
+        "number": 18,
+        "title": "Aria. Diggi, daggi"
+      },
+      {
+        "number": 19,
+        "title": "Ist die Hexerei zu Ende?"
+      },
+      {
+        "number": 20,
+        "title": "Aria. Meiner Liebsten schöne Wangen"
+      },
+      {
+        "number": 21,
+        "title": "Dialogue. Bastienne! Ja, warum redest du nicht?"
+      },
+      {
+        "number": 22,
+        "title": "Aria. Er war mir sonst treu und ergeben"
+      },
+      {
+        "number": 23,
+        "title": "Dialogue. Aber schau, Bastienne!"
+      },
+      {
+        "number": 24,
+        "title": "Aria. Geh hin! - Ich will mich in die Stadt begeben"
+      },
+      {
+        "number": 25,
+        "title": "Recitative. Dein Trotz vermehrt sich durch mein Leiden?"
+      },
+      {
+        "number": 26,
+        "title": "Und sollte ich wohl ein solcher narr sein"
+      },
+      {
+        "number": 27,
+        "title": "Duet. Geh! Herz von Flandern!"
+      },
+      {
+        "number": 28,
         "title": "Trio. Kinder! Kinder!"
       }
     ]
@@ -24087,111 +24195,223 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Sinfonia"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Scene 1. Chorus. Bella cosa è far l'amore!"
       },
       {
-        "number": 2,
-        "title": "Act I. Scene 1. Aria. Troppa briga a prender moglie"
-      },
-      {
         "number": 3,
-        "title": "Act I. Scene 2. Aria. Marito io vorrei"
+        "title": "Act I. Scene 1. Recitative. Ritiriamoci, amici!"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 3. Aria. Non c'è al mondo altro che donne"
+        "title": "Act I. Scene 1. Aria. Troppa briga a prender moglie"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 3. Aria. Guarda la donna in viso (orig. ver.)"
+        "title": "Act I. Scene 2. Recitative. L'un de' patroni è alzato"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 4. Aria. Colla bocca, e non col core"
+        "title": "Act I. Scene 2. Aria. Marito io vorrei"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 5. Aria. Cosa ha mai la donna indosso"
+        "title": "Act I. Scene 3. Recitative. Oh, starem male insieme"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 6. Aria. Ella vuole ed io torrei"
+        "title": "Act I. Scene 3. Aria. Non c'è al mondo altro che donne"
       },
       {
         "number": 9,
-        "title": "Act I. Scene 7. Aria. Senti l'eco, ove t'aggiri"
+        "title": "Act I. Scene 3. Recitative. Con chi l'ha Don Cassandro?"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 8. Aria. Chi mi vuol bene"
+        "title": "Act I. Scene 3. Aria. Guarda la donna in viso (orig. ver.)"
       },
       {
         "number": 11,
-        "title": "Act I. Scene 9. Finale. Dove avete la creanza?"
+        "title": "Act I. Scene 3. Recitative. Eh! ben ben, ci vedremo, e sua sorella"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 1. Aria. Un marito, donne care"
+        "title": "Act I. Scene 4. Aria. Colla bocca, e non col core"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 2. Aria. Con certe persone vuol esser bastone"
+        "title": "Act I. Scene 4. Recitative. Sicché m'avete inteso?"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 3. Aria. Se a maritarmi arrivo"
+        "title": "Act I. Scene 5. Recitative. Oh, la prendo da vero"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 5. Aria. Amoretti, che ascosi qui siete"
+        "title": "Act I. Scene 5. Aria. Cosa ha mai la donna indosso"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 6. Aria. Ubriaco non son io"
+        "title": "Act I. Scene 6. Recitative. Grand'uomo che son io"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 6. Aria. Sposa cara, sposa bella"
+        "title": "Act I. Scene 6. Aria. Ella vuole ed io torrei"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 7. Aria. Ho sentito a dir da tutte"
+        "title": "Act I. Scene 7. Recitative. Eh ben, sorella mia?"
       },
       {
         "number": 19,
-        "title": "Act II. Scene 8. Aria. Cospetton, cospettonaccio!"
+        "title": "Act I. Scene 7. Aria. Senti l'eco, ove t'aggiri"
       },
       {
         "number": 20,
-        "title": "Act II. Scene 11. Aria. In voi, belle, è leggiadria"
+        "title": "Act I. Scene 8. Recitative. Ninetta. - Che volete?"
       },
       {
         "number": 21,
-        "title": "Act II. Scene 12. Finale. T'ho detto, buffone"
+        "title": "Act I. Scene 8. Aria. Chi mi vuol bene"
       },
       {
         "number": 22,
-        "title": "Act III. Scene 1. Aria. Vieni, vieni, oh mia Ninetta"
+        "title": "Act I. Scene 9. Recitative. Adesso è fatto tutto"
       },
       {
         "number": 23,
-        "title": "Act III. Scene 1. Aria. Sono in amore, voglio marito (orig. ver.)"
+        "title": "Act I. Scene 9. Finale. Dove avete la creanza?"
       },
       {
         "number": 24,
-        "title": "Act III. Scene 2. Aria. Che scompiglio, che flagello"
+        "title": "Act II. Scene 1. Recitative. Sono i padroni miei a pranzo ancor"
       },
       {
         "number": 25,
-        "title": "Act III. Scene 2. Aria. Nelle guerre d'amore"
+        "title": "Act II. Scene 1. Aria. Un marito, donne care"
       },
       {
         "number": 26,
+        "title": "Act II. Scene 2. Recitative. Eh, quando sia mia sposa"
+      },
+      {
+        "number": 27,
+        "title": "Act II. Scene 2. Aria. Con certe persone vuol esser bastone"
+      },
+      {
+        "number": 28,
+        "title": "Act II. Scene 3. Recitative. Non mi marito più"
+      },
+      {
+        "number": 29,
+        "title": "Act II. Scene 3. Aria. Se a maritarmi arrivo"
+      },
+      {
+        "number": 30,
+        "title": "Act II. Scene 4. Recitative. Quando avrò moglie anch'io"
+      },
+      {
+        "number": 31,
+        "title": "Act II. Scene 5. Aria. Amoretti, che ascosi qui siete"
+      },
+      {
+        "number": 32,
+        "title": "Act II. Scene 5. Recitative. Vado subitamente"
+      },
+      {
+        "number": 33,
+        "title": "Act II. Scene 6. Aria. Ubriaco non son io"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 6. Recitative. Egli è venuto"
+      },
+      {
+        "number": 35,
+        "title": "Act II. Scene 6. Aria. Sposa cara, sposa bella"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 7. Recitative. Mia signora Madama"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 7. Recitative (Pantomime). Me ne vo' prender spasso"
+      },
+      {
+        "number": 38,
+        "title": "Act II. Scene 7. Ehi . . . dormite, signore?"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 7. Aria. Ho sentito a dir da tutte"
+      },
+      {
+        "number": 40,
+        "title": "Act II. Scene 8. Recitative. Di voi cercavo appunto"
+      },
+      {
+        "number": 41,
+        "title": "Act II. Scene 8. Aria. Cospetton, cospettonaccio!"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 9. Recitative. Dove andate, signore?"
+      },
+      {
+        "number": 43,
+        "title": "Act II. Scene 10. Recitative. Siam quasi in porto adesso"
+      },
+      {
+        "number": 44,
+        "title": "Act II. Scene 11. Recitative. Vieni a tempo, Simone"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 11. Aria. In voi, belle, è leggiadria"
+      },
+      {
+        "number": 46,
+        "title": "Act II. Scene 12. Finale. T'ho detto, buffone"
+      },
+      {
+        "number": 47,
+        "title": "Act III. Scene 1. Aria. Vieni, vieni, oh mia Ninetta"
+      },
+      {
+        "number": 48,
+        "title": "Act III. Scene 1. Recitative. Io non ho gran paura"
+      },
+      {
+        "number": 49,
+        "title": "Act III. Scene 1. Aria. Sono in amore, voglio marito (orig. ver.)"
+      },
+      {
+        "number": 50,
+        "title": "Act III. Scene 2. Aria. Che scompiglio, che flagello"
+      },
+      {
+        "number": 51,
+        "title": "Act III. Scene 2. Recitative. Che smorfie, che paura!"
+      },
+      {
+        "number": 52,
+        "title": "Act III. Scene 2. Aria. Nelle guerre d'amore"
+      },
+      {
+        "number": 53,
+        "title": "Act III. Scene 3. Recitative. E così, Baronessa?"
+      },
+      {
+        "number": 54,
+        "title": "Act III. Scene 4. Recitative. Eh ben, quando facciamo queste nozze, signora?"
+      },
+      {
+        "number": 55,
         "title": "Act III. Scene 4. Finale. Se le pupille io giro"
       }
     ]
@@ -25295,107 +25515,279 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Act I. Overture"
       },
       {
-        "number": 1,
-        "title": "Act I. Scene 2. Aria. Al destin, che la minaccia (orig. ver.)"
-      },
-      {
         "number": 2,
-        "title": "Act I. Scene 3. Recitative. Soffre il mio cor con pace"
+        "title": "Act I. Scene 1. Recitative. Vieni, Signor"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 6. Aria. L'odio nel cor frenate"
+        "title": "Scene 2. Recitative. Se a me s'unisce Arbate"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 8. Recitative. Un tale addio, germano, si spiega assai"
+        "title": "Act I. Scene 2. Aria. Al destin, che la minaccia (orig. ver.)"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 8. Aria. Parto: Nel gran cimento"
+        "title": "Act I. Scene 3. Recitative. Qual tumulto nell'alma"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 9. Aria. Venga pur, minacci e frema"
+        "title": "Act I. Scene 3. Recitative. Soffre il mio cor con pace"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 10. March"
+        "title": "Act I. Scene 4. Recitative. Sin a quando, o Regina"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 10. Cavata. Se di lauri il crine adorno"
+        "title": "Scene 5. Recitative. Ferma, o germano"
       },
       {
         "number": 9,
-        "title": "Act I. Scene 11. Aria. In faccia all'oggetto (orig. ver.)"
+        "title": "Scene 6. Recitative. All'ire freno, Principe, olà"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 13. Aria. Quel ribelle e quell'ingrato"
+        "title": "Act I. Scene 6. Aria. L'odio nel cor frenate"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 1. Aria. Va, l'error mio palesa"
+        "title": "Act I. Scene 7. Recitative. Principe, che facemmo!"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 4. Aria. Tu, che fedel mi sei"
+        "title": "Aria. Nel sen mi palpita dolente il core"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 7. Aria. Lungi da te, mio bene (orig. ver.)"
+        "title": "Act I. Scene 8. Recitative. Un tale addio, germano, si spiega assai"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 8. Aria. Nel grave tormento"
+        "title": "Act I. Scene 8. Aria. Parto: Nel gran cimento"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 12. Aria. So quando a te dispiace"
+        "title": "Act I. Scene 9. Recitative. Eccovi in un momento"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 13. Aria. Son reo; l'error confesso"
+        "title": "Act I. Scene 9. Aria. Venga pur, minacci e frema"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 14. Aria. Già di pietà mi spoglio"
+        "title": "Act I. Scene 10. March"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 15. Duet. Se viver non degg'io (orig. ver.)"
+        "title": "Act I. Scene 10. Cavata. Se di lauri il crine adorno"
       },
       {
         "number": 19,
-        "title": "Act III. Scene 1. Aria. Tu sai per chi m'accese"
+        "title": "Act I. Scene 10. Recitative. Tu mi rivedi, Arbate"
       },
       {
         "number": 20,
-        "title": "Act III. Scene 3. Aria. Vado incontro al fato estremo (orig. ver.)"
+        "title": "Scene 11. Recitative. Su la temuta destra"
       },
       {
         "number": 21,
-        "title": "Act III. Scene 5. Recitative. Che fai, Regina? - 21c. Scene 6. Recitative. Che mi va questa vita"
+        "title": "Act I. Scene 11. Aria. In faccia all'oggetto (orig. ver.)"
       },
       {
         "number": 22,
-        "title": "Act III. Scene 6. Aria. Se il rigor d'ingrata sorte"
+        "title": "Act I. Scene 12. Recitative. Teme Ismene a ragion"
       },
       {
         "number": 23,
-        "title": "Act III. Scene 8. Aria. Se di regnar sei vago"
+        "title": "Act I. Scene 13. Recitative. Respira alfin"
       },
       {
         "number": 24,
-        "title": "Act III. Scene 9. Aria. Già dagli occhi il velo è tolto"
+        "title": "Act I. Scene 13. Aria. Quel ribelle e quell'ingrato"
       },
       {
         "number": 25,
+        "title": "Act II. Scene 1. Recitative. Questo è l'amor, Farnace"
+      },
+      {
+        "number": 26,
+        "title": "Act II. Scene 1. Aria. Va, l'error mio palesa"
+      },
+      {
+        "number": 27,
+        "title": "Act II. Scene 2. Recitative. Perfido, ascolta"
+      },
+      {
+        "number": 28,
+        "title": "Scene 3. Recitative. Eccomi a' cenni tuoi"
+      },
+      {
+        "number": 29,
+        "title": "Scene 4. Recitative. Respiro, o Dei!"
+      },
+      {
+        "number": 30,
+        "title": "Act II. Scene 4. Aria. Tu, che fedel mi sei"
+      },
+      {
+        "number": 31,
+        "title": "Act II. Scene 5. Recitative. Che dirò? Che ascoltai?"
+      },
+      {
+        "number": 32,
+        "title": "Scene 6. Recitative. Alla tua fede il padre, Sifare, applaude"
+      },
+      {
+        "number": 33,
+        "title": "Scene 7. Recitative. Oh giorno di dolore!"
+      },
+      {
+        "number": 34,
+        "title": "Recitative. Non più, Regina"
+      },
+      {
+        "number": 35,
+        "title": "Act II. Scene 7. Aria. Lungi da te, mio bene (orig. ver.)"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 8. Recitative. Grazie ai Numi parti"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 8. Aria. Nel grave tormento"
+      },
+      {
+        "number": 38,
+        "title": "Act II. Scene 9. Recitative. Qui, dove la vendetta"
+      },
+      {
+        "number": 39,
+        "title": "Scene 10. Recitative. Sedete, o Prenci, e m'ascoltate"
+      },
+      {
+        "number": 40,
+        "title": "Scene 11. Recitative. Signor, son io"
+      },
+      {
+        "number": 41,
+        "title": "Scene 12. Recitative. Inclita Ismene"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 12. Aria. So quando a te dispiace"
+      },
+      {
+        "number": 43,
+        "title": "Act II. Scene 13. Recitative. Ah, giacchè son tradito"
+      },
+      {
+        "number": 44,
+        "title": "Act II. Scene 13. Aria. Son reo; l'error confesso"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 14. Recitative. E crederai, Signor"
+      },
+      {
+        "number": 46,
+        "title": "Act II. Scene 14. Aria. Già di pietà mi spoglio"
+      },
+      {
+        "number": 47,
+        "title": "Act II. Scene 15. Recitative. Sifare, per pietà stringi l'acciaro"
+      },
+      {
+        "number": 48,
+        "title": "Recitative. Io sposa di quel mostro"
+      },
+      {
+        "number": 49,
+        "title": "Act II. Scene 15. Duet. Se viver non degg'io (orig. ver.)"
+      },
+      {
+        "number": 50,
+        "title": "Act III. Scene 1. Recitative. Pèra omai chi m'oltraggia"
+      },
+      {
+        "number": 51,
+        "title": "Act III. Scene 1. Aria. Tu sai per chi m'accese"
+      },
+      {
+        "number": 52,
+        "title": "Act III. Scene 2. Recitative. Re crudel, Re spietato"
+      },
+      {
+        "number": 53,
+        "title": "Scene 3. Recitative. Mio Re, t'affretta"
+      },
+      {
+        "number": 54,
+        "title": "Act III. Scene 3. Aria. Vado incontro al fato estremo (orig. ver.)"
+      },
+      {
+        "number": 55,
+        "title": "Act III. Scene 4. Recitative. Lagrime intempestive"
+      },
+      {
+        "number": 56,
+        "title": "Act III. Scene 4. Recitative. Ah ben ne fui presaga!"
+      },
+      {
+        "number": 57,
+        "title": "Cavatina. Pallid'ombre"
+      },
+      {
+        "number": 58,
+        "title": "Act III. Scene 5. Recitative. Che fai, Regina?"
+      },
+      {
+        "number": 59,
+        "title": "Scene 6. Recitative. Che mi va questa vita"
+      },
+      {
+        "number": 60,
+        "title": "Act III. Scene 6. Aria. Se il rigor d'ingrata sorte"
+      },
+      {
+        "number": 61,
+        "title": "Act III. Scene 7. Recitative. Sorte crudel, stelle inimiche"
+      },
+      {
+        "number": 62,
+        "title": "Scene 8. Recitative. Tecco i patti, o Farnace"
+      },
+      {
+        "number": 63,
+        "title": "Act III. Scene 8. Aria. Se di regnar sei vago"
+      },
+      {
+        "number": 64,
+        "title": "Act III. Scene 9. Recitative. Vadasi . . . Oh ciel"
+      },
+      {
+        "number": 65,
+        "title": "Act III. Scene 9. Aria. Già dagli occhi il velo è tolto"
+      },
+      {
+        "number": 66,
+        "title": "Act III. Scene 10. Recitative. Figlio, amico, non più"
+      },
+      {
+        "number": 67,
+        "title": "Scene 11. Recitative. Ah vieni, o dolce"
+      },
+      {
+        "number": 68,
+        "title": "Scene 12. Recitative. Reo non si chiami, o Sire"
+      },
+      {
+        "number": 69,
         "title": "Act III. Scene 1. Quintet. Non si ceda al campidoglio"
       }
     ]
@@ -26591,135 +26983,251 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Part I. Andante grazioso"
       },
       {
-        "number": 2,
-        "title": "Part I. Chorus. Di te più amabile, né Dea maggiore"
-      },
-      {
         "number": 3,
-        "title": "Part I. Aria. L'ombra de' rami tuoi"
+        "title": "Part I. Chorus. Di te più amabile, né Dea maggiore"
       },
       {
         "number": 4,
-        "title": "Part I. Chorus. Di te più amabile, né Dea maggiore"
+        "title": "Part I. Recitative. Geni, Grazie, ed Amori, fermate il piè"
       },
       {
         "number": 5,
-        "title": "Part I. Aria. Cara, lontano ancora"
+        "title": "Part I. Aria. L'ombra de' rami tuoi"
       },
       {
         "number": 6,
-        "title": "Part I. Chorus. Venga, De' sommi Eroi - 06b. Recitative. Ma qual canto risona? - 07a. Chorus. Venga, de' sommi Eroi"
+        "title": "Part I. Recitative. Ma la Ninfa gentil"
       },
       {
         "number": 7,
-        "title": "Part I. Recitative. Ma tu, chi sei, che ignoto qui t'aggiri fra noi?"
-      },
-      {
-        "number": 8,
-        "title": "Part I. Aria. Se il labbro più non dice"
-      },
-      {
-        "number": 9,
-        "title": "Part I. Chorus. Hai di Diana il core - 09b. Recitative. Oh, generosa Diva"
-      },
-      {
-        "number": 10,
-        "title": "Part I. Chorus. Venga, de' sommi Eroi - 10b. Recitative. Di propria man la Dea a voi la donerà - 11a. Chorus. Venga, de' sommi Eroi"
-      },
-      {
-        "number": 11,
-        "title": "Part I. Recitative. Oh mia gloria, oh mia cura"
-      },
-      {
-        "number": 12,
-        "title": "Part I. Aria. Per la gioia in questo seno"
-      },
-      {
-        "number": 13,
-        "title": "Part I. Cavatina. Si, ma d'un altro amore"
-      },
-      {
-        "number": 14,
-        "title": "Part I. Aria. Come è felice stato"
-      },
-      {
-        "number": 15,
-        "title": "Part I. Chorus. Venga, de' sommi Eroi"
-      },
-      {
-        "number": 16,
-        "title": "Part I. Aria. Ah di si nobil alma"
-      },
-      {
-        "number": 17,
-        "title": "Part I. Aria. Al chiaror di que' bei rai"
-      },
-      {
-        "number": 18,
         "title": "Part I. Chorus. Di te più amabile, né Dea maggiore"
       },
       {
+        "number": 8,
+        "title": "Part I. Recitative. Perché tacer degg'io?"
+      },
+      {
+        "number": 9,
+        "title": "Part I. Aria. Cara, lontano ancora"
+      },
+      {
+        "number": 10,
+        "title": "Part I. Chorus. Venga, De' sommi Eroi"
+      },
+      {
+        "number": 11,
+        "title": "Recitative. Ma qual canto risona?"
+      },
+      {
+        "number": 12,
+        "title": "Chorus. Venga, de' sommi Eroi"
+      },
+      {
+        "number": 13,
+        "title": "Part I. Recitative. Ma tu, chi sei, che ignoto qui t'aggiri fra noi?"
+      },
+      {
+        "number": 14,
+        "title": "Part I. Aria. Se il labbro più non dice"
+      },
+      {
+        "number": 15,
+        "title": "Part I. Recitative. Quanto soavi al core de la tua stirpe"
+      },
+      {
+        "number": 16,
+        "title": "Part I. Chorus. Hai di Diana il core"
+      },
+      {
+        "number": 17,
+        "title": "Recitative. Oh, generosa Diva"
+      },
+      {
+        "number": 18,
+        "title": "Part I. Chorus. Venga, de' sommi Eroi"
+      },
+      {
         "number": 19,
-        "title": "Part II. Aria. Spiega il desio"
+        "title": "Recitative. Di propria man la Dea a voi la donerà"
       },
       {
         "number": 20,
-        "title": "Part II. Chorus. Già l'ore sen volano"
+        "title": "Chorus. Venga, de' sommi Eroi"
       },
       {
         "number": 21,
-        "title": "Part II. Aria. Dal tuo gentil sembiante"
+        "title": "Part I. Recitative. Oh mia gloria, oh mia cura"
       },
       {
         "number": 22,
-        "title": "Part II. Aria. Al mio ben mi veggio avanti"
+        "title": "Part I. Aria. Per la gioia in questo seno"
       },
       {
         "number": 23,
-        "title": "Part II. Aria. Infelici affetti miei"
+        "title": "Part I. Recitative. Misera! Che farò?"
+      },
+      {
+        "number": 24,
+        "title": "Part I. Cavatina. Si, ma d'un altro amore"
       },
       {
         "number": 25,
-        "title": "Part II. Aria. Torna mio bene, ascolta"
+        "title": "Part I. Recitative. Ah, no, Silvia t'inganni"
       },
       {
         "number": 26,
-        "title": "Part II. Chorus. Venga, de' sommi Eroi"
+        "title": "Part I. Aria. Come è felice stato"
       },
       {
         "number": 27,
-        "title": "Part II. Aria. Sento, che il cor mi dice - 27b. Recitative. Si, Padre, alfin mi taccia"
+        "title": "Part I. Recitative. Silvia, mira, che il sole omai s'avanza"
       },
       {
         "number": 28,
-        "title": "Part II. Chorus. Scendi, celeste Venere"
+        "title": "Part I. Chorus. Venga, de' sommi Eroi"
       },
       {
         "number": 29,
-        "title": "Part II. Chorus. No, non possiamo vivere - 29b. Recitative. Ecco ingombran l'altare - 30a. Chorus. Scendi, celeste Venere"
+        "title": "Part I. Recitative. Cielo! Che vidi mai?"
       },
       {
         "number": 30,
-        "title": "Part II. Recitative. Invoca, o figlia"
+        "title": "Part I. Aria. Ah di si nobil alma"
       },
       {
         "number": 31,
-        "title": "Part II. Trio. Ah caro sposo, oh Dio!"
+        "title": "Part I. Recitative. Un'altera prova a te mirar conviene"
       },
       {
         "number": 32,
-        "title": "Part II. Trio. Che bel piacer io sento"
+        "title": "Part I. Aria. Al chiaror di que' bei rai"
       },
       {
         "number": 33,
+        "title": "Part I. Chorus. Di te più amabile, né Dea maggiore"
+      },
+      {
+        "number": 34,
+        "title": "Part I. Recitative. Star lontana non so"
+      },
+      {
+        "number": 35,
+        "title": "Part II. Aria. Spiega il desio"
+      },
+      {
+        "number": 36,
+        "title": "Part II. Chorus. Già l'ore sen volano"
+      },
+      {
+        "number": 37,
+        "title": "Part II. Recitative. Cerco di loco in loco"
+      },
+      {
+        "number": 38,
+        "title": "Recitative. Silvia, ove sei?"
+      },
+      {
+        "number": 39,
+        "title": "Part II. Aria. Dal tuo gentil sembiante"
+      },
+      {
+        "number": 40,
+        "title": "Part II. Recitative. Ahimè! Che veggio mai?"
+      },
+      {
+        "number": 41,
+        "title": "Part II. Aria. Al mio ben mi veggio avanti"
+      },
+      {
+        "number": 42,
+        "title": "Part II. Recitative. Ferma, aspetta, ove vai?"
+      },
+      {
+        "number": 43,
+        "title": "Part II. Aria. Infelici affetti miei"
+      },
+      {
+        "number": 44,
+        "title": "Part II. Recitative. Anima grande"
+      },
+      {
+        "number": 45,
+        "title": "Chorus. Che strano evento"
+      },
+      {
+        "number": 46,
+        "title": "Recitative. Ahi la crudel"
+      },
+      {
+        "number": 47,
+        "title": "Part II. Aria. Torna mio bene, ascolta"
+      },
+      {
+        "number": 48,
+        "title": "Part II. Chorus. Venga, de' sommi Eroi"
+      },
+      {
+        "number": 49,
+        "title": "Part II. Recitative. Che strana meraviglia"
+      },
+      {
+        "number": 50,
+        "title": "Part II. Aria. Sento, che il cor mi dice"
+      },
+      {
+        "number": 51,
+        "title": "Recitative. Si, Padre, alfin mi taccia"
+      },
+      {
+        "number": 52,
+        "title": "Part II. Chorus. Scendi, celeste Venere"
+      },
+      {
+        "number": 53,
+        "title": "Part II. Recitative. Ma s'allontani almen"
+      },
+      {
+        "number": 54,
+        "title": "Part II. Chorus. No, non possiamo vivere"
+      },
+      {
+        "number": 55,
+        "title": "Recitative. Ecco ingombran l'altare"
+      },
+      {
+        "number": 56,
+        "title": "Chorus. Scendi, celeste Venere"
+      },
+      {
+        "number": 57,
+        "title": "Part II. Recitative. Invoca, o figlia"
+      },
+      {
+        "number": 58,
+        "title": "Part II. Trio. Ah caro sposo, oh Dio!"
+      },
+      {
+        "number": 59,
+        "title": "Part II. Recitative. Eccovi al fin di vostre pene"
+      },
+      {
+        "number": 60,
+        "title": "Part II. Trio. Che bel piacer io sento"
+      },
+      {
+        "number": 61,
+        "title": "Part II. Recitative. Ah chi nodi più forti"
+      },
+      {
+        "number": 62,
         "title": "Part II. Chorus. Alma Dea, tutto il mondo governa"
       }
     ]
@@ -27276,55 +27784,103 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
-        "title": "Aria. Risolver non osa"
-      },
-      {
         "number": 2,
-        "title": "Aria. Lieve sono al par del vento"
+        "title": "Recitative. Vieni e segui i miei passi"
       },
       {
         "number": 3,
-        "title": "Aria. Ciglio che al sol si gira"
+        "title": "Aria. Risolver non osa"
       },
       {
         "number": 4,
-        "title": "Chorus. Germe di cento eroi"
+        "title": "Recitative. Giusta è la tua richiesta"
       },
       {
         "number": 5,
-        "title": "Aria. Se vuoi che te raccolgano"
+        "title": "Aria. Lieve sono al par del vento"
       },
       {
         "number": 6,
-        "title": "Aria. Voi colaggiù ridete"
+        "title": "Recitative. Dunque ove son?"
       },
       {
         "number": 7,
-        "title": "Aria. Quercia annosa su l'erte pendici"
+        "title": "Aria. Ciglio che al sol si gira"
       },
       {
         "number": 8,
-        "title": "Aria. A chi serena io miro"
+        "title": "Recitative. E quali abitatori"
       },
       {
         "number": 9,
-        "title": "Aria. Biancheggia in mar lo scoglio"
+        "title": "Chorus. Germe di cento eroi"
       },
       {
         "number": 10,
-        "title": "Aria. Di' che se l'arbitra"
+        "title": "Recitative. Numi, è vero o m'inganno?"
       },
       {
         "number": 11,
-        "title": "Aria. Ah perché cercar degg'io"
+        "title": "Aria. Se vuoi che te raccolgano"
       },
       {
         "number": 12,
+        "title": "Recitative. Se qui vivon gli eroi"
+      },
+      {
+        "number": 13,
+        "title": "Aria. Voi colaggiù ridete"
+      },
+      {
+        "number": 14,
+        "title": "Recitative. Publio, padre, ah lasciate"
+      },
+      {
+        "number": 15,
+        "title": "Aria. Quercia annosa su l'erte pendici"
+      },
+      {
+        "number": 16,
+        "title": "Recitative. Giacchè al voler de' Fati"
+      },
+      {
+        "number": 17,
+        "title": "Aria. A chi serena io miro"
+      },
+      {
+        "number": 18,
+        "title": "Recitative. E a si enorme possanza"
+      },
+      {
+        "number": 19,
+        "title": "Aria. Biancheggia in mar lo scoglio"
+      },
+      {
+        "number": 20,
+        "title": "Recitative. Non più. Bella Constanza"
+      },
+      {
+        "number": 21,
+        "title": "Aria. Di' che se l'arbitra"
+      },
+      {
+        "number": 22,
+        "title": "Recitative. Ev'è mortal che ardisca"
+      },
+      {
+        "number": 23,
+        "title": "Recitative. Non è Scipio"
+      },
+      {
+        "number": 24,
+        "title": "Aria. Ah perché cercar degg'io"
+      },
+      {
+        "number": 25,
         "title": "Chorus. Cento volte con lieto sembiante"
       }
     ]
@@ -27752,99 +28308,247 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
-        "title": "Act I. Scene 1. Aria. Vieni ov'amor t'invita"
-      },
-      {
         "number": 2,
-        "title": "Act I. Scene 2. Aria. Il tenero momento"
+        "title": "Act I. Scene 1. Recitative. Ah ciel l'amico Cinna"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 3. Aria. Se lusinghiera speme"
+        "title": "Act I. Scene 1. Aria. Vieni ov'amor t'invita"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 5. Aria. Dalla sponda tenebrosa"
+        "title": "Act I. Scene 2. Recitative. Dunque sperar poss'io"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 6. Recitative. Il desio di vendetta"
+        "title": "Act I. Scene 2. Aria. Il tenero momento"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 8. Chorus. Fuor di questre urne dolenti - 06b. Arioso. O del padre ombra diletta"
+        "title": "Act I. Scene 3. Recitative. A te dell'amor mio"
       },
       {
         "number": 7,
-        "title": "Act II. Scene 1. Recitative. Tel' predissi, o Signor"
+        "title": "Act I. Scene 3. Aria. Se lusinghiera speme"
       },
       {
         "number": 8,
-        "title": "Act II. Scene 1. Aria. Guerrier, che d'un acciaro"
+        "title": "Act I. Scene 4. Recitative. Signor, duolmi vederti"
       },
       {
         "number": 9,
-        "title": "Act II. Scene 3. Aria. Quest' improvviso tremito"
+        "title": "Scene 5. Recitative. Sempre dovrò vederi"
       },
       {
         "number": 10,
-        "title": "Act II. Scene 4. Aria. Se il labbro timido"
+        "title": "Act I. Scene 5. Aria. Dalla sponda tenebrosa"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 5. Aria. Ah se il crudel periglio"
+        "title": "Act I. Scene 6. Recitative. E tollerare io posso"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 7. Recitative. Signor, ai cenni tuoi - 12c. Scene 8. Recitative. Silla? L'odiato aspetto"
+        "title": "Act I. Scene 6. Recitative. Il desio di vendetta"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 8. Recitative. D'ogni pietà mi spoglio"
+        "title": "Act I. Scene 7. Recitative. Morte, morte fatal"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 9. Recitative. Ah se a morir mi chiama (orig. ver.)"
+        "title": "Act I. Scene 8. Chorus. Fuor di questre urne dolenti"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 10. Aria. Quando sugl'arsi campi"
+        "title": "Arioso. O del padre ombra diletta"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 11. Aria. Parto, m'affretto"
+        "title": "Act I. Scene 8. Recitative. Si l'empio Silla, o padre"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 12. Chorus. Se gloria il crin ti cinse"
+        "title": "Scene 9. Recitative. Eccomi, o cara"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 14. Trio. Quell'orgoglioso sdegno"
+        "title": "Duet. D'elisio in sen m'attendi"
       },
       {
         "number": 19,
-        "title": "Act III. Scene 1. Aria. Strider sento la procella"
+        "title": "Act II. Scene 1. Recitative. Tel' predissi, o Signor"
       },
       {
         "number": 20,
-        "title": "Act III. Scene 2. Aria. De' più superbi il core"
+        "title": "Act II. Scene 1. Aria. Guerrier, che d'un acciaro"
       },
       {
         "number": 21,
-        "title": "Act III. Scene 4. Aria. Pupille amate"
+        "title": "Act II. Scene 2. Recitative. Ah no, mai non credea"
       },
       {
         "number": 22,
-        "title": "Act III. Scene 5. Aria. Fra i pensier più funesti di morte"
+        "title": "Scene 3. Recitative. Qual furor ti transporta?"
       },
       {
         "number": 23,
+        "title": "Recitative. Cecilio a che t'arresti"
+      },
+      {
+        "number": 24,
+        "title": "Recitative. Al fiero suon"
+      },
+      {
+        "number": 25,
+        "title": "Recitative. Ah corri, vola"
+      },
+      {
+        "number": 26,
+        "title": "Act II. Scene 3. Aria. Quest' improvviso tremito"
+      },
+      {
+        "number": 27,
+        "title": "Act II. Scene 4. Recitative. Ah sì, s'affretti il colpo"
+      },
+      {
+        "number": 28,
+        "title": "Act II. Scene 4. Aria. Se il labbro timido"
+      },
+      {
+        "number": 29,
+        "title": "Act II. Scene 5. Recitative. Di piegarsi capace"
+      },
+      {
+        "number": 30,
+        "title": "Recitative. Vanne. T'affretta"
+      },
+      {
+        "number": 31,
+        "title": "Act II. Scene 5. Aria. Ah se il crudel periglio"
+      },
+      {
+        "number": 32,
+        "title": "Act II. Scene 6. Recitative. Ah sì, scuotasi omai"
+      },
+      {
+        "number": 33,
+        "title": "Aria. Nel fortunato istante"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 7. Recitative. Signor, ai cenni tuoi"
+      },
+      {
+        "number": 35,
+        "title": "Scene 8. Recitative. Silla? L'odiato aspetto"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 8. Recitative. D'ogni pietà mi spoglio"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 9. Recitative. Che intesi eterni Dei?"
+      },
+      {
+        "number": 38,
+        "title": "Recitative. Chi sa, che non sia questa"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 9. Recitative. Ah se a morir mi chiama (orig. ver.)"
+      },
+      {
+        "number": 40,
+        "title": "Act II. Scene 10. Recitative. Perché mi balzi in seno"
+      },
+      {
+        "number": 41,
+        "title": "Act II. Scene 10. Aria. Quando sugl'arsi campi"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 11. Recitative. In un istante oh come"
+      },
+      {
+        "number": 43,
+        "title": "Act II. Scene 11. Aria. Parto, m'affretto"
+      },
+      {
+        "number": 44,
+        "title": "Act II. Scene 12. Chorus. Se gloria il crin ti cinse"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 12. Recitative. Padri coscritti"
+      },
+      {
+        "number": 46,
+        "title": "Scene 13. Recitative. Sposa ah no, non temer"
+      },
+      {
+        "number": 47,
+        "title": "Scene 14. Recitative. Come? D'un ferro armato"
+      },
+      {
+        "number": 48,
+        "title": "Act II. Scene 14. Trio. Quell'orgoglioso sdegno"
+      },
+      {
+        "number": 49,
+        "title": "Act III. Scene 1. Recitative. Ah sì tu solo, amico"
+      },
+      {
+        "number": 50,
+        "title": "Act III. Scene 1. Aria. Strider sento la procella"
+      },
+      {
+        "number": 51,
+        "title": "Act III. Scene 2. Recitative. Forse tu credi, amico"
+      },
+      {
+        "number": 52,
+        "title": "Act III. Scene 2. Aria. De' più superbi il core"
+      },
+      {
+        "number": 53,
+        "title": "Act III. Scene 3. Recitative. Ah no, che il fato estremo"
+      },
+      {
+        "number": 54,
+        "title": "Scene 4. Recitative. Tosto seguir tu dei"
+      },
+      {
+        "number": 55,
+        "title": "Act III. Scene 4. Aria. Pupille amate"
+      },
+      {
+        "number": 56,
+        "title": "Act III. Scene 5. Recitative. Sposo . . . Mia vita"
+      },
+      {
+        "number": 57,
+        "title": "Act III. Scene 5. Aria. Fra i pensier più funesti di morte"
+      },
+      {
+        "number": 58,
+        "title": "Act III. Scene 6. Recitative. Celia, Cinna non più"
+      },
+      {
+        "number": 59,
+        "title": "Scene 7. Recitative. Anima vil, da Giunia"
+      },
+      {
+        "number": 60,
+        "title": "Scene 8. Recitative. Lo sposo mio?"
+      },
+      {
+        "number": 61,
         "title": "Act III. Scene 8. Chorus. Il gran Silla a Roma in seno"
       }
     ]
@@ -30245,119 +30949,307 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Scene 1. Introduction. Che lieto giorno"
       },
       {
-        "number": 2,
-        "title": "Act I. Scene 1. Aria. Se l'augellin sen fugge"
-      },
-      {
         "number": 3,
-        "title": "Act I. Scene 2. Aria. Dentro il mio petto io sento"
+        "title": "Act I. Scene 1. Recitative. Viva, viva il buon gusto"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 4. Aria. Noi donne poverine"
+        "title": "Act I. Scene 1. Aria. Se l'augellin sen fugge"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 5. Aria. A forza di martelli"
+        "title": "Act I. Scene 2. Recitative. Presto Nardo, Serpetta andate"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 7. Aria. Che beltà, che leggiadria"
+        "title": "Act I. Scene 2. Aria. Dentro il mio petto io sento"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 7. Aria. Si promette facilmente"
+        "title": "Act I. Scene 3. Recitative. Della nemica sorte"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 8. Aria. Da Scirocco a Tramontana"
+        "title": "Scene 4. Recitative. Gl'uomini s'han d'amar"
       },
       {
         "number": 9,
-        "title": "Act I. Scene 9. Cavatina. Un marito, oh Dio, vorrei - 09b. Recitative. Come in questa canzone - 09c. Cavatina. Un marito, oh Dio, vorresti"
+        "title": "Act I. Scene 4. Aria. Noi donne poverine"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 9. Aria. Appena mi vedon"
+        "title": "Act I. Scene 4. Recitative. Sarei felice appieno"
       },
       {
         "number": 11,
-        "title": "Act I. Scene 10. Cavatina. Geme la tortorella"
+        "title": "Scene 5. Recitative. Io per me non capisco"
       },
       {
         "number": 12,
-        "title": "Act I. Scene 11. Finale. Numi! che incanto è questo - 12b. Scene 12. Ecco il liquor, prendete"
+        "title": "Act I. Scene 5. Aria. A forza di martelli"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 2. Aria. Vorrei punirti indegno"
+        "title": "Act I. Scene 6. Recitative. Mia cara nipotina"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 4. Aria. Con un vezzo all'Italiana"
+        "title": "Act I. Scene 7. Aria. Che beltà, che leggiadria"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 5. Aria. Care pupille belle"
+        "title": "Act I. Scene 7. Recitative. Sposa, Arminda, mio sole"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 6. Aria. Una voce sento al core"
+        "title": "Act I. Scene 7. Aria. Si promette facilmente"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 7. Aria. Una damina, una nipote"
+        "title": "Act I. Scene 8. Recitative. Che dite, Signor Conte"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 9. Aria. Dolce d'amor compagna"
+        "title": "Act I. Scene 8. Aria. Da Scirocco a Tramontana"
       },
       {
         "number": 19,
-        "title": "Act II. Scene 12. Recitative. Ah non partir - 19b. Aria. Già divento freddo"
+        "title": "Act I. Scene 8. Recitative. Evviva, evviva i consoli Romani"
       },
       {
         "number": 20,
-        "title": "Act II. Scene 14. Chi vuol godere il mondo"
+        "title": "Scene 9. Recitative. In questa casa non si può più stare"
       },
       {
         "number": 21,
-        "title": "Act II. Scene 15. Aria. Crudeli, oh Dio! fermate - 21b. Recitative. Dove son! che m'avvenne!"
+        "title": "Act I. Scene 9. Cavatina. Un marito, oh Dio, vorrei"
       },
       {
         "number": 22,
-        "title": "Act II. Scene 15. Cavatina. Ah dal pianto, dal singhiozzo - 22b. Recitative. Ma qui niuno m'ascolta"
+        "title": "Recitative. Come in questa canzone"
       },
       {
         "number": 23,
-        "title": "Act II. Scene 16. Finale. Fra quest'ombre"
+        "title": "Cavatina. Un marito, oh Dio, vorresti"
       },
       {
         "number": 24,
-        "title": "Act III. Scene 2. Aria and Duet. Mirate che contrasto"
+        "title": "Act I. Scene 9. Recitative. Bravo, signor buffone"
       },
       {
         "number": 25,
-        "title": "Act III. Scene 4. Aria. Mio padrone, io dir volevo"
+        "title": "Act I. Scene 9. Aria. Appena mi vedon"
       },
       {
         "number": 26,
-        "title": "Act III. Scene 6. Aria. Va pure ad altri in braccio"
+        "title": "Act I. Scene 10. Cavatina. Geme la tortorella"
       },
       {
         "number": 27,
-        "title": "Act III. Scene 7. Recitative. Dove mai son! - 27b. Duet. Tu mi lasci? - 27c. Andantino. Lei mi chiama?"
+        "title": "Act I. Scene 10. Recitative. Io son la tortorella"
       },
       {
         "number": 28,
+        "title": "Scene 11. Recitative. Vi son io"
+      },
+      {
+        "number": 29,
+        "title": "Act I. Scene 11. Finale. Numi! che incanto è questo"
+      },
+      {
+        "number": 30,
+        "title": "Scene 12. Ecco il liquor, prendete"
+      },
+      {
+        "number": 31,
+        "title": "Act I. Scene 13. Che silenzio! fan lunari"
+      },
+      {
+        "number": 32,
+        "title": "Scene 14. Che tratto è questo"
+      },
+      {
+        "number": 33,
+        "title": "Act I. Scene 15. Ma voi, che pretendete"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 1. Recitative. Non fuggirmi spietata"
+      },
+      {
+        "number": 35,
+        "title": "Scene 2. Ah che son disperato!"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 2. Aria. Vorrei punirti indegno"
+      },
+      {
+        "number": 37,
+        "title": "Scene 4. Recitative. Quanto lo compatisco"
+      },
+      {
+        "number": 38,
+        "title": "Act II. Scene 4. Aria. Con un vezzo all'Italiana"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 4. Recitative. Costui mi dà piacere"
+      },
+      {
+        "number": 40,
+        "title": "Scene 5. Recitative. Che strano caso è il mio!"
+      },
+      {
+        "number": 41,
+        "title": "Act II. Scene 5. Aria. Care pupille belle"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 6. Recitative. Va, Conte disgraziato"
+      },
+      {
+        "number": 43,
+        "title": "Act II. Scene 6. Aria. Una voce sento al core"
+      },
+      {
+        "number": 44,
+        "title": "Act II. Scene 7. Recitative. Ah che son stato un sciocco!"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 7. Aria. Una damina, una nipote"
+      },
+      {
+        "number": 46,
+        "title": "Act II. Scene 8. Recitative. Sappi Arminda, ben mio"
+      },
+      {
+        "number": 47,
+        "title": "Scene 9. Recitative. Eppur dalla costanza"
+      },
+      {
+        "number": 48,
+        "title": "Act II. Scene 9. Aria. Dolce d'amor compagna"
+      },
+      {
+        "number": 49,
+        "title": "Act II. Scene 10. Recitative. Credimi nipotina"
+      },
+      {
+        "number": 50,
+        "title": "Scene 11. Recitative. Io lo difendo"
+      },
+      {
+        "number": 51,
+        "title": "Act II. Scene 12. Recitative. Ah non partir"
+      },
+      {
+        "number": 52,
+        "title": "Aria. Già divento freddo"
+      },
+      {
+        "number": 53,
+        "title": "Act II. Scene 13. Recitative. Oh poveretto me!"
+      },
+      {
+        "number": 54,
+        "title": "Scene 14. Recitative. Va pur, ma questa volta"
+      },
+      {
+        "number": 55,
+        "title": "Act II. Scene 14. Chi vuol godere il mondo"
+      },
+      {
+        "number": 56,
+        "title": "Act II. Scene 15. Aria. Crudeli, oh Dio! fermate"
+      },
+      {
+        "number": 57,
+        "title": "Recitative. Dove son! che m'avvenne!"
+      },
+      {
+        "number": 58,
+        "title": "Act II. Scene 15. Cavatina. Ah dal pianto, dal singhiozzo"
+      },
+      {
+        "number": 59,
+        "title": "Recitative. Ma qui niuno m'ascolta"
+      },
+      {
+        "number": 60,
+        "title": "Act II. Scene 16. Finale. Fra quest'ombre"
+      },
+      {
+        "number": 61,
+        "title": "Act II. Scene 16. Recitative. Qui fermate amici il piede"
+      },
+      {
+        "number": 62,
+        "title": "Act II. Scene 16. Andantino. Mio Tirsi, deh senti le dolci sirene"
+      },
+      {
+        "number": 63,
+        "title": "Act III. Scene 1. Recitative. Sentimi, Nardo mio"
+      },
+      {
+        "number": 64,
+        "title": "Scene 2. Recitative. Dovrò dunque languire"
+      },
+      {
+        "number": 65,
+        "title": "Act III. Scene 2. Aria and Duet. Mirate che contrasto"
+      },
+      {
+        "number": 66,
+        "title": "Act III. Scene 3. Recitative. Oh, l'ho pensata bene"
+      },
+      {
+        "number": 67,
+        "title": "Scene 4. Recitative. Vedete che sfacciata"
+      },
+      {
+        "number": 68,
+        "title": "Act III. Scene 4. Aria. Mio padrone, io dir volevo"
+      },
+      {
+        "number": 69,
+        "title": "Act III. Scene 5. Recitative. Ramiro, orsù, alle corte"
+      },
+      {
+        "number": 70,
+        "title": "Scene 6. Recitative. E giunge a questo segno"
+      },
+      {
+        "number": 71,
+        "title": "Act III. Scene 6. Aria. Va pure ad altri in braccio"
+      },
+      {
+        "number": 72,
+        "title": "Act III. Scene 7. Recitative. Dove mai son!"
+      },
+      {
+        "number": 73,
+        "title": "Duet. Tu mi lasci?"
+      },
+      {
+        "number": 74,
+        "title": "Andantino. Lei mi chiama?"
+      },
+      {
+        "number": 75,
+        "title": "Act III. Scene 8. Recitative. Ma nipote, mia cara"
+      },
+      {
+        "number": 76,
         "title": "Act III. Scene 8. Finale. Chorus. Viva pur la Giardiniera"
       }
     ]
@@ -30374,119 +31266,255 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Scene 1. Introduction. Welches Vergnügen"
       },
       {
-        "number": 2,
-        "title": "Act I. Scene 1. Aria. Scheu ist das freie Vöglein"
-      },
-      {
         "number": 3,
-        "title": "Act I. Scene 2. Aria. Zu meinem Ohr erschallet"
+        "title": "Act I. Scene 1. Dialogue. Es lebe der gute Geschmack"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 3. Cavatina. Wir Mädchen sind sehr übel dran"
+        "title": "Act I. Scene 1. Aria. Scheu ist das freie Vöglein"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 4. Aria. Der Hammer zwingt das Eisen"
+        "title": "Act I. Scene 2. Dialogue. Serpetta, Nardo, geschwind!"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 6. Aria. Welch ein Reiz in diesem Bilde"
+        "title": "Act I. Scene 2. Aria. Zu meinem Ohr erschallet"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 6. Aria. Wenn die Männer sich verlieben"
+        "title": "Act I. Scene 3. Dialogue. Grausames Schicksal"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 7. Aria. Hier vom Osten bis zum Westen"
+        "title": "Act I. Scene 3. Cavatina. Wir Mädchen sind sehr übel dran"
       },
       {
         "number": 9,
-        "title": "Act I. Scene 8. Cavatina. Das Vergnügen in dem Eh'stand - 09b. Cavatina. Das Vergnügen in dem Eh'stand - 09c. Dialogue. Vortrefflich, Herr Spaßmacher!"
+        "title": "Act I. Scene 4. Dialogue. Ach, zum Henker!"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 8. Aria. Sobald sie mich sehen"
+        "title": "Act I. Scene 4. Aria. Der Hammer zwingt das Eisen"
       },
       {
         "number": 11,
-        "title": "Act I. Scene 9. Aria. Ferne von ihrem Neste"
+        "title": "Act I. Scene 5. Dialogue. Arminda, liebe Nichte"
       },
       {
         "number": 12,
-        "title": "Act I. Scene 10. Finale. Himmel, bin ich von Sinnen? - 12b. Scene 11. Nehmet hier Balsam sulfuris - 12c. Scene 12. Welche Stille - 12d. Scene 13. Wo ist die Ehrfurcht - 12e. Scene 14. Was ist denn Ihr Verlangen?"
+        "title": "Act I. Scene 6. Aria. Welch ein Reiz in diesem Bilde"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 1. Aria. Um deine Straf' zu fühlen"
+        "title": "Act I. Scene 6. Dialogue. Arminda, der Graf Belfiore"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 2. Aria. Nach der welschen Art und Weise"
+        "title": "Act I. Scene 6. Aria. Wenn die Männer sich verlieben"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 3. Aria. Laß mich ins Auge"
+        "title": "Act I. Scene 7. Dialogue. Ihr Feuer reißt mich hin!"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 4. Aria. Es ertönt und spricht ganz leise"
+        "title": "Act I. Scene 7. Aria. Hier vom Osten bis zum Westen"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 5. Aria. Wie? Was? ein Fräulein? - 17b. Scene 6. Dialogue. Vielleicht kehrt nun Arminda"
+        "title": "Act I. Scene 8. Dialogue. Ha, ha, ha, ha"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 6. Aria. Ach, schmeichelhafte Hoffnung"
+        "title": "Act I. Scene 8. Cavatina. Das Vergnügen in dem Eh'stand"
       },
       {
         "number": 19,
-        "title": "Act II. Scene 8. Recitative. Verweil doch und hör' mich - 19b. Aria. Schon erstarren meine Glieder"
+        "title": "Cavatina. Das Vergnügen in dem Eh'stand"
       },
       {
         "number": 20,
-        "title": "Act II. Scene 9. Aria. Wer will die Welt genießen"
+        "title": "Dialogue. Vortrefflich, Herr Spaßmacher!"
       },
       {
         "number": 21,
-        "title": "Act II. Scene 10. Aria. Ach haltet, Barbaren"
+        "title": "Act I. Scene 8. Aria. Sobald sie mich sehen"
       },
       {
         "number": 22,
-        "title": "Act II. Scene 10. Cavatina. Ach, vor Tränen, Schluchzen, Seufzen - 22b. Recitative. Schenke, gütige Vorsicht"
+        "title": "Act I. Scene 9. Aria. Ferne von ihrem Neste"
       },
       {
         "number": 23,
-        "title": "Act II. Scene 11. Finale. Hier in diesen Finsternissen"
+        "title": "Act I. Scene 9. Dialogue. Das wird wohl die Schöne sein"
       },
       {
         "number": 24,
-        "title": "Act III. Scene 2. Dialogue. Ich habe die Sache"
+        "title": "Act I. Scene 10. Dialogue. Hier bin ich!"
       },
       {
         "number": 25,
-        "title": "Act III. Scene 2. Aria. Nun, mein Herr?"
+        "title": "Act I. Scene 10. Finale. Himmel, bin ich von Sinnen?"
       },
       {
         "number": 26,
-        "title": "Act III. Scene 4. Aria. Wenn ich auch von dir verlassen"
+        "title": "Scene 11. Nehmet hier Balsam sulfuris"
       },
       {
         "number": 27,
-        "title": "Act III. Scene 5. Recitative. Wo bin ich wohl?"
+        "title": "Scene 12. Welche Stille"
       },
       {
         "number": 28,
+        "title": "Scene 13. Wo ist die Ehrfurcht"
+      },
+      {
+        "number": 29,
+        "title": "Scene 14. Was ist denn Ihr Verlangen?"
+      },
+      {
+        "number": 30,
+        "title": "Act II. Scene 1. Aria. Um deine Straf' zu fühlen"
+      },
+      {
+        "number": 31,
+        "title": "Act II. Scene 2. Dialogue. Meine Prinzessin, verzeih"
+      },
+      {
+        "number": 32,
+        "title": "Act II. Scene 2. Aria. Nach der welschen Art und Weise"
+      },
+      {
+        "number": 33,
+        "title": "Act II. Scene 3. Dialogue. Welch ein Zufall!"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 3. Aria. Laß mich ins Auge"
+      },
+      {
+        "number": 35,
+        "title": "Act II. Scene 4. Dialogue. Was höre ich?"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 4. Aria. Es ertönt und spricht ganz leise"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 5. Dialogue. Oh, ich Dummkopf"
+      },
+      {
+        "number": 38,
+        "title": "Act II. Scene 5. Aria. Wie? Was? ein Fräulein?"
+      },
+      {
+        "number": 39,
+        "title": "Scene 6. Dialogue. Vielleicht kehrt nun Arminda"
+      },
+      {
+        "number": 40,
+        "title": "Act II. Scene 6. Aria. Ach, schmeichelhafte Hoffnung"
+      },
+      {
+        "number": 41,
+        "title": "Act II. Scene 7. Dialogue. Liebe Nichte"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 8. Recitative. Verweil doch und hör' mich"
+      },
+      {
+        "number": 43,
+        "title": "Aria. Schon erstarren meine Glieder"
+      },
+      {
+        "number": 44,
+        "title": "Act II. Scene 9. Dialogue. O Himmel, welch ein Unglück!"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 9. Aria. Wer will die Welt genießen"
+      },
+      {
+        "number": 46,
+        "title": "Act II. Scene 10. Aria. Ach haltet, Barbaren"
+      },
+      {
+        "number": 47,
+        "title": "Act II. Scene 10. Cavatina. Ach, vor Tränen, Schluchzen, Seufzen"
+      },
+      {
+        "number": 48,
+        "title": "Recitative. Schenke, gütige Vorsicht"
+      },
+      {
+        "number": 49,
+        "title": "Act II. Scene 11. Finale. Hier in diesen Finsternissen"
+      },
+      {
+        "number": 50,
+        "title": "Act II. Scene 11. Nun ihr Freunde!"
+      },
+      {
+        "number": 51,
+        "title": "Act II. Scene 11. Falscher Verräter"
+      },
+      {
+        "number": 52,
+        "title": "Act II. Scene 11. Hörst du nicht, mein Tirsis?"
+      },
+      {
+        "number": 53,
+        "title": "Act III. Scene 1. Dialogue. O je! Meine liebe Herrin"
+      },
+      {
+        "number": 54,
+        "title": "Aria and Duet. Seht dort, wie Mond und Sonne"
+      },
+      {
+        "number": 55,
+        "title": "Act III. Scene 2. Dialogue. Ich habe die Sache"
+      },
+      {
+        "number": 56,
+        "title": "Act III. Scene 2. Aria. Nun, mein Herr?"
+      },
+      {
+        "number": 57,
+        "title": "Act III. Scene 3. Dialogue. Ramiro, was können Sie"
+      },
+      {
+        "number": 58,
+        "title": "Act III. Scene 4. Aria. Wenn ich auch von dir verlassen"
+      },
+      {
+        "number": 59,
+        "title": "Act III. Scene 5. Recitative. Wo bin ich wohl?"
+      },
+      {
+        "number": 60,
+        "title": "Act III. Scene 5. Du mich fliehen!"
+      },
+      {
+        "number": 61,
+        "title": "Act III. Scene 5. Duet. Wie, du rufst mich?"
+      },
+      {
+        "number": 62,
+        "title": "Act III. Scene 6. Dialogue. O Glück über Glück!"
+      },
+      {
+        "number": 63,
         "title": "Act III. Scene 6. Chorus. Liebe, Treue hat gesieget"
       }
     ]
@@ -31051,50 +32079,150 @@
       },
       {
         "number": 2,
-        "title": "Act I. Scene 1. Aria. Alla selva, al prato"
+        "title": "Act I. Scene 1. Aria. Intendo amico rio"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 2. Aria. Aer tranquillo"
+        "title": "Recitative. Bella Elisa?"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 3. Aria. Si spande al sole in faccia"
+        "title": "Act I. Scene 1. Aria. Alla selva, al prato"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 4. Aria. Per me rispondete"
+        "title": "Act I. Scene 2. Recitative. Compagne amene"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 5. Aria. Di tante sue procelle"
+        "title": "Act I. Scene 2. Recitative. Ditelo voi pastori"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 8. Duet. Vanne a regnar ben mio"
+        "title": "Act I. Scene 2. Aria. Aer tranquillo"
       },
       {
         "number": 8,
-        "title": "Act II. Scene 1. Aria. Barbaro! oh Dio mi vedi"
+        "title": "Act I. Scene 2. Recitative. Perdono amici Dei"
       },
       {
         "number": 9,
-        "title": "Act II. Scene 4. Aria. Se vincendo vi rendo felici"
+        "title": "Scene 3. Recitative. Or che dici Alessandro?"
       },
       {
         "number": 10,
-        "title": "Act II. Scene 6. Rondeaux. L'amerò, sarò costante"
+        "title": "Act I. Scene 3. Aria. Si spande al sole in faccia"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 9. Aria. Se tu di me fai dono"
+        "title": "Act I. Scene 4. Recitative. Agenore? T'arresta"
+      },
+      {
+        "number": 12,
+        "title": "Act I. Scene 4. Aria. Per me rispondete"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 11. Aria. Voi che fausti ognor donate"
+        "title": "Act I. Scene 5. Recitative. No: voi non siete, o Dei"
       },
       {
         "number": 14,
+        "title": "Act I. Scene 5. Aria. Di tante sue procelle"
+      },
+      {
+        "number": 15,
+        "title": "Act I. Scene 6. Recitative. Dove t'affretti, Elisa?"
+      },
+      {
+        "number": 16,
+        "title": "Scene 7. Recitative. Dal più fedel vassallo"
+      },
+      {
+        "number": 17,
+        "title": "Scene 8. Recitative. Elisa!"
+      },
+      {
+        "number": 18,
+        "title": "Act I. Scene 8. Recitative. Perdona Elisa"
+      },
+      {
+        "number": 19,
+        "title": "Act I. Scene 8. Duet. Vanne a regnar ben mio"
+      },
+      {
+        "number": 20,
+        "title": "Act II. Scene 1. Recitative. Questa del campo greco"
+      },
+      {
+        "number": 21,
+        "title": "Act II. Scene 1. Aria. Barbaro! oh Dio mi vedi"
+      },
+      {
+        "number": 22,
+        "title": "Act II. Scene 2. Recitative. La bella Elisa"
+      },
+      {
+        "number": 23,
+        "title": "Scene 3. Recitative. Per qual ragione resta"
+      },
+      {
+        "number": 24,
+        "title": "Scene 4. Recitative. Or per la mia Tamiri"
+      },
+      {
+        "number": 25,
+        "title": "Act II. Scene 4. Aria. Se vincendo vi rendo felici"
+      },
+      {
+        "number": 26,
+        "title": "Act II. Scene 5. Recitative. Oime! declina il sol"
+      },
+      {
+        "number": 27,
+        "title": "Scene 6. Recitative. E irresoluto ancora"
+      },
+      {
+        "number": 28,
+        "title": "Act II. Scene 6. Rondeaux. L'amerò, sarò costante"
+      },
+      {
+        "number": 29,
+        "title": "Act II. Scene 7. Recitative. Uscite, alfine uscite"
+      },
+      {
+        "number": 30,
+        "title": "Scene 8. Ma senti"
+      },
+      {
+        "number": 31,
+        "title": "Scene 9. Recitative. Povera ninfa!"
+      },
+      {
+        "number": 32,
+        "title": "Act II. Scene 9. Aria. Se tu di me fai dono"
+      },
+      {
+        "number": 33,
+        "title": "Act II. Scene 10. Recitative. Misero cor! - 12. Aria. Sol puo dir come si trova"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 11. Aria. Voi che fausti ognor donate"
+      },
+      {
+        "number": 35,
+        "title": "Act II. Scene 11. Recitative. Olà! che più si tarda?"
+      },
+      {
+        "number": 36,
+        "title": "Scene 12. Ah giustizia, signor, pietà, mercede!"
+      },
+      {
+        "number": 37,
+        "title": "Scene 13. Signore, io sono Aminta"
+      },
+      {
+        "number": 38,
         "title": "Act II. Scene 11. Finale. Chorus. Viva, viva l'invitto duce"
       }
     ]
@@ -36470,68 +37598,128 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture (Symphony #32 in G, KV 318)"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Scene 1. Lied. Brüder, laßt uns lustig sein"
       },
       {
-        "number": 2,
+        "number": 3,
         "title": "Act I. Scene 2. Melodrama. Unerforschliche Fügung!"
       },
       {
-        "number": 3,
-        "title": "Act I. Scene 3. Aria. Ruhe sanft, mein holdes Leben"
-      },
-      {
         "number": 4,
-        "title": "Act I. Scene 3. Aria. Rase, Schicksal, wüte immer"
+        "title": "Act I. Scene 3. Monologue. Noch nie war mir vergönnt"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 3. Duet. Meine Seele hüpft vor Freuden"
+        "title": "Act I. Scene 3. Aria. Ruhe sanft, mein holdes Leben"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 4. Aria. Herr und Freund!"
+        "title": "Act I. Scene 3. Monologue. Ah! So gut habe ich noch nie geschlafen"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 5. Aria. Nur mutig, mein Herze"
+        "title": "Act I. Scene 3. Aria. Rase, Schicksal, wüte immer"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 6. Trio. O selige Wonne!"
+        "title": "Act I. Scene 3. Dialogue. Nichtswürdiger Sklave"
       },
       {
         "number": 9,
-        "title": "Act II. Scene 1. Melodrama. Zaide entflohen!"
+        "title": "Act I. Scene 3. Duet. Meine Seele hüpft vor Freuden"
       },
       {
         "number": 10,
-        "title": "Act II. Scene 3. Aria. Wer hungrig bei der Tafel sitzt"
+        "title": "Act I. Scene 4. Dialogue. Unglückseliger!"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 4. Aria. Ich bin so bös' als gut"
+        "title": "Act I. Scene 4. Aria. Herr und Freund!"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 5. Aria. Trostlos schluchzet Philomele"
+        "title": "Act I. Scene 4. Monologue. Weit weiche ich von meiner Pflicht"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 6. Aria. Tiger! wetze nur die Klauen"
+        "title": "Act I. Scene 5. Aria. Nur mutig, mein Herze"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 7. Aria. Ihr Mächtigen seht ungerührt"
+        "title": "Act I. Scene 6. Dialogue. Eilt, Gomaz, ihr wißt den Weg!"
       },
       {
         "number": 15,
+        "title": "Act I. Scene 6. Trio. O selige Wonne!"
+      },
+      {
+        "number": 16,
+        "title": "Act II. Scene 1. Melodrama. Zaide entflohen!"
+      },
+      {
+        "number": 17,
+        "title": "Act II. Scene 2. Aria. Der stolze Löw'"
+      },
+      {
+        "number": 18,
+        "title": "Act II. Scene 3. Monologue. Nun, so wären wir den Allazim los!"
+      },
+      {
+        "number": 19,
+        "title": "Act II. Scene 3. Aria. Wer hungrig bei der Tafel sitzt"
+      },
+      {
+        "number": 20,
+        "title": "Act II. Scene 4. Dialogue. Da steht ihr also vor mir"
+      },
+      {
+        "number": 21,
+        "title": "Act II. Scene 4. Aria. Ich bin so bös' als gut"
+      },
+      {
+        "number": 22,
+        "title": "Act II. Scene 5. Monologue. Weshalb muß ich im dunklen Kerker schmachten?"
+      },
+      {
+        "number": 23,
+        "title": "Act II. Scene 5. Aria. Trostlos schluchzet Philomele"
+      },
+      {
+        "number": 24,
+        "title": "Act II. Scene 6. Dialogue. Hört, Zaide, ich werde euch die Freiheit schenken"
+      },
+      {
+        "number": 25,
+        "title": "Act II. Scene 6. Aria. Tiger! wetze nur die Klauen"
+      },
+      {
+        "number": 26,
+        "title": "Act II. Scene 7. Dialogue. Nun zu dir, Allazim"
+      },
+      {
+        "number": 27,
+        "title": "Act II. Scene 7. Aria. Ihr Mächtigen seht ungerührt"
+      },
+      {
+        "number": 28,
+        "title": "Act II. Scene 7. Dialogue. Es ist umsonst"
+      },
+      {
+        "number": 29,
         "title": "Act II. Scene 8. Quartet. Freundin! stille deine Tränen"
+      },
+      {
+        "number": 30,
+        "title": "Act II. Scene 8. Dialogue. O großer Soliman"
+      },
+      {
+        "number": 31,
+        "title": "Act II. (March in D, KV 335/320a #1)"
       }
     ]
   },
@@ -36575,6 +37763,10 @@
       {
         "number": 7,
         "title": "Interlude"
+      },
+      {
+        "number": 8,
+        "title": "Chorus. Ihr Kinder des Staubes"
       }
     ]
   },
@@ -37139,7 +38331,7 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 18,
+        "number": 1,
         "title": "Act III. Andrò ramingo e solo"
       }
     ]
@@ -37156,136 +38348,288 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
-        "title": "Act I. Scene 1. Aria. Padre, germani, addio! - 01b. Recitative. Ecco Idamante, ahimè!"
-      },
-      {
         "number": 2,
-        "title": "Act I. Scene 2. Aria. Non ho colpa"
+        "title": "Act I. Scene 1. Recitative. Quando avran fine omai"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 3. Chorus. Godiam la pace"
+        "title": "Act I. Scene 1. Aria. Padre, germani, addio!"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 6. Aria. Tutte nel cor vi sento"
+        "title": "Recitative. Ecco Idamante, ahimè!"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 7. Chorus. Pietà! Numi, pietà! - 05b. Scene 8. Pantomime"
+        "title": "Act I. Scene 2. Recitative. Radunate i Troiani"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 9. Aria. Vedrommi intorno"
+        "title": "Act I. Scene 2. Aria. Non ho colpa"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 10. Aria. Il padre adorato"
+        "title": "Act I. Scene 2. Recitative. Ecco il misero resto de' Troiani"
       },
       {
         "number": 8,
-        "title": "Intermezzo. March"
+        "title": "Scene 3. Recitative. Scingete le carene"
       },
       {
         "number": 9,
-        "title": "Intermezzo. Chorus. Nettuno s'onori"
+        "title": "Act I. Scene 3. Chorus. Godiam la pace"
       },
       {
         "number": 10,
-        "title": "Appendix. Aria. Se il tuo duol"
+        "title": "Act I. Scene 4. Recitative. Prence, signor, tutta la Grecia oltraggi"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 2. Aria. Se il padre perdei"
+        "title": "Scene 5. Recitative. Ma quel pianto che annunzia?"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 3. Recitative. Qual conturba i sensi"
+        "title": "Act I. Scene 6. Recitative. Estinto è Idomeneo?"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 4. Aria. Idol mio, se ritroso"
+        "title": "Act I. Scene 6. Aria. Tutte nel cor vi sento"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 4. March and Recitative. Oda da lunge"
+        "title": "Act I. Scene 7. Chorus. Pietà! Numi, pietà!"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 5. Chorus. Placido è il mar"
+        "title": "Scene 8. Pantomime"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 6. Trio. Pria di partir, oh Dio!"
+        "title": "Act I. Scene 8. Recitative. Eccoci salvi alfin"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 6. Chorus. Qual nuovo terrore!"
+        "title": "Scene 9. Recitative. Oh voi, di Marte"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 6. Chorus. Corriamo, fuggiamo"
+        "title": "Act I. Scene 9. Aria. Vedrommi intorno"
       },
       {
         "number": 19,
-        "title": "Act III. Scene 1. Aria. Zeffiretti lusinghieri - 19b. Recitative. Ei stesso vien"
+        "title": "Act I. Scene 9. Recitative. Cieli! che veggo?"
       },
       {
         "number": 20,
-        "title": "Act III. Scene 2. Duet. S'io non moro a questi accenti"
+        "title": "Scene 10. Recitative. Spiagge romite"
       },
       {
         "number": 21,
-        "title": "Act III. Scene 3. Quartet. Andrò ramingo e solo"
+        "title": "Act I. Scene 10. Aria. Il padre adorato"
       },
       {
         "number": 22,
-        "title": "Appendix. Aria. Se colà ne' fati è scritto"
+        "title": "Intermezzo. March"
       },
       {
         "number": 23,
-        "title": "Act III. Scene 6. Recitative. Volgi intorno lo sguardo"
+        "title": "Appendix. Dance of the Cretan Women"
       },
       {
         "number": 24,
-        "title": "Act III. Scene 6. Chorus. Oh voto tremendo!"
+        "title": "Intermezzo. Chorus. Nettuno s'onori"
       },
       {
         "number": 25,
-        "title": "Act III. Scene 7. March"
+        "title": "Act II. Scene 1. Recitative. Tutto m'è noto"
       },
       {
         "number": 26,
-        "title": "Act III. Scene 7. Cavatina with Chorus. Accogli, oh re del mar"
+        "title": "Act II. Scene 2. Recitative. Se mai pomposo apparse"
       },
       {
         "number": 27,
-        "title": "Act III. Scene 9. Recitative. Padre, mio caro padre"
+        "title": "Appendix. Aria. Se il tuo duol"
       },
       {
         "number": 28,
-        "title": "Act III. Scene 10. La Voce. Ha vinto amore"
+        "title": "Act II. Scene 2. Aria. Se il padre perdei"
       },
       {
         "number": 29,
-        "title": "Act III. Scene 10. Recitative. Oh ciel pietoso!"
+        "title": "Act II. Scene 3. Recitative. Qual conturba i sensi"
       },
       {
         "number": 30,
-        "title": "Act III. Scene 11. Recitative. Popoli, a voi l'ultima legge impone"
+        "title": "Act II. Scene 3. Aria. Fuor del mar"
       },
       {
         "number": 31,
-        "title": "Act III. Scene 11. Chorus. Scenda Amor, scenda Imeneo"
+        "title": "Act II. Scene 4. Recitative. Chi mai del mio provò"
       },
       {
         "number": 32,
-        "title": "Appendix. Ballet, K367 - 1a. Chaconne. Allegro"
+        "title": "Act II. Scene 4. Aria. Idol mio, se ritroso"
+      },
+      {
+        "number": 33,
+        "title": "Act II. Scene 4. March and Recitative. Oda da lunge"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 5. Recitative. Sidonie sponde!"
+      },
+      {
+        "number": 35,
+        "title": "Act II. Scene 5. Chorus. Placido è il mar"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 6. Recitative. Vattene, prence"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 6. Trio. Pria di partir, oh Dio!"
+      },
+      {
+        "number": 38,
+        "title": "Act II. Scene 6. Chorus. Qual nuovo terrore!"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 6. Recitative. Eccoti in me, barbaro Nume!"
+      },
+      {
+        "number": 40,
+        "title": "Act II. Scene 6. Chorus. Corriamo, fuggiamo"
+      },
+      {
+        "number": 41,
+        "title": "Act III. Scene 1. Recitative. Solitudini amiche"
+      },
+      {
+        "number": 42,
+        "title": "Act III. Scene 1. Aria. Zeffiretti lusinghieri"
+      },
+      {
+        "number": 43,
+        "title": "Recitative. Ei stesso vien"
+      },
+      {
+        "number": 44,
+        "title": "Act III. Scene 2. Recitative. Principessa, a' tuoi sguardi"
+      },
+      {
+        "number": 45,
+        "title": "Act III. Scene 2. Duet. S'io non moro a questi accenti"
+      },
+      {
+        "number": 46,
+        "title": "Act III. Scene 3. Recitative. Cieli! che vedo?"
+      },
+      {
+        "number": 47,
+        "title": "Act III. Scene 3. Quartet. Andrò ramingo e solo"
+      },
+      {
+        "number": 48,
+        "title": "Act III. Scene 4. Recitative. Sire, alla reggia tua"
+      },
+      {
+        "number": 49,
+        "title": "Act III. Scene 5. Recitative. Sventurata Sidon!"
+      },
+      {
+        "number": 50,
+        "title": "Appendix. Aria. Se colà ne' fati è scritto"
+      },
+      {
+        "number": 51,
+        "title": "Appendix. Recitative. Deh vibra un colpo"
+      },
+      {
+        "number": 52,
+        "title": "Act III. Scene 6. Recitative. Volgi intorno lo sguardo"
+      },
+      {
+        "number": 53,
+        "title": "Act III. Scene 6. Chorus. Oh voto tremendo!"
+      },
+      {
+        "number": 54,
+        "title": "Act III. Scene 7. March"
+      },
+      {
+        "number": 55,
+        "title": "Act III. Scene 7. Cavatina with Chorus. Accogli, oh re del mar"
+      },
+      {
+        "number": 56,
+        "title": "Act III. Scene 7. Chorus. Stupenda vittoria!"
+      },
+      {
+        "number": 57,
+        "title": "Recitative. Qual risuona qui intorno"
+      },
+      {
+        "number": 58,
+        "title": "Scene 8. Recitative. Sire, il prence"
+      },
+      {
+        "number": 59,
+        "title": "Appendix. Aria. No, la morte io non pavento"
+      },
+      {
+        "number": 60,
+        "title": "Act III. Scene 9. Recitative. Padre, mio caro padre"
+      },
+      {
+        "number": 61,
+        "title": "Act III. Scene 10. Recitative. Ferma, oh sire, che fai?"
+      },
+      {
+        "number": 62,
+        "title": "Act III. Scene 10. La Voce. Ha vinto amore"
+      },
+      {
+        "number": 63,
+        "title": "Act III. Scene 10. Recitative. Oh ciel pietoso!"
+      },
+      {
+        "number": 64,
+        "title": "Act III. Scene 10. Aria. D'Oreste, D'Aiace"
+      },
+      {
+        "number": 65,
+        "title": "Act III. Scene 11. Recitative. Popoli, a voi l'ultima legge impone"
+      },
+      {
+        "number": 66,
+        "title": "Act III. Scene 11. Aria. Torna la pace al core"
+      },
+      {
+        "number": 67,
+        "title": "Act III. Scene 11. Chorus. Scenda Amor, scenda Imeneo"
+      },
+      {
+        "number": 68,
+        "title": "Appendix. Ballet, K367"
+      },
+      {
+        "number": 69,
+        "title": "Appendix. Ballet, K367"
+      },
+      {
+        "number": 70,
+        "title": "Appendix. Ballet, K367"
+      },
+      {
+        "number": 71,
+        "title": "Appendix. Ballet, K367 - 2. Largo - Allegretto - Più allegro"
       }
     ]
   },
@@ -37306,18 +38650,26 @@
       },
       {
         "number": 2,
-        "title": "Largo - Allegretto - Più allegro"
+        "title": "Chaconne. Larghetto"
       },
       {
         "number": 3,
-        "title": "Passepied"
+        "title": "Chaconne. Allegro"
       },
       {
         "number": 4,
-        "title": "Gavotte"
+        "title": "Largo - Allegretto - Più allegro"
       },
       {
         "number": 5,
+        "title": "Passepied"
+      },
+      {
+        "number": 6,
+        "title": "Gavotte"
+      },
+      {
+        "number": 7,
         "title": "Passacaille"
       }
     ]
@@ -37788,92 +39140,188 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Aria. Hier soll ich dich denn sehen"
       },
       {
-        "number": 2,
-        "title": "Act I. Lied. Wer ein Liebchen hat gefunden - 02b. Duet. Verwünscht seist du samt deinem Liede!"
-      },
-      {
         "number": 3,
-        "title": "Act I. Aria. Solche hergelaufne Laffen - 03b. Dialogue. Was bist du nur für ein Mensch! - 03c. Aria. Erst geköpft, dann gehangen"
+        "title": "Act I. Dialogue. Aber wie soll ich in den Palast kommen?"
       },
       {
         "number": 4,
-        "title": "Act I. Recitative. Konstanze, dich wiederzusehen - 04b. Aria. O wie ängstlich, o wie feurig"
+        "title": "Act I. Lied. Wer ein Liebchen hat gefunden"
       },
       {
         "number": 5,
-        "title": "Act I. Chorus of the Janissaries. Singt dem grossen Bassa Lieder"
+        "title": "Duet. Verwünscht seist du samt deinem Liede!"
       },
       {
         "number": 6,
-        "title": "Act I. Aria. Ach ich liebte, war so glücklich"
+        "title": "Act I. Dialogue. Allah sei Dank!"
       },
       {
         "number": 7,
-        "title": "Act I. Trio. Marsch! Trollt euch fort!"
+        "title": "Act I. Aria. Solche hergelaufne Laffen"
       },
       {
         "number": 8,
-        "title": "Act II. Aria. Durch Zärtlichkeit und Schmeicheln"
+        "title": "Dialogue. Was bist du nur für ein Mensch!"
       },
       {
         "number": 9,
-        "title": "Act II. Duet. Ich gehe, doch rate ich dir"
+        "title": "Aria. Erst geköpft, dann gehangen"
       },
       {
         "number": 10,
-        "title": "Act II. Recitative. Welcher Kummer herrscht in meiner Seele"
+        "title": "Act I. Dialogue. Geh nur, verwünschter Aufpasser!"
       },
       {
         "number": 11,
-        "title": "Act II. Aria. Martern aller Arten"
+        "title": "Act I. Recitative. Konstanze, dich wiederzusehen"
       },
       {
         "number": 12,
-        "title": "Act II. Aria. Welche Wonne, welche Lust"
+        "title": "Aria. O wie ängstlich, o wie feurig"
       },
       {
         "number": 13,
-        "title": "Act II. Aria. Frisch zum Kampfe"
+        "title": "Act I. Chorus of the Janissaries. Singt dem grossen Bassa Lieder"
       },
       {
         "number": 14,
-        "title": "Act II. Duet. Vivat Bacchus! Bacchus lebe!"
+        "title": "Act I. Dialogue. Immer noch traurig, geliebte Konstanze?"
       },
       {
         "number": 15,
-        "title": "Act II. Aria. Wenn der Freude Tränen fließen"
+        "title": "Act I. Aria. Ach ich liebte, war so glücklich"
       },
       {
         "number": 16,
-        "title": "Act II. Quartet. Ach Belmonte! Ach mein Leben!"
+        "title": "Act I. Dialogue. Undankbare!"
       },
       {
         "number": 17,
-        "title": "Act III. Aria. Ich baue ganz auf deine Stärke"
+        "title": "Aria. Ihr Schmerz, ihre Tränen"
       },
       {
         "number": 18,
-        "title": "Act III. Romanze. In Mohrenland gefangen war"
+        "title": "Act I. Trio. Marsch! Trollt euch fort!"
       },
       {
         "number": 19,
-        "title": "Act III. Aria. Ha, wie will ich triumphieren"
+        "title": "Act II. Aria. Durch Zärtlichkeit und Schmeicheln"
       },
       {
         "number": 20,
-        "title": "Act III. Recitative. Welch ein Geschick!"
+        "title": "Act II. Dialogue. Ei seht doch mal"
       },
       {
         "number": 21,
-        "title": "Act III. Vaudeville. Nie werd' ich deine Huld verkennen - 21b. Chorus of the Janissaries. Bassa Selim lebe lange"
+        "title": "Act II. Duet. Ich gehe, doch rate ich dir"
+      },
+      {
+        "number": 22,
+        "title": "Act II. Recitative. Welcher Kummer herrscht in meiner Seele"
+      },
+      {
+        "number": 23,
+        "title": "Act II. Aria. Traurigkeit ward mir zum Lose"
+      },
+      {
+        "number": 24,
+        "title": "Act II. Dialogue. Nun, Konstanze, hast du dich entschieden?"
+      },
+      {
+        "number": 25,
+        "title": "Act II. Aria. Martern aller Arten"
+      },
+      {
+        "number": 26,
+        "title": "Act II. Dialogue. Kein Bassa, keine Konstanze mehr da?"
+      },
+      {
+        "number": 27,
+        "title": "Act II. Aria. Welche Wonne, welche Lust"
+      },
+      {
+        "number": 28,
+        "title": "Act II. Dialogue. Ah, daß es schon vorbei wäre!"
+      },
+      {
+        "number": 29,
+        "title": "Act II. Aria. Frisch zum Kampfe"
+      },
+      {
+        "number": 30,
+        "title": "Act II. Dialogue. Ha! Geht's hier so lustig zu?"
+      },
+      {
+        "number": 31,
+        "title": "Act II. Duet. Vivat Bacchus! Bacchus lebe!"
+      },
+      {
+        "number": 32,
+        "title": "Act II. Dialogue. Hör, Alter, trink nicht zu viel"
+      },
+      {
+        "number": 33,
+        "title": "Act II. Aria. Wenn der Freude Tränen fließen"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Quartet. Ach Belmonte! Ach mein Leben!"
+      },
+      {
+        "number": 35,
+        "title": "Act II. Quartet. Wenn unsrer Ehre wegen"
+      },
+      {
+        "number": 36,
+        "title": "Act III. Aria. Ich baue ganz auf deine Stärke"
+      },
+      {
+        "number": 37,
+        "title": "Act III. Dialogue. Alles liegt auf dem Ohr"
+      },
+      {
+        "number": 38,
+        "title": "Act III. Romanze. In Mohrenland gefangen war"
+      },
+      {
+        "number": 39,
+        "title": "Act III. Dialogue. Endlich, sie macht auf, Herr"
+      },
+      {
+        "number": 40,
+        "title": "Act III. Aria. Ha, wie will ich triumphieren"
+      },
+      {
+        "number": 41,
+        "title": "Act III. Dialogue. Was ist das für ein Lärm?"
+      },
+      {
+        "number": 42,
+        "title": "Act III. Recitative. Welch ein Geschick!"
+      },
+      {
+        "number": 43,
+        "title": "Act III. Duet. Meinetwegen sollst du sterben!"
+      },
+      {
+        "number": 44,
+        "title": "Act III. Dialogue. Nun, Belmonte Lostados!"
+      },
+      {
+        "number": 45,
+        "title": "Act III. Vaudeville. Nie werd' ich deine Huld verkennen"
+      },
+      {
+        "number": 46,
+        "title": "Chorus of the Janissaries. Bassa Selim lebe lange"
       }
     ]
   },
@@ -38885,22 +40333,58 @@
       },
       {
         "number": 2,
-        "title": "Act I. Scene 6. Aria. Se fosse qui nascoso"
+        "title": "Act I. Scene 4. Recitative. Auretta mia, Chichibio, vi saluto"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 6. Aria. Ogni momento"
+        "title": "Scene 5. Recitative. Auretta mia vezzosa"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 8. Aria and Trio. Siano pronte alle gran nozze"
+        "title": "Scene 6. Recitative. Così stavano stretti"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 11. Quartet. S'oggi, oh dei, sperar mi fate"
+        "title": "Act I. Scene 6. Aria. Se fosse qui nascoso"
       },
       {
         "number": 6,
+        "title": "Act I. Scene 6. Recitative. Buon pro', Signori"
+      },
+      {
+        "number": 7,
+        "title": "Act I. Scene 6. Aria. Ogni momento"
+      },
+      {
+        "number": 8,
+        "title": "Act I. Scene 8. Recitative. O pazzo"
+      },
+      {
+        "number": 9,
+        "title": "Act I. Scene 8. Aria and Trio. Siano pronte alle gran nozze"
+      },
+      {
+        "number": 10,
+        "title": "Act I. Scene 11. Recitative. L'ultima volta al fin, mura adorate"
+      },
+      {
+        "number": 11,
+        "title": "Act I. Scene 11. Aria. Che parli, che dica"
+      },
+      {
+        "number": 12,
+        "title": "Act I. Scene 11. Recitative. Ma parmi là in quel lato"
+      },
+      {
+        "number": 13,
+        "title": "Act I. Scene 11. Quartet. S'oggi, oh dei, sperar mi fate"
+      },
+      {
+        "number": 14,
+        "title": "Act I. Duet. Ho un pensiero nel cervello"
+      },
+      {
+        "number": 15,
         "title": "Act I. Scene 15. Finale. Su via putti, presto, presto!"
       }
     ]
@@ -39248,23 +40732,23 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Scene 1. Quartet. Ah, ah, che ridere!"
       },
       {
-        "number": 2,
+        "number": 3,
         "title": "Act I. Scene 3. Aria. Nacqui all'aria trionfale"
       },
       {
-        "number": 3,
+        "number": 4,
         "title": "Act I. Scene 4. Aria. Dove mai trovar quel ciglio?"
       },
       {
-        "number": 4,
+        "number": 5,
         "title": "Act I. Scene 9. Trio. Che accidenti! che tragedia!"
       }
     ]
@@ -40898,23 +42382,23 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Arietta. Da schlägt die Abschiedsstunde"
       },
       {
-        "number": 2,
+        "number": 3,
         "title": "Rondo. Bester Jüngling!"
       },
       {
-        "number": 3,
+        "number": 4,
         "title": "Trio. Ich bin die erste Sängerin"
       },
       {
-        "number": 4,
+        "number": 5,
         "title": "Vaudeville. Jeder Künstler streb nach Ehre"
       }
     ]
@@ -41172,116 +42656,340 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
-        "title": "Act I. Scene 1. Duet. Cinque . . . dieci . . . venti . . . trenta . . . - 01b. Recitative. Cosa stai misurando"
-      },
-      {
         "number": 2,
-        "title": "Act I. Scene 1. Duettino. Se a caso Madama - 02b. Recitative. Or bene, ascolta, e taci - 02c. Scene 2. Bravo, signor padrone!"
+        "title": "Act I. Scene 1. Duet. Cinque . . . dieci . . . venti . . . trenta . . ."
       },
       {
         "number": 3,
-        "title": "Act I. Scene 2. Cavatina. Se vuol ballare, signor Contino - 03b. Scene 3. Recitative. Ed aspettaste il giorno"
+        "title": "Recitative. Cosa stai misurando"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 3. Aria. La vendetta, oh, la vendetta - 04b. Scene 4. Recitative. Tutto ancor non ho perso"
+        "title": "Act I. Scene 1. Duettino. Se a caso Madama"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 4. Duettino. Via, resti servita - 05b. Scene 5. Recitative. Va là, vecchia pedante"
+        "title": "Recitative. Or bene, ascolta, e taci"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 5. Aria. Non so più cosa son, cosa faccio"
+        "title": "Scene 2. Bravo, signor padrone!"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 7. Trio. Cosa sento! tosto andate - 07b. Recitative. Basilio, in traccia tosto"
+        "title": "Act I. Scene 2. Cavatina. Se vuol ballare, signor Contino"
       },
       {
         "number": 8,
-        "title": "(alt. ver.) Ehi, Sor paggio - 09. Non più andrai"
+        "title": "Scene 3. Recitative. Ed aspettaste il giorno"
+      },
+      {
+        "number": 9,
+        "title": "Act I. Scene 3. Aria. La vendetta, oh, la vendetta"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 8. Aria. Non più andrai, farfallone amoroso"
+        "title": "Scene 4. Recitative. Tutto ancor non ho perso"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 1. Cavatina. Porgi, amor, qualche ristoro"
+        "title": "Act I. Scene 4. Duettino. Via, resti servita"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 3. Arietta. Voi che sapete - 12b. Recitative. Bravo! che bella voce!"
+        "title": "Scene 5. Recitative. Va là, vecchia pedante"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 3. Aria. Venite . . . inginocchiatevi . . ."
+        "title": "Act I. Scene 5. Aria. Non so più cosa son, cosa faccio"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 6. Trio. Susanna or via, sortite - 14b. Recitative. Dunque, voi non aprite?"
+        "title": "Act I. Scene 6. Recitative. Ah, son perduto!"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 7. Duettino. Aprite, presto, aprite - 15b. Recitative. Oh guarda il demonietto! - 15c. Scene 8. Tutto è come io lasciai"
+        "title": "Scene 7. Susanna, il ciel vi salvi"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 8. Finale. Esci, ormai, garzon malnato - 16b. Scene 9. Susanna!"
+        "title": "Act I. Scene 7. Trio. Cosa sento! tosto andate"
       },
       {
         "number": 17,
-        "title": "Act III. Scene 2. Duettino. Crudel! Perché finora - 17b. Recitative. E perché fosti meco - 17c. Scene 3. Ehi Susanna, ove vai?"
+        "title": "Recitative. Basilio, in traccia tosto"
       },
       {
         "number": 18,
-        "title": "Act III. Scene 4. Recitative. Hai già vinta la causa! - 18b. Aria. Vedrò, mentr'io sospiro"
+        "title": "Act I. Scene 8. Chorus. Giovani liete"
       },
       {
         "number": 19,
-        "title": "Act III. Scene 7. Sextet. Riconosci in questo amplesso - 19b. Scene 8. Recitative. Eccovi, o caro amico - 19c. Scene 9. Io vi dico"
+        "title": "(alt. ver.) Ehi, Sor paggio - 09. Non più andrai"
       },
       {
         "number": 20,
-        "title": "Act III. Scene 6. Recitative. E Susanna non vien! - 20b. Aria. Dove sono i bei momenti"
+        "title": "Chorus. Giovani liete"
+      },
+      {
+        "number": 21,
+        "title": "Recitative. Evviva!"
       },
       {
         "number": 22,
-        "title": "Act III. Scene 11. Chorus. Ricevete, o padroncina - 22b. Recitative. Questo sono, Madama - 22c. Scene 12. Eh cospettaccio! - 22d. Scene 13. Signor . . . se trattenete"
+        "title": "Act I. Scene 8. Aria. Non più andrai, farfallone amoroso"
       },
       {
         "number": 23,
-        "title": "Act III. Scene 13. Finale. Ecco la marcia - 23b. Scene 14. Amanti costanti"
+        "title": "Act II. Scene 1. Cavatina. Porgi, amor, qualche ristoro"
       },
       {
         "number": 24,
-        "title": "Act IV. Scene 1. Cavatina. L'ho perduta . . . me meschina!"
+        "title": "Act II. Scene 2. Recitative. Vieni, cara Susanna"
       },
       {
         "number": 25,
-        "title": "Act IV. Scene 4. Aria. Il capro e la capretta"
+        "title": "Scene 3. Recitative. Quanto duolmi, Susanna"
       },
       {
         "number": 26,
-        "title": "Act IV. Scene 7. Aria. In quegli anni in cui val poco"
+        "title": "Act II. Scene 3. Arietta. Voi che sapete"
       },
       {
         "number": 27,
-        "title": "Act IV. Scene 8. Recitative. Tutto è disposto - 27b. Aria. Aprite un po'quegli occhi"
+        "title": "Recitative. Bravo! che bella voce!"
       },
       {
         "number": 28,
-        "title": "Act IV. Scene 10. Recitative. Giunse alfin il momento - 28b. Aria. Deh vieni, non tardar"
+        "title": "Act II. Scene 3. Aria. Venite . . . inginocchiatevi . . ."
       },
       {
         "number": 29,
+        "title": "Act II. Scene 3. Recitative. Quante buffonerie"
+      },
+      {
+        "number": 30,
+        "title": "Scene 4. Perché chiusa?"
+      },
+      {
+        "number": 31,
+        "title": "Scene 5. Che novità!"
+      },
+      {
+        "number": 32,
+        "title": "Act II. Scene 6. Trio. Susanna or via, sortite"
+      },
+      {
+        "number": 33,
+        "title": "Recitative. Dunque, voi non aprite?"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 7. Duettino. Aprite, presto, aprite"
+      },
+      {
+        "number": 35,
+        "title": "Recitative. Oh guarda il demonietto!"
+      },
+      {
+        "number": 36,
+        "title": "Scene 8. Tutto è come io lasciai"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 8. Finale. Esci, ormai, garzon malnato"
+      },
+      {
+        "number": 38,
+        "title": "Scene 9. Susanna!"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 10. Signore, di fuori"
+      },
+      {
+        "number": 40,
+        "title": "Scene 11. Ah! signore . . . signor"
+      },
+      {
+        "number": 41,
+        "title": "Act II. Scene 12. Voi signor, che giusto siete"
+      },
+      {
+        "number": 42,
+        "title": "Act III. Scene 1. Recitative. Che imbarazzo è mai questo!"
+      },
+      {
+        "number": 43,
+        "title": "Scene 2. Recitative. Via, fatti core"
+      },
+      {
+        "number": 44,
+        "title": "Act III. Scene 2. Duettino. Crudel! Perché finora"
+      },
+      {
+        "number": 45,
+        "title": "Recitative. E perché fosti meco"
+      },
+      {
+        "number": 46,
+        "title": "Scene 3. Ehi Susanna, ove vai?"
+      },
+      {
+        "number": 47,
+        "title": "Act III. Scene 4. Recitative. Hai già vinta la causa!"
+      },
+      {
+        "number": 48,
+        "title": "Aria. Vedrò, mentr'io sospiro"
+      },
+      {
+        "number": 49,
+        "title": "Act III. Scene 5. Recitative. Andiamo, andiam, bel paggio"
+      },
+      {
+        "number": 50,
+        "title": "Act III. Scene 7. Sextet. Riconosci in questo amplesso"
+      },
+      {
+        "number": 51,
+        "title": "Scene 8. Recitative. Eccovi, o caro amico"
+      },
+      {
+        "number": 52,
+        "title": "Scene 9. Io vi dico"
+      },
+      {
+        "number": 53,
+        "title": "Act III. Scene 10. Cosa mi narri1"
+      },
+      {
+        "number": 54,
+        "title": "Act III. Scene 6. Recitative. E Susanna non vien!"
+      },
+      {
+        "number": 55,
+        "title": "Aria. Dove sono i bei momenti"
+      },
+      {
+        "number": 56,
+        "title": "Act III. Scene 7. Recitative. È decisa la lite"
+      },
+      {
+        "number": 57,
+        "title": "Duettino. Sull'aria"
+      },
+      {
+        "number": 58,
+        "title": "Recitative. Piegato è il foglio"
+      },
+      {
+        "number": 59,
+        "title": "Act III. Scene 11. Chorus. Ricevete, o padroncina"
+      },
+      {
+        "number": 60,
+        "title": "Recitative. Questo sono, Madama"
+      },
+      {
+        "number": 61,
+        "title": "Scene 12. Eh cospettaccio!"
+      },
+      {
+        "number": 62,
+        "title": "Scene 13. Signor . . . se trattenete"
+      },
+      {
+        "number": 63,
+        "title": "Act III. Scene 13. Finale. Ecco la marcia"
+      },
+      {
+        "number": 64,
+        "title": "Scene 14. Amanti costanti"
+      },
+      {
+        "number": 65,
+        "title": "Act III. Scene 14. Eh già, solita usanza"
+      },
+      {
+        "number": 66,
+        "title": "Act IV. Scene 1. Cavatina. L'ho perduta . . . me meschina!"
+      },
+      {
+        "number": 67,
+        "title": "Act IV. Scene 2. Recitative. Barbarina, cos'hai?'"
+      },
+      {
+        "number": 68,
+        "title": "Scene 3. Recitative. Madre"
+      },
+      {
+        "number": 69,
+        "title": "Scene 4. Presto, avvertiam Susanna"
+      },
+      {
+        "number": 70,
+        "title": "Act IV. Scene 4. Aria. Il capro e la capretta"
+      },
+      {
+        "number": 71,
+        "title": "Act IV. Scene 5. Recitative. Nel padiglione a manca"
+      },
+      {
+        "number": 72,
+        "title": "Scene 6. Recitative. È Barbarina"
+      },
+      {
+        "number": 73,
+        "title": "Scene 7. Recitative. Ha i diavoli nel corpo"
+      },
+      {
+        "number": 74,
+        "title": "Act IV. Scene 7. Aria. In quegli anni in cui val poco"
+      },
+      {
+        "number": 75,
+        "title": "Act IV. Scene 8. Recitative. Tutto è disposto"
+      },
+      {
+        "number": 76,
+        "title": "Aria. Aprite un po'quegli occhi"
+      },
+      {
+        "number": 77,
+        "title": "Act IV. Scene 9. Recitative. Signora, ella mi disse"
+      },
+      {
+        "number": 78,
+        "title": "Scene 10. Madama, voi tremate, avreste freddo?"
+      },
+      {
+        "number": 79,
+        "title": "Act IV. Scene 10. Recitative. Giunse alfin il momento"
+      },
+      {
+        "number": 80,
+        "title": "Aria. Deh vieni, non tardar"
+      },
+      {
+        "number": 81,
+        "title": "Act IV. Scene 11. Recitative. Perfida! e in quella forma"
+      },
+      {
+        "number": 82,
         "title": "Act IV. Scene 11. Finale. Pian pianin le andrò più presso"
+      },
+      {
+        "number": 83,
+        "title": "Act IV. Scene 11. Tutto è tranquillo e placido"
+      },
+      {
+        "number": 84,
+        "title": "Act IV. Scene 12. Gente, gente, all'armi, all'armi"
       }
     ]
   },
@@ -42250,104 +43958,276 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
-        "title": "Act I. Scene 1. Introduction. Notte e giorno faticar - 01b. Scene 2. Recitative. Leporello, ove sei?"
-      },
-      {
         "number": 2,
-        "title": "Act I. Scene 3. Fuggi, crudele, fuggi!"
+        "title": "Act I. Scene 1. Introduction. Notte e giorno faticar"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 5. Aria and Trio. Ah! chi mi dice mai"
+        "title": "Scene 2. Recitative. Leporello, ove sei?"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 5. Aria. Madamina il catalogo è questo"
+        "title": "Act I. Scene 3. Ah! del padre"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 7. Duet and Chorus. Giovinette, che fate all'amore - 05b. Scene 8. Recitative. Manco male, è partita"
+        "title": "Recitative and Duet. Ma qual mai s'offre, o Dei"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 8. Aria. Ho capito, signor sì!"
+        "title": "Act I. Scene 3. Fuggi, crudele, fuggi!"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 9. Duet. Là ci darem la mano - 07b. Scene 10. Recitative. Fermati, scellerato!"
+        "title": "Act I. Scene 4. Recitative. Orsù, spicciati presto"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 10. Aria. Ah, fuggi il traditor"
+        "title": "Act I. Scene 5. Aria and Trio. Ah! chi mi dice mai"
       },
       {
         "number": 9,
-        "title": "Act I. Scene 12. Quartet. Non ti fidar, o misera - 09b. Recitative. Povera sventurata!"
+        "title": "Act I. Scene 5. Recitative. Chi è là?"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 13. Recitative and Aria. Don Ottavio . . . son morta!"
+        "title": "Act I. Scene 5. Aria. Madamina il catalogo è questo"
       },
       {
         "number": 11,
-        "title": "Act I. Scene 15. Aria. Fin ch'han dal vino"
+        "title": "Act I. Scene 7. Duet and Chorus. Giovinette, che fate all'amore"
       },
       {
         "number": 12,
-        "title": "Act I. Scene 16. Aria. Batti, batti, o bel Masetto - 12b. Recitative. Guarda un po' come seppe"
+        "title": "Scene 8. Recitative. Manco male, è partita"
       },
       {
         "number": 13,
-        "title": "Act I. Scene 16. Finale. Presto, presto . . . pria ch'ei venga - 13b. Scene 17. Sù svegliatevi, da bravi! - 13c. Scene 18. Tra quest'arbori celata"
+        "title": "Act I. Scene 8. Aria. Ho capito, signor sì!"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 1. Duet. Eh via, buffone, non mi seccar - 14b. Recitative. Leporello!"
+        "title": "Act I. Scene 9. Recitative. Alfin siam liberati"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 2. Trio. Ah! taci, ingiusto core"
+        "title": "Act I. Scene 9. Duet. Là ci darem la mano"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 3. Canzonetta. Deh! vieni alla finestra (arr.)"
+        "title": "Scene 10. Recitative. Fermati, scellerato!"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 4. Aria. Metà di voi qua vadano"
+        "title": "Act I. Scene 10. Aria. Ah, fuggi il traditor"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 6. Aria. Vedrai, carino"
+        "title": "Act I. Scene 11. Recitative. Mi par ch'il demonio si diverta"
       },
       {
         "number": 19,
-        "title": "Act II. Scene 7. Sextet. Sola, sola in buio loco - 19b. Scene 8. Ferma, briccone! - 19c. Scene 9. Recitative. Dunque quello sei tu"
+        "title": "Act I. Scene 12. Quartet. Non ti fidar, o misera"
       },
       {
         "number": 20,
-        "title": "Act II. Scene 9. Aria. Ah! pietà, signori miei! - 20b. Scene 10. Recitative. Ferma perfido; ferma"
+        "title": "Recitative. Povera sventurata!"
       },
       {
         "number": 21,
-        "title": "Act II. Scene 10. Aria. Il mio tesoro intanto"
+        "title": "Act I. Scene 13. Recitative and Aria. Don Ottavio . . . son morta!"
       },
       {
         "number": 22,
-        "title": "Act II. Scene 11. Duet. O statua gentilissima"
+        "title": "Act I. Scene 13. Or sai chi l'onore"
       },
       {
         "number": 23,
-        "title": "Act II. Scene 12. Recitative. Crudele? ah no! mio mene!"
+        "title": "Act I. Scene 14. Recitative. Come mai creder deggio"
       },
       {
         "number": 24,
+        "title": "Act I. Scene 14. Aria. Dalla sua pace"
+      },
+      {
+        "number": 25,
+        "title": "Act I. Scene 15. Recitative. Io deggio ad ogni patto"
+      },
+      {
+        "number": 26,
+        "title": "Act I. Scene 15. Aria. Fin ch'han dal vino"
+      },
+      {
+        "number": 27,
+        "title": "Act I. Scene 16. Recitative. Masetto . . . senti un po'"
+      },
+      {
+        "number": 28,
+        "title": "Act I. Scene 16. Aria. Batti, batti, o bel Masetto"
+      },
+      {
+        "number": 29,
+        "title": "Recitative. Guarda un po' come seppe"
+      },
+      {
+        "number": 30,
+        "title": "Act I. Scene 16. Finale. Presto, presto . . . pria ch'ei venga"
+      },
+      {
+        "number": 31,
+        "title": "Scene 17. Sù svegliatevi, da bravi!"
+      },
+      {
+        "number": 32,
+        "title": "Scene 18. Tra quest'arbori celata"
+      },
+      {
+        "number": 33,
+        "title": "Act I. Scene 19. Bisogna aver coraggio"
+      },
+      {
+        "number": 34,
+        "title": "Act I. Scene 20. Riposate, vezzose ragazze"
+      },
+      {
+        "number": 35,
+        "title": "Act I. Scene 20. Venite pur avanti"
+      },
+      {
+        "number": 36,
+        "title": "Act I. Scene 20. Ecco il birbo che t'ha offesa"
+      },
+      {
+        "number": 37,
+        "title": "Act II. Scene 1. Duet. Eh via, buffone, non mi seccar"
+      },
+      {
+        "number": 38,
+        "title": "Recitative. Leporello!"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 2. Trio. Ah! taci, ingiusto core"
+      },
+      {
+        "number": 40,
+        "title": "Act II. Scene 2. Recitative. Amico, che ti par?"
+      },
+      {
+        "number": 41,
+        "title": "Scene 3. Eccomi a voi"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 3. Canzonetta. Deh! vieni alla finestra (arr.)"
+      },
+      {
+        "number": 43,
+        "title": "Recitative. V'è gente alla finestra"
+      },
+      {
+        "number": 44,
+        "title": "Scene 4. Non ci stanchiamo"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 4. Aria. Metà di voi qua vadano"
+      },
+      {
+        "number": 46,
+        "title": "Act II. Scene 5. Recitative. Zitto . . . Lascia ch'io senta . . . Ottimamente"
+      },
+      {
+        "number": 47,
+        "title": "Scene 6. Ahi! ahi! la testa mia!"
+      },
+      {
+        "number": 48,
+        "title": "Act II. Scene 6. Aria. Vedrai, carino"
+      },
+      {
+        "number": 49,
+        "title": "Act II. Scene 7. Recitative. Di molte faci il lume"
+      },
+      {
+        "number": 50,
+        "title": "Act II. Scene 7. Sextet. Sola, sola in buio loco"
+      },
+      {
+        "number": 51,
+        "title": "Scene 8. Ferma, briccone!"
+      },
+      {
+        "number": 52,
+        "title": "Scene 9. Recitative. Dunque quello sei tu"
+      },
+      {
+        "number": 53,
+        "title": "Act II. Scene 9. Aria. Ah! pietà, signori miei!"
+      },
+      {
+        "number": 54,
+        "title": "Scene 10. Recitative. Ferma perfido; ferma"
+      },
+      {
+        "number": 55,
+        "title": "Act II. Scene 10. Aria. Il mio tesoro intanto"
+      },
+      {
+        "number": 56,
+        "title": "Act II. Scene 10. Recitative and Aria. In quali eccessi"
+      },
+      {
+        "number": 57,
+        "title": "Act II. Scene 10. Aria. Mi Tradì quell'alma ingrata"
+      },
+      {
+        "number": 58,
+        "title": "Act II. Scene 11. Recitative. Ah! ah! ah! questa è buona!"
+      },
+      {
+        "number": 59,
+        "title": "Act II. Scene 11. Duet. O statua gentilissima"
+      },
+      {
+        "number": 60,
+        "title": "Act II. Scene 12. Recitative. Calmatevi, idol mio"
+      },
+      {
+        "number": 61,
+        "title": "Recitative. Ah, si segua il suo passo"
+      },
+      {
+        "number": 62,
+        "title": "Act II. Scene 12. Recitative. Crudele? ah no! mio mene!"
+      },
+      {
+        "number": 63,
         "title": "Act II. Scene 13. Finale. Già la mensa è preparata"
+      },
+      {
+        "number": 64,
+        "title": "Act II. Scene 14. L'ultima prova"
+      },
+      {
+        "number": 65,
+        "title": "Act II. Scene 15. Don Giovanni, a cenar teco m'invitasti"
+      },
+      {
+        "number": 66,
+        "title": "Act II. Scene 16. Ah! dov'è il perfido?"
+      },
+      {
+        "number": 67,
+        "title": "Act II. Scene 16. Or che tutti, o mio tesoro"
+      },
+      {
+        "number": 68,
+        "title": "Act II. Scene 16. Questo è il fin di chi fa mal!"
       }
     ]
   },
@@ -44133,124 +46013,312 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
-        "title": "Act I. Scene 1. Trio. La mia Dorabella - 01b. Recitative. Fuor la spada"
-      },
-      {
         "number": 2,
-        "title": "Act I. Scene 1. Trio. È la fede delle femmine - 02b. Recitative. Scioccherie di poeti!"
+        "title": "Act I. Scene 1. Trio. La mia Dorabella"
       },
       {
         "number": 3,
-        "title": "Act I. Scene 1. Trio. Una bella serenata"
+        "title": "Recitative. Fuor la spada"
       },
       {
         "number": 4,
-        "title": "Act I. Scene 2. Duet. Ah, guarda, sorella - 04b. Recitative. Mi par che stamattina volentieri - 04c. Scene 3. Eccoli"
+        "title": "Act I. Scene 1. Trio. È la fede delle femmine"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 3. Aria. Vorrei dir, e cor non ho - 05b. Recitative. Stelle! Per carità, signor Alfonso"
+        "title": "Recitative. Scioccherie di poeti!"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 4. Quintet. Sento, oh Dio, che questo piede - 06b. Recitative. Non piangere, idol mio!"
+        "title": "Act I. Scene 1. Trio. Una bella serenata"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 4. Duettino. Al fato dan legge - 07b. Recitative. La commedia è graziosa"
+        "title": "Act I. Scene 2. Duet. Ah, guarda, sorella"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 5. Chorus. Bella vita militar! - 08b. Recitative. Non v'e più tempo"
+        "title": "Recitative. Mi par che stamattina volentieri"
       },
       {
         "number": 9,
-        "title": "Act I. Scene 5. Quintet. Di scrivermi ogni giorno - 09b. Chorus. Bella vita militar! - 09c. Scene 6. Recitative. Dove son?"
+        "title": "Scene 3. Eccoli"
       },
       {
         "number": 10,
-        "title": "Act I. Scene 6. Trio. Soave sia il vento - 10b. Scene 7. Recitative. Non son cattivo comico - 10c. Scene 8. Recitative. Che vita maledetta - 10d. Scene 9. Recitative. Madame, ecco la vostra colazione"
+        "title": "Act I. Scene 3. Aria. Vorrei dir, e cor non ho"
+      },
+      {
+        "number": 11,
+        "title": "Recitative. Stelle! Per carità, signor Alfonso"
       },
       {
         "number": 12,
-        "title": "Act I. Scene 9. Aria. In uomini, in soldati - 12b. Scene 10. Recitative. Che silenzio!"
+        "title": "Act I. Scene 4. Quintet. Sento, oh Dio, che questo piede"
       },
       {
         "number": 13,
-        "title": "Act I. Scene 11. Sextet. Alla bella Despinetta - 13b. Recitative. Che sussurro! Che strepito!"
+        "title": "Recitative. Non piangere, idol mio!"
+      },
+      {
+        "number": 14,
+        "title": "Act I. Scene 4. Duettino. Al fato dan legge"
       },
       {
         "number": 15,
-        "title": "Act I. Scene 11. Aria. Non siate ritrosi"
+        "title": "Recitative. La commedia è graziosa"
       },
       {
         "number": 16,
-        "title": "Act I. Scene 12. Trio. E voi ridete - 16b. Recitative. Si può sapere un poco"
+        "title": "Act I. Scene 5. Chorus. Bella vita militar!"
       },
       {
         "number": 17,
-        "title": "Act I. Scene 12. Aria. Un'aura amorosa"
+        "title": "Recitative. Non v'e più tempo"
       },
       {
         "number": 18,
-        "title": "Act I. Scene 14. Finale. Ah, che tutta in un momento"
+        "title": "Act I. Scene 5. Quintet. Di scrivermi ogni giorno"
       },
       {
         "number": 19,
-        "title": "Act II. Scene 1. Aria. Una donna a quindici anni - 19b. Scene 2. Recitative. Sorella, cosa dici?"
+        "title": "Chorus. Bella vita militar!"
       },
       {
         "number": 20,
-        "title": "Act II. Scene 2. Duet. Prenderò quel brunettino - 20b. Scene 3. Recitative. Ah, correte al giardino"
+        "title": "Scene 6. Recitative. Dove son?"
       },
       {
         "number": 21,
-        "title": "Act II. Scene 4. Duet and Chorus. Secondate, aurette amiche - 21b. Recitative. II tutto deponete"
+        "title": "Act I. Scene 6. Trio. Soave sia il vento"
       },
       {
         "number": 22,
-        "title": "Act II. Scene 4. Quartet. La mano a me date - 22b. Scene 5. Recitative. Oh che bella giornata!"
+        "title": "Scene 7. Recitative. Non son cattivo comico"
       },
       {
         "number": 23,
-        "title": "Act II. Scene 5. Duet. Il core vi dono"
+        "title": "Scene 8. Recitative. Che vita maledetta"
       },
       {
         "number": 24,
-        "title": "Act II. Scene 6. Aria. Ah lo veggio: quell'anima bella"
+        "title": "Scene 9. Recitative. Madame, ecco la vostra colazione"
       },
       {
         "number": 25,
-        "title": "Act II. Scene 7. Rondò. Per pietà, ben mio, perdona"
+        "title": "Act I. Scene 9. Recitative. Ah, scostati!"
       },
       {
         "number": 26,
-        "title": "Act II. Scene 8. Aria. Donne mie, la fate a tanti"
+        "title": "Aria. Smanie implacabili"
       },
       {
         "number": 27,
-        "title": "Act II. Scene 10. Recitative. Ora vedo che siete"
+        "title": "Recitative. Signora Dorabella"
       },
       {
         "number": 28,
-        "title": "Act II. Scene 10. Aria. È amore un ladroncello"
+        "title": "Act I. Scene 9. Aria. In uomini, in soldati"
       },
       {
         "number": 29,
-        "title": "Act II. Scene 12. Duet. Fra gli amplessi in pochi istanti"
+        "title": "Scene 10. Recitative. Che silenzio!"
       },
       {
         "number": 30,
-        "title": "Act II. Scene 13. Aria. Tutti accusan le donne - 30b. Scene 14. Recitative. Vittoria, padroncini!"
+        "title": "Act I. Scene 11. Sextet. Alla bella Despinetta"
       },
       {
         "number": 31,
+        "title": "Recitative. Che sussurro! Che strepito!"
+      },
+      {
+        "number": 32,
+        "title": "Act I. Scene 11. Stelle! Che ardir!"
+      },
+      {
+        "number": 33,
+        "title": "Aria. Come scoglio immoto resta"
+      },
+      {
+        "number": 34,
+        "title": "Recitative. Ah, non partite!"
+      },
+      {
+        "number": 35,
+        "title": "Act I. Scene 11. Aria. Non siate ritrosi"
+      },
+      {
+        "number": 36,
+        "title": "Act I. Scene 12. Trio. E voi ridete"
+      },
+      {
+        "number": 37,
+        "title": "Recitative. Si può sapere un poco"
+      },
+      {
+        "number": 38,
+        "title": "Act I. Scene 12. Aria. Un'aura amorosa"
+      },
+      {
+        "number": 39,
+        "title": "Act I. Scene 13. Recitative. Oh, la saria da ridere!"
+      },
+      {
+        "number": 40,
+        "title": "Act I. Scene 14. Finale. Ah, che tutta in un momento"
+      },
+      {
+        "number": 41,
+        "title": "Act I. Scene 15. Si mora sì, si mora"
+      },
+      {
+        "number": 42,
+        "title": "Act I. Scene 16. Eccovi il medico"
+      },
+      {
+        "number": 43,
+        "title": "Act I. Scene 16. Dove son? Che loco è questo?"
+      },
+      {
+        "number": 44,
+        "title": "Act I. Scene 16. Dammi un bacio, o mio tesoro"
+      },
+      {
+        "number": 45,
+        "title": "Act II. Scene 1. Recitative. Andate là, che siete"
+      },
+      {
+        "number": 46,
+        "title": "Act II. Scene 1. Aria. Una donna a quindici anni"
+      },
+      {
+        "number": 47,
+        "title": "Scene 2. Recitative. Sorella, cosa dici?"
+      },
+      {
+        "number": 48,
+        "title": "Act II. Scene 2. Duet. Prenderò quel brunettino"
+      },
+      {
+        "number": 49,
+        "title": "Scene 3. Recitative. Ah, correte al giardino"
+      },
+      {
+        "number": 50,
+        "title": "Act II. Scene 4. Duet and Chorus. Secondate, aurette amiche"
+      },
+      {
+        "number": 51,
+        "title": "Recitative. II tutto deponete"
+      },
+      {
+        "number": 52,
+        "title": "Act II. Scene 4. Quartet. La mano a me date"
+      },
+      {
+        "number": 53,
+        "title": "Scene 5. Recitative. Oh che bella giornata!"
+      },
+      {
+        "number": 54,
+        "title": "Act II. Scene 5. Duet. Il core vi dono"
+      },
+      {
+        "number": 55,
+        "title": "Act II. Scene 6. Recitative. Barbara! Perché fuggi?"
+      },
+      {
+        "number": 56,
+        "title": "Act II. Scene 6. Aria. Ah lo veggio: quell'anima bella"
+      },
+      {
+        "number": 57,
+        "title": "Act II. Scene 7. Recitative. Ei parte . . . senti . . . Ah no!"
+      },
+      {
+        "number": 58,
+        "title": "Act II. Scene 7. Rondò. Per pietà, ben mio, perdona"
+      },
+      {
+        "number": 59,
+        "title": "Act II. Scene 8. Recitative. Amico, abbiamo vinto!"
+      },
+      {
+        "number": 60,
+        "title": "Act II. Scene 8. Aria. Donne mie, la fate a tanti"
+      },
+      {
+        "number": 61,
+        "title": "Act II. Scene 9. Recitative. In qual fietro contrasto"
+      },
+      {
+        "number": 62,
+        "title": "Cavatina. Tradito, schernito"
+      },
+      {
+        "number": 63,
+        "title": "Recitative. Bravo, questa è costanza"
+      },
+      {
+        "number": 64,
+        "title": "Act II. Scene 10. Recitative. Ora vedo che siete"
+      },
+      {
+        "number": 65,
+        "title": "Act II. Scene 10. Aria. È amore un ladroncello"
+      },
+      {
+        "number": 66,
+        "title": "Act II. Scene 11. Recitative. Come tutto congiura"
+      },
+      {
+        "number": 67,
+        "title": "Scene 12. L'abito di Ferrando"
+      },
+      {
+        "number": 68,
+        "title": "Act II. Scene 12. Duet. Fra gli amplessi in pochi istanti"
+      },
+      {
+        "number": 69,
+        "title": "Act II. Scene 13. Recitative. Ah poveretto me, cosa ho veduto!"
+      },
+      {
+        "number": 70,
+        "title": "Act II. Scene 13. Aria. Tutti accusan le donne"
+      },
+      {
+        "number": 71,
+        "title": "Scene 14. Recitative. Vittoria, padroncini!"
+      },
+      {
+        "number": 72,
         "title": "Act II. Scene 15. Finale. Fate presto, o cari amici"
+      },
+      {
+        "number": 73,
+        "title": "Act II. Scene 16. Benedetti i doppi coniugi"
+      },
+      {
+        "number": 74,
+        "title": "Act II. Scene 16. E nel tuo, nel mio bicchiero"
+      },
+      {
+        "number": 75,
+        "title": "Act II. Scene 17. Miei signori, tutto è fatto"
+      },
+      {
+        "number": 76,
+        "title": "Act II. Scene 18. Sani e salvi, agli amplessi amorosi"
+      },
+      {
+        "number": 77,
+        "title": "Act II. Scene 18. Ah, signor, son rea di morte"
       }
     ]
   },
@@ -45175,92 +47243,280 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
         "title": "Act I. Scene 1. Introduction. Zu Hilfe! Zu Hilfe!"
       },
       {
-        "number": 2,
+        "number": 3,
         "title": "Act I. Scene 2. Aria. Der Vogelfänger bin ich ja"
       },
       {
-        "number": 3,
-        "title": "Act I. Scene 4. Aria. Dies Bildnis ist bezaubernd schön"
-      },
-      {
         "number": 4,
-        "title": "Act I. Scene 6. Recitative and Aria. O zittre nicht, mein lieber Sohn - 04b. Scene 7. Dialogue. Betäuben mich meine Sinne?"
+        "title": "Act I. Scene 2. Dialogue. He da! He da!"
       },
       {
         "number": 5,
-        "title": "Act I. Scene 7. Quintet. Hm! hm! hm! hm! - 05b. Scene 8. Die Königen begnadigt dich"
+        "title": "Scene 3. Papageno!"
       },
       {
         "number": 6,
-        "title": "Act I. Scene 11. Trio. Du feines Täubchen, nur herein - 06b. Scene 12. Wo bin ich wohl!"
+        "title": "Act I. Scene 4. Aria. Dies Bildnis ist bezaubernd schön"
       },
       {
         "number": 7,
-        "title": "Act I. Scene 14. Duet. Bei Männern, welche Liebe fühlen"
+        "title": "Act I. Scene 5. Dialogue. Rüste dich mit Mut und Standhaftigkeit"
       },
       {
         "number": 8,
-        "title": "Act I. Scene 15. Finale I. Zum Ziele führt dich diese Bahn"
+        "title": "Act I. Scene 6. Recitative and Aria. O zittre nicht, mein lieber Sohn"
       },
       {
         "number": 9,
-        "title": "Act II. Scene 1. March of the Priests"
+        "title": "Scene 7. Dialogue. Betäuben mich meine Sinne?"
       },
       {
         "number": 10,
-        "title": "Act II. Scene 1. Aria with Chorus. O Isis und Osiris"
+        "title": "Act I. Scene 7. Quintet. Hm! hm! hm! hm!"
       },
       {
         "number": 11,
-        "title": "Act II. Scene 3. Duet. Bewahret euch vor Weibertücken - 11b. Scene 4. Dialogue. He, Lichter her"
+        "title": "Scene 8. Die Königen begnadigt dich"
       },
       {
         "number": 12,
-        "title": "Act II. Scene 5. Quintet. Wie? Wie? Wie?"
+        "title": "Act I. Scene 9. Dialogue. Haha!"
       },
       {
         "number": 13,
-        "title": "Act II. Scene 7. Aria. Alles fühlt der Liebe Freuden"
+        "title": "Scene 10. He, Sklaven!"
       },
       {
         "number": 14,
-        "title": "Act II. Scene 8. Aria. Der Hölle Rache kocht in meinem Herzen"
+        "title": "Act I. Scene 11. Trio. Du feines Täubchen, nur herein"
       },
       {
         "number": 15,
-        "title": "Act II. Scene 12. Aria. In diesen heil'gen Hallen"
+        "title": "Scene 12. Wo bin ich wohl!"
       },
       {
         "number": 16,
-        "title": "Act II. Scene 16. Trio. Seid uns zum zweiten Mal willkommen"
+        "title": "Act I. Scene 13. Dialogue. Mutter! Mutter!"
       },
       {
         "number": 17,
-        "title": "Act II. Scene 18. Aria. Ach, ich fühl's, es ist verschwunden!"
+        "title": "Scene 14. Bin ich nicht ein Narr"
       },
       {
         "number": 18,
-        "title": "Act II. Scene 20. Chorus. O Isis und Osiris, welche Wonne!"
+        "title": "Act I. Scene 14. Duet. Bei Männern, welche Liebe fühlen"
       },
       {
         "number": 19,
-        "title": "Act II. Scene 21. Trio. Soll ich dich, Teurer, nicht mehr sehn?"
+        "title": "Act I. Scene 15. Finale I. Zum Ziele führt dich diese Bahn"
       },
       {
         "number": 20,
-        "title": "Act II. Scene 23. Aria. Ein Mädchen oder Weibchen"
+        "title": "Act I. Scene 15. Recitative. Die Weisheitslehre dieser Knaben"
       },
       {
         "number": 21,
-        "title": "Act II. Scene 26. Finale II. Bald prangt, den Morgen zu verkünden - 21b. Scene 27. Du also bist main Bräutigam"
+        "title": "Act I. Scene 15. Wo willst du, kühner Fremdling, hin?"
+      },
+      {
+        "number": 22,
+        "title": "Act I. Scene 15. Wie stark ist nicht dein Zauberton"
+      },
+      {
+        "number": 23,
+        "title": "Act I. Scene 16. Schnell Füße, rascher Mut"
+      },
+      {
+        "number": 24,
+        "title": "Scene 17. Nur geschwinde!"
+      },
+      {
+        "number": 25,
+        "title": "Act I. Scene 17. Es lebe Sarastro! Sarastro lebe!"
+      },
+      {
+        "number": 26,
+        "title": "Scene 18. Es lebe Sarastro! Sarastro soll lebe!"
+      },
+      {
+        "number": 27,
+        "title": "Act I. Scene 18. Herr, ich bin zwar Verbrecherin!"
+      },
+      {
+        "number": 28,
+        "title": "Scene 19. Nun, stolzer Jüngling, nur hierher"
+      },
+      {
+        "number": 29,
+        "title": "Act I. Scene 19. Wenn Tugend und Gerechtigkeit"
+      },
+      {
+        "number": 30,
+        "title": "Act II. Scene 1. March of the Priests"
+      },
+      {
+        "number": 31,
+        "title": "Act II. Scene 1. Dialogue. Ihr, eingeweihte Diener"
+      },
+      {
+        "number": 32,
+        "title": "The Triple Chord. Dialogue. Sarastro dankt euch"
+      },
+      {
+        "number": 33,
+        "title": "Act II. Scene 1. Aria with Chorus. O Isis und Osiris"
+      },
+      {
+        "number": 34,
+        "title": "Act II. Scene 2. Dialogue. Papageno! Wo denkst du, daß wir uns befinden?"
+      },
+      {
+        "number": 35,
+        "title": "Scene 3. Frendlinge, was fordert ihr von uns?"
+      },
+      {
+        "number": 36,
+        "title": "Act II. Scene 3. Duet. Bewahret euch vor Weibertücken"
+      },
+      {
+        "number": 37,
+        "title": "Scene 4. Dialogue. He, Lichter her"
+      },
+      {
+        "number": 38,
+        "title": "Act II. Scene 5. Quintet. Wie? Wie? Wie?"
+      },
+      {
+        "number": 39,
+        "title": "Act II. Scene 6. Dialog. Heil dir, Jüngling!"
+      },
+      {
+        "number": 40,
+        "title": "Scene 7. Ah, da find' ich die spröde Schöne!"
+      },
+      {
+        "number": 41,
+        "title": "Act II. Scene 7. Aria. Alles fühlt der Liebe Freuden"
+      },
+      {
+        "number": 42,
+        "title": "Act II. Scene 8. Dialogue. Zurück!"
+      },
+      {
+        "number": 43,
+        "title": "Act II. Scene 8. Aria. Der Hölle Rache kocht in meinem Herzen"
+      },
+      {
+        "number": 44,
+        "title": "Act II. Scene 9. Dialogue. Morden soll ich?"
+      },
+      {
+        "number": 45,
+        "title": "Scene 10. Dich mir anvertrauen!"
+      },
+      {
+        "number": 46,
+        "title": "Scene 11. Zurück!"
+      },
+      {
+        "number": 47,
+        "title": "Act II. Scene 12. Aria. In diesen heil'gen Hallen"
+      },
+      {
+        "number": 48,
+        "title": "Act II. Scene 13. Dialogue. Hier seid ihr euch beide allein überlassen"
+      },
+      {
+        "number": 49,
+        "title": "Scene 14. Tamino!"
+      },
+      {
+        "number": 50,
+        "title": "Scene 15. Da!"
+      },
+      {
+        "number": 51,
+        "title": "Act II. Scene 16. Trio. Seid uns zum zweiten Mal willkommen"
+      },
+      {
+        "number": 52,
+        "title": "Act II. Scene 17. Dialogue. Tamino, wollen wir nicht speisen?"
+      },
+      {
+        "number": 53,
+        "title": "Scene 18. Du hier!"
+      },
+      {
+        "number": 54,
+        "title": "Act II. Scene 18. Aria. Ach, ich fühl's, es ist verschwunden!"
+      },
+      {
+        "number": 55,
+        "title": "Act II. Scene 19. Dialogue. Nicht wahr, Tamino, ich kann auch schweigen"
+      },
+      {
+        "number": 56,
+        "title": "Act II. Scene 20. Chorus. O Isis und Osiris, welche Wonne!"
+      },
+      {
+        "number": 57,
+        "title": "Act II. Scene 21. Dialogue. Prinz, dein Betragen war bis hieher männlich"
+      },
+      {
+        "number": 58,
+        "title": "Act II. Scene 21. Trio. Soll ich dich, Teurer, nicht mehr sehn?"
+      },
+      {
+        "number": 59,
+        "title": "Act II. Scene 22. Dialogue. Tamino! Willst du mich denn gänzlich verlassen?"
+      },
+      {
+        "number": 60,
+        "title": "Scene 23. Mensch! Du hättest verdient"
+      },
+      {
+        "number": 61,
+        "title": "Act II. Scene 23. Aria. Ein Mädchen oder Weibchen"
+      },
+      {
+        "number": 62,
+        "title": "Act II. Scene 24. Dialogue. Da bin ich schon, mein Engel!"
+      },
+      {
+        "number": 63,
+        "title": "Scene 25. Fort mit dir, junges Weib!"
+      },
+      {
+        "number": 64,
+        "title": "Act II. Scene 26. Finale II. Bald prangt, den Morgen zu verkünden"
+      },
+      {
+        "number": 65,
+        "title": "Scene 27. Du also bist main Bräutigam"
+      },
+      {
+        "number": 66,
+        "title": "Act II. Scene 28. Der, welcher wandert diese Straße voll Beschwerden"
+      },
+      {
+        "number": 67,
+        "title": "Act II. Scene 28. Wir wandelten durch Feuersgluten"
+      },
+      {
+        "number": 68,
+        "title": "Act II. Scene 29. Papagena! Papagena! Papagena!"
+      },
+      {
+        "number": 69,
+        "title": "Act II. Scene 30. Nur stille, stille, stille, stille!"
       }
     ]
   },
@@ -45276,107 +47532,211 @@
     "instrumentation_category": "Opera",
     "subpieces": [
       {
-        "number": 0,
+        "number": 1,
         "title": "Overture"
       },
       {
-        "number": 1,
+        "number": 2,
+        "title": "Act I. Recitative. Ma ché? sempre l'istesso"
+      },
+      {
+        "number": 3,
         "title": "Act I. Duet. Come ti piace imponi"
       },
       {
-        "number": 2,
-        "title": "Act I. Aria. Deh se piacer mi vuoi - 02b. Chi ciecamente crede"
-      },
-      {
         "number": 4,
-        "title": "Act I. March"
+        "title": "Act I. Recitative. Amico, il passo affretta"
       },
       {
         "number": 5,
-        "title": "Chorus. Serbate, oh Dei custodi - 05b. Recitative. Te della patria il Padre - 05a. Chorus. Serbate, oh Dei custodi - 05c. Recitative. Basta, basta, oh miei fidi - 04. March"
+        "title": "Act I. Aria. Deh se piacer mi vuoi"
       },
       {
         "number": 6,
-        "title": "Aria. Del più sublime soglio"
+        "title": "Chi ciecamente crede"
       },
       {
         "number": 7,
-        "title": "Duet. Ah perdona il primo affetto"
+        "title": "Act I. Recitative. Amico, ecco il momento - 03. Duettino. Deh prendi un dolce amplesso"
       },
       {
         "number": 8,
-        "title": "Aria. Ah, se fosse intorno al trono"
+        "title": "Act I. March"
       },
       {
         "number": 9,
-        "title": "Aria. Parto, ma tu ben mio - 09b. Guardami e tutto oblio"
+        "title": "Chorus. Serbate, oh Dei custodi"
       },
       {
         "number": 10,
-        "title": "Trio. Vengo . . . aspettate . . . Sesto!"
+        "title": "Recitative. Te della patria il Padre"
       },
       {
         "number": 11,
-        "title": "Recitative. Oh Dei, che smania è questa"
+        "title": "Recitative. Basta, basta, oh miei fidi - 04. March"
       },
       {
         "number": 12,
-        "title": "Quintet with Chorus. Deh, conservate, oh Dei - 12b. Recitative. Sesto!"
+        "title": "Recitative. Adesso, oh Sesto, parla per me"
       },
       {
         "number": 13,
-        "title": "Aria. Torna di Tito a lato"
+        "title": "Aria. Del più sublime soglio"
       },
       {
         "number": 14,
-        "title": "Trio. Se al volto mai ti senti"
+        "title": "Recitative. Non ci pentiam"
       },
       {
         "number": 15,
-        "title": "Chorus. Ah grazie si rendano"
+        "title": "Duet. Ah perdona il primo affetto"
       },
       {
         "number": 16,
-        "title": "Aria. Tardi s'avvede"
+        "title": "Recitative. Servilia! Augusta!"
       },
       {
         "number": 17,
-        "title": "Aria. Tu fosti tradito"
+        "title": "Aria. Ah, se fosse intorno al trono"
       },
       {
         "number": 18,
-        "title": "Trio. Quello di Tito è il volto!"
+        "title": "Recitative. Felice me!"
       },
       {
         "number": 19,
-        "title": "Aria (Rondo). Deh per questo istante solo"
+        "title": "Recitative. Ancora mi schernisce?"
       },
       {
         "number": 20,
-        "title": "Aria. Se all'impero"
+        "title": "Aria. Parto, ma tu ben mio"
       },
       {
         "number": 21,
-        "title": "Aria. S'altro che lagrime"
+        "title": "Guardami e tutto oblio"
       },
       {
         "number": 22,
-        "title": "Recitative. Ecco il punto, oh Vitellia"
+        "title": "Recitative. Vedrai, Tito, vedrai"
       },
       {
         "number": 23,
-        "title": "Rondo. Non più di fiori"
+        "title": "Trio. Vengo . . . aspettate . . . Sesto!"
       },
       {
         "number": 24,
-        "title": "Chorus. Che del ciel, che degli Dei"
+        "title": "Recitative. Oh Dei, che smania è questa"
       },
       {
         "number": 25,
-        "title": "Recitative. Ma che giorno è mai questo?"
+        "title": "Quintet with Chorus. Deh, conservate, oh Dei"
       },
       {
         "number": 26,
+        "title": "Recitative. Sesto!"
+      },
+      {
+        "number": 27,
+        "title": "Recitative. Sesto, come tu credi"
+      },
+      {
+        "number": 28,
+        "title": "Aria. Torna di Tito a lato"
+      },
+      {
+        "number": 29,
+        "title": "Recitative. Partir deggio, o restar?"
+      },
+      {
+        "number": 30,
+        "title": "Recitative. Sesto!"
+      },
+      {
+        "number": 31,
+        "title": "Trio. Se al volto mai ti senti"
+      },
+      {
+        "number": 32,
+        "title": "Chorus. Ah grazie si rendano"
+      },
+      {
+        "number": 33,
+        "title": "Recitative. Già de' pubblici giuochi"
+      },
+      {
+        "number": 34,
+        "title": "Aria. Tardi s'avvede"
+      },
+      {
+        "number": 35,
+        "title": "Recitative. No, così scellerato"
+      },
+      {
+        "number": 36,
+        "title": "Aria. Tu fosti tradito"
+      },
+      {
+        "number": 37,
+        "title": "Recitative. Che orror! che tradimento!"
+      },
+      {
+        "number": 38,
+        "title": "Recitative. Ingrato!"
+      },
+      {
+        "number": 39,
+        "title": "Trio. Quello di Tito è il volto!"
+      },
+      {
+        "number": 40,
+        "title": "Recitative. Odimi, oh Sesto; siam soli"
+      },
+      {
+        "number": 41,
+        "title": "Aria (Rondo). Deh per questo istante solo"
+      },
+      {
+        "number": 42,
+        "title": "Recitative. Dove s'intese mai più constumace infedeltà?"
+      },
+      {
+        "number": 43,
+        "title": "Recitative. Publio"
+      },
+      {
+        "number": 44,
+        "title": "Aria. Se all'impero"
+      },
+      {
+        "number": 45,
+        "title": "Recitative. Non giova lusingarsi"
+      },
+      {
+        "number": 46,
+        "title": "Aria. S'altro che lagrime"
+      },
+      {
+        "number": 47,
+        "title": "Recitative. Ecco il punto, oh Vitellia"
+      },
+      {
+        "number": 48,
+        "title": "Rondo. Non più di fiori"
+      },
+      {
+        "number": 49,
+        "title": "Chorus. Che del ciel, che degli Dei"
+      },
+      {
+        "number": 50,
+        "title": "Recitative. Sesto, de' tuoi delitti"
+      },
+      {
+        "number": 51,
+        "title": "Recitative. Ma che giorno è mai questo?"
+      },
+      {
+        "number": 52,
         "title": "Sextet with Chorus. Tu, è ver, m'assolvi, Augusto"
       }
     ]
