@@ -57,25 +57,61 @@ MVT_NUM_RE       = re.compile(r'^(\d+)[a-z]?\.\s+(.+)$')
 MVT_FULL_RE      = re.compile(r'^(\d+)([a-z]?)\.\s*(.+)$')   # num, letter, text
 INTERNAL_SPLIT   = re.compile(r'\s+-\s+(?=\d+[a-z]\.\s)')    # " - NNx. " split point
 ACT_PREFIX_RE    = re.compile(r'^(Act\s+[IVX]+|Part\s+[IVX]+)', re.IGNORECASE)
+SCENE_PREFIX_RE  = re.compile(r'^(Scene\s+\d+)', re.IGNORECASE)
+ACT_SCENE_RE     = re.compile(r'^(Act\s+[IVX]+|Part\s+[IVX]+)\.\s+(Scene\s+\d+)', re.IGNORECASE)
 
-def propagate_act_prefix(texts):
+def propagate_context(texts):
     """
     Within a list of opera sub-movement titles split from one track, propagate
-    the Act/Part prefix forward to any sub-movement that lacks one.
+    Act/Part and Scene context forward to sub-movements that lack them.
 
-    e.g. ["Act I. Scene 2. Cavatina. Se vuol ballare",
-           "Scene 3. Recitative. Ed aspettaste il giorno"]
-      →  ["Act I. Scene 2. Cavatina. Se vuol ballare",
-           "Act I. Scene 3. Recitative. Ed aspettaste il giorno"]
+    Rules:
+    - Sub-movement starts with "Act N. Scene M. ..."
+        → update both current_act and current_scene; keep as-is.
+    - Sub-movement starts with "Act N. ..." (no Scene)
+        → update current_act, clear current_scene; keep as-is.
+    - Sub-movement starts with "Scene M. ..." (no Act)
+        → update current_scene; prepend current_act if present.
+    - Sub-movement has neither Act nor Scene
+        → prepend current_act + current_scene (whichever are known).
+
+    Examples:
+      ["Act III. Scene 2. Duettino. Crudel!",
+       "Recitative. E perché fosti meco",
+       "Scene 3. Ehi Susanna, ove vai?"]
+    →
+      ["Act III. Scene 2. Duettino. Crudel!",
+       "Act III. Scene 2. Recitative. E perché fosti meco",
+       "Act III. Scene 3. Ehi Susanna, ove vai?"]
     """
-    current_act = None
+    current_act   = None
+    current_scene = None
     result = []
     for text in texts:
-        m = ACT_PREFIX_RE.match(text)
-        if m:
-            current_act = m.group(1)  # e.g. "Act I", "Part II"
-        elif current_act:
-            text = f"{current_act}. {text}"
+        act_scene_m = ACT_SCENE_RE.match(text)
+        act_m       = ACT_PREFIX_RE.match(text)
+        scene_m     = SCENE_PREFIX_RE.match(text)
+
+        if act_scene_m:
+            # Full "Act N. Scene M. ..." — update both contexts, keep text
+            current_act   = act_scene_m.group(1)
+            current_scene = act_scene_m.group(2)
+        elif act_m:
+            # "Act N. ..." without a Scene — update act, clear scene
+            current_act   = act_m.group(1)
+            current_scene = None
+        elif scene_m:
+            # "Scene M. ..." without an Act — update scene, prepend act
+            current_scene = scene_m.group(1)
+            if current_act:
+                text = f"{current_act}. {text}"
+        else:
+            # Neither Act nor Scene — prepend whatever context we have
+            if current_act and current_scene:
+                text = f"{current_act}. {current_scene}. {text}"
+            elif current_act:
+                text = f"{current_act}. {text}"
+
         result.append(text)
     return result
 
@@ -266,8 +302,8 @@ def build_pieces(tracks):
                     if m:
                         parsed.append((int(m.group(1)), m.group(2), m.group(3).strip()))
 
-                # Propagate Act/Part context forward within this track's splits
-                texts = propagate_act_prefix([t for _, _, t in parsed])
+                # Propagate Act/Part/Scene context forward within this track's splits
+                texts = propagate_context([t for _, _, t in parsed])
 
                 for (num, letter, _), text in zip(parsed, texts):
                     sub_key = (num, letter)
