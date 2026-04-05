@@ -116,26 +116,25 @@ def parse_work_title(work_title, inline_nickname=None):
 
 # ── Catalog builder ──────────────────────────────────────────────────────────
 def make_catalog(kv_raw):
-    """Build catalog_info from potentially complex KV string."""
+    """Build catalog_info from potentially complex KV string.
+
+    Preserves the full dual-number form (e.g. "392/340a", "191/186e") so the
+    display shows "KV 392/340a" as Köchel intended.  Parentheses are stripped
+    from unusual compound numbers like "(412+514)/386b" → "412+514/386b".
+    kv_sort() still extracts just the leading digits for ordering.
+    """
     kv = kv_raw.strip()
 
-    # KV App. or KV Anh. (possibly with /C or /other suffix)
+    # KV App. or KV Anh.
     if re.match(r'(?:App|Anh)\.?', kv, re.I):
         m = re.match(r'(?:App|Anh)\.?\s*([\w./]+)', kv, re.I)
         num = m.group(1) if m else kv
         return [{"catalog": "KV Anh.", "catalog_number": num.strip(".")}]
 
-    # Strip leading/trailing parens: "(412+514)/386b" → "412+514)/386b"
-    kv = kv.strip("()")
+    # Normalise parentheses: "(412+514)/386b" → "412+514/386b"
+    kv = re.sub(r'[()]', '', kv).strip()
 
-    # For compound numbers like "412+514)/386b" use the first number
-    first = re.split(r'[+/]', kv)[0].strip().strip("()")
-    # Strip trailing letters that represent sub-catalogue designations kept as-is
-    # (e.g. "191/186e" → primary "191")
-    m = re.match(r'(\d+[a-zA-Z]?)', first)
-    primary = m.group(1) if m else first
-
-    return [{"catalog": "KV", "catalog_number": primary}]
+    return [{"catalog": "KV", "catalog_number": kv}]
 
 def kv_sort(kv_raw):
     m = re.search(r'(\d+)', kv_raw or "")
