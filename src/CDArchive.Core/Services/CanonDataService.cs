@@ -58,6 +58,7 @@ public class CanonDataService : ICanonDataService
     public string ComposersFilePath => Path.Combine(_dataDirectory, "Classical Canon composers.json");
     public string PiecesFilePath => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
     public string PickListsFilePath => Path.Combine(_dataDirectory, "Classical Canon pick lists.json");
+    public string DbPath => "";
 
     public async Task<List<CanonComposer>> LoadComposersAsync()
     {

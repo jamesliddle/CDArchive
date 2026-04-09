@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
+using Key = System.Windows.Input.Key;
 
 namespace CDArchive.App.Views;
 
@@ -18,6 +19,9 @@ public partial class PiecesWindow : Window
 
     // Sort indicator TextBlocks, mapped by column name
     private Dictionary<string, TextBlock> _sortIndicators = null!;
+
+    // Saved tree expansion state (keyed by data-object identity)
+    private readonly HashSet<object> _expandedItems = new(ReferenceEqualityComparer.Instance);
 
     public PiecesWindow(CanonViewModel vm, string composerName)
     {
@@ -60,8 +64,10 @@ public partial class PiecesWindow : Window
         ApplyFilter();
     }
 
-    private void ApplyFilter()
+    private void ApplyFilter(bool preserveExpansion = false)
     {
+        if (preserveExpansion) SaveExpansionState();
+
         var textFilter = FilterBox.Text.Trim();
 
         IEnumerable<CanonPiece> filtered = _vm.Pieces
@@ -80,7 +86,73 @@ public partial class PiecesWindow : Window
 
         PiecesTree.ItemsSource = new ObservableCollection<CanonPiece>(filtered.ToList());
         UpdateSortIndicators();
+
+        if (preserveExpansion) RestoreExpansionState();
     }
+
+    // ── Expansion state preservation ────────────────────────────────────────
+
+    /// <summary>
+    /// Walks the live tree and records which items are currently expanded.
+    /// Items are identified by their underlying data object (CanonPiece or
+    /// CanonPieceVersion reference), which survives the ItemsSource replacement.
+    /// </summary>
+    private void SaveExpansionState()
+    {
+        _expandedItems.Clear();
+        CollectExpandedItems(PiecesTree, PiecesTree.Items);
+    }
+
+    private void CollectExpandedItems(ItemsControl parent, ItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            if (parent.ItemContainerGenerator.ContainerFromItem(item) is not TreeViewItem container) continue;
+            if (!container.IsExpanded) continue;
+            var key = ExpansionKey(item);
+            if (key != null) _expandedItems.Add(key);
+            if (container.HasItems)
+                CollectExpandedItems(container, container.Items);
+        }
+    }
+
+    /// <summary>
+    /// Re-expands nodes whose underlying data keys were saved by
+    /// <see cref="SaveExpansionState"/>. Calls UpdateLayout() at each level so
+    /// that child containers exist before we recurse into them.
+    /// </summary>
+    private void RestoreExpansionState()
+    {
+        PiecesTree.UpdateLayout();          // ensure top-level containers exist
+        ApplyExpandedItems(PiecesTree, PiecesTree.Items);
+    }
+
+    private void ApplyExpandedItems(ItemsControl parent, ItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            if (parent.ItemContainerGenerator.ContainerFromItem(item) is not TreeViewItem container) continue;
+            var key = ExpansionKey(item);
+            if (key == null || !_expandedItems.Contains(key)) continue;
+            container.IsExpanded = true;
+            container.UpdateLayout();       // ensure child containers exist before recursing
+            if (container.HasItems)
+                ApplyExpandedItems(container, container.Items);
+        }
+    }
+
+    /// <summary>
+    /// Returns the stable identity key for an item in the tree.
+    /// SubpieceDisplayNode and VersionDisplayNode are recreated on every tree
+    /// refresh, but their inner Piece/Version references are the same objects.
+    /// </summary>
+    private static object? ExpansionKey(object item) => item switch
+    {
+        CanonPiece p          => p,
+        SubpieceDisplayNode n => n.Piece,
+        VersionDisplayNode v  => (object)v.Version,
+        _                     => null
+    };
 
     private IEnumerable<CanonPiece> ApplySort(IEnumerable<CanonPiece> pieces)
     {
@@ -170,7 +242,7 @@ public partial class PiecesWindow : Window
             if (window.ShowDialog() == true)
             {
                 ApplyRenamesFromPieceEditor(window);
-                ApplyFilter();
+                ApplyFilter(preserveExpansion: true);
                 await SaveAllAsync();
                 _vm.StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
             }
@@ -184,11 +256,50 @@ public partial class PiecesWindow : Window
 
             if (window.ShowDialog() == true)
             {
-                ApplyFilter();
+                ApplyFilter(preserveExpansion: true);
                 await SaveAllAsync();
                 _vm.StatusMessage = $"Updated: {node.Piece.SubpieceDisplayTitle}.";
             }
         }
+    }
+
+    private void OnTreeSelectionChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        DeletePieceButton.IsEnabled = PiecesTree.SelectedItem is CanonPiece;
+    }
+
+    private void OnTreeKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Delete && PiecesTree.SelectedItem is CanonPiece)
+        {
+            e.Handled = true;
+            DeleteSelectedPiece();
+        }
+    }
+
+    private async void OnDeletePieceClick(object sender, RoutedEventArgs e)
+    {
+        DeleteSelectedPiece();
+        await SaveAllAsync();
+    }
+
+    private void DeleteSelectedPiece()
+    {
+        if (PiecesTree.SelectedItem is not CanonPiece piece) return;
+
+        var title = piece.DisplayTitle;
+        var result = MessageBox.Show(
+            $"Delete \"{title}\"?\n\nThis cannot be undone.",
+            "Delete Piece",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning,
+            MessageBoxResult.Cancel);
+
+        if (result != MessageBoxResult.OK) return;
+
+        _vm.Pieces.Remove(piece);
+        ApplyFilter(preserveExpansion: false);
+        _vm.StatusMessage = $"Deleted: {title}.";
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e)

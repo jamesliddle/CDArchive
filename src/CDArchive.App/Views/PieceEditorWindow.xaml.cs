@@ -15,7 +15,7 @@ public partial class PieceEditorWindow : Window
     private readonly List<RoleEntry> _roles;
     private readonly List<InstrumentEntry> _pieceInstruments = [];
     private readonly List<CatalogInfo> _catalogEntries = [];
-    private readonly List<string> _librettists = [];
+    private readonly List<string> _textAuthors = [];
 
     /// <summary>
     /// The piece being edited (or newly created).
@@ -71,9 +71,9 @@ public partial class PieceEditorWindow : Window
         NicknameBox.Text = _piece.Nickname ?? "";
         NumberBox.Text = _piece.Number?.ToString() ?? "";
         KeyTonalityCombo.Text = _piece.KeyTonality ?? "";
-        DescriptiveTitleBox.Text = _piece.DescriptiveTitle ?? "";
-        NameBox.Text = _piece.Name ?? "";
         CategoryCombo.Text = _piece.InstrumentationCategory ?? "";
+        NumberedSubpiecesCheck.IsChecked = _piece.NumberedSubpieces ?? _piece.EffectiveSubpiecesNumbered;
+        SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
         PubYearBox.Text = _piece.PublicationYear?.ToString() ?? "";
 
         // Composition years (stored as a JSON string value)
@@ -81,21 +81,16 @@ public partial class PieceEditorWindow : Window
             ? _piece.CompositionYears.Value.GetString() ?? ""
             : _piece.CompositionYears?.ToString() ?? "";
 
-        // Librettist (stored as JSON array of strings)
-        if (_piece.Librettist?.ValueKind == System.Text.Json.JsonValueKind.Array)
-            _librettists.AddRange(_piece.Librettist.Value.EnumerateArray()
+        // Text Author (stored as JSON array of strings)
+        if (_piece.TextAuthor?.ValueKind == System.Text.Json.JsonValueKind.Array)
+            _textAuthors.AddRange(_piece.TextAuthor.Value.EnumerateArray()
                 .Select(e => e.GetString() ?? "").Where(s => s.Length > 0));
-        else if (_piece.Librettist?.ValueKind == System.Text.Json.JsonValueKind.String)
+        else if (_piece.TextAuthor?.ValueKind == System.Text.Json.JsonValueKind.String)
         {
-            var s = _piece.Librettist.Value.GetString();
-            if (!string.IsNullOrWhiteSpace(s)) _librettists.Add(s.Trim());
+            var s = _piece.TextAuthor.Value.GetString();
+            if (!string.IsNullOrWhiteSpace(s)) _textAuthors.Add(s.Trim());
         }
-        RefreshLibrettistList();
-
-        // Text author (stored as a JSON string value)
-        TextAuthorBox.Text = _piece.TextAuthor?.ValueKind == System.Text.Json.JsonValueKind.String
-            ? _piece.TextAuthor.Value.GetString() ?? ""
-            : _piece.TextAuthor?.ToString() ?? "";
+        RefreshTextAuthorList();
 
         // Key mode combo
         var mode = (_piece.KeyMode ?? "").ToLowerInvariant();
@@ -127,8 +122,6 @@ public partial class PieceEditorWindow : Window
         _piece.TitleEnglish = NullIfEmpty(TitleEnglishBox.Text);
         _piece.Subtitle = NullIfEmpty(SubtitleBox.Text);
         _piece.Nickname = NullIfEmpty(NicknameBox.Text);
-        _piece.DescriptiveTitle = NullIfEmpty(DescriptiveTitleBox.Text);
-        _piece.Name = NullIfEmpty(NameBox.Text);
         _piece.InstrumentationCategory = NullIfEmpty(CategoryCombo.Text);
         _piece.KeyTonality = NullIfEmpty(KeyTonalityCombo.Text);
 
@@ -144,15 +137,9 @@ public partial class PieceEditorWindow : Window
             ? System.Text.Json.JsonDocument.Parse($"\"{compYears}\"").RootElement.Clone()
             : null;
 
-        // Librettist — store as JSON string array
-        _piece.Librettist = _librettists.Count > 0
-            ? System.Text.Json.JsonSerializer.SerializeToElement(_librettists.ToArray())
-            : null;
-
-        // Text author — store as JSON string
-        var textAuthor = NullIfEmpty(TextAuthorBox.Text);
-        _piece.TextAuthor = textAuthor != null
-            ? System.Text.Json.JsonSerializer.SerializeToElement(textAuthor)
+        // Text Author — store as JSON string array
+        _piece.TextAuthor = _textAuthors.Count > 0
+            ? System.Text.Json.JsonSerializer.SerializeToElement(_textAuthors.ToArray())
             : null;
 
         // Catalog info — all entries from the list
@@ -160,6 +147,18 @@ public partial class PieceEditorWindow : Window
 
         // Instrumentation
         _piece.Instrumentation = InstrumentEntry.SerializeInstrumentation(_pieceInstruments);
+
+        // Numbered subpieces — save null when the value matches the category-based default
+        // so the JSON stays clean for the common case.
+        var numbered = NumberedSubpiecesCheck.IsChecked == true;
+        var cat = NullIfEmpty(CategoryCombo.Text);
+        var defaultNumbered = !string.IsNullOrEmpty(cat) &&
+            !string.Equals(cat, "Opera", StringComparison.OrdinalIgnoreCase);
+        _piece.NumberedSubpieces = numbered != defaultNumbered ? numbered : null;
+
+        // Subpieces start — save null when 1 (the default)
+        var start = EffectiveSubpiecesStart;
+        _piece.SubpiecesStart = start == 1 ? null : start;
 
         // Subpieces
         _piece.Subpieces = _subpieces.Count > 0 ? _subpieces.ToList() : null;
@@ -173,31 +172,43 @@ public partial class PieceEditorWindow : Window
 
     // --- Subpiece management ---
 
+    private void RenumberSubpieces()
+    {
+        var start = EffectiveSubpiecesStart;
+        for (var i = 0; i < _subpieces.Count; i++)
+            _subpieces[i].Number = start + i;
+    }
+
     private void RefreshSubpieceList()
     {
+        RenumberSubpieces();
+        var showNums = NumberedSubpiecesCheck.IsChecked == true;
         var selectedTag = (SubpieceList.SelectedItem as ListBoxItem)?.Tag;
         SubpieceList.Items.Clear();
         foreach (var sp in _subpieces)
         {
-            var label = FormatSubpieceLabel(sp);
-            var item = new ListBoxItem { Content = label, Tag = sp };
+            var item = new ListBoxItem { Content = sp.BuildSubpieceTitle(showNums), Tag = sp };
             SubpieceList.Items.Add(item);
             if (sp == selectedTag)
                 SubpieceList.SelectedItem = item;
         }
     }
 
-    private static string FormatSubpieceLabel(CanonPiece sp) => sp.SubpieceDisplayTitle;
+    private void OnNumberedSubpiecesChanged(object sender, RoutedEventArgs e) =>
+        RefreshSubpieceList();
+
+    private void OnSubpiecesStartChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) =>
+        RefreshSubpieceList();
+
+    private int EffectiveSubpiecesStart =>
+        int.TryParse(SubpiecesStartBox?.Text.Trim(), out var s) ? s : 1;
 
     private CanonPiece? SelectedSubpiece =>
         (SubpieceList.SelectedItem as ListBoxItem)?.Tag as CanonPiece;
 
     private void OnAddSubpieceClick(object sender, RoutedEventArgs e)
     {
-        var nextNumber = _subpieces.Count > 0
-            ? _subpieces.Where(s => s.Number.HasValue).Select(s => s.Number!.Value).DefaultIfEmpty(0).Max() + 1
-            : 1;
-        var newMovement = new CanonPiece { Number = nextNumber };
+        var newMovement = new CanonPiece { Number = _subpieces.Count + 1 };
 
         var editor = new MovementEditorWindow(_pickLists, newMovement) { Owner = this };
         if (editor.ShowDialog() == true)
@@ -240,10 +251,7 @@ public partial class PieceEditorWindow : Window
         if (SelectedSubpiece is not { } sp) return;
         var idx = _subpieces.IndexOf(sp);
         if (idx <= 0) return;
-
-        // Swap positions in the list and swap Number values
         (_subpieces[idx], _subpieces[idx - 1]) = (_subpieces[idx - 1], _subpieces[idx]);
-        (sp.Number, _subpieces[idx].Number) = (_subpieces[idx].Number, sp.Number);
         RefreshSubpieceList();
     }
 
@@ -252,9 +260,7 @@ public partial class PieceEditorWindow : Window
         if (SelectedSubpiece is not { } sp) return;
         var idx = _subpieces.IndexOf(sp);
         if (idx < 0 || idx >= _subpieces.Count - 1) return;
-
         (_subpieces[idx], _subpieces[idx + 1]) = (_subpieces[idx + 1], _subpieces[idx]);
-        (sp.Number, _subpieces[idx].Number) = (_subpieces[idx].Number, sp.Number);
         RefreshSubpieceList();
     }
 
@@ -360,34 +366,34 @@ public partial class PieceEditorWindow : Window
         RefreshCatalogList();
     }
 
-    // --- Librettist list ---
+    // --- Text Author list ---
 
-    private void RefreshLibrettistList()
+    private void RefreshTextAuthorList()
     {
-        var selected = LibrettistList.SelectedItem as string;
-        LibrettistList.Items.Clear();
-        foreach (var name in _librettists)
-            LibrettistList.Items.Add(name);
-        if (selected != null && LibrettistList.Items.Contains(selected))
-            LibrettistList.SelectedItem = selected;
+        var selected = TextAuthorList.SelectedItem as string;
+        TextAuthorList.Items.Clear();
+        foreach (var name in _textAuthors)
+            TextAuthorList.Items.Add(name);
+        if (selected != null && TextAuthorList.Items.Contains(selected))
+            TextAuthorList.SelectedItem = selected;
     }
 
-    private void OnAddLibrettistClick(object sender, RoutedEventArgs e)
+    private void OnAddTextAuthorClick(object sender, RoutedEventArgs e)
     {
-        var name = LibrettistEntryBox.Text.Trim();
+        var name = TextAuthorEntryBox.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
-        _librettists.Add(name);
-        RefreshLibrettistList();
-        LibrettistList.SelectedItem = name;
-        LibrettistEntryBox.Text = "";
-        LibrettistEntryBox.Focus();
+        _textAuthors.Add(name);
+        RefreshTextAuthorList();
+        TextAuthorList.SelectedItem = name;
+        TextAuthorEntryBox.Text = "";
+        TextAuthorEntryBox.Focus();
     }
 
-    private void OnRemoveLibrettistClick(object sender, RoutedEventArgs e)
+    private void OnRemoveTextAuthorClick(object sender, RoutedEventArgs e)
     {
-        if (LibrettistList.SelectedItem is not string name) return;
-        _librettists.Remove(name);
-        RefreshLibrettistList();
+        if (TextAuthorList.SelectedItem is not string name) return;
+        _textAuthors.Remove(name);
+        RefreshTextAuthorList();
     }
 
     // --- Instrumentation list ---
@@ -519,7 +525,7 @@ public partial class PieceEditorWindow : Window
 
     private void OnAddVersionClick(object sender, RoutedEventArgs e)
     {
-        var editor = new VersionEditorWindow(_pickLists) { Owner = this };
+        var editor = new VersionEditorWindow(_pickLists, showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true) { Owner = this };
         if (editor.ShowDialog() == true)
         {
             _versions.Add(editor.Version);
@@ -534,7 +540,7 @@ public partial class PieceEditorWindow : Window
     private void EditSelectedVersion()
     {
         if (SelectedVersion is not { } v) return;
-        var editor = new VersionEditorWindow(_pickLists, v) { Owner = this };
+        var editor = new VersionEditorWindow(_pickLists, v, showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true) { Owner = this };
         if (editor.ShowDialog() == true) RefreshVersionList();
     }
 

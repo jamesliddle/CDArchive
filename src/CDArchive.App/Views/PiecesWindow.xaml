@@ -11,8 +11,12 @@
     </Window.Resources>
 
     <DockPanel Margin="8">
-        <!-- Toolbar: Filter + New Piece -->
+        <!-- Toolbar: Filter + New Piece + Delete Piece -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button x:Name="DeletePieceButton" Content="Delete Piece" DockPanel.Dock="Right"
+                    Padding="12,4" Margin="8,0,0,0" FontSize="12"
+                    IsEnabled="False"
+                    Click="OnDeletePieceClick" />
             <Button Content="New Piece" DockPanel.Dock="Right"
                     Padding="12,4" Margin="8,0,0,0" FontSize="12"
                     Click="OnNewPieceClick" />
@@ -102,7 +106,9 @@
                 <TreeView x:Name="PiecesTree"
                           BorderThickness="0" Background="White" Padding="0"
                           FontSize="12"
-                          VirtualizingStackPanel.IsVirtualizing="True">
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          SelectedItemChanged="OnTreeSelectionChanged"
+                          KeyDown="OnTreeKeyDown">
                     <TreeView.Template>
                         <ControlTemplate TargetType="TreeView">
                             <ScrollViewer Focusable="False"

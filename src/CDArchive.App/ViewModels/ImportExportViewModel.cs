@@ -1,0 +1,311 @@
+using System.IO;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Windows;
+using CDArchive.Core.Models;
+using CDArchive.Core.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
+
+namespace CDArchive.App.ViewModels;
+
+public partial class ImportExportViewModel : ObservableObject
+{
+    private readonly ICanonDataService _svc;
+
+    private static readonly JsonSerializerOptions ReadOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true,
+    };
+
+    private static readonly JsonSerializerOptions WriteOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    [ObservableProperty] private string _statusMessage = "";
+    [ObservableProperty] private bool _isBusy;
+
+    public ImportExportViewModel(ICanonDataService svc)
+    {
+        _svc = svc;
+    }
+
+    // ── Export ───────────────────────────────────────────────────────────────
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task ExportComposersAsync()
+    {
+        var path = PickSaveFile("Export Composers",
+            Path.GetFileName(_svc.ComposersFilePath),
+            Path.GetDirectoryName(_svc.ComposersFilePath));
+        if (path == null) return;
+
+        await RunAsync(async () =>
+        {
+            var data = await _svc.LoadComposersAsync();
+            var sorted = data.OrderBy(c => !string.IsNullOrEmpty(c.SortName) ? c.SortName : c.Name,
+                StringComparer.OrdinalIgnoreCase).ToList();
+            var json = JsonSerializer.Serialize(sorted, WriteOptions);
+            await File.WriteAllTextAsync(path, json);
+            return $"Exported {sorted.Count} composers to {Path.GetFileName(path)}.";
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task ExportPiecesAsync()
+    {
+        var path = PickSaveFile("Export Pieces",
+            Path.GetFileName(_svc.PiecesFilePath),
+            Path.GetDirectoryName(_svc.PiecesFilePath));
+        if (path == null) return;
+
+        await RunAsync(async () =>
+        {
+            var data = await _svc.LoadPiecesAsync();
+            var sorted = data
+                .OrderBy(p => p.Composer ?? "", StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.FormatCatalog(), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var json = JsonSerializer.Serialize(sorted, WriteOptions);
+            await File.WriteAllTextAsync(path, json);
+            return $"Exported {sorted.Count} pieces to {Path.GetFileName(path)}.";
+        });
+    }
+
+    // ── Sync (export to canonical files, same as before) ────────────────────
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task SyncToJsonAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var composers = await _svc.LoadComposersAsync();
+            await _svc.SaveComposersAsync(composers);
+
+            var pieces = await _svc.LoadPiecesAsync();
+            await _svc.SavePiecesAsync(pieces);
+
+            var pickLists = await _svc.LoadPickListsAsync();
+            await _svc.SavePickListsAsync(pickLists);
+
+            return $"Synced {composers.Count} composers and {pieces.Count} pieces to JSON.";
+        });
+    }
+
+    // ── Import (merge — only adds rows not already present) ─────────────────
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task ImportComposersAsync()
+    {
+        var path = PickOpenFile("Import Composers JSON");
+        if (path == null) return;
+
+        await RunAsync(async () =>
+        {
+            var json = await File.ReadAllTextAsync(path);
+
+            // Accept either a single composer object { } or an array [ ]
+            List<CanonComposer> incoming;
+            using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true });
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                incoming = JsonSerializer.Deserialize<List<CanonComposer>>(json, ReadOptions) ?? [];
+            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                incoming = [JsonSerializer.Deserialize<CanonComposer>(json, ReadOptions)!];
+            else
+                return "Unrecognised JSON format — expected an object or array of composers.";
+
+            var existing = await _svc.LoadComposersAsync();
+            var existingNames = existing
+                .Select(c => c.Name ?? "")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var toAdd = incoming.Where(c => !existingNames.Contains(c.Name ?? "")).ToList();
+            if (toAdd.Count == 0)
+                return "No new composers found — nothing imported.";
+
+            existing.AddRange(toAdd);
+            await _svc.SaveComposersAsync(existing);
+            return $"Imported {toAdd.Count} new composer(s) from {Path.GetFileName(path)}.";
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task ImportPiecesAsync()
+    {
+        var path = PickOpenFile("Import Pieces JSON");
+        if (path == null) return;
+
+        await RunAsync(async () =>
+        {
+            var json = await File.ReadAllTextAsync(path);
+
+            // Accept either a single piece object { } or an array of pieces [ ]
+            List<CanonPiece> incoming;
+            using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true });
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                incoming = JsonSerializer.Deserialize<List<CanonPiece>>(json, ReadOptions) ?? [];
+            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                incoming = [JsonSerializer.Deserialize<CanonPiece>(json, ReadOptions)!];
+            else
+                return "Unrecognised JSON format — expected an object or array of pieces.";
+
+            var existing = await _svc.LoadPiecesAsync();
+
+            // Key: composer + title (case-insensitive). Pieces without either are always added.
+            var existingKeys = existing
+                .Where(p => p.Composer != null && p.Title != null)
+                .Select(PieceKey)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var toAdd = incoming
+                .Where(p => p.Composer == null || p.Title == null || !existingKeys.Contains(PieceKey(p)))
+                .ToList();
+
+            if (toAdd.Count == 0)
+                return "No new pieces found — nothing imported.";
+
+            existing.AddRange(toAdd);
+            await _svc.SavePiecesAsync(existing);
+            return $"Imported {toAdd.Count} new piece(s) from {Path.GetFileName(path)}.";
+        });
+    }
+
+    // ── DB management ────────────────────────────────────────────────────────
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private void DeleteDatabase()
+    {
+        var dbPath = _svc.DbPath;
+        if (string.IsNullOrEmpty(dbPath) || !File.Exists(dbPath))
+        {
+            StatusMessage = "No database file found.";
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Delete the database at:\n{dbPath}\n\nThe app will reseed from JSON on next load.",
+            "Confirm Delete", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.OK) return;
+
+        try
+        {
+            File.Delete(dbPath);
+            StatusMessage = "Database deleted. Restart the app to reseed from JSON.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to delete database: {ex.Message}";
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task ReseedFromJsonAsync()
+    {
+        // Let the user optionally pick replacement JSON files,
+        // or use the canonical ones if they cancel/skip.
+        var composersPath = PickOpenFile("Select Composers JSON (cancel to use default)")
+                            ?? _svc.ComposersFilePath;
+        var piecesPath    = PickOpenFile("Select Pieces JSON (cancel to use default)")
+                            ?? _svc.PiecesFilePath;
+
+        var dbPath = _svc.DbPath;
+        if (string.IsNullOrEmpty(dbPath))
+        {
+            StatusMessage = "Database path not available.";
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"This will delete the current database and reseed it from:\n\nComposers: {Path.GetFileName(composersPath)}\nPieces: {Path.GetFileName(piecesPath)}\n\nContinue?",
+            "Confirm Reseed", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.OK) return;
+
+        await RunAsync(async () =>
+        {
+            if (File.Exists(dbPath))
+                File.Delete(dbPath);
+
+            // Load from chosen files and save through the service,
+            // which will recreate and seed the DB.
+            var composersJson = await File.ReadAllTextAsync(composersPath);
+            var composers = JsonSerializer.Deserialize<List<CanonComposer>>(composersJson, ReadOptions) ?? [];
+            await _svc.SaveComposersAsync(composers);
+
+            var piecesJson = await File.ReadAllTextAsync(piecesPath);
+            var pieces = JsonSerializer.Deserialize<List<CanonPiece>>(piecesJson, ReadOptions) ?? [];
+            await _svc.SavePiecesAsync(pieces);
+
+            return $"Reseeded: {composers.Count} composers, {pieces.Count} pieces.";
+        });
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private bool IsNotBusy => !IsBusy;
+
+    private async Task RunAsync(Func<Task<string>> action)
+    {
+        IsBusy = true;
+        StatusMessage = "Working…";
+        NotifyCommandsCanExecuteChanged();
+        try
+        {
+            StatusMessage = await action();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    private void NotifyCommandsCanExecuteChanged()
+    {
+        ExportComposersCommand.NotifyCanExecuteChanged();
+        ExportPiecesCommand.NotifyCanExecuteChanged();
+        SyncToJsonCommand.NotifyCanExecuteChanged();
+        ImportComposersCommand.NotifyCanExecuteChanged();
+        ImportPiecesCommand.NotifyCanExecuteChanged();
+        DeleteDatabaseCommand.NotifyCanExecuteChanged();
+        ReseedFromJsonCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string PieceKey(CanonPiece p) =>
+        $"{p.Composer?.Trim()}|{p.Title?.Trim()}";
+
+    private static string? PickSaveFile(string title, string? defaultFileName, string? initialDirectory)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = title,
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            DefaultExt = "json",
+            FileName = defaultFileName ?? "",
+            InitialDirectory = initialDirectory ?? "",
+        };
+        return dlg.ShowDialog() == true ? dlg.FileName : null;
+    }
+
+    private static string? PickOpenFile(string title)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = title,
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            DefaultExt = "json",
+        };
+        return dlg.ShowDialog() == true ? dlg.FileName : null;
+    }
+}

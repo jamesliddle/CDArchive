@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+        xmlns:views="clr-namespace:CDArchive.App.Views"
         mc:Ignorable="d"
         Title="CD Archive Manager"
         Height="700" Width="1050"
@@ -11,6 +12,8 @@
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
         <!-- Navigation RadioButton Style -->
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
             <Setter Property="Foreground" Value="#CCCCCC" />
@@ -65,8 +68,12 @@
                 <!-- Navigation Buttons -->
                 <StackPanel DockPanel.Dock="Top">
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="New Album"
+                                 Content="Composers"
                                  IsChecked="True"
+                                 Command="{Binding NavigateToCanonCommand}" />
+
+                    <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Content="New Album"
                                  Command="{Binding NavigateToNewAlbumCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
@@ -90,8 +97,8 @@
                                  Command="{Binding NavigateToCatalogueCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Composers"
-                                 Command="{Binding NavigateToCanonCommand}" />
+                                 Content="Import / Export"
+                                 Command="{Binding NavigateToImportExportCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
                                  Content="Settings"
@@ -118,9 +125,19 @@
                                Foreground="#333333" />
                 </Border>
 
-                <!-- Current View Content -->
-                <ContentControl Content="{Binding CurrentView}"
-                                Margin="25,20" />
+                <!-- Content area: CanonView lives permanently; other views use ContentControl -->
+                <Grid Margin="25,20">
+                    <!-- CanonView is always alive — shown/hidden without being destroyed.
+                         DataContext is CanonViewModel, so Visibility must reach back up to
+                         the Window's DataContext (MainViewModel) via RelativeSource. -->
+                    <views:CanonView DataContext="{Binding CanonViewModel}"
+                                     Visibility="{Binding DataContext.IsCanonViewActive,
+                                                  RelativeSource={RelativeSource AncestorType=Window},
+                                                  Converter={StaticResource BoolToVis}}" />
+
+                    <!-- Other views: CurrentView=null when Composers is active, so this is empty/non-blocking -->
+                    <ContentControl Content="{Binding CurrentView}" />
+                </Grid>
             </DockPanel>
         </Border>
     </DockPanel>

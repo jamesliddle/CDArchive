@@ -13,12 +13,18 @@ public partial class MainViewModel : ObservableObject
     private readonly SettingsViewModel _settingsViewModel;
     private readonly CatalogueViewModel _catalogueViewModel;
     private readonly CanonViewModel _canonViewModel;
+    private readonly ImportExportViewModel _importExportViewModel;
 
     [ObservableProperty]
     private ObservableObject? _currentView;
 
     [ObservableProperty]
-    private string _currentViewTitle = "New Album";
+    private string _currentViewTitle = "Composers";
+
+    [ObservableProperty]
+    private bool _isCanonViewActive = true;
+
+    public CanonViewModel CanonViewModel => _canonViewModel;
 
     public MainViewModel(
         NewAlbumViewModel newAlbumViewModel,
@@ -28,7 +34,8 @@ public partial class MainViewModel : ObservableObject
         ConversionStatusViewModel conversionStatusViewModel,
         SettingsViewModel settingsViewModel,
         CatalogueViewModel catalogueViewModel,
-        CanonViewModel canonViewModel)
+        CanonViewModel canonViewModel,
+        ImportExportViewModel importExportViewModel)
     {
         _newAlbumViewModel = newAlbumViewModel;
         _archiveBrowserViewModel = archiveBrowserViewModel;
@@ -38,13 +45,15 @@ public partial class MainViewModel : ObservableObject
         _settingsViewModel = settingsViewModel;
         _catalogueViewModel = catalogueViewModel;
         _canonViewModel = canonViewModel;
+        _importExportViewModel = importExportViewModel;
 
-        CurrentView = _newAlbumViewModel;
+        // CanonView is always-alive in MainWindow; IsCanonViewActive=true (default) shows it on startup.
     }
 
     [RelayCommand]
     private void NavigateToNewAlbum()
     {
+        IsCanonViewActive = false;
         CurrentView = _newAlbumViewModel;
         CurrentViewTitle = "New Album";
     }
@@ -52,6 +61,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToArchiveBrowser()
     {
+        IsCanonViewActive = false;
         CurrentView = _archiveBrowserViewModel;
         CurrentViewTitle = "Archive Browser";
     }
@@ -59,6 +69,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToValidation()
     {
+        IsCanonViewActive = false;
         CurrentView = _validationViewModel;
         CurrentViewTitle = "Validation";
     }
@@ -66,6 +77,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToConversion()
     {
+        IsCanonViewActive = false;
         CurrentView = _conversionViewModel;
         CurrentViewTitle = "Conversion";
     }
@@ -73,6 +85,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToConversionStatus()
     {
+        IsCanonViewActive = false;
         CurrentView = _conversionStatusViewModel;
         CurrentViewTitle = "Conversion Status";
     }
@@ -80,6 +93,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToCatalogue()
     {
+        IsCanonViewActive = false;
         CurrentView = _catalogueViewModel;
         CurrentViewTitle = "Catalogue";
     }
@@ -87,14 +101,25 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToCanon()
     {
-        CurrentView = _canonViewModel;
+        IsCanonViewActive = true;
+        CurrentView = null;
         CurrentViewTitle = "Composers";
+        _ = _canonViewModel.LoadDataCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]
     private void NavigateToSettings()
     {
+        IsCanonViewActive = false;
         CurrentView = _settingsViewModel;
         CurrentViewTitle = "Settings";
+    }
+
+    [RelayCommand]
+    private void NavigateToImportExport()
+    {
+        IsCanonViewActive = false;
+        CurrentView = _importExportViewModel;
+        CurrentViewTitle = "Import / Export";
     }
 }

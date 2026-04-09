@@ -61,9 +61,6 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Text="Form" Style="{StaticResource FieldLabel}" />
@@ -167,11 +164,11 @@
                     <!-- Arrow buttons (centre) -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0">
                         <Button Content="&#x2190;" FontSize="14" Padding="6,2" Margin="0,2"
-                                ToolTip="Remove from piece"
-                                Click="OnRemoveInstrumentClick" />
-                        <Button Content="&#x2192;" FontSize="14" Padding="6,2" Margin="0,2"
                                 ToolTip="Add to piece"
                                 Click="OnAddFromAvailableClick" />
+                        <Button Content="&#x2192;" FontSize="14" Padding="6,2" Margin="0,2"
+                                ToolTip="Remove from piece"
+                                Click="OnRemoveInstrumentClick" />
                     </StackPanel>
                     <!-- Available instruments (right) -->
                     <DockPanel Grid.Column="2">
@@ -192,8 +189,8 @@
                            x:Name="CompYearsBox"
                            ToolTip="Year(s) of composition, e.g. 1803, 1803-1804, c1893" />
 
-                <!-- Librettist — supports multiple names -->
-                <TextBlock Grid.Row="13" Text="Librettist" Style="{StaticResource FieldLabel}"
+                <!-- Text Author — supports multiple names -->
+                <TextBlock Grid.Row="13" Text="Text Author" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
                 <Border Grid.Row="13" Grid.Column="1" Margin="0,3"
                         BorderThickness="1" BorderBrush="#CCC">
@@ -201,37 +198,36 @@
                         <DockPanel MinHeight="20" MaxHeight="72">
                             <Button DockPanel.Dock="Right" Content="✕" Padding="6,3" FontSize="11"
                                     VerticalAlignment="Top" Margin="2"
-                                    ToolTip="Remove selected librettist"
-                                    Click="OnRemoveLibrettistClick" />
-                            <ListBox x:Name="LibrettistList" FontSize="12" BorderThickness="0" />
+                                    ToolTip="Remove selected text author"
+                                    Click="OnRemoveTextAuthorClick" />
+                            <ListBox x:Name="TextAuthorList" FontSize="12" BorderThickness="0" />
                         </DockPanel>
                         <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
                         <DockPanel Margin="4,4,4,4">
                             <Button DockPanel.Dock="Right" Content="Add" Padding="8,3" FontSize="11"
-                                    Margin="4,0,0,0" Click="OnAddLibrettistClick" />
-                            <TextBox x:Name="LibrettistEntryBox" FontSize="12" Padding="4,3"
-                                     ToolTip="Type a librettist name and click Add" />
+                                    Margin="4,0,0,0" Click="OnAddTextAuthorClick" />
+                            <TextBox x:Name="TextAuthorEntryBox" FontSize="12" Padding="4,3"
+                                     ToolTip="Type a text author name and click Add" />
                         </DockPanel>
                     </StackPanel>
                 </Border>
 
-                <TextBlock Grid.Row="14" Text="Text Author" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="14" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="TextAuthorBox"
-                           ToolTip="Poet or text source for songs and song cycles" />
-
-                <TextBlock Grid.Row="15" Text="Descriptive Title" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="15" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="DescriptiveTitleBox" />
-
-                <TextBlock Grid.Row="16" Text="Name" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="16" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="NameBox" />
             </Grid>
 
             <!-- Subpieces (movements) section -->
-            <TextBlock Text="Movements / Subpieces" FontWeight="SemiBold" FontSize="12"
-                       Foreground="#555" Margin="0,14,0,6" />
+            <DockPanel Margin="0,14,0,6" LastChildFill="False">
+                <TextBlock Text="Movements / Subpieces" FontWeight="SemiBold" FontSize="12"
+                           Foreground="#555" VerticalAlignment="Center" />
+                <CheckBox x:Name="NumberedSubpiecesCheck" Content="Numbered" FontSize="11"
+                          Foreground="#666" Margin="14,0,0,0" VerticalAlignment="Center"
+                          Checked="OnNumberedSubpiecesChanged"
+                          Unchecked="OnNumberedSubpiecesChanged" />
+                <TextBlock Text="Start:" FontSize="11" Foreground="#666"
+                           Margin="12,0,4,0" VerticalAlignment="Center" />
+                <TextBox x:Name="SubpiecesStartBox" Width="36" FontSize="11" Padding="2,1"
+                         VerticalAlignment="Center" Margin="0,2"
+                         TextChanged="OnSubpiecesStartChanged" />
+            </DockPanel>
 
             <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
                     Padding="6" MinHeight="80">

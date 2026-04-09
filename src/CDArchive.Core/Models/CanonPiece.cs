@@ -20,9 +20,6 @@ public class CanonPiece
     [JsonPropertyName("title_English")]
     public string? TitleEnglish { get; set; }
 
-    [JsonPropertyName("descriptive_title")]
-    public string? DescriptiveTitle { get; set; }
-
     [JsonPropertyName("nickname")]
     public string? Nickname { get; set; }
 
@@ -50,14 +47,40 @@ public class CanonPiece
     [JsonPropertyName("instrumentation_category")]
     public string? InstrumentationCategory { get; set; }
 
+    /// <summary>
+    /// Explicit override controlling whether subpieces display a sequence number.
+    /// When null the default applies: Opera → unnumbered, everything else → numbered.
+    /// Serialised only when set, so the JSON stays clean for the common case.
+    /// </summary>
+    [JsonPropertyName("numbered_subpieces")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? NumberedSubpieces { get; set; }
+
+    /// <summary>
+    /// The number assigned to the first subpiece when subpieces are numbered.
+    /// Defaults to 1 when null. Set e.g. to 0 for zero-based numbering.
+    /// Serialised only when non-default.
+    /// </summary>
+    [JsonPropertyName("subpieces_start")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SubpiecesStart { get; set; }
+
+    /// <summary>
+    /// Optional visible number for this subpiece within its parent, independent of the
+    /// ordering <see cref="Number"/>.  Used for traditional opera numbering (No. 1, 2 …)
+    /// where some items (arias, ensembles, finales) carry a number and others
+    /// (recitatives, interludes) do not.  When set, this value is always displayed
+    /// regardless of the parent's <c>numbered_subpieces</c> flag.
+    /// </summary>
+    [JsonPropertyName("music_number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MusicNumber { get; set; }
+
     [JsonPropertyName("publication_year")]
     public int? PublicationYear { get; set; }
 
     [JsonPropertyName("composition_years")]
     public JsonElement? CompositionYears { get; set; }
-
-    [JsonPropertyName("librettist")]
-    public JsonElement? Librettist { get; set; }
 
     [JsonPropertyName("text_author")]
     public JsonElement? TextAuthor { get; set; }
@@ -76,9 +99,6 @@ public class CanonPiece
 
     [JsonPropertyName("tempos")]
     public List<TempoInfo>? Tempos { get; set; }
-
-    [JsonPropertyName("name")]
-    public string? Name { get; set; }
 
     [JsonPropertyName("first_line")]
     public string? FirstLine { get; set; }
@@ -115,7 +135,7 @@ public class CanonPiece
     /// leaf movements use the "N. Form / N. Tempo" format.
     /// </summary>
     [JsonIgnore]
-    public string SubpieceDisplayTitle => BuildDisplayTitle(includeCatalog: false, isSubpiece: !HasSubpieces) + RolesSuffix;
+    public string SubpieceDisplayTitle => BuildDisplayTitle(includeCatalog: false, isSubpiece: true) + RolesSuffix;
 
     /// <summary>
     /// Roles suffix for movement-level display: " (Role1, Role2)".
@@ -160,12 +180,12 @@ public class CanonPiece
         }
     }
 
-    private string BuildDisplayTitle(bool includeCatalog, bool isSubpiece = false)
+    private string BuildDisplayTitle(bool includeCatalog, bool isSubpiece = false, bool showNumber = true)
     {
         // If there's an explicit title, use it (append key, optionally catalog, nickname)
         if (!string.IsNullOrEmpty(Title))
         {
-            var titleNumPrefix = isSubpiece && Number.HasValue ? $"{Number}. " : "";
+            var titleNumPrefix = isSubpiece ? SubpiecePrefix(showNumber) : "";
             var parts = new List<string> { Title };
             if (!string.IsNullOrEmpty(Key))
                 parts[0] += $" in {Key}";
@@ -178,11 +198,6 @@ public class CanonPiece
                 titleResult += $" \"{Nickname}\"";
             return titleResult;
         }
-        if (!string.IsNullOrEmpty(DescriptiveTitle))
-            return DescriptiveTitle;
-        if (!string.IsNullOrEmpty(Name))
-            return Name;
-
         // Sets: derive from subpieces, e.g., "Three Piano Sonatas"
         if (string.Equals(Form, "set", StringComparison.OrdinalIgnoreCase)
             && Subpieces is { Count: > 0 })
@@ -195,7 +210,8 @@ public class CanonPiece
         var tempo = TempoDescription;
         if (!string.IsNullOrEmpty(tempo))
         {
-            var prefix = Number.HasValue ? $"{Number}. " : "";
+            var prefix = isSubpiece ? SubpiecePrefix(showNumber)
+                       : Number.HasValue ? $"{Number}. " : "";
             if (!string.IsNullOrEmpty(Form))
                 return $"{prefix}{TitleCase(Form)}. {tempo}";
             return $"{prefix}{tempo}";
@@ -205,7 +221,8 @@ public class CanonPiece
         // e.g., "1. Duet. Jetzt, Schätzchen, jetzt sind wir allein"
         if (!string.IsNullOrEmpty(FirstLine))
         {
-            var prefix = Number.HasValue ? $"{Number}. " : "";
+            var prefix = isSubpiece ? SubpiecePrefix(showNumber)
+                       : Number.HasValue ? $"{Number}. " : "";
             if (!string.IsNullOrEmpty(Form))
                 return $"{prefix}{TitleCase(Form)}. {FirstLine}";
             return $"{prefix}{FirstLine}";
@@ -236,8 +253,10 @@ public class CanonPiece
             suffixes.Add(Catalog);
 
         var body      = suffixes.Count > 0 ? string.Join(", ", suffixes) : "";
-        var numPrefix = isSubpiece && Number.HasValue ? $"{Number}. " : "";
-        var result    = body.Length > 0 ? $"{numPrefix}{body}" : Number.HasValue ? $"{Number}" : "(untitled)";
+        var numPrefix = isSubpiece ? SubpiecePrefix(showNumber) : "";
+        var result    = body.Length > 0 ? $"{numPrefix}{body}"
+                      : !string.IsNullOrEmpty(MusicNumber) ? MusicNumber
+                      : Number.HasValue ? $"{Number}" : "(untitled)";
 
         if (!string.IsNullOrEmpty(Subtitle))
             result += $", {Subtitle}";
@@ -282,6 +301,23 @@ public class CanonPiece
     }
 
     private static string TitleCase(string value) => CanonFormat.TitleCase(value);
+
+    /// <summary>
+    /// Display title for use when this piece is rendered as a subpiece,
+    /// with explicit control over whether the sequence number is prepended.
+    /// </summary>
+    public string BuildSubpieceTitle(bool showNumber) =>
+        BuildDisplayTitle(includeCatalog: false, isSubpiece: true, showNumber: showNumber)
+        + RolesSuffix;
+
+    /// <summary>
+    /// Computes the numeric prefix string for subpiece display.
+    /// Priority: MusicNumber (always shown when set) → ordering Number (shown when
+    /// <paramref name="showNumber"/> is true) → empty string.
+    /// </summary>
+    private string SubpiecePrefix(bool showNumber) =>
+        !string.IsNullOrEmpty(MusicNumber) ? $"{MusicNumber}. " :
+        showNumber && Number.HasValue    ? $"{Number}. "      : "";
 
     /// <summary>
     /// Simple English pluralization for musical forms.
@@ -430,6 +466,18 @@ public class CanonPiece
     public bool HasSubpieces => Subpieces != null && Subpieces.Count > 0;
 
     /// <summary>
+    /// Whether subpieces of this piece should display a sequence number.
+    /// Respects the explicit <see cref="NumberedSubpieces"/> override; falls back to
+    /// the category-based default: a piece with a known non-Opera category → true,
+    /// Opera category or no category (intermediate structural nodes like acts/scenes) → false.
+    /// </summary>
+    [JsonIgnore]
+    public bool EffectiveSubpiecesNumbered =>
+        NumberedSubpieces ?? (!string.IsNullOrEmpty(InstrumentationCategory) &&
+            !string.Equals(InstrumentationCategory, "Opera",
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Children to display in the tree view.
     /// When versions have subpieces, returns a list of <see cref="VersionDisplayNode"/> wrappers
     /// so the tree shows piece → version → movement.
@@ -440,10 +488,11 @@ public class CanonPiece
     {
         get
         {
+            var showNums = EffectiveSubpiecesNumbered;
             if (Versions is { Count: > 0 } && Versions.Any(v => v.Subpieces is { Count: > 0 }))
-                return Versions.Select(v => new VersionDisplayNode(v)).ToList();
+                return Versions.Select(v => new VersionDisplayNode(v, showNums)).ToList();
             return HasSubpieces
-                ? Subpieces!.Select(sp => new SubpieceDisplayNode(sp)).ToList()
+                ? Subpieces!.Select(sp => new SubpieceDisplayNode(sp, showNums)).ToList()
                 : null;
         }
     }
@@ -848,19 +897,27 @@ public class InstrumentEntry
 /// </summary>
 public class SubpieceDisplayNode
 {
-    public SubpieceDisplayNode(CanonPiece piece) { Piece = piece; }
+    private readonly bool _showNumber;
+
+    public SubpieceDisplayNode(CanonPiece piece, bool showNumber = true)
+    {
+        Piece = piece;
+        _showNumber = showNumber;
+    }
 
     public CanonPiece Piece { get; }
 
-    /// <summary>Display label using subpiece-style numbering.</summary>
-    public string DisplayTitle => Piece.SubpieceDisplayTitle;
+    /// <summary>Display label, with numbering governed by the parent piece's flag.</summary>
+    public string DisplayTitle => Piece.BuildSubpieceTitle(_showNumber);
 
     /// <summary>Whether this subpiece has its own sub-movements.</summary>
     public bool HasChildren => Piece.Subpieces is { Count: > 0 };
 
     /// <summary>Sub-movements of this subpiece, also wrapped as SubpieceDisplayNodes.</summary>
     public List<SubpieceDisplayNode>? Children =>
-        HasChildren ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp)).ToList() : null;
+        HasChildren
+            ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp, Piece.EffectiveSubpiecesNumbered)).ToList()
+            : null;
 
     public override string ToString() => DisplayTitle;
 }
@@ -872,9 +929,12 @@ public class SubpieceDisplayNode
 /// </summary>
 public class VersionDisplayNode
 {
-    public VersionDisplayNode(CanonPieceVersion version)
+    private readonly bool _showNumber;
+
+    public VersionDisplayNode(CanonPieceVersion version, bool showNumber = true)
     {
         Version = version;
+        _showNumber = showNumber;
     }
 
     public CanonPieceVersion Version { get; }
@@ -884,7 +944,7 @@ public class VersionDisplayNode
 
     /// <summary>Movements belonging to this version, wrapped for subpiece display.</summary>
     public List<SubpieceDisplayNode>? Children =>
-        Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp)).ToList();
+        Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp, _showNumber)).ToList();
 
     /// <summary>Whether this version has movements to expand.</summary>
     public bool HasSubpieces => Version.Subpieces is { Count: > 0 };
@@ -894,20 +954,72 @@ public class VersionDisplayNode
 
 public class CanonPieceVersion
 {
+    /// <summary>Free-text label identifying this version (e.g. "Original version", "arr. for string quartet").</summary>
     [JsonPropertyName("description")]
     public string? Description { get; set; }
+
+    [JsonPropertyName("form")]
+    public string? Form { get; set; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("title_English")]
+    public string? TitleEnglish { get; set; }
+
+    [JsonPropertyName("subtitle")]
+    public string? Subtitle { get; set; }
+
+    [JsonPropertyName("nickname")]
+    public string? Nickname { get; set; }
+
+    [JsonPropertyName("number")]
+    public int? Number { get; set; }
+
+    [JsonPropertyName("music_number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MusicNumber { get; set; }
+
+    [JsonPropertyName("key_tonality")]
+    public string? KeyTonality { get; set; }
+
+    [JsonPropertyName("key_mode")]
+    public string? KeyMode { get; set; }
 
     [JsonPropertyName("catalog_info")]
     public List<CatalogInfo>? CatalogInfo { get; set; }
 
-    [JsonPropertyName("instrumentation")]
-    public JsonElement? Instrumentation { get; set; }
-
     [JsonPropertyName("instrumentation_category")]
     public string? InstrumentationCategory { get; set; }
 
+    [JsonPropertyName("instrumentation")]
+    public JsonElement? Instrumentation { get; set; }
+
     [JsonPropertyName("publication_year")]
     public int? PublicationYear { get; set; }
+
+    [JsonPropertyName("composition_years")]
+    public JsonElement? CompositionYears { get; set; }
+
+    [JsonPropertyName("numbered_subpieces")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? NumberedSubpieces { get; set; }
+
+    [JsonPropertyName("subpieces_start")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SubpiecesStart { get; set; }
+
+    [JsonPropertyName("first_line")]
+    public string? FirstLine { get; set; }
+
+    [JsonPropertyName("text_author")]
+    public JsonElement? TextAuthor { get; set; }
+
+    [JsonPropertyName("roles")]
+    public JsonElement? Roles { get; set; }
+
+    [JsonPropertyName("tempos")]
+    public List<TempoInfo>? Tempos { get; set; }
 
     [JsonPropertyName("subpieces")]
     public List<CanonPiece>? Subpieces { get; set; }
@@ -915,7 +1027,7 @@ public class CanonPieceVersion
     [JsonPropertyName("contributing_composers")]
     public JsonElement? ContributingComposers { get; set; }
 
-    public override string ToString() => Description ?? "(no description)";
+    public override string ToString() => Description ?? Title ?? "(no description)";
 }
 
 /// <summary>

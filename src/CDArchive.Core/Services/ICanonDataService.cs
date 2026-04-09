@@ -6,6 +6,7 @@ public interface ICanonDataService
 {
     string ComposersFilePath { get; }
     string PiecesFilePath { get; }
+    string DbPath { get; }
 
     Task<List<CanonComposer>> LoadComposersAsync();
     Task<List<CanonPiece>> LoadPiecesAsync();

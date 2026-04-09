@@ -1,0 +1,83 @@
+<UserControl x:Class="CDArchive.App.Views.ImportExportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ImportExportViewModel}">
+
+    <StackPanel MaxWidth="520" HorizontalAlignment="Left">
+
+        <!-- Export section -->
+        <TextBlock Text="Export" FontSize="15" FontWeight="SemiBold"
+                   Foreground="#333" Margin="0,0,0,8" />
+        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
+            Export the current database contents to a JSON file.
+            The default location and filename match the canonical data files,
+            but you can choose any name and location.
+        </TextBlock>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <Button Content="Export Composers…" Width="160" Padding="0,7"
+                    Command="{Binding ExportComposersCommand}" />
+            <Button Content="Export Pieces…" Width="160" Padding="0,7"
+                    Margin="10,0,0,0"
+                    Command="{Binding ExportPiecesCommand}" />
+        </StackPanel>
+
+        <Button Content="Sync to Canonical JSON Files" Width="330" Padding="0,7"
+                HorizontalAlignment="Left" Margin="0,4,0,0"
+                Command="{Binding SyncToJsonCommand}"
+                ToolTip="Overwrite the canonical data files with the current database contents" />
+
+        <!-- Separator -->
+        <Separator Margin="0,20,0,16" />
+
+        <!-- Import section -->
+        <TextBlock Text="Import" FontSize="15" FontWeight="SemiBold"
+                   Foreground="#333" Margin="0,0,0,8" />
+        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
+            Import new records from a JSON file. Only records not already present
+            in the database will be added — existing records are never modified or deleted.
+            Composers are matched by name; pieces are matched by composer + title.
+        </TextBlock>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <Button Content="Import Composers…" Width="160" Padding="0,7"
+                    Command="{Binding ImportComposersCommand}" />
+            <Button Content="Import Pieces…" Width="160" Padding="0,7"
+                    Margin="10,0,0,0"
+                    Command="{Binding ImportPiecesCommand}" />
+        </StackPanel>
+
+        <!-- Separator -->
+        <Separator Margin="0,20,0,16" />
+
+        <!-- Database section -->
+        <TextBlock Text="Database" FontSize="15" FontWeight="SemiBold"
+                   Foreground="#333" Margin="0,0,0,8" />
+        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
+            Manage the local SQLite database. Deleting the database is safe as long as
+            you have synced to JSON first — the app will recreate and reseed it on next launch.
+        </TextBlock>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <Button Content="Delete Database…" Width="160" Padding="0,7"
+                    Command="{Binding DeleteDatabaseCommand}"
+                    ToolTip="Permanently delete the database file. The app will reseed from JSON on next launch." />
+            <Button Content="Reseed from JSON…" Width="160" Padding="0,7"
+                    Margin="10,0,0,0"
+                    Command="{Binding ReseedFromJsonCommand}"
+                    ToolTip="Delete the database and recreate it from JSON files you select" />
+        </StackPanel>
+
+        <!-- Status bar -->
+        <Border Margin="0,24,0,0" Background="#F0F4F8" BorderBrush="#D0D8E0"
+                BorderThickness="1" CornerRadius="3" Padding="12,8">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12"
+                       Foreground="#333" TextWrapping="Wrap" />
+        </Border>
+
+    </StackPanel>
+</UserControl>

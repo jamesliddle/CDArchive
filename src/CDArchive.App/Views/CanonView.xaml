@@ -4,9 +4,14 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:local="clr-namespace:CDArchive.Core.Models;assembly=CDArchive.Core"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:CanonViewModel}"
              Loaded="OnLoaded">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+    </UserControl.Resources>
 
     <DockPanel>
         <!-- Status Bar -->
@@ -17,18 +22,44 @@
         </Border>
 
         <DockPanel Margin="5,10,5,5">
-            <!-- Toolbar: Filter + Buttons -->
+
+            <!-- ── Toolbar ── -->
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button Content="Pieces" Padding="12,4" Margin="8,0,0,0" FontSize="12"
-                            x:Name="PiecesButton" Click="OnPiecesClick"
-                            IsEnabled="False" />
+                    <Button x:Name="DeletePieceButton" Content="Delete Piece"
+                            Padding="12,4" Margin="8,0,0,0" FontSize="12"
+                            IsEnabled="False" Foreground="#D32F2F"
+                            Click="OnDeletePieceClick" />
+                    <Button x:Name="NewPieceButton" Content="New Piece"
+                            Padding="12,4" Margin="8,0,0,0" FontSize="12"
+                            IsEnabled="False"
+                            Click="OnNewPieceClick" />
                     <Button Content="New Composer" Padding="12,4" Margin="8,0,0,0" FontSize="12"
                             Click="OnNewComposerClick" />
-                    <Button Content="Delete" Padding="12,4" Margin="8,0,0,0" FontSize="12"
+                    <Button Content="Delete Composer" Padding="12,4" Margin="8,0,0,0" FontSize="12"
                             Foreground="#D32F2F"
-                            Command="{Binding DeleteComposerCommand}" />
+                            Click="OnDeleteComposerClick" />
                 </StackPanel>
+
+                <!-- Sort pieces combo -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="Sort pieces:" VerticalAlignment="Center"
+                               FontSize="12" Foreground="#555" Margin="0,0,6,0" />
+                    <ComboBox x:Name="PieceSortCombo" Width="90" FontSize="12"
+                              SelectedIndex="0"
+                              SelectionChanged="OnPieceSortChanged">
+                        <ComboBoxItem Content="Catalogue" />
+                        <ComboBoxItem Content="Title" />
+                        <ComboBoxItem Content="Category" />
+                        <ComboBoxItem Content="Year" />
+                    </ComboBox>
+                </StackPanel>
+
+                <Button Content="↻ Refresh" Padding="10,4" FontSize="12"
+                        Margin="0,0,12,0"
+                        Command="{Binding LoadDataCommand}"
+                        ToolTip="Reload all data from the database" />
                 <TextBlock Text="Filter:" VerticalAlignment="Center"
                            Margin="0,0,8,0" FontSize="12" Foreground="#555" />
                 <TextBox Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
@@ -36,34 +67,42 @@
                          TextChanged="OnFilterTextChanged" />
             </DockPanel>
 
-            <!-- Column headers + composer list -->
+            <!-- ── Single unified tree panel ── -->
             <Border BorderThickness="1" BorderBrush="#E0E0E0" Background="White">
                 <DockPanel>
-                    <!-- Column headers with GridSplitters -->
+
+                    <!-- Composer column headers (controls composer-level sort) -->
                     <Grid DockPanel.Dock="Top" Margin="0,4,0,4">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="50" MinWidth="35" />
+                            <ColumnDefinition Width="19" />            <!-- expander space -->
+                            <ColumnDefinition Width="65" MinWidth="50" />  <!-- Pieces -->
+                            <ColumnDefinition Width="Auto" />          <!-- splitter -->
+                            <ColumnDefinition Width="*" MinWidth="100" /> <!-- Name -->
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" MinWidth="100" />
+                            <ColumnDefinition Width="75" MinWidth="45" /> <!-- Born -->
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="75" MinWidth="45" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="75" MinWidth="45" />
+                            <ColumnDefinition Width="75" MinWidth="45" /> <!-- Died -->
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" x:Name="HdrPieces" Cursor="Hand"
+
+                        <Border Grid.Column="0" x:Name="LHdrExpander" />
+
+                        <Border Grid.Column="1" x:Name="LHdrPieces" Cursor="Hand"
                                 Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                                 Tag="Pieces">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right" Margin="0,0,8,0">
                                 <TextBlock Text="Pieces" FontSize="12"
                                            FontWeight="SemiBold" Foreground="#555" />
                                 <TextBlock x:Name="SortPieces" FontSize="10" Margin="3,0,0,0"
                                            Foreground="#999" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
-                        <GridSplitter Grid.Column="1" Width="4" Background="Transparent"
+
+                        <GridSplitter Grid.Column="2" Width="4" Background="Transparent"
                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"
                                       Cursor="SizeWE" />
-                        <Border Grid.Column="2" x:Name="HdrName" Cursor="Hand"
+
+                        <Border Grid.Column="3" x:Name="LHdrName" Cursor="Hand"
                                 Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                                 Tag="Name">
                             <StackPanel Orientation="Horizontal">
@@ -73,10 +112,12 @@
                                            Foreground="#999" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
-                        <GridSplitter Grid.Column="3" Width="4" Background="Transparent"
+
+                        <GridSplitter Grid.Column="4" Width="4" Background="Transparent"
                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"
                                       Cursor="SizeWE" />
-                        <Border Grid.Column="4" x:Name="HdrBirth" Cursor="Hand"
+
+                        <Border Grid.Column="5" x:Name="LHdrBirth" Cursor="Hand"
                                 Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                                 Tag="Birth">
                             <StackPanel Orientation="Horizontal">
@@ -86,10 +127,12 @@
                                            Foreground="#999" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
-                        <GridSplitter Grid.Column="5" Width="4" Background="Transparent"
+
+                        <GridSplitter Grid.Column="6" Width="4" Background="Transparent"
                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"
                                       Cursor="SizeWE" />
-                        <Border Grid.Column="6" x:Name="HdrDeath" Cursor="Hand"
+
+                        <Border Grid.Column="7" x:Name="LHdrDeath" Cursor="Hand"
                                 Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                                 Tag="Death">
                             <StackPanel Orientation="Horizontal">
@@ -100,50 +143,217 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+
                     <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0"
                             BorderThickness="0,0,0,1" Margin="0,0,0,2" />
 
-                    <!-- Composer list -->
-                    <ListBox x:Name="ComposerList"
-                             ItemsSource="{Binding FilteredComposers}"
-                             SelectedItem="{Binding SelectedComposer}"
-                             FontSize="13"
-                             BorderThickness="0" Background="White"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             MouseDoubleClick="OnComposerDoubleClick"
-                             SelectionChanged="OnComposerSelectionChanged">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="Padding" Value="0,2" />
+                    <!-- ── Unified tree: Composer → Piece → Subpiece/Version ── -->
+                    <TreeView x:Name="ComposerTree"
+                              BorderThickness="0" Background="White"
+                              FontSize="13"
+                              VirtualizingStackPanel.IsVirtualizing="False"
+                              SelectedItemChanged="OnComposerTreeSelectionChanged">
+                        <TreeView.Template>
+                            <ControlTemplate TargetType="TreeView">
+                                <ScrollViewer Focusable="False" CanContentScroll="False"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Auto" Padding="0">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </TreeView.Template>
+                        <TreeView.Resources>
+
+                            <!-- Expander triangle toggle button -->
+                            <Style x:Key="ExpanderToggle" TargetType="ToggleButton">
+                                <Setter Property="Focusable" Value="False" />
+                                <Setter Property="Width"     Value="16" />
+                                <Setter Property="Height"    Value="16" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" Padding="3">
+                                                <Path x:Name="Arrow"
+                                                      Data="M 0,0 L 6,4 L 0,8 Z"
+                                                      Fill="#888"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="Arrow" Property="Data"
+                                                            Value="M 0,0 L 8,0 L 4,6 Z" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Width="{Binding ActualWidth, ElementName=HdrPieces}">
-                                        <TextBlock Text="{Binding PieceCount}"
-                                                   Foreground="#888888" FontSize="12"
-                                                   TextAlignment="Right" Margin="0,0,8,0" />
+
+                            <!-- Custom TreeViewItem style -->
+                            <Style TargetType="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="False" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TreeViewItem">
+                                            <StackPanel>
+                                                <Border x:Name="Bd" Background="Transparent" Padding="0,1">
+                                                    <ContentPresenter ContentSource="Header" />
+                                                </Border>
+                                                <ItemsPresenter x:Name="ItemsHost"
+                                                                Margin="19,0,0,0"
+                                                                Visibility="Collapsed" />
+                                            </StackPanel>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsExpanded" Value="True">
+                                                    <Setter TargetName="ItemsHost" Property="Visibility" Value="Visible" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#E8F0FE" />
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#F0F0F0" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <EventSetter Event="MouseDoubleClick" Handler="OnTreeItemDoubleClick" />
+                            </Style>
+
+                            <!-- ── Level 1: Composer node ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type vm:ComposerTreeNode}"
+                                                      ItemsSource="{Binding Pieces}">
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrExpander}">
+                                        <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                      IsChecked="{Binding IsExpanded,
+                                                          RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
                                     </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=HdrName}">
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=HdrBirth}">
-                                        <TextBlock Text="{Binding BirthYear}"
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                        <TextBlock Text="{Binding Composer.PieceCount}"
+                                                   TextAlignment="Right" Margin="0,0,8,0"
                                                    Foreground="#888888" FontSize="12" />
                                     </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=HdrDeath}">
-                                        <TextBlock Text="{Binding DeathYear}"
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrName}">
+                                        <TextBlock Text="{Binding Composer.Name}"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Border>
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrBirth}">
+                                        <TextBlock Text="{Binding Composer.BirthYear}"
+                                                   Foreground="#888888" FontSize="12" />
+                                    </Border>
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrDeath}">
+                                        <TextBlock Text="{Binding Composer.DeathYear}"
                                                    Foreground="#888888" FontSize="12" />
                                     </Border>
                                 </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                            </HierarchicalDataTemplate>
+
+                            <!-- ── Level 2: Piece node (expands to show subpieces) ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:CanonPiece}"
+                                                      ItemsSource="{Binding TreeChildren}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <!--
+                                        The TreeViewItem indent is 19 px (= LHdrExpander width).
+                                        We mirror the LHdrPieces column with a same-width Border so
+                                        the title lands exactly on the Name column.  The expander
+                                        sits right-aligned inside that placeholder; 4 px after it
+                                        matches the GridSplitter between the Pieces and Name columns.
+                                    -->
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
+                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                          IsChecked="{Binding IsExpanded,
+                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                          Visibility="{Binding HasTreeChildren,
+                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" /> <!-- matches the GridSplitter column -->
+                                    <TextBlock Text="{Binding DisplayTitleShort}"
+                                               FontSize="12" Foreground="#333"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="420">
+                                        <TextBlock.ToolTip>
+                                            <ToolTip MaxWidth="600">
+                                                <TextBlock Text="{Binding ToolTipText}"
+                                                           TextWrapping="Wrap" FontSize="13" />
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Catalog}"
+                                               FontSize="11" Foreground="#888"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                            <!-- ── Level 3: Subpiece / movement node ── -->
+                            <!--
+                                The TreeViewItem style indents every level's children by 19 px.
+                                By mirroring the same LHdrPieces border + 4 px splitter gap used
+                                in the piece template, each deeper level's title lands exactly
+                                19 px further right than its parent's title, giving a natural
+                                progressive indent that also tracks the Pieces column splitter.
+                            -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:SubpieceDisplayNode}"
+                                                      ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
+                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                          IsChecked="{Binding IsExpanded,
+                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                          Visibility="{Binding HasChildren,
+                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" />
+                                    <TextBlock Text="{Binding DisplayTitle}"
+                                               FontSize="12" Foreground="#444"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="380">
+                                        <TextBlock.ToolTip>
+                                            <ToolTip MaxWidth="600">
+                                                <TextBlock Text="{Binding Piece.ToolTipText}"
+                                                           TextWrapping="Wrap" FontSize="13" />
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Piece.Category}"
+                                               FontSize="11" Foreground="#999"
+                                               Margin="10,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                            <!-- ── Level 3 (alt): Version node ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:VersionDisplayNode}"
+                                                      ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
+                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                          IsChecked="{Binding IsExpanded,
+                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                          Visibility="{Binding HasSubpieces,
+                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" />
+                                    <TextBlock Text="{Binding DisplayTitle}"
+                                               FontSize="12" Foreground="#666" FontStyle="Italic"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="380" />
+                                    <TextBlock Text="{Binding Version.InstrumentationCategory}"
+                                               FontSize="11" Foreground="#999"
+                                               Margin="10,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                        </TreeView.Resources>
+                    </TreeView>
+
                 </DockPanel>
             </Border>
+
         </DockPanel>
     </DockPanel>
 </UserControl>
