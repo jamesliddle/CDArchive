@@ -151,4 +151,7 @@ public class CanonDataService : ICanonDataService
         var json = JsonSerializer.Serialize(pickLists, WriteOptions);
         await File.WriteAllTextAsync(PickListsFilePath, json);
     }
+
+    /// <summary>No-op: CanonDataService is JSON-only and has no initialisation state to reset.</summary>
+    public void ResetInitialisation() { }
 }

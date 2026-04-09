@@ -80,6 +80,9 @@ public class SqliteCanonDataService : ICanonDataService
             using var ctx = CreateContext();
             await ctx.Database.EnsureCreatedAsync();
 
+            // Apply any schema additions that post-date the initial EnsureCreated.
+            await ApplySchemaUpgradesAsync(ctx);
+
             if (!await ctx.Pieces.AnyAsync())
                 await SeedFromJsonAsync(ctx);
 
@@ -88,6 +91,36 @@ public class SqliteCanonDataService : ICanonDataService
         finally
         {
             _initLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Adds columns that were introduced after the database was first created.
+    /// Uses "ALTER TABLE … ADD COLUMN IF NOT EXISTS" semantics via a PRAGMA check
+    /// so each statement is safe to run on every startup.
+    /// </summary>
+    private static async Task ApplySchemaUpgradesAsync(CanonDbContext ctx)
+    {
+        // Each entry: (table, column, column-definition)
+        var additions = new[]
+        {
+            ("Pieces", "ComposersJson", "TEXT"),
+        };
+
+        foreach (var (table, column, definition) in additions)
+        {
+            // PRAGMA table_info returns one row per column; if the column is absent the result is empty.
+            // All interpolated values are compile-time literals — no injection risk.
+#pragma warning disable EF1002
+            var exists = await ctx.Database
+                .SqlQueryRaw<int>(
+                    $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = '{column}'")
+                .AnyAsync();
+
+            if (!exists)
+                await ctx.Database.ExecuteSqlRawAsync(
+                    $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {definition}");
+#pragma warning restore EF1002
         }
     }
 
@@ -107,6 +140,12 @@ public class SqliteCanonDataService : ICanonDataService
 
         await ctx.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Resets the initialisation flag so the next operation re-creates and
+    /// re-seeds the database. Call this immediately before deleting the DB file.
+    /// </summary>
+    public void ResetInitialisation() => _initialised = false;
 
     private CanonDbContext CreateContext() => new(_dbPath);
 
@@ -263,6 +302,7 @@ public class SqliteCanonDataService : ICanonDataService
         CatalogSortSuffix     = NullIfEmpty(p.CatalogSortSuffix),
 
         // JSON blobs
+        ComposersJson         = SerializeList(p.Composers),
         CatalogInfoJson       = SerializeList(p.CatalogInfo),
         InstrumentationJson   = SerializeElement(p.Instrumentation),
         CompositionYearsJson  = SerializeElement(p.CompositionYears),
@@ -293,6 +333,7 @@ public class SqliteCanonDataService : ICanonDataService
         MusicNumber           = r.MusicNumber,
         FirstLine             = r.FirstLine,
 
+        Composers             = DeserializeList<ComposerCredit>(r.ComposersJson),
         CatalogInfo           = DeserializeList<CatalogInfo>(r.CatalogInfoJson),
         Instrumentation       = DeserializeElement(r.InstrumentationJson),
         CompositionYears      = DeserializeElement(r.CompositionYearsJson),

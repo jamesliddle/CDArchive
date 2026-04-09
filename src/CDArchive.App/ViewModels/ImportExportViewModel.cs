@@ -7,6 +7,7 @@ using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 
 namespace CDArchive.App.ViewModels;
@@ -196,6 +197,8 @@ public partial class ImportExportViewModel : ObservableObject
 
         try
         {
+            _svc.ResetInitialisation();
+            SqliteConnection.ClearAllPools();
             File.Delete(dbPath);
             StatusMessage = "Database deleted. Restart the app to reseed from JSON.";
         }
@@ -231,7 +234,11 @@ public partial class ImportExportViewModel : ObservableObject
         await RunAsync(async () =>
         {
             if (File.Exists(dbPath))
+            {
+                _svc.ResetInitialisation();
+                SqliteConnection.ClearAllPools();
                 File.Delete(dbPath);
+            }
 
             // Load from chosen files and save through the service,
             // which will recreate and seed the DB.

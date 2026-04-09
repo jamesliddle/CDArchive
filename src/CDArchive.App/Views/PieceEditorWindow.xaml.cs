@@ -5,14 +5,21 @@ using CDArchive.Core.Models;
 
 namespace CDArchive.App.Views;
 
+public enum PieceEditorMode { Piece, Subpiece, Version }
+
 public partial class PieceEditorWindow : Window
 {
     private readonly CanonPiece _piece;
     private readonly CanonPickLists _pickLists;
-    private readonly string _composerName;
+    private readonly PieceEditorMode _mode;
+    private CanonPieceVersion? _sourceVersion; // non-null when editing a version
+    private readonly string? _inheritedComposer;
+    private readonly IReadOnlyList<ComposerCredit>? _inheritedComposers;
+    private readonly List<ComposerCredit> _composers;
     private readonly List<CanonPiece> _subpieces;
     private readonly List<CanonPieceVersion> _versions;
     private readonly List<RoleEntry> _roles;
+    private readonly List<TempoInfo> _tempos;
     private readonly List<InstrumentEntry> _pieceInstruments = [];
     private readonly List<CatalogInfo> _catalogEntries = [];
     private readonly List<string> _textAuthors = [];
@@ -31,27 +38,162 @@ public partial class PieceEditorWindow : Window
     public Dictionary<string, string> KeyRenames { get; } = new();
     public Dictionary<string, string> InstrumentRenames { get; } = new();
 
+    // ── Piece / Subpiece constructor ─────────────────────────────────────────
+
     public PieceEditorWindow(
         CanonPickLists pickLists,
         string composerName,
-        CanonPiece? piece = null)
+        CanonPiece? piece = null,
+        IReadOnlyList<string>? composerNames = null,
+        PieceEditorMode mode = PieceEditorMode.Piece,
+        string? inheritedComposer = null,
+        IReadOnlyList<ComposerCredit>? inheritedComposers = null)
     {
         InitializeComponent();
 
-        _pickLists = pickLists;
-        _composerName = composerName;
-        _piece = piece ?? new CanonPiece { Composer = composerName };
-        _subpieces = _piece.Subpieces?.ToList() ?? [];
-        _versions = _piece.Versions?.ToList() ?? [];
-        _roles = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
+        _pickLists          = pickLists;
+        _mode               = mode;
+        _inheritedComposer  = inheritedComposer;
+        _inheritedComposers = inheritedComposers;
+        _piece      = piece ?? new CanonPiece { Composer = composerName };
+        _composers  = _piece.Composers?.ToList() ?? [];
+        _subpieces  = _piece.Subpieces?.ToList() ?? [];
+        _versions   = _piece.Versions?.ToList() ?? [];
+        _roles      = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
+        _tempos     = _piece.Tempos?.Select(CloneTempo).ToList() ?? [];
 
-        Title = piece == null ? "New Piece" : "Edit Piece";
+        Title = BuildTitle(mode, piece == null);
+
+        ComposerCombo.ItemsSource = composerNames ?? [];
 
         PopulateDropdowns();
         LoadFromPiece();
+        RefreshTempoList();
         RefreshSubpieceList();
         RefreshVersionList();
         RefreshRoleList();
+    }
+
+    // ── Version constructor ───────────────────────────────────────────────────
+
+    public PieceEditorWindow(
+        CanonPickLists pickLists,
+        CanonPieceVersion? version,
+        bool showSubpieceNumbers = true,
+        IReadOnlyList<string>? composerNames = null,
+        string? inheritedComposer = null,
+        IReadOnlyList<ComposerCredit>? inheritedComposers = null)
+    {
+        InitializeComponent();
+
+        _pickLists          = pickLists;
+        _mode               = PieceEditorMode.Version;
+        _inheritedComposer  = inheritedComposer;
+        _inheritedComposers = inheritedComposers;
+        _sourceVersion = version ?? new CanonPieceVersion();
+        _piece         = VersionToPiece(_sourceVersion, showSubpieceNumbers);
+        _composers     = _piece.Composers?.ToList() ?? [];
+        _subpieces     = _piece.Subpieces?.ToList() ?? [];
+        _versions      = [];  // versions cannot have nested versions
+        _roles         = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
+        _tempos        = _piece.Tempos?.Select(CloneTempo).ToList() ?? [];
+
+        Title = BuildTitle(PieceEditorMode.Version, version == null);
+
+        // Show Version Description; hide the Versions section (not applicable)
+        VersionDescriptionSection.Visibility = Visibility.Visible;
+        VersionDescriptionBox.Text = _sourceVersion.Description ?? "";
+        VersionsSectionHeader.Visibility = Visibility.Collapsed;
+        VersionsSectionPanel.Visibility  = Visibility.Collapsed;
+
+        ComposerCombo.ItemsSource = composerNames ?? [];
+
+        PopulateDropdowns();
+        LoadFromPiece();
+        RefreshTempoList();
+        RefreshSubpieceList();
+        RefreshVersionList();
+        RefreshRoleList();
+    }
+
+    // ── Constructor helpers ───────────────────────────────────────────────────
+
+    private static string BuildTitle(PieceEditorMode mode, bool isNew) => mode switch
+    {
+        PieceEditorMode.Subpiece => isNew ? "New Subpiece" : "Edit Subpiece",
+        PieceEditorMode.Version  => isNew ? "New Version"  : "Edit Version",
+        _                        => isNew ? "New Piece"    : "Edit Piece",
+    };
+
+    /// <summary>
+    /// Converts a <see cref="CanonPieceVersion"/> into a transient <see cref="CanonPiece"/>
+    /// so the unified editor can work with it unchanged.
+    /// </summary>
+    private static CanonPiece VersionToPiece(CanonPieceVersion v, bool showSubpieceNumbers)
+    {
+        // Use showSubpieceNumbers as the default only when the version has no explicit override.
+        bool? numberedOverride = v.NumberedSubpieces;
+        return new CanonPiece
+        {
+            Composer               = v.Composer,
+            Composers              = v.Composers?.ToList(),
+            Form                   = v.Form,
+            Title                  = v.Title,
+            TitleEnglish           = v.TitleEnglish,
+            Subtitle               = v.Subtitle,
+            Nickname               = v.Nickname,
+            Number                 = v.Number,
+            MusicNumber            = v.MusicNumber,
+            KeyTonality            = v.KeyTonality,
+            KeyMode                = v.KeyMode,
+            CatalogInfo            = v.CatalogInfo?.ToList(),
+            InstrumentationCategory= v.InstrumentationCategory,
+            Instrumentation        = v.Instrumentation,
+            PublicationYear        = v.PublicationYear,
+            CompositionYears       = v.CompositionYears,
+            // Preserve explicit override; if null, seed from parent's default so the
+            // checkbox shows the right value.
+            NumberedSubpieces      = numberedOverride ?? (showSubpieceNumbers ? null : false),
+            SubpiecesStart         = v.SubpiecesStart,
+            FirstLine              = v.FirstLine,
+            TextAuthor             = v.TextAuthor,
+            Roles                  = v.Roles,
+            Tempos                 = v.Tempos?.ToList(),
+            Subpieces              = v.Subpieces?.ToList(),
+        };
+    }
+
+    /// <summary>
+    /// Copies the edited <see cref="_piece"/> back into the source
+    /// <see cref="CanonPieceVersion"/> after the user clicks OK.
+    /// </summary>
+    private void CopyPieceToVersion()
+    {
+        var v = _sourceVersion!;
+        v.Description           = NullIfEmpty(VersionDescriptionBox.Text);
+        v.Composer              = _piece.Composer;
+        v.Composers             = _piece.Composers;
+        v.Form                  = _piece.Form;
+        v.Title                 = _piece.Title;
+        v.TitleEnglish          = _piece.TitleEnglish;
+        v.Subtitle              = _piece.Subtitle;
+        v.Nickname              = _piece.Nickname;
+        v.Number                = _piece.Number;
+        v.MusicNumber           = _piece.MusicNumber;
+        v.KeyTonality           = _piece.KeyTonality;
+        v.KeyMode               = _piece.KeyMode;
+        v.CatalogInfo           = _piece.CatalogInfo;
+        v.InstrumentationCategory = _piece.InstrumentationCategory;
+        v.Instrumentation       = _piece.Instrumentation;
+        v.PublicationYear       = _piece.PublicationYear;
+        v.CompositionYears      = _piece.CompositionYears;
+        v.NumberedSubpieces     = _piece.NumberedSubpieces;
+        v.SubpiecesStart        = _piece.SubpiecesStart;
+        v.FirstLine             = _piece.FirstLine;
+        v.TextAuthor            = _piece.TextAuthor;
+        v.Roles                 = _piece.Roles;
+        v.Tempos                = _piece.Tempos;
+        v.Subpieces             = _piece.Subpieces;
     }
 
     private void PopulateDropdowns()
@@ -64,17 +206,26 @@ public partial class PieceEditorWindow : Window
 
     private void LoadFromPiece()
     {
+        ComposerCombo.Text = _piece.Composer ?? _inheritedComposer ?? "";
+
+        // Seed Other contributors from parent if this piece/subpiece/version has none of its own.
+        if (_composers.Count == 0 && _inheritedComposers != null)
+            _composers.AddRange(_inheritedComposers);
+        RefreshComposerCreditList();
+
         FormCombo.Text = _piece.Form ?? "";
         TitleBox.Text = _piece.Title ?? "";
         TitleEnglishBox.Text = _piece.TitleEnglish ?? "";
         SubtitleBox.Text = _piece.Subtitle ?? "";
         NicknameBox.Text = _piece.Nickname ?? "";
         NumberBox.Text = _piece.Number?.ToString() ?? "";
+        MusicNumberBox.Text = _piece.MusicNumber ?? "";
         KeyTonalityCombo.Text = _piece.KeyTonality ?? "";
         CategoryCombo.Text = _piece.InstrumentationCategory ?? "";
         NumberedSubpiecesCheck.IsChecked = _piece.NumberedSubpieces ?? _piece.EffectiveSubpiecesNumbered;
         SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
         PubYearBox.Text = _piece.PublicationYear?.ToString() ?? "";
+        FirstLineBox.Text = _piece.FirstLine ?? "";
 
         // Composition years (stored as a JSON string value)
         CompYearsBox.Text = _piece.CompositionYears?.ValueKind == System.Text.Json.JsonValueKind.String
@@ -116,7 +267,8 @@ public partial class PieceEditorWindow : Window
 
     private void SaveToPiece()
     {
-        _piece.Composer = _composerName;
+        _piece.Composer = NullIfEmpty(ComposerCombo.Text);
+        _piece.Composers = _composers.Count > 0 ? _composers.ToList() : null;
         _piece.Form = NullIfEmpty(FormCombo.Text);
         _piece.Title = NullIfEmpty(TitleBox.Text);
         _piece.TitleEnglish = NullIfEmpty(TitleEnglishBox.Text);
@@ -126,7 +278,9 @@ public partial class PieceEditorWindow : Window
         _piece.KeyTonality = NullIfEmpty(KeyTonalityCombo.Text);
 
         _piece.Number = int.TryParse(NumberBox.Text.Trim(), out var n) ? n : null;
+        _piece.MusicNumber = NullIfEmpty(MusicNumberBox.Text);
         _piece.PublicationYear = int.TryParse(PubYearBox.Text.Trim(), out var y) ? y : null;
+        _piece.FirstLine = NullIfEmpty(FirstLineBox.Text);
 
         var selectedMode = (KeyModeCombo.SelectedItem as ComboBoxItem)?.Content as string;
         _piece.KeyMode = string.IsNullOrEmpty(selectedMode) ? null : selectedMode;
@@ -166,8 +320,71 @@ public partial class PieceEditorWindow : Window
         // Versions
         _piece.Versions = _versions.Count > 0 ? _versions.ToList() : null;
 
+        // Tempos
+        _piece.Tempos = _tempos.Count > 0 ? _tempos.ToList() : null;
+
         // Roles
         _piece.Roles = RoleEntry.SerializeRoles(_roles);
+    }
+
+    // --- Composer credit management ---
+
+    private void RefreshComposerCreditList()
+    {
+        var selected = (ComposerCreditList.SelectedItem as ListBoxItem)?.Tag;
+        ComposerCreditList.Items.Clear();
+        foreach (var credit in _composers)
+        {
+            var item = new ListBoxItem { Content = credit.DisplayLabel, Tag = credit };
+            ComposerCreditList.Items.Add(item);
+            if (credit == selected) ComposerCreditList.SelectedItem = item;
+        }
+    }
+
+    private ComposerCredit? SelectedComposerCredit =>
+        (ComposerCreditList.SelectedItem as ListBoxItem)?.Tag as ComposerCredit;
+
+    private void OnAddComposerCreditClick(object sender, RoutedEventArgs e)
+    {
+        var composerNames = (ComposerCombo.ItemsSource as IReadOnlyList<string>) ?? [];
+        var editor = new ComposerCreditEditorWindow(composerNames, _pickLists.CreativeRoles)
+        {
+            Owner = this
+        };
+        if (editor.ShowDialog() == true)
+        {
+            _composers.Add(editor.Credit);
+            RefreshComposerCreditList();
+        }
+    }
+
+    private void OnEditComposerCreditClick(object sender, RoutedEventArgs e) =>
+        EditSelectedComposerCredit();
+
+    private void OnComposerCreditDoubleClick(object sender, MouseButtonEventArgs e) =>
+        EditSelectedComposerCredit();
+
+    private void EditSelectedComposerCredit()
+    {
+        if (SelectedComposerCredit is not { } credit) return;
+        var composerNames = (ComposerCombo.ItemsSource as IReadOnlyList<string>) ?? [];
+        var editor = new ComposerCreditEditorWindow(composerNames, _pickLists.CreativeRoles, credit)
+        {
+            Owner = this
+        };
+        if (editor.ShowDialog() == true)
+        {
+            var idx = _composers.IndexOf(credit);
+            _composers[idx] = editor.Credit;
+            RefreshComposerCreditList();
+        }
+    }
+
+    private void OnRemoveComposerCreditClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedComposerCredit is not { } credit) return;
+        _composers.Remove(credit);
+        RefreshComposerCreditList();
     }
 
     // --- Subpiece management ---
@@ -208,12 +425,15 @@ public partial class PieceEditorWindow : Window
 
     private void OnAddSubpieceClick(object sender, RoutedEventArgs e)
     {
-        var newMovement = new CanonPiece { Number = _subpieces.Count + 1 };
-
-        var editor = new MovementEditorWindow(_pickLists, newMovement) { Owner = this };
+        var newSubpiece = new CanonPiece { Number = _subpieces.Count + 1 };
+        var editor = new PieceEditorWindow(
+            _pickLists, "", newSubpiece,
+            ComposerCombo.ItemsSource as IReadOnlyList<string>, PieceEditorMode.Subpiece,
+            inheritedComposer: ComposerCombo.Text,
+            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _subpieces.Add(editor.Movement);
+            _subpieces.Add(editor.Piece);
             RefreshSubpieceList();
         }
     }
@@ -231,12 +451,13 @@ public partial class PieceEditorWindow : Window
     private void EditSelectedSubpiece()
     {
         if (SelectedSubpiece is not { } sp) return;
-
-        var editor = new MovementEditorWindow(_pickLists, sp) { Owner = this };
+        var editor = new PieceEditorWindow(
+            _pickLists, sp.Composer ?? "", sp,
+            ComposerCombo.ItemsSource as IReadOnlyList<string>, PieceEditorMode.Subpiece,
+            inheritedComposer: ComposerCombo.Text,
+            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
         if (editor.ShowDialog() == true)
-        {
             RefreshSubpieceList();
-        }
     }
 
     private void OnRemoveSubpieceClick(object sender, RoutedEventArgs e)
@@ -331,6 +552,98 @@ public partial class PieceEditorWindow : Window
         (_roles[idx], _roles[idx + 1]) = (_roles[idx + 1], _roles[idx]);
         RefreshRoleList();
     }
+
+    // --- Tempo management ---
+
+    private void RefreshTempoList()
+    {
+        TempoList.Items.Clear();
+        foreach (var t in _tempos.OrderBy(t => t.Number))
+        {
+            var desc = !string.IsNullOrEmpty(t.Description) ? t.Description : "(no description)";
+            TempoList.Items.Add(new ListBoxItem
+            {
+                Content = $"{t.Number}. {desc}",
+                Tag = t
+            });
+        }
+    }
+
+    private TempoInfo? SelectedTempo =>
+        (TempoList.SelectedItem as ListBoxItem)?.Tag as TempoInfo;
+
+    private void OnAddTempoClick(object sender, RoutedEventArgs e)
+    {
+        var nextNumber = _tempos.Count > 0 ? _tempos.Max(t => t.Number) + 1 : 1;
+        var editor = new TempoEditorWindow(nextNumber) { Owner = this };
+        if (editor.ShowDialog() == true)
+        {
+            _tempos.Add(editor.Tempo);
+            RefreshTempoList();
+        }
+    }
+
+    private void OnEditTempoClick(object sender, RoutedEventArgs e) => EditSelectedTempo();
+
+    private void OnTempoDoubleClick(object sender, MouseButtonEventArgs e) => EditSelectedTempo();
+
+    private void EditSelectedTempo()
+    {
+        if (SelectedTempo is not { } tempo) return;
+        var editor = new TempoEditorWindow(tempo) { Owner = this };
+        if (editor.ShowDialog() == true)
+            RefreshTempoList();
+    }
+
+    private void OnRemoveTempoClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedTempo is not { } tempo) return;
+        _tempos.Remove(tempo);
+        RefreshTempoList();
+    }
+
+    private void OnMoveTempoUpClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedTempo is not { } tempo) return;
+        var ordered = _tempos.OrderBy(t => t.Number).ToList();
+        var idx = ordered.IndexOf(tempo);
+        if (idx <= 0) return;
+        (ordered[idx].Number, ordered[idx - 1].Number) =
+            (ordered[idx - 1].Number, ordered[idx].Number);
+        RefreshTempoList();
+        SelectTempoByRef(tempo);
+    }
+
+    private void OnMoveTempoDownClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedTempo is not { } tempo) return;
+        var ordered = _tempos.OrderBy(t => t.Number).ToList();
+        var idx = ordered.IndexOf(tempo);
+        if (idx < 0 || idx >= ordered.Count - 1) return;
+        (ordered[idx].Number, ordered[idx + 1].Number) =
+            (ordered[idx + 1].Number, ordered[idx].Number);
+        RefreshTempoList();
+        SelectTempoByRef(tempo);
+    }
+
+    private void SelectTempoByRef(TempoInfo tempo)
+    {
+        foreach (ListBoxItem item in TempoList.Items)
+        {
+            if (item.Tag == tempo)
+            {
+                TempoList.SelectedItem = item;
+                break;
+            }
+        }
+    }
+
+    private static TempoInfo CloneTempo(TempoInfo t) => new()
+    {
+        Number = t.Number,
+        Description = t.Description,
+        SubTempos = t.SubTempos?.Select(CloneTempo).ToList()
+    };
 
     // --- Catalog list ---
 
@@ -525,10 +838,16 @@ public partial class PieceEditorWindow : Window
 
     private void OnAddVersionClick(object sender, RoutedEventArgs e)
     {
-        var editor = new VersionEditorWindow(_pickLists, showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true) { Owner = this };
+        var newVersion = new CanonPieceVersion();
+        var editor = new PieceEditorWindow(
+            _pickLists, newVersion,
+            showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true,
+            composerNames: ComposerCombo.ItemsSource as IReadOnlyList<string>,
+            inheritedComposer: ComposerCombo.Text,
+            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _versions.Add(editor.Version);
+            _versions.Add(newVersion);
             RefreshVersionList();
         }
     }
@@ -540,7 +859,12 @@ public partial class PieceEditorWindow : Window
     private void EditSelectedVersion()
     {
         if (SelectedVersion is not { } v) return;
-        var editor = new VersionEditorWindow(_pickLists, v, showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true) { Owner = this };
+        var editor = new PieceEditorWindow(
+            _pickLists, v,
+            showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true,
+            composerNames: ComposerCombo.ItemsSource as IReadOnlyList<string>,
+            inheritedComposer: ComposerCombo.Text,
+            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
         if (editor.ShowDialog() == true) RefreshVersionList();
     }
 
@@ -574,6 +898,8 @@ public partial class PieceEditorWindow : Window
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
         SaveToPiece();
+        if (_mode == PieceEditorMode.Version)
+            CopyPieceToVersion();
         DialogResult = true;
     }
 

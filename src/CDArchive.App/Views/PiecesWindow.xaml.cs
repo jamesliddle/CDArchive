@@ -249,7 +249,9 @@ public partial class PiecesWindow : Window
         }
         else if (item.DataContext is SubpieceDisplayNode node)
         {
-            var window = new MovementEditorWindow(_vm.PickLists, node.Piece)
+            var window = new PieceEditorWindow(
+                _vm.PickLists, node.Piece.Composer ?? "", node.Piece, null, PieceEditorMode.Subpiece,
+                inheritedComposer: _composerName)
             {
                 Owner = this
             };

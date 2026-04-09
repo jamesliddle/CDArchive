@@ -41,6 +41,17 @@
         <!-- Form fields -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
           <StackPanel>
+            <!-- Version Description — visible only when editing a version -->
+            <Grid x:Name="VersionDescriptionSection" Visibility="Collapsed" Margin="0,0,0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Version description" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="VersionDescriptionBox" />
+            </Grid>
+
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="110" />
@@ -61,39 +72,83 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="Form" Style="{StaticResource FieldLabel}" />
+                <!-- Composer (primary) -->
+                <TextBlock Grid.Row="0" Text="Composer" Style="{StaticResource FieldLabel}" />
                 <ComboBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                           x:Name="ComposerCombo"
+                           ToolTip="Primary composer — determines which composer this piece is grouped under" />
+
+                <!-- Additional composer credits -->
+                <TextBlock Grid.Row="1" Text="Other contributors" Style="{StaticResource FieldLabel}"
+                           VerticalAlignment="Top" Margin="0,6,8,0" />
+                <Border Grid.Row="1" Grid.Column="1" Margin="0,3"
+                        BorderThickness="1" BorderBrush="#CCC">
+                    <StackPanel>
+                        <DockPanel MinHeight="20" MaxHeight="72">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Vertical">
+                                <Button Content="✕" Padding="6,3" FontSize="11" Margin="2,2,2,1"
+                                        ToolTip="Remove selected credit"
+                                        Click="OnRemoveComposerCreditClick" />
+                                <Button Content="✎" Padding="6,3" FontSize="11" Margin="2,1,2,2"
+                                        ToolTip="Edit selected credit"
+                                        Click="OnEditComposerCreditClick" />
+                            </StackPanel>
+                            <ListBox x:Name="ComposerCreditList" FontSize="12" BorderThickness="0"
+                                     MouseDoubleClick="OnComposerCreditDoubleClick" />
+                        </DockPanel>
+                        <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
+                        <DockPanel Margin="4,4,4,4">
+                            <Button DockPanel.Dock="Right" Content="Add" Padding="8,3" FontSize="11"
+                                    Margin="4,0,0,0" Click="OnAddComposerCreditClick" />
+                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#888"
+                                       Text="Add composers with creative roles (orch., arr., etc.)" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="2" Text="Form" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCombo}"
                            x:Name="FormCombo" />
 
-                <TextBlock Grid.Row="1" Text="Title" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="3" Text="Title" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="TitleBox" />
 
-                <TextBlock Grid.Row="2" Text="Title (English)" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="4" Text="Title (English)" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="TitleEnglishBox"
                            ToolTip="English translation of a non-English title" />
 
-                <TextBlock Grid.Row="3" Text="Subtitle" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="5" Text="Subtitle" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="SubtitleBox" />
 
-                <TextBlock Grid.Row="4" Text="Nickname" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="6" Text="Nickname" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="NicknameBox" />
 
-                <TextBlock Grid.Row="5" Text="Number" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="NumberBox" Width="80" HorizontalAlignment="Left" />
+                <TextBlock Grid.Row="7" Text="Number" Style="{StaticResource FieldLabel}" />
+                <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal">
+                    <TextBox x:Name="NumberBox" Style="{StaticResource FieldBox}"
+                             Width="60" />
+                    <TextBlock Text="Music No." VerticalAlignment="Center"
+                               Foreground="#555" FontSize="12" Margin="14,0,8,0" />
+                    <TextBox x:Name="MusicNumberBox" Style="{StaticResource FieldBox}"
+                             Width="60"
+                             ToolTip="Visible number shown to the user (e.g. opera number 1, 2 …). Independent of the ordering sequence number." />
+                </StackPanel>
 
-                <TextBlock Grid.Row="6" Text="Key Tonality" Style="{StaticResource FieldLabel}" />
-                <ComboBox  Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                <TextBlock Grid.Row="8" Text="Key Tonality" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="8" Grid.Column="1" Style="{StaticResource FieldCombo}"
                            x:Name="KeyTonalityCombo" Width="120" HorizontalAlignment="Left" />
 
-                <TextBlock Grid.Row="7" Text="Key Mode" Style="{StaticResource FieldLabel}" />
-                <ComboBox  Grid.Row="7" Grid.Column="1" Width="120" HorizontalAlignment="Left"
+                <TextBlock Grid.Row="9" Text="Key Mode" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="9" Grid.Column="1" Width="120" HorizontalAlignment="Left"
                            Margin="0,3" Padding="4,4" FontSize="13"
                            x:Name="KeyModeCombo">
                     <ComboBoxItem Content="" />
@@ -102,9 +157,9 @@
                 </ComboBox>
 
                 <!-- Catalogue — supports multiple catalog systems (e.g. Op. + B.) -->
-                <TextBlock Grid.Row="8" Text="Catalogue" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Row="10" Text="Catalogue" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
-                <Border Grid.Row="8" Grid.Column="1" Margin="0,3"
+                <Border Grid.Row="10" Grid.Column="1" Margin="0,3"
                         BorderThickness="1" BorderBrush="#CCC">
                     <StackPanel>
                         <DockPanel MinHeight="20" MaxHeight="72">
@@ -131,13 +186,13 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Grid.Row="9" Text="Category" Style="{StaticResource FieldLabel}" />
-                <ComboBox  Grid.Row="9" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                <TextBlock Grid.Row="11" Text="Category" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="11" Grid.Column="1" Style="{StaticResource FieldCombo}"
                            x:Name="CategoryCombo" Width="160" HorizontalAlignment="Left" />
 
-                <TextBlock Grid.Row="10" Text="Instrumentation" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Row="12" Text="Instrumentation" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
-                <Grid Grid.Row="10" Grid.Column="1" Margin="0,3" Height="160">
+                <Grid Grid.Row="12" Grid.Column="1" Margin="0,3" Height="160">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -180,19 +235,24 @@
                     </DockPanel>
                 </Grid>
 
-                <TextBlock Grid.Row="11" Text="Pub. Year" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="11" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="13" Text="Pub. Year" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="13" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="PubYearBox" Width="80" HorizontalAlignment="Left" />
 
-                <TextBlock Grid.Row="12" Text="Comp. Years" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="12" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="14" Text="Comp. Years" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="14" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="CompYearsBox"
                            ToolTip="Year(s) of composition, e.g. 1803, 1803-1804, c1893" />
 
+                <TextBlock Grid.Row="15" Text="First Line" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="15" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="FirstLineBox"
+                           ToolTip="Opening line of text for vocal numbers" />
+
                 <!-- Text Author — supports multiple names -->
-                <TextBlock Grid.Row="13" Text="Text Author" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Row="16" Text="Text Author" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
-                <Border Grid.Row="13" Grid.Column="1" Margin="0,3"
+                <Border Grid.Row="16" Grid.Column="1" Margin="0,3"
                         BorderThickness="1" BorderBrush="#CCC">
                     <StackPanel>
                         <DockPanel MinHeight="20" MaxHeight="72">
@@ -214,9 +274,35 @@
 
             </Grid>
 
+            <!-- Tempo Indications section -->
+            <TextBlock Text="Tempo Indications" FontWeight="SemiBold" FontSize="12"
+                       Foreground="#555" Margin="0,14,0,6" />
+
+            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                    Padding="6" MinHeight="80">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
+                        <Button Content="Add" Padding="8,3" FontSize="11"
+                                Margin="0,0,0,0" Click="OnAddTempoClick" />
+                        <Button Content="Edit" Padding="8,3" FontSize="11"
+                                Margin="0,4,0,0" Click="OnEditTempoClick" />
+                        <Button Content="Remove" Padding="8,3" FontSize="11"
+                                Margin="0,4,0,0" Click="OnRemoveTempoClick" />
+                        <Border Height="8" />
+                        <Button Content="Up" Padding="8,3" FontSize="11"
+                                Margin="0,0,0,0" Click="OnMoveTempoUpClick" />
+                        <Button Content="Down" Padding="8,3" FontSize="11"
+                                Margin="0,4,0,0" Click="OnMoveTempoDownClick" />
+                    </StackPanel>
+                    <ListBox x:Name="TempoList" FontSize="12" MinHeight="60"
+                             BorderThickness="1" BorderBrush="#CCC"
+                             MouseDoubleClick="OnTempoDoubleClick" />
+                </DockPanel>
+            </Border>
+
             <!-- Subpieces (movements) section -->
             <DockPanel Margin="0,14,0,6" LastChildFill="False">
-                <TextBlock Text="Movements / Subpieces" FontWeight="SemiBold" FontSize="12"
+                <TextBlock Text="Subpieces" FontWeight="SemiBold" FontSize="12"
                            Foreground="#555" VerticalAlignment="Center" />
                 <CheckBox x:Name="NumberedSubpiecesCheck" Content="Numbered" FontSize="11"
                           Foreground="#666" Margin="14,0,0,0" VerticalAlignment="Center"
@@ -251,11 +337,13 @@
                 </DockPanel>
             </Border>
 
-            <!-- Versions section -->
-            <TextBlock Text="Versions" FontWeight="SemiBold" FontSize="12"
+            <!-- Versions section — hidden when editing a version (versions cannot have versions) -->
+            <TextBlock x:Name="VersionsSectionHeader"
+                       Text="Versions" FontWeight="SemiBold" FontSize="12"
                        Foreground="#555" Margin="0,14,0,6" />
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+            <Border x:Name="VersionsSectionPanel"
+                    BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
                     Padding="6" MinHeight="60">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">

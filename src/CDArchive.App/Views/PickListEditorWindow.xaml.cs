@@ -12,6 +12,7 @@ public partial class PickListEditorWindow : Window
     public ObservableCollection<string> CatalogPrefixes { get; }
     public ObservableCollection<string> KeyTonalities { get; }
     public ObservableCollection<string> Instruments { get; }
+    public ObservableCollection<string> CreativeRoles { get; }
 
     /// <summary>Renames accumulated during editing: old value → new value.</summary>
     public Dictionary<string, string> FormRenames { get; } = new();
@@ -30,12 +31,14 @@ public partial class PickListEditorWindow : Window
         CatalogPrefixes = new ObservableCollection<string>(pickLists.CatalogPrefixes);
         KeyTonalities = new ObservableCollection<string>(pickLists.KeyTonalities);
         Instruments = new ObservableCollection<string>(pickLists.Instruments);
+        CreativeRoles = new ObservableCollection<string>(pickLists.CreativeRoles);
 
         FormsList.ItemsSource = Forms;
         CategoriesList.ItemsSource = Categories;
         CatalogsList.ItemsSource = CatalogPrefixes;
         KeysList.ItemsSource = KeyTonalities;
         InstrumentsList.ItemsSource = Instruments;
+        CreativeRolesList.ItemsSource = CreativeRoles;
     }
 
     /// <summary>
@@ -48,6 +51,7 @@ public partial class PickListEditorWindow : Window
         pickLists.CatalogPrefixes = CatalogPrefixes.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
         pickLists.KeyTonalities = KeyTonalities.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
         pickLists.Instruments = Instruments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        pickLists.CreativeRoles = CreativeRoles.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private void OnOkClick(object sender, RoutedEventArgs e) => DialogResult = true;
@@ -78,6 +82,11 @@ public partial class PickListEditorWindow : Window
         if (InstrumentsList.SelectedItem is string s) InstrumentTextBox.Text = s;
     }
 
+    private void OnCreativeRolesSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CreativeRolesList.SelectedItem is string s) CreativeRoleTextBox.Text = s;
+    }
+
     // --- Add ---
     private void OnAddForm(object sender, RoutedEventArgs e) =>
         AddItem(FormTextBox, Forms);
@@ -93,6 +102,9 @@ public partial class PickListEditorWindow : Window
 
     private void OnAddInstrument(object sender, RoutedEventArgs e) =>
         AddItem(InstrumentTextBox, Instruments);
+
+    private void OnAddCreativeRole(object sender, RoutedEventArgs e) =>
+        AddItem(CreativeRoleTextBox, CreativeRoles);
 
     // --- Update (rename) ---
     private void OnUpdateForm(object sender, RoutedEventArgs e) =>
@@ -110,6 +122,9 @@ public partial class PickListEditorWindow : Window
     private void OnUpdateInstrument(object sender, RoutedEventArgs e) =>
         UpdateItem(InstrumentsList, InstrumentTextBox, Instruments, InstrumentRenames);
 
+    private void OnUpdateCreativeRole(object sender, RoutedEventArgs e) =>
+        UpdateItem(CreativeRolesList, CreativeRoleTextBox, CreativeRoles, new Dictionary<string, string>());
+
     // --- Remove ---
     private void OnRemoveForm(object sender, RoutedEventArgs e) =>
         RemoveSelected(FormsList, Forms);
@@ -125,6 +140,9 @@ public partial class PickListEditorWindow : Window
 
     private void OnRemoveInstrument(object sender, RoutedEventArgs e) =>
         RemoveSelected(InstrumentsList, Instruments);
+
+    private void OnRemoveCreativeRole(object sender, RoutedEventArgs e) =>
+        RemoveSelected(CreativeRolesList, CreativeRoles);
 
     // --- Helpers ---
     private static void AddItem(TextBox textBox, ObservableCollection<string> list)

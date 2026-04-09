@@ -160,5 +160,11 @@
     "Voice",
     "Winds",
     "Woodwinds"
+  ],
+  "creative_roles": [
+    "arr.",
+    "compl.",
+    "orch.",
+    "transcr."
   ]
 }

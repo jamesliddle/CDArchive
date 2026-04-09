@@ -14,6 +14,14 @@ public class CanonPiece
     [JsonPropertyName("composer")]
     public string? Composer { get; set; }
 
+    /// <summary>
+    /// All credited composers, including the principal (no role) and contributors (with role).
+    /// When null the piece has a single composer given by <see cref="Composer"/>.
+    /// </summary>
+    [JsonPropertyName("composers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ComposerCredit>? Composers { get; set; }
+
     [JsonPropertyName("title")]
     public string? Title { get; set; }
 
@@ -229,14 +237,17 @@ public class CanonPiece
         }
 
         // Derive a title from form + number + key + optionally catalog.
-        // Subpieces: "N. Form [in Key]"  (e.g. "6. March")
-        // Top-level: "Form #N [in Key]"  (e.g. "String Quartet #13")
+        // Top-level pieces and sub-works (subpieces that have their own movements):
+        //   "Form #N [in Key]"  (e.g. "Piano Sonata #1 in f", "String Quartet #13")
+        // Leaf movements:
+        //   "N. Form [in Key]"  (e.g. "6. March")
+        var isSubWork = isSubpiece && HasSubpieces;
         var mainPart = "";
 
         if (!string.IsNullOrEmpty(Form))
         {
             mainPart = TitleCase(Form);
-            if (!isSubpiece && Number.HasValue)
+            if (Number.HasValue && (!isSubpiece || isSubWork))
                 mainPart += $" #{Number}";
         }
 
@@ -253,7 +264,7 @@ public class CanonPiece
             suffixes.Add(Catalog);
 
         var body      = suffixes.Count > 0 ? string.Join(", ", suffixes) : "";
-        var numPrefix = isSubpiece ? SubpiecePrefix(showNumber) : "";
+        var numPrefix = isSubpiece && !isSubWork ? SubpiecePrefix(showNumber) : "";
         var result    = body.Length > 0 ? $"{numPrefix}{body}"
                       : !string.IsNullOrEmpty(MusicNumber) ? MusicNumber
                       : Number.HasValue ? $"{Number}" : "(untitled)";
@@ -479,8 +490,8 @@ public class CanonPiece
 
     /// <summary>
     /// Children to display in the tree view.
-    /// When versions have subpieces, returns a list of <see cref="VersionDisplayNode"/> wrappers
-    /// so the tree shows piece → version → movement.
+    /// When the piece has versions, returns an "Original" node followed by one node per version,
+    /// so the tree shows piece → Original / version-description → movement.
     /// Otherwise falls back to direct subpieces (piece → movement).
     /// </summary>
     [JsonIgnore]
@@ -489,10 +500,14 @@ public class CanonPiece
         get
         {
             var showNums = EffectiveSubpiecesNumbered;
-            if (Versions is { Count: > 0 } && Versions.Any(v => v.Subpieces is { Count: > 0 }))
-                return Versions.Select(v => new VersionDisplayNode(v, showNums)).ToList();
+            if (Versions is { Count: > 0 })
+            {
+                var nodes = new List<object> { new PieceOriginalNode(this) };
+                nodes.AddRange(Versions.Select(v => new VersionDisplayNode(v, showNums, this)));
+                return nodes;
+            }
             return HasSubpieces
-                ? Subpieces!.Select(sp => new SubpieceDisplayNode(sp, showNums)).ToList()
+                ? Subpieces!.Select(sp => new SubpieceDisplayNode(sp, showNums, this)).ToList()
                 : null;
         }
     }
@@ -654,6 +669,20 @@ public class CanonPiece
     }
 
     public override string ToString() => Summary;
+}
+
+public class ComposerCredit
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    /// <summary>Creative role, e.g. "arr.", "orch.", "transcr.", "compl."  Null = principal composer.</summary>
+    [JsonPropertyName("role")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Role { get; set; }
+
+    [JsonIgnore]
+    public string DisplayLabel => string.IsNullOrEmpty(Role) ? Name : $"{Name} ({Role})";
 }
 
 public class CatalogInfo
@@ -899,13 +928,20 @@ public class SubpieceDisplayNode
 {
     private readonly bool _showNumber;
 
-    public SubpieceDisplayNode(CanonPiece piece, bool showNumber = true)
+    public SubpieceDisplayNode(CanonPiece piece, bool showNumber = true, CanonPiece? parentPiece = null)
     {
         Piece = piece;
         _showNumber = showNumber;
+        ParentPiece = parentPiece;
     }
 
     public CanonPiece Piece { get; }
+
+    /// <summary>
+    /// The top-level piece that owns this subpiece (or its ancestor subpiece).
+    /// Used to inherit composer and other contributors when editing.
+    /// </summary>
+    public CanonPiece? ParentPiece { get; }
 
     /// <summary>Display label, with numbering governed by the parent piece's flag.</summary>
     public string DisplayTitle => Piece.BuildSubpieceTitle(_showNumber);
@@ -916,7 +952,35 @@ public class SubpieceDisplayNode
     /// <summary>Sub-movements of this subpiece, also wrapped as SubpieceDisplayNodes.</summary>
     public List<SubpieceDisplayNode>? Children =>
         HasChildren
-            ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp, Piece.EffectiveSubpiecesNumbered)).ToList()
+            ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp, Piece.EffectiveSubpiecesNumbered, ParentPiece)).ToList()
+            : null;
+
+    public override string ToString() => DisplayTitle;
+}
+
+/// <summary>
+/// A display node representing the original version of a piece in the tree.
+/// Always the first child when a piece has any versions; double-clicking edits the piece itself.
+/// This class has no WPF dependencies — it lives in CDArchive.Core.
+/// </summary>
+public class PieceOriginalNode
+{
+    public PieceOriginalNode(CanonPiece piece)
+    {
+        Piece = piece;
+    }
+
+    public CanonPiece Piece { get; }
+
+    public string DisplayTitle => "Original";
+
+    /// <summary>Whether the original version has its own movements to expand.</summary>
+    public bool HasChildren => Piece.HasSubpieces;
+
+    /// <summary>Movements of the original piece, wrapped for subpiece display.</summary>
+    public List<SubpieceDisplayNode>? Children =>
+        Piece.HasSubpieces
+            ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp, Piece.EffectiveSubpiecesNumbered, Piece)).ToList()
             : null;
 
     public override string ToString() => DisplayTitle;
@@ -924,27 +988,31 @@ public class SubpieceDisplayNode
 
 /// <summary>
 /// A display node representing a version in the piece tree.
-/// Used as the intermediate level when versions have their own subpieces (movements).
+/// Used as the second and subsequent children when a piece has versions.
 /// This class has no WPF dependencies — it lives in CDArchive.Core.
 /// </summary>
 public class VersionDisplayNode
 {
     private readonly bool _showNumber;
 
-    public VersionDisplayNode(CanonPieceVersion version, bool showNumber = true)
+    public VersionDisplayNode(CanonPieceVersion version, bool showNumber = true, CanonPiece? parentPiece = null)
     {
         Version = version;
         _showNumber = showNumber;
+        ParentPiece = parentPiece;
     }
 
     public CanonPieceVersion Version { get; }
 
-    /// <summary>Label shown in the tree row (e.g., "1909" or "1928").</summary>
-    public string DisplayTitle => Version.Description ?? "(no description)";
+    /// <summary>The piece this version belongs to. Used when saving after a direct tree edit.</summary>
+    public CanonPiece? ParentPiece { get; }
+
+    /// <summary>Label shown in the tree row (e.g., "Version: Orchestra").</summary>
+    public string DisplayTitle => "Version: " + (Version.Description ?? "(no description)");
 
     /// <summary>Movements belonging to this version, wrapped for subpiece display.</summary>
     public List<SubpieceDisplayNode>? Children =>
-        Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp, _showNumber)).ToList();
+        Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp, _showNumber, ParentPiece)).ToList();
 
     /// <summary>Whether this version has movements to expand.</summary>
     public bool HasSubpieces => Version.Subpieces is { Count: > 0 };
@@ -957,6 +1025,14 @@ public class CanonPieceVersion
     /// <summary>Free-text label identifying this version (e.g. "Original version", "arr. for string quartet").</summary>
     [JsonPropertyName("description")]
     public string? Description { get; set; }
+
+    [JsonPropertyName("composer")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Composer { get; set; }
+
+    [JsonPropertyName("composers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ComposerCredit>? Composers { get; set; }
 
     [JsonPropertyName("form")]
     public string? Form { get; set; }

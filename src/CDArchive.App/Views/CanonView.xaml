@@ -325,6 +325,26 @@
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
+                            <!-- ── Level 3 (alt): Original node — represents the piece's own version ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:PieceOriginalNode}"
+                                                      ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
+                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                          IsChecked="{Binding IsExpanded,
+                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                          Visibility="{Binding HasChildren,
+                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" />
+                                    <TextBlock Text="Original"
+                                               FontSize="12" Foreground="#555"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="380" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
                             <!-- ── Level 3 (alt): Version node ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:VersionDisplayNode}"
                                                       ItemsSource="{Binding Children}">
@@ -342,9 +362,6 @@
                                     <TextBlock Text="{Binding DisplayTitle}"
                                                FontSize="12" Foreground="#666" FontStyle="Italic"
                                                TextTrimming="CharacterEllipsis" MaxWidth="380" />
-                                    <TextBlock Text="{Binding Version.InstrumentationCategory}"
-                                               FontSize="11" Foreground="#999"
-                                               Margin="10,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 

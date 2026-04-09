@@ -2,6 +2,7 @@
   {
     "title": "L'éventail de Jeanne",
     "form": "Ballet",
+    "numbered_subpieces": true,
     "publication_year": 1929,
     "subpieces": [
       {
@@ -109,6 +110,12 @@
   },
   {
     "composer": "Aaatest, Aaron",
+    "composers": [
+      {
+        "name": "Adam, Adolphe",
+        "role": "arr."
+      }
+    ],
     "title": "Test Piece",
     "subpieces": [
       {
@@ -126,6 +133,7 @@
                   {
                     "title": "Nanoscene 1",
                     "number": 1,
+                    "numbered_subpieces": true,
                     "subpieces": [
                       {
                         "form": "Recitative",
@@ -165,6 +173,21 @@
   },
   {
     "composer": "Barber, Samuel",
+    "subtitle": "Adagio for Jeanne",
+    "form": "Interlude",
+    "number": 1,
+    "instrumentation": [
+      "Piano"
+    ],
+    "instrumentation_category": "Keyboard"
+  },
+  {
+    "composer": "Barber, Samuel",
+    "form": "Interlude",
+    "number": 2
+  },
+  {
+    "composer": "Barber, Samuel",
     "title": "Agnus Dei",
     "form": "Agnus Dei",
     "instrumentation": [
@@ -175,13 +198,21 @@
   },
   {
     "composer": "Barber, Samuel",
-    "title": "Adagio for Jeanne",
-    "form": "Interlude",
-    "number": 1,
+    "title": "Horizon",
     "instrumentation": [
+      "Chamber Orchestra"
+    ],
+    "instrumentation_category": "Orchestral"
+  },
+  {
+    "composer": "Barber, Samuel",
+    "title": "Love at the Door",
+    "form": "Song",
+    "instrumentation": [
+      "Voice",
       "Piano"
     ],
-    "instrumentation_category": "Keyboard"
+    "instrumentation_category": "Song"
   },
   {
     "composer": "Barber, Samuel",
@@ -202,24 +233,6 @@
       "Piano"
     ],
     "instrumentation_category": "Song"
-  },
-  {
-    "composer": "Barber, Samuel",
-    "title": "Love at the Door",
-    "form": "Song",
-    "instrumentation": [
-      "Voice",
-      "Piano"
-    ],
-    "instrumentation_category": "Song"
-  },
-  {
-    "composer": "Barber, Samuel",
-    "title": "Horizon",
-    "instrumentation": [
-      "Chamber Orchestra"
-    ],
-    "instrumentation_category": "Orchestral"
   },
   {
     "composer": "Barber, Samuel",
@@ -1480,7 +1493,6 @@
       "Piano"
     ],
     "instrumentation_category": "Chamber",
-    "numbered_subpieces": false,
     "subpieces": [
       {
         "number": 1,
@@ -1716,7 +1728,6 @@
       "Orchestra"
     ],
     "instrumentation_category": "Concertante",
-    "numbered_subpieces": false,
     "subpieces": [
       {
         "title": "Canzonetta",
@@ -1906,6 +1917,7 @@
       "Cello"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1795,
     "subpieces": [
       {
@@ -1920,6 +1932,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -1973,6 +1986,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -2040,6 +2054,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -2096,6 +2111,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1798,
     "subpieces": [
       {
@@ -2110,6 +2126,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -2153,6 +2170,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -2196,6 +2214,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -2329,6 +2348,7 @@
       "Piano"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1817,
     "subpieces": [
       {
@@ -2343,6 +2363,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -2384,6 +2405,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -3443,6 +3465,7 @@
       "Piano"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1798,
     "subpieces": [
       {
@@ -3457,6 +3480,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -3501,6 +3525,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -3543,6 +3568,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -4950,6 +4976,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1799,
     "subpieces": [
       {
@@ -4963,6 +4990,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5026,6 +5054,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5393,6 +5422,7 @@
       }
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1801,
     "subpieces": [
       {
@@ -5407,6 +5437,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5459,6 +5490,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5519,6 +5551,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5570,6 +5603,7 @@
             "catalog_subnumber": "4"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5626,6 +5660,7 @@
             "catalog_subnumber": "5"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5677,6 +5712,7 @@
             "catalog_subnumber": "6"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5857,6 +5893,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1796,
     "subpieces": [
       {
@@ -5871,6 +5908,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5923,6 +5961,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -5976,6 +6015,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -6588,6 +6628,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1801,
     "subpieces": [
       {
@@ -6603,6 +6644,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -6672,6 +6714,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -6928,6 +6971,7 @@
       "Piano"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1802,
     "subpieces": [
       {
@@ -6942,6 +6986,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -6984,6 +7029,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -7041,6 +7087,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -7086,6 +7133,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1802,
     "subpieces": [
       {
@@ -7100,6 +7148,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -7144,6 +7193,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -7191,6 +7241,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -8416,6 +8467,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1805,
     "subpieces": [
       {
@@ -8430,6 +8482,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -8464,6 +8517,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -8501,6 +8555,7 @@
       "Cello"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1796,
     "subpieces": [
       {
@@ -8515,6 +8570,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -8553,6 +8609,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -9075,6 +9132,7 @@
       "Cello"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1808,
     "subpieces": [
       {
@@ -9089,6 +9147,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -9140,6 +9199,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -9192,6 +9252,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -9516,8 +9577,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "title": "Twelve Variations on \"Ein Mädchen oder Weibchen\"",
-    "nickname": "Ein Mädchen oder Weibchen",
+    "title": "Twelve Variations on Ein Mädchen oder Weibchen",
     "catalog_info": [
       {
         "catalog": "Op.",
@@ -9774,6 +9834,7 @@
       "Cello"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1809,
     "subpieces": [
       {
@@ -9789,6 +9850,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -9831,6 +9893,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -11252,6 +11315,7 @@
       "Cello"
     ],
     "instrumentation_category": "Chamber",
+    "numbered_subpieces": false,
     "publication_year": 1798,
     "subpieces": [
       {
@@ -11266,6 +11330,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -11322,6 +11387,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -11375,6 +11441,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -13790,6 +13857,7 @@
       "Piano"
     ],
     "instrumentation_category": "Piano",
+    "numbered_subpieces": false,
     "publication_year": 1783,
     "subpieces": [
       {
@@ -13803,6 +13871,7 @@
             "catalog_subnumber": "1"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -13844,6 +13913,7 @@
             "catalog_subnumber": "2"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -13889,6 +13959,7 @@
             "catalog_subnumber": "3"
           }
         ],
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -14932,6 +15003,7 @@
         "catalog_number": "99"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Bei labbri che amore (Hess 211) (old no. 1)",
@@ -21752,7 +21824,7 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Lobgesang auf die feierliche Johannisloge",
+    "title": "An die Freundschaft",
     "catalog_info": [
       {
         "catalog": "KV",
@@ -21763,7 +21835,7 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "An die Freundschaft",
+    "title": "Lobgesang auf die feierliche Johannisloge",
     "catalog_info": [
       {
         "catalog": "KV",
@@ -24156,6 +24228,529 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
+    "title": "Die Gärtnerin aus Liebe",
+    "catalog_info": [
+      {
+        "catalog": "KV",
+        "catalog_number": "196"
+      }
+    ],
+    "instrumentation_category": "Opera",
+    "subpieces": [
+      {
+        "title": "Overture",
+        "number": 1
+      },
+      {
+        "title": "Act I",
+        "number": 2,
+        "subpieces": [
+          {
+            "title": "Scene 1",
+            "number": 1,
+            "subpieces": [
+              {
+                "form": "Introduction",
+                "number": 1,
+                "first_line": "Welches Vergnügen"
+              },
+              {
+                "form": "Dialogue",
+                "number": 2,
+                "first_line": "Es lebe der gute Geschmack"
+              },
+              {
+                "form": "Aria",
+                "number": 3,
+                "first_line": "Scheu ist das freie Vöglein"
+              }
+            ]
+          },
+          {
+            "title": "Scene 2",
+            "number": 2,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Serpetta, Nardo, geschwind!"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Zu meinem Ohr erschallet"
+              }
+            ]
+          },
+          {
+            "title": "Scene 3",
+            "number": 3,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Grausames Schicksal"
+              },
+              {
+                "form": "Cavatina",
+                "number": 2,
+                "first_line": "Wir Mädchen sind sehr übel dran"
+              }
+            ]
+          },
+          {
+            "title": "Scene 4",
+            "number": 4,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Ach, zum Henker!"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Der Hammer zwingt das Eisen"
+              }
+            ]
+          },
+          {
+            "title": "Scene 5",
+            "number": 5,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Arminda, liebe Nichte"
+              }
+            ]
+          },
+          {
+            "title": "Scene 6",
+            "number": 6,
+            "subpieces": [
+              {
+                "form": "Aria",
+                "number": 1,
+                "first_line": "Welch ein Reiz in diesem Bilde"
+              },
+              {
+                "form": "Dialogue",
+                "number": 2,
+                "first_line": "Arminda, der Graf Belfiore"
+              },
+              {
+                "form": "Aria",
+                "number": 3,
+                "first_line": "Wenn die Männer sich verlieben"
+              }
+            ]
+          },
+          {
+            "title": "Scene 7",
+            "number": 7,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Ihr Feuer reißt mich hin!"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Hier vom Osten bis zum Westen"
+              }
+            ]
+          },
+          {
+            "title": "Scene 8",
+            "number": 8,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Ha, ha, ha, ha"
+              },
+              {
+                "form": "Cavatina",
+                "number": 2,
+                "first_line": "Das Vergnügen in dem Eh'stand"
+              },
+              {
+                "form": "Cavatina",
+                "number": 3,
+                "first_line": "Das Vergnügen in dem Eh'stand"
+              },
+              {
+                "form": "Dialogue",
+                "number": 4,
+                "first_line": "Vortrefflich, Herr Spaßmacher!"
+              },
+              {
+                "form": "Aria",
+                "number": 5,
+                "first_line": "Sobald sie mich sehen"
+              }
+            ]
+          },
+          {
+            "title": "Scene 9",
+            "number": 9,
+            "subpieces": [
+              {
+                "form": "Aria",
+                "number": 1,
+                "first_line": "Ferne von ihrem Neste"
+              },
+              {
+                "form": "Dialogue",
+                "number": 2,
+                "first_line": "Das wird wohl die Schöne sein"
+              }
+            ]
+          },
+          {
+            "title": "Scene 10",
+            "number": 10,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Hier bin ich!"
+              },
+              {
+                "form": "Finale",
+                "number": 2,
+                "first_line": "Himmel, bin ich von Sinnen?"
+              }
+            ]
+          },
+          {
+            "title": "Scene 11",
+            "number": 11,
+            "subpieces": [
+              {
+                "title": "Nehmet hier Balsam sulfuris",
+                "number": 1
+              }
+            ]
+          },
+          {
+            "title": "Scene 12",
+            "number": 12,
+            "subpieces": [
+              {
+                "title": "Welche Stille",
+                "number": 1
+              }
+            ]
+          },
+          {
+            "title": "Scene 13",
+            "number": 13,
+            "subpieces": [
+              {
+                "title": "Wo ist die Ehrfurcht",
+                "number": 1
+              }
+            ]
+          },
+          {
+            "title": "Scene 14",
+            "number": 14,
+            "subpieces": [
+              {
+                "title": "Was ist denn Ihr Verlangen?",
+                "number": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Act II",
+        "number": 3,
+        "subpieces": [
+          {
+            "title": "Scene 1",
+            "number": 1,
+            "subpieces": [
+              {
+                "form": "Aria",
+                "number": 1,
+                "first_line": "Um deine Straf' zu fühlen"
+              }
+            ]
+          },
+          {
+            "title": "Scene 2",
+            "number": 2,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Meine Prinzessin, verzeih"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Nach der welschen Art und Weise"
+              }
+            ]
+          },
+          {
+            "title": "Scene 3",
+            "number": 3,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Welch ein Zufall!"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Laß mich ins Auge"
+              }
+            ]
+          },
+          {
+            "title": "Scene 4",
+            "number": 4,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Was höre ich?"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Es ertönt und spricht ganz leise"
+              }
+            ]
+          },
+          {
+            "title": "Scene 5",
+            "number": 5,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Oh, ich Dummkopf"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Wie? Was? ein Fräulein?"
+              }
+            ]
+          },
+          {
+            "title": "Scene 6",
+            "number": 6,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Vielleicht kehrt nun Arminda"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Ach, schmeichelhafte Hoffnung"
+              }
+            ]
+          },
+          {
+            "title": "Scene 7",
+            "number": 7,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Liebe Nichte"
+              }
+            ]
+          },
+          {
+            "title": "Scene 8",
+            "number": 8,
+            "subpieces": [
+              {
+                "form": "Recitative",
+                "number": 1,
+                "first_line": "Verweil doch und hör' mich"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Schon erstarren meine Glieder"
+              }
+            ]
+          },
+          {
+            "title": "Scene 9",
+            "number": 9,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "O Himmel, welch ein Unglück!"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Wer will die Welt genießen"
+              }
+            ]
+          },
+          {
+            "title": "Scene 10",
+            "number": 10,
+            "subpieces": [
+              {
+                "form": "Aria",
+                "number": 1,
+                "first_line": "Ach haltet, Barbaren"
+              },
+              {
+                "form": "Cavatina",
+                "number": 2,
+                "first_line": "Ach, vor Tränen, Schluchzen, Seufzen"
+              },
+              {
+                "form": "Recitative",
+                "number": 3,
+                "first_line": "Schenke, gütige Vorsicht"
+              }
+            ]
+          },
+          {
+            "title": "Scene 11",
+            "number": 11,
+            "subpieces": [
+              {
+                "form": "Finale",
+                "number": 1,
+                "first_line": "Hier in diesen Finsternissen"
+              },
+              {
+                "title": "Nun ihr Freunde!",
+                "number": 2
+              },
+              {
+                "title": "Falscher Verräter",
+                "number": 3
+              },
+              {
+                "title": "Hörst du nicht, mein Tirsis?",
+                "number": 4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Act III",
+        "number": 4,
+        "subpieces": [
+          {
+            "title": "Scene 1",
+            "number": 1,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "O je! Meine liebe Herrin"
+              },
+              {
+                "form": "Aria and Duet",
+                "number": 2,
+                "first_line": "Seht dort, wie Mond und Sonne"
+              }
+            ]
+          },
+          {
+            "title": "Scene 2",
+            "number": 2,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Ich habe die Sache"
+              },
+              {
+                "form": "Aria",
+                "number": 2,
+                "first_line": "Nun, mein Herr?"
+              }
+            ]
+          },
+          {
+            "title": "Scene 3",
+            "number": 3,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "Ramiro, was können Sie"
+              }
+            ]
+          },
+          {
+            "title": "Scene 4",
+            "number": 4,
+            "subpieces": [
+              {
+                "form": "Aria",
+                "number": 1,
+                "first_line": "Wenn ich auch von dir verlassen"
+              }
+            ]
+          },
+          {
+            "title": "Scene 5",
+            "number": 5,
+            "subpieces": [
+              {
+                "form": "Recitative",
+                "number": 1,
+                "first_line": "Wo bin ich wohl?"
+              },
+              {
+                "title": "Du mich fliehen!",
+                "number": 2
+              },
+              {
+                "form": "Duet",
+                "number": 3,
+                "first_line": "Wie, du rufst mich?"
+              }
+            ]
+          },
+          {
+            "title": "Scene 6",
+            "number": 6,
+            "subpieces": [
+              {
+                "form": "Dialogue",
+                "number": 1,
+                "first_line": "O Glück über Glück!"
+              },
+              {
+                "form": "Chorus",
+                "number": 2,
+                "first_line": "Liebe, Treue hat gesieget"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mozart, Wolfgang Amadeus",
     "title": "La finta giardiniera",
     "catalog_info": [
       {
@@ -24779,529 +25374,6 @@
                 "form": "Finale",
                 "number": 2,
                 "first_line": "Chorus. Viva pur la Giardiniera"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Die Gärtnerin aus Liebe",
-    "catalog_info": [
-      {
-        "catalog": "KV",
-        "catalog_number": "196"
-      }
-    ],
-    "instrumentation_category": "Opera",
-    "subpieces": [
-      {
-        "title": "Overture",
-        "number": 1
-      },
-      {
-        "title": "Act I",
-        "number": 2,
-        "subpieces": [
-          {
-            "title": "Scene 1",
-            "number": 1,
-            "subpieces": [
-              {
-                "form": "Introduction",
-                "number": 1,
-                "first_line": "Welches Vergnügen"
-              },
-              {
-                "form": "Dialogue",
-                "number": 2,
-                "first_line": "Es lebe der gute Geschmack"
-              },
-              {
-                "form": "Aria",
-                "number": 3,
-                "first_line": "Scheu ist das freie Vöglein"
-              }
-            ]
-          },
-          {
-            "title": "Scene 2",
-            "number": 2,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Serpetta, Nardo, geschwind!"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Zu meinem Ohr erschallet"
-              }
-            ]
-          },
-          {
-            "title": "Scene 3",
-            "number": 3,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Grausames Schicksal"
-              },
-              {
-                "form": "Cavatina",
-                "number": 2,
-                "first_line": "Wir Mädchen sind sehr übel dran"
-              }
-            ]
-          },
-          {
-            "title": "Scene 4",
-            "number": 4,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Ach, zum Henker!"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Der Hammer zwingt das Eisen"
-              }
-            ]
-          },
-          {
-            "title": "Scene 5",
-            "number": 5,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Arminda, liebe Nichte"
-              }
-            ]
-          },
-          {
-            "title": "Scene 6",
-            "number": 6,
-            "subpieces": [
-              {
-                "form": "Aria",
-                "number": 1,
-                "first_line": "Welch ein Reiz in diesem Bilde"
-              },
-              {
-                "form": "Dialogue",
-                "number": 2,
-                "first_line": "Arminda, der Graf Belfiore"
-              },
-              {
-                "form": "Aria",
-                "number": 3,
-                "first_line": "Wenn die Männer sich verlieben"
-              }
-            ]
-          },
-          {
-            "title": "Scene 7",
-            "number": 7,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Ihr Feuer reißt mich hin!"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Hier vom Osten bis zum Westen"
-              }
-            ]
-          },
-          {
-            "title": "Scene 8",
-            "number": 8,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Ha, ha, ha, ha"
-              },
-              {
-                "form": "Cavatina",
-                "number": 2,
-                "first_line": "Das Vergnügen in dem Eh'stand"
-              },
-              {
-                "form": "Cavatina",
-                "number": 3,
-                "first_line": "Das Vergnügen in dem Eh'stand"
-              },
-              {
-                "form": "Dialogue",
-                "number": 4,
-                "first_line": "Vortrefflich, Herr Spaßmacher!"
-              },
-              {
-                "form": "Aria",
-                "number": 5,
-                "first_line": "Sobald sie mich sehen"
-              }
-            ]
-          },
-          {
-            "title": "Scene 9",
-            "number": 9,
-            "subpieces": [
-              {
-                "form": "Aria",
-                "number": 1,
-                "first_line": "Ferne von ihrem Neste"
-              },
-              {
-                "form": "Dialogue",
-                "number": 2,
-                "first_line": "Das wird wohl die Schöne sein"
-              }
-            ]
-          },
-          {
-            "title": "Scene 10",
-            "number": 10,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Hier bin ich!"
-              },
-              {
-                "form": "Finale",
-                "number": 2,
-                "first_line": "Himmel, bin ich von Sinnen?"
-              }
-            ]
-          },
-          {
-            "title": "Scene 11",
-            "number": 11,
-            "subpieces": [
-              {
-                "title": "Nehmet hier Balsam sulfuris",
-                "number": 1
-              }
-            ]
-          },
-          {
-            "title": "Scene 12",
-            "number": 12,
-            "subpieces": [
-              {
-                "title": "Welche Stille",
-                "number": 1
-              }
-            ]
-          },
-          {
-            "title": "Scene 13",
-            "number": 13,
-            "subpieces": [
-              {
-                "title": "Wo ist die Ehrfurcht",
-                "number": 1
-              }
-            ]
-          },
-          {
-            "title": "Scene 14",
-            "number": 14,
-            "subpieces": [
-              {
-                "title": "Was ist denn Ihr Verlangen?",
-                "number": 1
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Act II",
-        "number": 3,
-        "subpieces": [
-          {
-            "title": "Scene 1",
-            "number": 1,
-            "subpieces": [
-              {
-                "form": "Aria",
-                "number": 1,
-                "first_line": "Um deine Straf' zu fühlen"
-              }
-            ]
-          },
-          {
-            "title": "Scene 2",
-            "number": 2,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Meine Prinzessin, verzeih"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Nach der welschen Art und Weise"
-              }
-            ]
-          },
-          {
-            "title": "Scene 3",
-            "number": 3,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Welch ein Zufall!"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Laß mich ins Auge"
-              }
-            ]
-          },
-          {
-            "title": "Scene 4",
-            "number": 4,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Was höre ich?"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Es ertönt und spricht ganz leise"
-              }
-            ]
-          },
-          {
-            "title": "Scene 5",
-            "number": 5,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Oh, ich Dummkopf"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Wie? Was? ein Fräulein?"
-              }
-            ]
-          },
-          {
-            "title": "Scene 6",
-            "number": 6,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Vielleicht kehrt nun Arminda"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Ach, schmeichelhafte Hoffnung"
-              }
-            ]
-          },
-          {
-            "title": "Scene 7",
-            "number": 7,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Liebe Nichte"
-              }
-            ]
-          },
-          {
-            "title": "Scene 8",
-            "number": 8,
-            "subpieces": [
-              {
-                "form": "Recitative",
-                "number": 1,
-                "first_line": "Verweil doch und hör' mich"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Schon erstarren meine Glieder"
-              }
-            ]
-          },
-          {
-            "title": "Scene 9",
-            "number": 9,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "O Himmel, welch ein Unglück!"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Wer will die Welt genießen"
-              }
-            ]
-          },
-          {
-            "title": "Scene 10",
-            "number": 10,
-            "subpieces": [
-              {
-                "form": "Aria",
-                "number": 1,
-                "first_line": "Ach haltet, Barbaren"
-              },
-              {
-                "form": "Cavatina",
-                "number": 2,
-                "first_line": "Ach, vor Tränen, Schluchzen, Seufzen"
-              },
-              {
-                "form": "Recitative",
-                "number": 3,
-                "first_line": "Schenke, gütige Vorsicht"
-              }
-            ]
-          },
-          {
-            "title": "Scene 11",
-            "number": 11,
-            "subpieces": [
-              {
-                "form": "Finale",
-                "number": 1,
-                "first_line": "Hier in diesen Finsternissen"
-              },
-              {
-                "title": "Nun ihr Freunde!",
-                "number": 2
-              },
-              {
-                "title": "Falscher Verräter",
-                "number": 3
-              },
-              {
-                "title": "Hörst du nicht, mein Tirsis?",
-                "number": 4
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Act III",
-        "number": 4,
-        "subpieces": [
-          {
-            "title": "Scene 1",
-            "number": 1,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "O je! Meine liebe Herrin"
-              },
-              {
-                "form": "Aria and Duet",
-                "number": 2,
-                "first_line": "Seht dort, wie Mond und Sonne"
-              }
-            ]
-          },
-          {
-            "title": "Scene 2",
-            "number": 2,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Ich habe die Sache"
-              },
-              {
-                "form": "Aria",
-                "number": 2,
-                "first_line": "Nun, mein Herr?"
-              }
-            ]
-          },
-          {
-            "title": "Scene 3",
-            "number": 3,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "Ramiro, was können Sie"
-              }
-            ]
-          },
-          {
-            "title": "Scene 4",
-            "number": 4,
-            "subpieces": [
-              {
-                "form": "Aria",
-                "number": 1,
-                "first_line": "Wenn ich auch von dir verlassen"
-              }
-            ]
-          },
-          {
-            "title": "Scene 5",
-            "number": 5,
-            "subpieces": [
-              {
-                "form": "Recitative",
-                "number": 1,
-                "first_line": "Wo bin ich wohl?"
-              },
-              {
-                "title": "Du mich fliehen!",
-                "number": 2
-              },
-              {
-                "form": "Duet",
-                "number": 3,
-                "first_line": "Wie, du rufst mich?"
-              }
-            ]
-          },
-          {
-            "title": "Scene 6",
-            "number": 6,
-            "subpieces": [
-              {
-                "form": "Dialogue",
-                "number": 1,
-                "first_line": "O Glück über Glück!"
-              },
-              {
-                "form": "Chorus",
-                "number": 2,
-                "first_line": "Liebe, Treue hat gesieget"
               }
             ]
           }
@@ -37958,7 +38030,7 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Venga la morte - Non temer, amato bene",
+    "title": "Non più. Tutto ascoltai - Non temer, amato bene",
     "catalog_info": [
       {
         "catalog": "KV",
@@ -37969,7 +38041,7 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Non più. Tutto ascoltai - Non temer, amato bene",
+    "title": "Venga la morte - Non temer, amato bene",
     "catalog_info": [
       {
         "catalog": "KV",
@@ -38043,7 +38115,6 @@
           {
             "title": "Scene 1",
             "number": 1,
-            "numbered_subpieces": false,
             "subpieces": [
               {
                 "form": "Duettino",
@@ -38072,7 +38143,6 @@
           {
             "title": "Scene 2",
             "number": 2,
-            "numbered_subpieces": false,
             "subpieces": [
               {
                 "number": 1,
@@ -38089,7 +38159,6 @@
           {
             "title": "Scene 3",
             "number": 3,
-            "numbered_subpieces": false,
             "subpieces": [
               {
                 "form": "Recitative",
@@ -38107,7 +38176,6 @@
           {
             "title": "Scene 4",
             "number": 4,
-            "numbered_subpieces": false,
             "subpieces": [
               {
                 "form": "Recitative",
@@ -38125,7 +38193,6 @@
           {
             "title": "Scene 5",
             "number": 5,
-            "numbered_subpieces": false,
             "subpieces": [
               {
                 "form": "Recitative",
@@ -38143,7 +38210,6 @@
           {
             "title": "Scene 6",
             "number": 6,
-            "numbered_subpieces": false,
             "subpieces": [
               {
                 "form": "Recitative",
@@ -39391,19 +39457,6 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "form": "Canons",
-    "key_tonality": "F",
-    "key_mode": "major",
-    "catalog_info": [
-      {
-        "catalog": "KV",
-        "catalog_number": "508a"
-      }
-    ],
-    "instrumentation_category": "Choral"
-  },
-  {
-    "composer": "Mozart, Wolfgang Amadeus",
     "form": "Canon",
     "key_tonality": "C",
     "key_mode": "major",
@@ -39411,6 +39464,19 @@
       {
         "catalog": "KV",
         "catalog_number": "508A"
+      }
+    ],
+    "instrumentation_category": "Choral"
+  },
+  {
+    "composer": "Mozart, Wolfgang Amadeus",
+    "form": "Canons",
+    "key_tonality": "F",
+    "key_mode": "major",
+    "catalog_info": [
+      {
+        "catalog": "KV",
+        "catalog_number": "508a"
       }
     ],
     "instrumentation_category": "Choral"
@@ -42326,7 +42392,7 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Un moto di gioia mi sento",
+    "title": "Un moto di gioia",
     "catalog_info": [
       {
         "catalog": "KV",
@@ -42337,7 +42403,7 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Un moto di gioia",
+    "title": "Un moto di gioia mi sento",
     "catalog_info": [
       {
         "catalog": "KV",
@@ -48556,17 +48622,6 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
-    "title": "Cara, se le mie pene",
-    "catalog_info": [
-      {
-        "catalog": "KV",
-        "catalog_number": "deest"
-      }
-    ],
-    "instrumentation_category": "Orchestral"
-  },
-  {
-    "composer": "Mozart, Wolfgang Amadeus",
     "form": "Canons",
     "key_tonality": "F",
     "key_mode": "major",
@@ -48606,6 +48661,17 @@
   },
   {
     "composer": "Mozart, Wolfgang Amadeus",
+    "title": "Cara, se le mie pene",
+    "catalog_info": [
+      {
+        "catalog": "KV",
+        "catalog_number": "deest"
+      }
+    ],
+    "instrumentation_category": "Orchestral"
+  },
+  {
+    "composer": "Mozart, Wolfgang Amadeus",
     "title": "March",
     "catalog_info": [
       {
@@ -48621,6 +48687,7 @@
     "instrumentation": [
       "Piano"
     ],
+    "numbered_subpieces": true,
     "publication_year": 1886,
     "subpieces": [
       {
@@ -48712,7 +48779,14 @@
     ],
     "versions": [
       {
-        "description": "orchestra",
+        "description": "Orchestra",
+        "composer": "Mussorgsky, Modest",
+        "composers": [
+          {
+            "name": "Ravel, Maurice",
+            "role": "orch."
+          }
+        ],
         "catalog_info": [
           {
             "catalog": "M.",
@@ -48722,151 +48796,134 @@
         "instrumentation_category": "Orchestra",
         "instrumentation": [
           {
-            "orchestra": [
-              {
-                "instrument": "flute",
-                "number": 1
-              },
-              {
-                "also_instrument": "piccolo",
-                "instrument": "flute",
-                "number": 2
-              },
-              {
-                "also_instrument": "piccolo",
-                "instrument": "flute",
-                "number": 3
-              },
-              {
-                "instrument": "oboe",
-                "number": 1
-              },
-              {
-                "instrument": "oboe",
-                "number": 2
-              },
-              {
-                "also_instrument": "cor anglais",
-                "instrument": "oboe",
-                "number": 3
-              },
-              {
-                "instrument": "clarinet",
-                "key": "B-flat",
-                "number": 1
-              },
-              {
-                "instrument": "clarinet",
-                "key": "B-flat",
-                "number": 2
-              },
-              {
-                "also_instrument": {
-                  "instrument": "bass clarinet",
-                  "key": "A"
-                },
-                "instrument": "bass clarinet",
-                "key": "B-flat"
-              },
-              {
-                "instrument": "alto saxophone",
-                "key": "E-flat"
-              },
-              {
-                "instrument": "bassoon",
-                "number": 1
-              },
-              {
-                "instrument": "bassoon",
-                "number": 2
-              },
-              {
-                "instrument": "horn",
-                "key": "F",
-                "number": 1
-              },
-              {
-                "instrument": "horn",
-                "key": "F",
-                "number": 2
-              },
-              {
-                "instrument": "horn",
-                "key": "F",
-                "number": 3
-              },
-              {
-                "instrument": "horn",
-                "key": "F",
-                "number": 4
-              },
-              {
-                "instrument": "trumpet",
-                "key": "C",
-                "number": 1
-              },
-              {
-                "instrument": "trumpet",
-                "key": "C",
-                "number": 2
-              },
-              {
-                "instrument": "trumpet",
-                "key": "C",
-                "number": 3
-              },
-              {
-                "instrument": "trombone",
-                "number": 1
-              },
-              {
-                "instrument": "trombone",
-                "number": 2
-              },
-              {
-                "instrument": "trombone",
-                "number": 3
-              },
-              "tuba",
-              "timpani",
-              "glockenspiel",
-              "bells",
-              "triangle",
-              "snare drum",
-              "rattle",
-              "whip",
-              "cymbals",
-              "bass drum",
-              "xylophone",
-              "celesta",
-              "tam-tam",
-              {
-                "instrument": "harp",
-                "number": 1
-              },
-              {
-                "instrument": "harp",
-                "number": 2
-              },
-              {
-                "number": 1,
-                "section": "violin"
-              },
-              {
-                "number": 2,
-                "section": "violin"
-              },
-              {
-                "section": "viola"
-              },
-              {
-                "section": "cello"
-              },
-              {
-                "section": "double bass"
-              }
-            ]
-          }
+            "instrument": "flute",
+            "number": 1
+          },
+          {
+            "instrument": "flute",
+            "number": 2
+          },
+          {
+            "instrument": "flute",
+            "number": 3
+          },
+          {
+            "instrument": "oboe",
+            "number": 1
+          },
+          {
+            "instrument": "oboe",
+            "number": 2
+          },
+          {
+            "instrument": "oboe",
+            "number": 3
+          },
+          {
+            "instrument": "clarinet",
+            "key": "B-flat",
+            "number": 1
+          },
+          {
+            "instrument": "clarinet",
+            "key": "B-flat",
+            "number": 2
+          },
+          {
+            "instrument": "bass clarinet",
+            "key": "B-flat"
+          },
+          {
+            "instrument": "alto saxophone",
+            "key": "E-flat"
+          },
+          {
+            "instrument": "bassoon",
+            "number": 1
+          },
+          {
+            "instrument": "bassoon",
+            "number": 2
+          },
+          {
+            "instrument": "horn",
+            "key": "F",
+            "number": 1
+          },
+          {
+            "instrument": "horn",
+            "key": "F",
+            "number": 2
+          },
+          {
+            "instrument": "horn",
+            "key": "F",
+            "number": 3
+          },
+          {
+            "instrument": "horn",
+            "key": "F",
+            "number": 4
+          },
+          {
+            "instrument": "trumpet",
+            "key": "C",
+            "number": 1
+          },
+          {
+            "instrument": "trumpet",
+            "key": "C",
+            "number": 2
+          },
+          {
+            "instrument": "trumpet",
+            "key": "C",
+            "number": 3
+          },
+          {
+            "instrument": "trombone",
+            "number": 1
+          },
+          {
+            "instrument": "trombone",
+            "number": 2
+          },
+          {
+            "instrument": "trombone",
+            "number": 3
+          },
+          "tuba",
+          "timpani",
+          "glockenspiel",
+          "bells",
+          "triangle",
+          "snare drum",
+          "rattle",
+          "whip",
+          "cymbals",
+          "bass drum",
+          "xylophone",
+          "celesta",
+          "tam-tam",
+          {
+            "instrument": "harp",
+            "number": 1
+          },
+          {
+            "instrument": "harp",
+            "number": 2
+          },
+          {
+            "instrument": "violin",
+            "number": 1
+          },
+          {
+            "instrument": "violin",
+            "number": 2
+          },
+          "viola",
+          "cello",
+          "double bass"
         ],
         "publication_year": 1922,
         "subpieces": [
@@ -48964,45 +49021,6 @@
   },
   {
     "composer": "Ravel, Maurice",
-    "title": "Deux épigrammes de Clément Marot",
-    "instrumentation_category": "Song",
-    "publication_year": 1900,
-    "subpieces": [
-      {
-        "title": "D'Anne qui me jecta de la neige",
-        "number": 1,
-        "catalog_info": [
-          {
-            "catalog": "M.",
-            "catalog_number": "21"
-          }
-        ],
-        "instrumentation": [
-          "Voice",
-          "Piano"
-        ]
-      },
-      {
-        "title": "D'Anne jouant de l'espinette",
-        "number": 2,
-        "catalog_info": [
-          {
-            "catalog": "M.",
-            "catalog_number": "10"
-          }
-        ],
-        "instrumentation": [
-          "Voice",
-          {
-            "alternate_instrument": "harpsichord",
-            "instrument": "Piano"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "composer": "Ravel, Maurice",
     "title": "Cinq mélodies populaires grecques",
     "instrumentation": [
       "Voice",
@@ -49058,6 +49076,45 @@
           {
             "catalog": "M.",
             "catalog_number": "A11"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Ravel, Maurice",
+    "title": "Deux épigrammes de Clément Marot",
+    "instrumentation_category": "Song",
+    "publication_year": 1900,
+    "subpieces": [
+      {
+        "title": "D'Anne qui me jecta de la neige",
+        "number": 1,
+        "catalog_info": [
+          {
+            "catalog": "M.",
+            "catalog_number": "21"
+          }
+        ],
+        "instrumentation": [
+          "Voice",
+          "Piano"
+        ]
+      },
+      {
+        "title": "D'Anne jouant de l'espinette",
+        "number": 2,
+        "catalog_info": [
+          {
+            "catalog": "M.",
+            "catalog_number": "10"
+          }
+        ],
+        "instrumentation": [
+          "Voice",
+          {
+            "alternate_instrument": "harpsichord",
+            "instrument": "Piano"
           }
         ]
       }
@@ -49296,7 +49353,6 @@
       "double bass"
     ],
     "instrumentation_category": "Choral",
-    "numbered_subpieces": false,
     "publication_year": 1902,
     "subpieces": [
       {
@@ -49464,6 +49520,7 @@
         "catalog_number": "40"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "number": 1,
@@ -49503,6 +49560,7 @@
         "catalog_number": "41"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Asie",
@@ -49537,6 +49595,7 @@
         "catalog_number": "43"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Noctuelles",
@@ -49619,6 +49678,7 @@
         "catalog_number": "50"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Le paon",
@@ -49681,6 +49741,7 @@
         "catalog_number": "54"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Prélude à la nuit",
@@ -49733,6 +49794,7 @@
         "catalog_number": "55"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Ondine",
@@ -49878,6 +49940,7 @@
         "catalog_number": "61"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "number": 1,
@@ -50114,6 +50177,7 @@
         "catalog_number": "64"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Soupir",
@@ -50148,6 +50212,7 @@
         "catalog_number": "67"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "number": 1,
@@ -50199,6 +50264,7 @@
         "catalog_number": "68"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Prélude",
@@ -50271,6 +50337,7 @@
         "catalog_number": "69"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Nicolette",
@@ -50335,6 +50402,7 @@
         "catalog_number": "73"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "number": 1,
@@ -50529,6 +50597,7 @@
         "catalog_number": "77"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "number": 1,
@@ -50570,6 +50639,7 @@
         "catalog_number": "78"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Nahandove",
@@ -50624,6 +50694,7 @@
         "catalog_number": "83"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "number": 1,
@@ -50663,6 +50734,7 @@
         "catalog_number": "84"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Chanson romanesque",
@@ -50717,6 +50789,7 @@
         "catalog_number": "A17"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Chanson espagnole",
@@ -50745,6 +50818,7 @@
         "catalog_number": "A22"
       }
     ],
+    "numbered_subpieces": true,
     "subpieces": [
       {
         "title": "Kaddish",
@@ -51955,6 +52029,7 @@
     "versions": [
       {
         "description": "1909",
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,
@@ -52014,6 +52089,7 @@
       },
       {
         "description": "1928",
+        "numbered_subpieces": true,
         "subpieces": [
           {
             "number": 1,

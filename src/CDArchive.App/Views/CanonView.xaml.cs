@@ -197,7 +197,11 @@ public partial class CanonView : UserControl
     private static IOrderedEnumerable<CanonPiece> CatalogSort(IEnumerable<CanonPiece> pieces) =>
         pieces.OrderBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
               .ThenBy(p => p.CatalogSortNumber)
-              .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase);
+              .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase)
+              .ThenBy(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase)
+              .ThenBy(p => p.Form, StringComparer.OrdinalIgnoreCase)
+              .ThenBy(p => p.Number ?? int.MaxValue)
+              .ThenBy(p => p.FirstLine, StringComparer.OrdinalIgnoreCase);
 
     private void UpdateSortIndicators()
     {
@@ -309,6 +313,7 @@ public partial class CanonView : UserControl
     {
         SubpieceDisplayNode n => n.Piece,
         VersionDisplayNode  v => (object)v.Version,
+        PieceOriginalNode   o => (o.Piece, "original"),   // value-tuple is a struct; stable across rebuilds
         _                     => null,
     };
 
@@ -334,7 +339,27 @@ public partial class CanonView : UserControl
             NewPieceButton.IsEnabled    = true;
             DeletePieceButton.IsEnabled = true;
         }
-        else if (e.NewValue is SubpieceDisplayNode or VersionDisplayNode)
+        else if (e.NewValue is PieceOriginalNode origNode)
+        {
+            _activeComposer = vm.Composers.FirstOrDefault(c =>
+                string.Equals(c.Name, origNode.Piece.Composer, StringComparison.OrdinalIgnoreCase));
+            _activePiece    = origNode.Piece;
+            NewPieceButton.IsEnabled    = true;
+            DeletePieceButton.IsEnabled = true;
+        }
+        else if (e.NewValue is VersionDisplayNode versionNode)
+        {
+            // Track the parent piece so New/Delete Piece still work sensibly.
+            if (versionNode.ParentPiece != null)
+            {
+                _activePiece = versionNode.ParentPiece;
+                _activeComposer = vm.Composers.FirstOrDefault(c =>
+                    string.Equals(c.Name, versionNode.ParentPiece.Composer, StringComparison.OrdinalIgnoreCase));
+            }
+            NewPieceButton.IsEnabled    = true;
+            DeletePieceButton.IsEnabled = true;
+        }
+        else if (e.NewValue is SubpieceDisplayNode)
         {
             // Keep _activeComposer / _activePiece and button state from the
             // most recently selected piece — no change needed.
@@ -359,9 +384,12 @@ public partial class CanonView : UserControl
             await EditComposerAsync(node.Composer);
         else if (item.DataContext is CanonPiece piece)
             await EditPieceAsync(piece);
+        else if (item.DataContext is PieceOriginalNode origNode)
+            await EditPieceAsync(origNode.Piece);
+        else if (item.DataContext is VersionDisplayNode versionNode)
+            await EditVersionAsync(versionNode);
         else if (item.DataContext is SubpieceDisplayNode subNode)
-            await EditSubpieceAsync(subNode.Piece);
-        // VersionDisplayNode: no editor yet
+            await EditSubpieceAsync(subNode.Piece, subNode.ParentPiece);
     }
 
     // ── Edit: composer ───────────────────────────────────────────────────────
@@ -390,7 +418,8 @@ public partial class CanonView : UserControl
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        var window = new PieceEditorWindow(vm.PickLists, piece.Composer ?? "", piece)
+        var composerNames = vm.Composers.Select(c => c.Name).ToList();
+        var window = new PieceEditorWindow(vm.PickLists, piece.Composer ?? "", piece, composerNames)
         {
             Owner = Window.GetWindow(this)
         };
@@ -407,13 +436,47 @@ public partial class CanonView : UserControl
         }
     }
 
+    // ── Edit: version (direct from tree) ────────────────────────────────
+
+    private async Task EditVersionAsync(VersionDisplayNode versionNode)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        if (versionNode.ParentPiece is not { } parentPiece) return;
+
+        var composerNames = vm.Composers.Select(c => c.Name).ToList();
+        var window = new PieceEditorWindow(
+            vm.PickLists,
+            versionNode.Version,
+            showSubpieceNumbers: parentPiece.EffectiveSubpiecesNumbered,
+            composerNames: composerNames,
+            inheritedComposer: parentPiece.Composer,
+            inheritedComposers: parentPiece.Composers)
+        {
+            Owner = Window.GetWindow(this)
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            ApplySortedFilter(vm);
+            await SaveAllAsync(vm);
+            vm.StatusMessage = $"Updated version: {versionNode.Version.Description ?? "(no description)"}.";
+        }
+    }
+
     // ── Edit: subpiece ───────────────────────────────────────────────────────
 
-    private async Task EditSubpieceAsync(CanonPiece subpiece)
+    private async Task EditSubpieceAsync(CanonPiece subpiece, CanonPiece? parentPiece = null)
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        var window = new MovementEditorWindow(vm.PickLists, subpiece)
+        // Prefer the authoritative parent reference from the node; fall back to _activePiece.
+        var parent = parentPiece ?? _activePiece;
+
+        var composerNames = vm.Composers.Select(c => c.Name).ToList();
+        var window = new PieceEditorWindow(
+            vm.PickLists, subpiece.Composer ?? "", subpiece, composerNames, PieceEditorMode.Subpiece,
+            inheritedComposer: parent?.Composer,
+            inheritedComposers: parent?.Composers)
         {
             Owner = Window.GetWindow(this)
         };
@@ -482,7 +545,8 @@ public partial class CanonView : UserControl
         if (DataContext is not CanonViewModel vm) return;
 
         var composerName = _activeComposer?.Name ?? _activePiece?.Composer ?? "";
-        var window = new PieceEditorWindow(vm.PickLists, composerName)
+        var composerNames = vm.Composers.Select(c => c.Name).ToList();
+        var window = new PieceEditorWindow(vm.PickLists, composerName, null, composerNames)
         {
             Owner = Window.GetWindow(this)
         };

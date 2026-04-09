@@ -24,4 +24,7 @@ public class CanonPickLists
 
     [JsonPropertyName("instruments")]
     public List<string> Instruments { get; set; } = [];
+
+    [JsonPropertyName("creative_roles")]
+    public List<string> CreativeRoles { get; set; } = [];
 }

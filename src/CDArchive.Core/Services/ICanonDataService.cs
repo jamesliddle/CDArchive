@@ -15,4 +15,6 @@ public interface ICanonDataService
 
     Task<CanonPickLists> LoadPickListsAsync();
     Task SavePickListsAsync(CanonPickLists pickLists);
+
+    void ResetInitialisation();
 }

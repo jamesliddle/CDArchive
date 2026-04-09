@@ -44,6 +44,7 @@ public class PieceRow
 
     // ── JSON blob columns ────────────────────────────────────────────────────
 
+    public string? ComposersJson { get; set; }
     public string? CatalogInfoJson { get; set; }
     public string? InstrumentationJson { get; set; }
     public string? CompositionYearsJson { get; set; }
