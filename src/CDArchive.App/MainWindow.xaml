@@ -7,7 +7,7 @@
         xmlns:views="clr-namespace:CDArchive.App.Views"
         mc:Ignorable="d"
         Title="CD Archive Manager"
-        Height="700" Width="1050"
+        Height="700" Width="1120"
         WindowStartupLocation="CenterScreen"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
 
@@ -68,7 +68,7 @@
                 <!-- Navigation Buttons -->
                 <StackPanel DockPanel.Dock="Top">
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Composers"
+                                 Content="Composers and Authors"
                                  IsChecked="True"
                                  Command="{Binding NavigateToCanonCommand}" />
 
@@ -99,6 +99,10 @@
                     <RadioButton Style="{StaticResource NavButtonStyle}"
                                  Content="Import / Export"
                                  Command="{Binding NavigateToImportExportCommand}" />
+
+                    <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Content="Pick Lists"
+                                 Command="{Binding NavigateToPickListsCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
                                  Content="Settings"

@@ -62,6 +62,7 @@
     "Vocal"
   ],
   "catalog_prefixes": [
+    "B.",
     "BWV",
     "D.",
     "Hob.",
@@ -94,21 +95,24 @@
     "G♯"
   ],
   "voice_types": [
-    "Soprano",
-    "Mezzo-soprano",
+    "Alto chorus",
+    "Baritone",
+    "Baritone chorus",
+    "Bass",
+    "Bass chorus",
+    "Bass-baritone",
+    "Children's chorus",
     "Contralto",
     "Countertenor",
+    "Mezzo-soprano",
+    "Mezzo-soprano chorus",
+    "Mixed chorus",
+    "Soprano",
+    "Soprano chorus",
+    "Speaking role",
     "Tenor",
-    "Baritone",
-    "Bass-baritone",
-    "Bass",
-    "Speaking Role",
-    "Soprano Chorus",
-    "Mezzo Chorus",
-    "Women's Chorus",
-    "Men's Chorus",
-    "Mixed Chorus",
-    "Children's Chorus"
+    "Tenor chorus",
+    "Treble"
   ],
   "instruments": [
     "Baritone",
@@ -119,7 +123,6 @@
     "Bassoon",
     "Brass",
     "Cello",
-    "Chamber Orchestra",
     "Chorus",
     "Clarinet",
     "Contrabassoon",
@@ -137,7 +140,6 @@
     "Mezzo-soprano",
     "Mixed Chorus",
     "Oboe",
-    "Orchestra",
     "Organ",
     "Percussion",
     "Piano",
@@ -146,7 +148,6 @@
     "Soloists",
     "Soprano",
     "Speaker",
-    "String Quartet",
     "Strings",
     "Tam-tam",
     "Tenor",
@@ -161,10 +162,84 @@
     "Winds",
     "Woodwinds"
   ],
+  "ensembles": [
+    {
+      "name": "Brass"
+    },
+    {
+      "name": "Chamber Orchestra"
+    },
+    {
+      "name": "Orchestra"
+    },
+    {
+      "name": "Percussion"
+    },
+    {
+      "name": "Piano Quartet",
+      "members": [
+        "piano",
+        "violin",
+        "viola",
+        "cello"
+      ]
+    },
+    {
+      "name": "Piano Quintet",
+      "members": [
+        "piano",
+        "violin",
+        "violin",
+        "viola",
+        "cello"
+      ]
+    },
+    {
+      "name": "Piano Trio",
+      "members": [
+        "piano",
+        "violin",
+        "cello"
+      ]
+    },
+    {
+      "name": "String Orchestra"
+    },
+    {
+      "name": "String Quartet",
+      "members": [
+        "violin",
+        "Violin",
+        "viola",
+        "cello"
+      ]
+    },
+    {
+      "name": "Wind Quintet",
+      "members": [
+        "flute",
+        "oboe",
+        "clarinet",
+        "horn",
+        "bassoon"
+      ]
+    },
+    {
+      "name": "Winds"
+    },
+    {
+      "name": "Woodwinds"
+    }
+  ],
   "creative_roles": [
     "arr.",
+    "Author",
+    "Book",
     "compl.",
+    "Libretto",
+    "Lyrics",
     "orch.",
-    "transcr."
+    "transcr.",
+    "Translation"
   ]
 }

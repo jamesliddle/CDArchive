@@ -110,12 +110,6 @@
   },
   {
     "composer": "Aaatest, Aaron",
-    "composers": [
-      {
-        "name": "Adam, Adolphe",
-        "role": "arr."
-      }
-    ],
     "title": "Test Piece",
     "subpieces": [
       {
@@ -475,6 +469,12 @@
   },
   {
     "composer": "Barber, Samuel",
+    "composers": [
+      {
+        "name": "Spender, Stephen",
+        "role": "Author"
+      }
+    ],
     "title": "A Stopwatch and an Ordnance Map",
     "catalog_info": [
       {
@@ -486,13 +486,20 @@
       "Male Chorus",
       "Timpani",
       "Brass"
-    ],
-    "text_author": [
-      "Stephen Spender"
     ]
   },
   {
     "composer": "Barber, Samuel",
+    "composers": [
+      {
+        "name": "Ó Raifteiri, Antoine",
+        "role": "Author"
+      },
+      {
+        "name": "Stephens, James",
+        "role": "Translation"
+      }
+    ],
     "title": "Reincarnations",
     "catalog_info": [
       {
@@ -504,10 +511,6 @@
       "Mixed Chorus"
     ],
     "instrumentation_category": "Choral",
-    "text_author": [
-      "Antoine Ó Raifteiri",
-      "James Stephens"
-    ],
     "subpieces": [
       {
         "title": "Mary Hynes",
@@ -1103,6 +1106,12 @@
   },
   {
     "composer": "Barber, Samuel",
+    "composers": [
+      {
+        "name": "Menotti, Gian Carlo",
+        "role": "Libretto"
+      }
+    ],
     "title": "Vanessa",
     "form": "Opera",
     "catalog_info": [
@@ -1117,9 +1126,6 @@
     ],
     "instrumentation_category": "Opera",
     "publication_year": 1958,
-    "text_author": [
-      "Menotti, Gian Carlo"
-    ],
     "subpieces": [
       {
         "title": "Act I",
@@ -1322,6 +1328,12 @@
   },
   {
     "composer": "Barber, Samuel",
+    "composers": [
+      {
+        "name": "Menotti, Gian Carlo",
+        "role": "Libretto"
+      }
+    ],
     "title": "A Hand of Bridge",
     "catalog_info": [
       {
@@ -1337,9 +1349,6 @@
       "Chamber Orchestra"
     ],
     "instrumentation_category": "Opera",
-    "text_author": [
-      "Gian Carlo Menotti"
-    ],
     "roles": [
       {
         "name": "David",
@@ -1508,6 +1517,12 @@
   },
   {
     "composer": "Barber, Samuel",
+    "composers": [
+      {
+        "name": "Zeffirelli, Franco",
+        "role": "Libretto"
+      }
+    ],
     "title": "Antony and Cleopatra",
     "form": "Opera",
     "catalog_info": [
@@ -1517,32 +1532,750 @@
       }
     ],
     "instrumentation": [
-      "Voices",
       "Orchestra"
     ],
     "instrumentation_category": "Opera",
     "publication_year": 1966,
-    "text_author": [
-      "Zeffirelli, Franco"
-    ],
     "subpieces": [
       {
         "title": "Act I",
         "number": 1,
         "subpieces": [
           {
-            "title": "Give Me Some Music",
-            "number": 1
+            "composer": "Barber, Samuel",
+            "composers": [
+              {
+                "name": "Zeffirelli, Franco",
+                "role": "Libretto"
+              }
+            ],
+            "number": 1,
+            "first_line": "Give me some music"
           }
         ]
       },
       {
+        "composer": "Barber, Samuel",
+        "composers": [
+          {
+            "name": "Zeffirelli, Franco",
+            "role": "Libretto"
+          }
+        ],
+        "title": "Act II",
+        "number": 2
+      },
+      {
         "title": "Act III",
-        "number": 2,
+        "number": 3,
         "subpieces": [
           {
-            "title": "Give Me My Robe",
-            "number": 1
+            "composer": "Barber, Samuel",
+            "composers": [
+              {
+                "name": "Zeffirelli, Franco",
+                "role": "Libretto"
+              }
+            ],
+            "number": 1,
+            "first_line": "Give me my robe"
+          }
+        ]
+      }
+    ],
+    "versions": [
+      {
+        "description": "Rev. 1975",
+        "composer": "Barber, Samuel",
+        "composers": [
+          {
+            "name": "Zeffirelli, Franco",
+            "role": "Libretto"
+          }
+        ],
+        "catalog_info": [
+          {
+            "catalog": "Op.",
+            "catalog_number": "40"
+          }
+        ],
+        "instrumentation_category": "Opera",
+        "instrumentation": [
+          {
+            "ensemble": "Orchestra"
+          }
+        ],
+        "publication_year": 1975,
+        "roles": [
+          {
+            "name": "Mark Antony",
+            "voice_type": "Baritone",
+            "description": "Roman general"
+          },
+          {
+            "name": "Cleopatra",
+            "voice_type": "Soprano",
+            "description": "Queen of Egypt"
+          },
+          {
+            "name": "Enobarbus",
+            "voice_type": "Bass",
+            "description": "Antony's comrade"
+          },
+          {
+            "name": "Iras",
+            "voice_type": "Mezzo-soprano",
+            "description": "Cleopatra's attendant"
+          },
+          {
+            "name": "Charmian",
+            "voice_type": "Mezzo-soprano",
+            "description": "Cleopatra's attendant"
+          },
+          {
+            "name": "Caesar",
+            "voice_type": "Tenor",
+            "description": "Ruler of Rome"
+          },
+          {
+            "name": "Maecenas",
+            "voice_type": "Baritone",
+            "description": "A senator"
+          },
+          {
+            "name": "Agrippa",
+            "voice_type": "Bass",
+            "description": "A senator"
+          },
+          {
+            "name": "Messenger",
+            "voice_type": "Tenor"
+          },
+          {
+            "name": "Eros",
+            "voice_type": "Tenor",
+            "description": "Antony's shieldbearer"
+          },
+          {
+            "name": "Dolabella",
+            "voice_type": "Baritone",
+            "description": "Caesar's emissary"
+          },
+          {
+            "name": "Thidias",
+            "voice_type": "Baritone",
+            "description": "Caesar's ambassador"
+          },
+          "Senator",
+          {
+            "name": "Alexas",
+            "voice_type": "Bass",
+            "description": "Cleopatra's attendant"
+          },
+          {
+            "name": "Soothsayer",
+            "voice_type": "Bass"
+          },
+          {
+            "name": "First Guard",
+            "voice_type": "Tenor"
+          },
+          {
+            "name": "Second Guard",
+            "voice_type": "Bass"
+          },
+          {
+            "name": "Third Guard",
+            "voice_type": "Bass"
+          },
+          "Fourth Guard",
+          "First Soldier",
+          "Second Soldier",
+          {
+            "name": "Soldier of Caesar",
+            "voice_type": "Tenor"
+          },
+          {
+            "name": "Rustic",
+            "voice_type": "Baritone"
+          },
+          {
+            "name": "Guardsman",
+            "voice_type": "Bass"
+          },
+          {
+            "name": "Chorus",
+            "voice_type": "Mixed chorus"
+          }
+        ],
+        "subpieces": [
+          {
+            "composer": "Barber, Samuel",
+            "composers": [
+              {
+                "name": "Zeffirelli, Franco",
+                "role": "Libretto"
+              }
+            ],
+            "title": "Act I",
+            "number": 1,
+            "subpieces": [
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Prologue",
+                "subtitle": "The Empire",
+                "number": 1,
+                "roles": [
+                  "Chorus"
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 1",
+                "subtitle": "Cleopatra's palace in Alexandria",
+                "number": 2,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "roles": [
+                      "Mark Antony",
+                      "Enobarbus",
+                      "Chorus"
+                    ],
+                    "first_line": "These strong Egyptian fetters I must break"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "I am sick and sullen"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "title": "Orchestral interlude",
+                    "number": 3
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 2",
+                "subtitle": "The Senate in Rome",
+                "number": 3
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 3",
+                "subtitle": "Cleopatra's palace",
+                "number": 4,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "Give me some music"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "title": "Slaves' dance",
+                    "number": 2
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 4",
+                "subtitle": "A Roman banquet hall",
+                "number": 5,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "A sister I bequeath you"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "When first she met Mark Antony"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "title": "Vision of Cleopatra's barge",
+                    "number": 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "composer": "Barber, Samuel",
+            "composers": [
+              {
+                "name": "Zeffirelli, Franco",
+                "role": "Libretto"
+              }
+            ],
+            "title": "Act II",
+            "number": 2,
+            "subpieces": [
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 1",
+                "subtitle": "The Senate in Rome",
+                "number": 1
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 2",
+                "subtitle": "Cleopatra's garden",
+                "number": 2,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "Lord Alexas, sweet Alexas"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "Hush, here come the Queen and Antony!"
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 3",
+                "subtitle": "Outside Antony's battlefield tent",
+                "number": 3,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "Give me some music"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "The most infectious pestilence upon you!"
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 4",
+                "subtitle": "Inside the tent",
+                "number": 4,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "title": "Orchestral interlude",
+                    "number": 1
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "Oh take, oh take those lips away"
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 5",
+                "subtitle": "The battlefield at Actium",
+                "number": 5,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "On to our ships"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "Hark! the land bids me tread no more upon it"
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 6",
+                "subtitle": "Cleopatra's palace",
+                "number": 6
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 7",
+                "subtitle": "A battlefield",
+                "number": 7,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "Oh, bear me witness"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "O sov'reign mistress of true melancholy"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "title": "Orchestral interlude",
+                    "number": 3
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 8",
+                "subtitle": "Inside Antony's tent",
+                "number": 8,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "The last she spoke"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "Where's Antony?"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "composer": "Barber, Samuel",
+            "composers": [
+              {
+                "name": "Zeffirelli, Franco",
+                "role": "Libretto"
+              }
+            ],
+            "title": "Act III",
+            "number": 3,
+            "subpieces": [
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 1",
+                "subtitle": "Cleopatra's monument",
+                "number": 1,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "O Charmian,I will never go from hence"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "My lord, my lord! Noblest of men"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 3,
+                    "first_line": "The breaking of so great a thing"
+                  }
+                ]
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Prelude",
+                "number": 2
+              },
+              {
+                "composer": "Barber, Samuel",
+                "composers": [
+                  {
+                    "name": "Zeffirelli, Franco",
+                    "role": "Libretto"
+                  }
+                ],
+                "title": "Scene 2",
+                "subtitle": "Inside the monument",
+                "number": 3,
+                "subpieces": [
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 1,
+                    "first_line": "He words me, girls, he words me"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 2,
+                    "first_line": "Here is a rural fellow"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "number": 3,
+                    "first_line": "Give me my robe"
+                  },
+                  {
+                    "composer": "Barber, Samuel",
+                    "composers": [
+                      {
+                        "name": "Zeffirelli, Franco",
+                        "role": "Libretto"
+                      }
+                    ],
+                    "title": "Death of Cleopatra",
+                    "number": 4
+                  }
+                ]
+              }
+            ]
           }
         ]
       }
@@ -1602,18 +2335,24 @@
     "instrumentation_category": "Choral",
     "subpieces": [
       {
+        "composers": [
+          {
+            "name": "Lee, Laurie",
+            "role": "Author"
+          }
+        ],
         "title": "Twelfth Night",
-        "number": 1,
-        "text_author": [
-          "Laurie Lee"
-        ]
+        "number": 1
       },
       {
+        "composers": [
+          {
+            "name": "Bogan, Louise",
+            "role": "Author"
+          }
+        ],
         "title": "To Be Sung on the Water",
-        "number": 2,
-        "text_author": [
-          "Louise Bogan"
-        ]
+        "number": 2
       }
     ]
   },
@@ -1827,23 +2566,29 @@
     "instrumentation_category": "Choral",
     "subpieces": [
       {
+        "composers": [
+          {
+            "name": "Waddell, Helen",
+            "role": "Author"
+          }
+        ],
         "title": "The Virgin Martyrs",
         "number": 1,
         "instrumentation": [
           "Female Chorus"
-        ],
-        "text_author": [
-          "Helen Waddell"
         ]
       },
       {
+        "composers": [
+          {
+            "name": "Dickinson, Emily",
+            "role": "Author"
+          }
+        ],
         "title": "Let Down the Bars, O Death",
         "number": 2,
         "instrumentation": [
           "Mixed Chorus"
-        ],
-        "text_author": [
-          "Emily Dickinson"
         ]
       }
     ]
@@ -10002,6 +10747,20 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
+    "composers": [
+      {
+        "name": "Sonnleithner, Joseph",
+        "role": "Libretto"
+      },
+      {
+        "name": "Breuning, Stephan von",
+        "role": "Libretto"
+      },
+      {
+        "name": "Treitschke, Georg Friedrich",
+        "role": "Libretto"
+      }
+    ],
     "title": "Fidelio",
     "form": "Opera",
     "catalog_info": [
@@ -10105,11 +10864,6 @@
     ],
     "instrumentation_category": "Opera",
     "publication_year": 1826,
-    "text_author": [
-      "Sonnleithner, Joseph",
-      "Breuning, Stephan von",
-      "Treitschke, Georg Friedrich"
-    ],
     "subpieces": [
       {
         "title": "Overture",

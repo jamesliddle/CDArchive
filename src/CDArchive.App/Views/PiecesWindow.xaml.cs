@@ -211,7 +211,9 @@ public partial class PiecesWindow : Window
 
     private async void OnNewPieceClick(object sender, RoutedEventArgs e)
     {
-        var window = new PieceEditorWindow(_vm.PickLists, _composerName)
+        var composerCatalogs = BuildComposerCatalogDict();
+        var window = new PieceEditorWindow(_vm.PickLists, _composerName,
+            composerCatalogs: composerCatalogs)
         {
             Owner = this
         };
@@ -219,7 +221,6 @@ public partial class PiecesWindow : Window
         if (window.ShowDialog() == true)
         {
             _vm.Pieces.Add(window.Piece);
-            ApplyRenamesFromPieceEditor(window);
             ApplyFilter();
             await SaveAllAsync();
             _vm.StatusMessage = $"Added new piece: {window.Piece.DisplayTitle}.";
@@ -232,16 +233,18 @@ public partial class PiecesWindow : Window
         if (!item.IsSelected) return;
         e.Handled = true;
 
+        var composerCatalogs = BuildComposerCatalogDict();
+
         if (item.DataContext is CanonPiece piece)
         {
-            var window = new PieceEditorWindow(_vm.PickLists, _composerName, piece)
+            var window = new PieceEditorWindow(_vm.PickLists, _composerName, piece,
+                composerCatalogs: composerCatalogs)
             {
                 Owner = this
             };
 
             if (window.ShowDialog() == true)
             {
-                ApplyRenamesFromPieceEditor(window);
                 ApplyFilter(preserveExpansion: true);
                 await SaveAllAsync();
                 _vm.StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
@@ -249,9 +252,12 @@ public partial class PiecesWindow : Window
         }
         else if (item.DataContext is SubpieceDisplayNode node)
         {
+            var ancestorRoles = ParseAncestorRoles(node.ParentPiece, node.Piece);
             var window = new PieceEditorWindow(
                 _vm.PickLists, node.Piece.Composer ?? "", node.Piece, null, PieceEditorMode.Subpiece,
-                inheritedComposer: _composerName)
+                inheritedComposer: _composerName,
+                composerCatalogs: composerCatalogs,
+                ancestorRoles: ancestorRoles)
             {
                 Owner = this
             };
@@ -309,74 +315,57 @@ public partial class PiecesWindow : Window
         Close();
     }
 
-    private void ApplyRenamesFromPieceEditor(PieceEditorWindow window)
-    {
-        if (window.FormRenames.Count == 0 && window.CategoryRenames.Count == 0 &&
-            window.CatalogRenames.Count == 0 && window.KeyRenames.Count == 0)
-            return;
-
-        var count = 0;
-        foreach (var piece in _vm.Pieces)
-            count += ApplyRenamesToPiece(piece,
-                window.FormRenames, window.CategoryRenames,
-                window.CatalogRenames, window.KeyRenames);
-
-        if (count > 0)
-            _vm.StatusMessage = $"Renamed values propagated to {count} field(s). Save to persist.";
-    }
-
-    private static int ApplyRenamesToPiece(
-        CanonPiece piece,
-        Dictionary<string, string> formRenames,
-        Dictionary<string, string> categoryRenames,
-        Dictionary<string, string> catalogRenames,
-        Dictionary<string, string> keyRenames)
-    {
-        var count = 0;
-
-        if (piece.Form != null && formRenames.TryGetValue(piece.Form, out var newForm))
-        {
-            piece.Form = newForm;
-            count++;
-        }
-
-        if (piece.InstrumentationCategory != null &&
-            categoryRenames.TryGetValue(piece.InstrumentationCategory, out var newCat))
-        {
-            piece.InstrumentationCategory = newCat;
-            count++;
-        }
-
-        if (piece.KeyTonality != null && keyRenames.TryGetValue(piece.KeyTonality, out var newKey))
-        {
-            piece.KeyTonality = newKey;
-            count++;
-        }
-
-        if (piece.CatalogInfo != null)
-        {
-            foreach (var cat in piece.CatalogInfo)
-            {
-                if (catalogRenames.TryGetValue(cat.Catalog, out var newPrefix))
-                {
-                    cat.Catalog = newPrefix;
-                    count++;
-                }
-            }
-        }
-
-        if (piece.Subpieces != null)
-        {
-            foreach (var sub in piece.Subpieces)
-                count += ApplyRenamesToPiece(sub, formRenames, categoryRenames, catalogRenames, keyRenames);
-        }
-
-        return count;
-    }
-
     private async Task SaveAllAsync()
     {
         await _vm.SavePiecesCommand.ExecuteAsync(null);
         await _vm.SavePickListsCommand.ExecuteAsync(null);
+    }
+
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildComposerCatalogDict()
+    {
+        var dict = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var composer in _vm.Composers)
+        {
+            if (composer.CatalogPrefixes is { Count: > 0 })
+                dict[composer.Name] = composer.CatalogPrefixes;
+        }
+        return dict;
+    }
+
+    private static IReadOnlyList<RoleEntry>? ParseAncestorRoles(
+        CanonPiece? piece, CanonPiece? subpieceContext = null)
+    {
+        if (piece == null) return null;
+
+        if (piece.Roles is { } roles)
+        {
+            var parsed = RoleEntry.ParseRoles(roles);
+            if (parsed.Count > 0) return parsed;
+        }
+
+        if (subpieceContext != null && piece.Versions != null)
+        {
+            foreach (var v in piece.Versions)
+            {
+                if (v.Roles != null && SubpieceExistsInTree(v.Subpieces, subpieceContext))
+                {
+                    var parsed = RoleEntry.ParseRoles(v.Roles.Value);
+                    if (parsed.Count > 0) return parsed;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool SubpieceExistsInTree(List<CanonPiece>? subpieces, CanonPiece target)
+    {
+        if (subpieces == null) return false;
+        foreach (var sp in subpieces)
+        {
+            if (ReferenceEquals(sp, target)) return true;
+            if (SubpieceExistsInTree(sp.Subpieces, target)) return true;
+        }
+        return false;
     }
 }

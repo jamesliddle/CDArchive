@@ -104,8 +104,21 @@ public class SqliteCanonDataService : ICanonDataService
         // Each entry: (table, column, column-definition)
         var additions = new[]
         {
-            ("Pieces", "ComposersJson", "TEXT"),
+            ("Pieces",    "ComposersJson", "TEXT"),
+            ("Pieces",    "Notes",         "TEXT"),
+            ("Composers", "Notes",         "TEXT"),
         };
+
+        // One-time migration: move BirthNotes into Notes (idempotent — WHERE clause is false once done)
+        await ctx.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "Composers"
+            SET "Notes" = CASE
+                WHEN "Notes" IS NULL THEN "BirthNotes"
+                ELSE "BirthNotes" || char(10) || "Notes"
+            END
+            WHERE "BirthNotes" IS NOT NULL
+            """);
 
         foreach (var (table, column, definition) in additions)
         {
@@ -255,11 +268,11 @@ public class SqliteCanonDataService : ICanonDataService
         BirthPlace   = c.BirthPlace,
         BirthState   = c.BirthState,
         BirthCountry = c.BirthCountry,
-        BirthNotes   = c.BirthNotes,
         DeathDate    = c.DeathDate,
         DeathPlace   = c.DeathPlace,
         DeathState   = c.DeathState,
         DeathCountry = c.DeathCountry,
+        Notes        = c.Notes,
     };
 
     private static CanonComposer MapRowToComposer(ComposerRow r) => new()
@@ -270,11 +283,11 @@ public class SqliteCanonDataService : ICanonDataService
         BirthPlace   = r.BirthPlace,
         BirthState   = r.BirthState,
         BirthCountry = r.BirthCountry,
-        BirthNotes   = r.BirthNotes,
         DeathDate    = r.DeathDate,
         DeathPlace   = r.DeathPlace,
         DeathState   = r.DeathState,
         DeathCountry = r.DeathCountry,
+        Notes        = r.Notes,
     };
 
     // ── Mapping: CanonPiece ↔ PieceRow ───────────────────────────────────────
@@ -295,6 +308,7 @@ public class SqliteCanonDataService : ICanonDataService
         NumberedSubpieces     = p.NumberedSubpieces,
         MusicNumber           = p.MusicNumber,
         FirstLine             = p.FirstLine,
+        Notes                 = p.Notes,
 
         // Sort helpers — computed from CatalogInfo
         CatalogSortPrefix     = NullIfFfff(p.CatalogSortPrefix),
@@ -332,6 +346,7 @@ public class SqliteCanonDataService : ICanonDataService
         NumberedSubpieces     = r.NumberedSubpieces,
         MusicNumber           = r.MusicNumber,
         FirstLine             = r.FirstLine,
+        Notes                 = r.Notes,
 
         Composers             = DeserializeList<ComposerCredit>(r.ComposersJson),
         CatalogInfo           = DeserializeList<CatalogInfo>(r.CatalogInfoJson),

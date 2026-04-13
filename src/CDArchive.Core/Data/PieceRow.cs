@@ -30,6 +30,7 @@ public class PieceRow
     public bool? NumberedSubpieces { get; set; }
     public string? MusicNumber { get; set; }
     public string? FirstLine { get; set; }
+    public string? Notes { get; set; }
 
     // ── Sort-helper columns (derived from CatalogInfo at save time) ──────────
 

@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MusicBrainzReference>();
         services.AddSingleton<CompositeCatalogueReference>();
         services.AddTransient<ICataloguingService, CataloguingService>();
-        services.AddSingleton<ICanonDataService, SqliteCanonDataService>();
+        services.AddSingleton<ICanonDataService, CanonDataService>();
 
         return services;
     }

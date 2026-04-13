@@ -111,6 +111,14 @@ public class CanonPiece
     [JsonPropertyName("first_line")]
     public string? FirstLine { get; set; }
 
+    [JsonPropertyName("notes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("variants")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<VariantInfo>? Variants { get; set; }
+
     [JsonPropertyName("cadenza")]
     public JsonElement? Cadenza { get; set; }
 
@@ -128,32 +136,36 @@ public class CanonPiece
     /// Full display title including catalogue info, for tooltips and general use.
     /// </summary>
     [JsonIgnore]
-    public string DisplayTitle => BuildDisplayTitle(includeCatalog: true) + RolesSuffix;
+    public string DisplayTitle => BuildDisplayTitle(includeCatalog: true);
 
     /// <summary>
     /// Display title without catalogue info, for use in the pieces list
     /// where the catalogue is shown in its own column.
     /// </summary>
     [JsonIgnore]
-    public string DisplayTitleShort => BuildDisplayTitle(includeCatalog: false) + RolesSuffix;
+    public string DisplayTitleShort => BuildDisplayTitle(includeCatalog: false);
 
     /// <summary>
     /// Display title for use when rendered as a subpiece.
     /// Sub-works (those with their own subpieces) use the top-level "Form #N" format;
     /// leaf movements use the "N. Form / N. Tempo" format.
+    /// Leaf movements also append their assigned roles, e.g. " (Florestan, Leonore)".
     /// </summary>
     [JsonIgnore]
     public string SubpieceDisplayTitle => BuildDisplayTitle(includeCatalog: false, isSubpiece: true) + RolesSuffix;
 
     /// <summary>
-    /// Roles suffix for movement-level display: " (Role1, Role2)".
-    /// Only applies when Roles is a JSON string array (movements), not an object array (pieces).
+    /// Roles suffix for leaf-subpiece display: " (Role1, Role2)".
+    /// Returns an empty string for pieces that have sub-movements of their own,
+    /// and for any piece whose roles are stored as full objects rather than
+    /// name-only string references.
     /// </summary>
     [JsonIgnore]
     private string RolesSuffix
     {
         get
         {
+            if (HasSubpieces) return "";
             if (Roles?.ValueKind != JsonValueKind.Array) return "";
             var roles = Roles.Value.EnumerateArray()
                 .Where(e => e.ValueKind == JsonValueKind.String)
@@ -318,8 +330,7 @@ public class CanonPiece
     /// with explicit control over whether the sequence number is prepended.
     /// </summary>
     public string BuildSubpieceTitle(bool showNumber) =>
-        BuildDisplayTitle(includeCatalog: false, isSubpiece: true, showNumber: showNumber)
-        + RolesSuffix;
+        BuildDisplayTitle(includeCatalog: false, isSubpiece: true, showNumber: showNumber) + RolesSuffix;
 
     /// <summary>
     /// Computes the numeric prefix string for subpiece display.
@@ -739,8 +750,11 @@ public class RoleEntry
     }
 
     /// <summary>
-    /// Parses a piece-level roles JSON array (array of objects) into a typed list.
-    /// Silently skips string entries, which belong to subpiece-level role references.
+    /// Parses a roles JSON array into a typed list.
+    /// Supports two element shapes:
+    /// - Objects: <c>{"name": "Florestan", "voice_type": "Tenor", "description": "..."}</c>
+    ///   — used at the top-level piece to define the full cast.
+    /// - Strings: <c>"Florestan"</c> — used on subpieces to reference characters by name only.
     /// </summary>
     public static List<RoleEntry> ParseRoles(JsonElement el)
     {
@@ -748,10 +762,17 @@ public class RoleEntry
         if (el.ValueKind != JsonValueKind.Array) return result;
         foreach (var item in el.EnumerateArray())
         {
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                var name = item.GetString();
+                if (!string.IsNullOrEmpty(name))
+                    result.Add(new RoleEntry { Name = name });
+                continue;
+            }
             if (item.ValueKind != JsonValueKind.Object) continue;
             var entry = new RoleEntry();
-            if (item.TryGetProperty("name", out var name))
-                entry.Name = name.GetString() ?? "";
+            if (item.TryGetProperty("name", out var nameProp))
+                entry.Name = nameProp.GetString() ?? "";
             if (item.TryGetProperty("voice_type", out var vt))
                 entry.VoiceType = vt.GetString();
             if (item.TryGetProperty("description", out var desc))
@@ -765,6 +786,9 @@ public class RoleEntry
     /// <summary>
     /// Serializes a list of RoleEntry objects to a JSON array element.
     /// Returns null if the list is empty.
+    /// Entries with only a name (no voice type or description) are written as plain
+    /// strings, matching the subpiece reference format. Entries with additional detail
+    /// are written as objects.
     /// </summary>
     public static JsonElement? SerializeRoles(IList<RoleEntry> roles)
     {
@@ -772,10 +796,18 @@ public class RoleEntry
         var array = new JsonArray();
         foreach (var r in roles)
         {
-            var obj = new JsonObject { ["name"] = r.Name };
-            if (!string.IsNullOrEmpty(r.VoiceType))    obj["voice_type"]   = r.VoiceType;
-            if (!string.IsNullOrEmpty(r.Description))   obj["description"]  = r.Description;
-            array.Add(obj);
+            if (string.IsNullOrEmpty(r.VoiceType) && string.IsNullOrEmpty(r.Description))
+            {
+                // Name-only reference — serialize as a plain string (subpiece format).
+                array.Add(JsonValue.Create(r.Name));
+            }
+            else
+            {
+                var obj = new JsonObject { ["name"] = r.Name };
+                if (!string.IsNullOrEmpty(r.VoiceType))   obj["voice_type"]  = r.VoiceType;
+                if (!string.IsNullOrEmpty(r.Description))  obj["description"] = r.Description;
+                array.Add(obj);
+            }
         }
         return JsonDocument.Parse(array.ToJsonString()).RootElement.Clone();
     }
@@ -784,9 +816,49 @@ public class RoleEntry
 }
 
 /// <summary>
+/// A known variant of a piece, subpiece, or version —
+/// e.g., a particular manuscript source, a different ending, or a disputed reading.
+/// </summary>
+public class VariantInfo
+{
+    /// <summary>Short label shown in the list, e.g. "Autograph ending".</summary>
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = "";
+
+    /// <summary>Optional extended description, edited in a modal window.</summary>
+    [JsonPropertyName("long_description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LongDescription { get; set; }
+
+    public override string ToString() => Description;
+}
+
+/// <summary>
+/// Defines an ensemble template in the pick lists.
+/// Fixed ensembles (e.g. String Quartet) have a canonical member list.
+/// Variable ensembles (e.g. Chamber Orchestra) have no predefined members;
+/// the actual membership is specified per piece.
+/// </summary>
+public class EnsembleDefinition
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("members")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Members { get; set; }
+
+    /// <summary>True if this ensemble has a fixed, canonical membership.</summary>
+    [JsonIgnore]
+    public bool IsFixed => Members is { Count: > 0 };
+
+    public override string ToString() => Name;
+}
+
+/// <summary>
 /// A parsed representation of one entry in a piece's instrumentation list.
 /// Supports simple instrument names, part numbering (e.g. "violin 1"), transposition keys,
-/// and alternate instruments.
+/// alternate instruments, and ensemble references.
 /// </summary>
 public class InstrumentEntry
 {
@@ -805,11 +877,29 @@ public class InstrumentEntry
     /// <summary>Alternate instrument the player may double on, e.g. "english horn".</summary>
     public string? Alternate { get; set; }
 
+    /// <summary>True if this entry represents an ensemble rather than a single instrument.</summary>
+    public bool IsEnsemble { get; set; }
+
+    /// <summary>
+    /// Per-piece member list for variable ensembles.
+    /// Null for fixed ensembles (membership comes from the pick list definition)
+    /// and for single instruments.
+    /// </summary>
+    public List<InstrumentEntry>? Members { get; set; }
+
     /// <summary>Display label, e.g. "Clarinet in B-flat 1" or "Violin (or Viola)".</summary>
     public string DisplayLabel
     {
         get
         {
+            if (IsEnsemble)
+            {
+                var label = CanonFormat.TitleCase(Instrument);
+                if (Members is { Count: > 0 })
+                    label += ": " + string.Join(", ", Members.Select(m => m.DisplayLabel));
+                return label;
+            }
+
             var name = CanonFormat.TitleCase(Instrument);
             if (!string.IsNullOrEmpty(Key))       name += $" in {CanonFormat.TitleCase(Key)}";
             if (PartNumber.HasValue)              name += $" {PartNumber}";
@@ -839,6 +929,24 @@ public class InstrumentEntry
             return;
         }
         if (el.ValueKind != JsonValueKind.Object) return;
+
+        // Ensemble: { "ensemble": "String Quartet" } or { "ensemble": "Chamber Orchestra", "members": [...] }
+        if (el.TryGetProperty("ensemble", out var ens) && ens.ValueKind == JsonValueKind.String)
+        {
+            var entry = new InstrumentEntry
+            {
+                Instrument = ens.GetString() ?? "",
+                IsEnsemble = true
+            };
+            if (el.TryGetProperty("members", out var members) && members.ValueKind == JsonValueKind.Array)
+            {
+                entry.Members = [];
+                foreach (var m in members.EnumerateArray())
+                    ParseItem(m, entry.Members);
+            }
+            result.Add(entry);
+            return;
+        }
 
         // Orchestra grouping: { "orchestra": [...] } — flatten members
         if (el.TryGetProperty("orchestra", out var orch) && orch.ValueKind == JsonValueKind.Array)
@@ -899,7 +1007,18 @@ public class InstrumentEntry
         var array = new JsonArray();
         foreach (var e in entries)
         {
-            if (!e.PartNumber.HasValue && string.IsNullOrEmpty(e.Key) && string.IsNullOrEmpty(e.Alternate))
+            if (e.IsEnsemble)
+            {
+                var obj = new JsonObject { ["ensemble"] = e.Instrument };
+                if (e.Members is { Count: > 0 })
+                {
+                    var membersEl = SerializeInstrumentation(e.Members);
+                    if (membersEl.HasValue)
+                        obj["members"] = JsonNode.Parse(membersEl.Value.GetRawText());
+                }
+                array.Add(obj);
+            }
+            else if (!e.PartNumber.HasValue && string.IsNullOrEmpty(e.Key) && string.IsNullOrEmpty(e.Alternate))
             {
                 array.Add(JsonValue.Create(e.Instrument));
             }
@@ -927,12 +1046,17 @@ public class InstrumentEntry
 public class SubpieceDisplayNode
 {
     private readonly bool _showNumber;
+    private readonly bool _isExpandable;
+    private readonly List<SubpieceDisplayNode>? _filteredChildren;
 
-    public SubpieceDisplayNode(CanonPiece piece, bool showNumber = true, CanonPiece? parentPiece = null)
+    public SubpieceDisplayNode(CanonPiece piece, bool showNumber = true, CanonPiece? parentPiece = null,
+                                bool isExpandable = true, List<SubpieceDisplayNode>? filteredChildren = null)
     {
         Piece = piece;
         _showNumber = showNumber;
         ParentPiece = parentPiece;
+        _isExpandable = isExpandable;
+        _filteredChildren = filteredChildren;
     }
 
     public CanonPiece Piece { get; }
@@ -947,13 +1071,15 @@ public class SubpieceDisplayNode
     public string DisplayTitle => Piece.BuildSubpieceTitle(_showNumber);
 
     /// <summary>Whether this subpiece has its own sub-movements.</summary>
-    public bool HasChildren => Piece.Subpieces is { Count: > 0 };
+    public bool HasChildren =>
+        _isExpandable && (_filteredChildren is { Count: > 0 } || Piece.Subpieces is { Count: > 0 });
 
     /// <summary>Sub-movements of this subpiece, also wrapped as SubpieceDisplayNodes.</summary>
     public List<SubpieceDisplayNode>? Children =>
-        HasChildren
+        !_isExpandable ? null :
+        _filteredChildren ?? (Piece.HasSubpieces
             ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp, Piece.EffectiveSubpiecesNumbered, ParentPiece)).ToList()
-            : null;
+            : null);
 
     public override string ToString() => DisplayTitle;
 }
@@ -965,9 +1091,15 @@ public class SubpieceDisplayNode
 /// </summary>
 public class PieceOriginalNode
 {
-    public PieceOriginalNode(CanonPiece piece)
+    private readonly bool _isExpandable;
+    private readonly List<SubpieceDisplayNode>? _filteredChildren;
+
+    public PieceOriginalNode(CanonPiece piece, bool isExpandable = true,
+                              List<SubpieceDisplayNode>? filteredChildren = null)
     {
         Piece = piece;
+        _isExpandable = isExpandable;
+        _filteredChildren = filteredChildren;
     }
 
     public CanonPiece Piece { get; }
@@ -975,13 +1107,15 @@ public class PieceOriginalNode
     public string DisplayTitle => "Original";
 
     /// <summary>Whether the original version has its own movements to expand.</summary>
-    public bool HasChildren => Piece.HasSubpieces;
+    public bool HasChildren =>
+        _isExpandable && (_filteredChildren is { Count: > 0 } || Piece.HasSubpieces);
 
     /// <summary>Movements of the original piece, wrapped for subpiece display.</summary>
     public List<SubpieceDisplayNode>? Children =>
-        Piece.HasSubpieces
+        !_isExpandable ? null :
+        _filteredChildren ?? (Piece.HasSubpieces
             ? Piece.Subpieces!.Select(sp => new SubpieceDisplayNode(sp, Piece.EffectiveSubpiecesNumbered, Piece)).ToList()
-            : null;
+            : null);
 
     public override string ToString() => DisplayTitle;
 }
@@ -994,12 +1128,17 @@ public class PieceOriginalNode
 public class VersionDisplayNode
 {
     private readonly bool _showNumber;
+    private readonly bool _isExpandable;
+    private readonly List<SubpieceDisplayNode>? _filteredChildren;
 
-    public VersionDisplayNode(CanonPieceVersion version, bool showNumber = true, CanonPiece? parentPiece = null)
+    public VersionDisplayNode(CanonPieceVersion version, bool showNumber = true, CanonPiece? parentPiece = null,
+                               bool isExpandable = true, List<SubpieceDisplayNode>? filteredChildren = null)
     {
         Version = version;
         _showNumber = showNumber;
         ParentPiece = parentPiece;
+        _isExpandable = isExpandable;
+        _filteredChildren = filteredChildren;
     }
 
     public CanonPieceVersion Version { get; }
@@ -1012,10 +1151,12 @@ public class VersionDisplayNode
 
     /// <summary>Movements belonging to this version, wrapped for subpiece display.</summary>
     public List<SubpieceDisplayNode>? Children =>
-        Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp, _showNumber, ParentPiece)).ToList();
+        !_isExpandable ? null :
+        _filteredChildren ?? Version.Subpieces?.Select(sp => new SubpieceDisplayNode(sp, _showNumber, ParentPiece)).ToList();
 
     /// <summary>Whether this version has movements to expand.</summary>
-    public bool HasSubpieces => Version.Subpieces is { Count: > 0 };
+    public bool HasSubpieces =>
+        _isExpandable && (_filteredChildren is { Count: > 0 } || Version.Subpieces is { Count: > 0 });
 
     public override string ToString() => DisplayTitle;
 }
@@ -1088,6 +1229,14 @@ public class CanonPieceVersion
     [JsonPropertyName("first_line")]
     public string? FirstLine { get; set; }
 
+    [JsonPropertyName("notes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("variants")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<VariantInfo>? Variants { get; set; }
+
     [JsonPropertyName("text_author")]
     public JsonElement? TextAuthor { get; set; }
 
@@ -1104,6 +1253,252 @@ public class CanonPieceVersion
     public JsonElement? ContributingComposers { get; set; }
 
     public override string ToString() => Description ?? Title ?? "(no description)";
+}
+
+/// <summary>
+/// A header node grouping contributed works by creative role and original composer.
+/// E.g., "orch: Mussorgsky, Modest" groups all pieces where the selected composer/author
+/// orchestrated works by Mussorgsky.
+/// </summary>
+public class ContributedRoleGroupNode
+{
+    public ContributedRoleGroupNode(string role, string composerName, List<ContributedPieceNode> pieces)
+    {
+        Role = role;
+        ComposerName = composerName;
+        Pieces = pieces;
+    }
+
+    public string Role { get; }
+    public string ComposerName { get; }
+    public string DisplayTitle => $"{Role.TrimEnd('.')}: {ComposerName}";
+    public List<ContributedPieceNode> Pieces { get; }
+
+    public override string ToString() => DisplayTitle;
+}
+
+/// <summary>
+/// A display node wrapping a piece in the contributed-works section of the tree.
+/// Its <see cref="Children"/> are filtered so that only nodes on the path to (and
+/// descendants of) the contribution point are expandable.
+/// </summary>
+public class ContributedPieceNode
+{
+    public ContributedPieceNode(CanonPiece piece, System.Collections.IList? children)
+    {
+        Piece = piece;
+        Children = children;
+    }
+
+    public CanonPiece Piece { get; }
+    public string DisplayTitle => Piece.DisplayTitleShort;
+    public string Catalog => Piece.Catalog;
+    public bool HasChildren => Children is { Count: > 0 };
+    public System.Collections.IList? Children { get; }
+
+    public override string ToString() => DisplayTitle;
+}
+
+/// <summary>
+/// Finds works where a given composer/author is an Other Contributor and builds
+/// filtered tree structures showing only the path to the contribution point.
+/// </summary>
+public static class ContributedWorksFinder
+{
+    /// <summary>
+    /// Returns true if the named person is an Other Contributor anywhere in the
+    /// piece hierarchy (root piece, any version, or any subpiece at any depth).
+    /// </summary>
+    public static bool IsContributor(CanonPiece piece, string composerName)
+    {
+        var roles = CollectAllRoles(piece, composerName);
+        return roles.Count > 0;
+    }
+
+    /// <summary>
+    /// Scans all pieces and returns contributed-work groups for the given composer name.
+    /// Each group is keyed by (role, original composer) and contains contributed piece nodes
+    /// with filtered children.
+    /// </summary>
+    public static List<ContributedRoleGroupNode> FindContributedGroups(
+        IEnumerable<CanonPiece> allPieces, string composerName)
+    {
+        var groups = new Dictionary<string, (string role, string composer, List<ContributedPieceNode> pieces)>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var piece in allPieces)
+        {
+            // Skip the composer's own pieces
+            if (string.Equals(piece.Composer, composerName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var roles = CollectAllRoles(piece, composerName);
+            if (roles.Count == 0) continue;
+
+            var role = roles[0];
+            var children = BuildFilteredTree(piece, composerName);
+            var key = $"{role}\0{piece.Composer}";
+
+            if (!groups.TryGetValue(key, out var group))
+            {
+                group = (role, piece.Composer ?? "", []);
+                groups[key] = group;
+            }
+            group.pieces.Add(new ContributedPieceNode(piece, children));
+        }
+
+        return groups.Values
+            .OrderBy(g => g.role, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(g => g.composer, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new ContributedRoleGroupNode(g.role, g.composer, g.pieces))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Builds the filtered tree children for a contributed piece.
+    /// Nodes on the path to the contribution point are expandable;
+    /// all descendants of the contribution point are fully expandable;
+    /// everything else is shown but not expandable.
+    /// </summary>
+    private static System.Collections.IList? BuildFilteredTree(CanonPiece piece, string composerName)
+    {
+        // Contribution at root level → entire tree is expandable
+        if (HasDirectContribution(piece.Composers, composerName))
+            return piece.TreeChildren;
+
+        var showNums = piece.EffectiveSubpiecesNumbered;
+
+        if (piece.Versions is { Count: > 0 })
+        {
+            var nodes = new List<object>();
+
+            // Original node: expandable only if path goes through the piece's own subpieces
+            if (HasContributionInSubpieces(piece.Subpieces, composerName))
+            {
+                var filtered = BuildFilteredSubpieces(piece.Subpieces!, showNums, piece, composerName);
+                nodes.Add(new PieceOriginalNode(piece, filteredChildren: filtered));
+            }
+            else
+            {
+                nodes.Add(new PieceOriginalNode(piece, isExpandable: false));
+            }
+
+            // Each version: expandable if it has a direct contribution or a path through its subpieces
+            foreach (var v in piece.Versions)
+            {
+                if (HasDirectContribution(v.Composers, composerName))
+                {
+                    // Direct contribution on the version → fully expandable
+                    nodes.Add(new VersionDisplayNode(v, showNums, piece));
+                }
+                else if (HasContributionInSubpieces(v.Subpieces, composerName))
+                {
+                    // Path goes through version's subpieces
+                    var filtered = BuildFilteredSubpieces(v.Subpieces!, showNums, piece, composerName);
+                    nodes.Add(new VersionDisplayNode(v, showNums, piece, filteredChildren: filtered));
+                }
+                else
+                {
+                    // No contribution path → not expandable
+                    nodes.Add(new VersionDisplayNode(v, showNums, piece, isExpandable: false));
+                }
+            }
+
+            return nodes;
+        }
+        else if (piece.Subpieces is { Count: > 0 })
+        {
+            return BuildFilteredSubpieces(piece.Subpieces, showNums, piece, composerName);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Builds a filtered subpiece list where only path/target/descendant nodes are expandable.
+    /// </summary>
+    private static List<SubpieceDisplayNode> BuildFilteredSubpieces(
+        List<CanonPiece> subpieces, bool showNumbers, CanonPiece parentPiece, string composerName)
+    {
+        return subpieces.Select(sp =>
+        {
+            if (HasDirectContribution(sp.Composers, composerName))
+            {
+                // This IS the contribution target → fully expandable with normal children
+                return new SubpieceDisplayNode(sp, showNumbers, parentPiece);
+            }
+
+            if (HasContributionInSubpieces(sp.Subpieces, composerName))
+            {
+                // On the path → expandable, but with filtered children
+                var filtered = BuildFilteredSubpieces(
+                    sp.Subpieces!, sp.EffectiveSubpiecesNumbered, parentPiece, composerName);
+                return new SubpieceDisplayNode(sp, showNumbers, parentPiece,
+                    isExpandable: true, filteredChildren: filtered);
+            }
+
+            // Not on path → shown but not expandable
+            return new SubpieceDisplayNode(sp, showNumbers, parentPiece, isExpandable: false);
+        }).ToList();
+    }
+
+    /// <summary>Checks if a Composers list has a credit for the given name with a non-null role.</summary>
+    private static bool HasDirectContribution(List<ComposerCredit>? composers, string composerName) =>
+        composers?.Any(c => string.Equals(c.Name, composerName, StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrEmpty(c.Role)) == true;
+
+    /// <summary>Recursively checks if any subpiece (or its descendants) has a contribution.</summary>
+    private static bool HasContributionInSubpieces(List<CanonPiece>? subpieces, string composerName)
+    {
+        if (subpieces == null) return false;
+        return subpieces.Any(sp =>
+            HasDirectContribution(sp.Composers, composerName)
+            || HasContributionInSubpieces(sp.Subpieces, composerName));
+    }
+
+    /// <summary>
+    /// Collects all distinct creative roles the composer holds anywhere in the piece hierarchy.
+    /// </summary>
+    private static List<string> CollectAllRoles(CanonPiece piece, string composerName)
+    {
+        var roles = new List<string>();
+        CollectRolesRecursive(piece, composerName, roles);
+        return roles;
+    }
+
+    private static void CollectRolesRecursive(CanonPiece piece, string composerName, List<string> roles)
+    {
+        AddRolesFrom(piece.Composers, composerName, roles);
+
+        if (piece.Subpieces != null)
+            foreach (var sp in piece.Subpieces)
+                CollectRolesRecursive(sp, composerName, roles);
+
+        if (piece.Versions != null)
+        {
+            foreach (var v in piece.Versions)
+            {
+                AddRolesFrom(v.Composers, composerName, roles);
+                if (v.Subpieces != null)
+                    foreach (var sp in v.Subpieces)
+                        CollectRolesRecursive(sp, composerName, roles);
+            }
+        }
+    }
+
+    private static void AddRolesFrom(List<ComposerCredit>? composers, string composerName, List<string> roles)
+    {
+        if (composers == null) return;
+        foreach (var c in composers)
+        {
+            if (string.Equals(c.Name, composerName, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrEmpty(c.Role)
+                && !roles.Contains(c.Role, StringComparer.OrdinalIgnoreCase))
+            {
+                roles.Add(c.Role);
+            }
+        }
+    }
 }
 
 /// <summary>
