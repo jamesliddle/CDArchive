@@ -25,6 +25,10 @@ public class CanonPickLists
     [JsonPropertyName("instruments")]
     public List<string> Instruments { get; set; } = [];
 
+    [JsonPropertyName("ensembles")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<EnsembleDefinition>? Ensembles { get; set; }
+
     [JsonPropertyName("creative_roles")]
     public List<string> CreativeRoles { get; set; } = [];
 }

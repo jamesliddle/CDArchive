@@ -14,12 +14,13 @@ public partial class MainViewModel : ObservableObject
     private readonly CatalogueViewModel _catalogueViewModel;
     private readonly CanonViewModel _canonViewModel;
     private readonly ImportExportViewModel _importExportViewModel;
+    private readonly PickListsViewModel _pickListsViewModel;
 
     [ObservableProperty]
     private ObservableObject? _currentView;
 
     [ObservableProperty]
-    private string _currentViewTitle = "Composers";
+    private string _currentViewTitle = "Composers and Authors";
 
     [ObservableProperty]
     private bool _isCanonViewActive = true;
@@ -35,7 +36,8 @@ public partial class MainViewModel : ObservableObject
         SettingsViewModel settingsViewModel,
         CatalogueViewModel catalogueViewModel,
         CanonViewModel canonViewModel,
-        ImportExportViewModel importExportViewModel)
+        ImportExportViewModel importExportViewModel,
+        PickListsViewModel pickListsViewModel)
     {
         _newAlbumViewModel = newAlbumViewModel;
         _archiveBrowserViewModel = archiveBrowserViewModel;
@@ -46,6 +48,7 @@ public partial class MainViewModel : ObservableObject
         _catalogueViewModel = catalogueViewModel;
         _canonViewModel = canonViewModel;
         _importExportViewModel = importExportViewModel;
+        _pickListsViewModel = pickListsViewModel;
 
         // CanonView is always-alive in MainWindow; IsCanonViewActive=true (default) shows it on startup.
     }
@@ -103,7 +106,7 @@ public partial class MainViewModel : ObservableObject
     {
         IsCanonViewActive = true;
         CurrentView = null;
-        CurrentViewTitle = "Composers";
+        CurrentViewTitle = "Composers and Authors";
         _ = _canonViewModel.LoadDataCommand.ExecuteAsync(null);
     }
 
@@ -121,5 +124,14 @@ public partial class MainViewModel : ObservableObject
         IsCanonViewActive = false;
         CurrentView = _importExportViewModel;
         CurrentViewTitle = "Import / Export";
+    }
+
+    [RelayCommand]
+    private void NavigateToPickLists()
+    {
+        IsCanonViewActive = false;
+        CurrentView = _pickListsViewModel;
+        CurrentViewTitle = "Pick Lists";
+        _ = _pickListsViewModel.LoadAsync();
     }
 }

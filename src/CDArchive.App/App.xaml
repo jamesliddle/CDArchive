@@ -25,8 +25,11 @@
         <DataTemplate DataType="{x:Type vm:CatalogueViewModel}">
             <views:CatalogueView />
         </DataTemplate>
-<DataTemplate DataType="{x:Type vm:ImportExportViewModel}">
+        <DataTemplate DataType="{x:Type vm:ImportExportViewModel}">
             <views:ImportExportView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PickListsViewModel}">
+            <views:PickListsView />
         </DataTemplate>
     </Application.Resources>
 </Application>

@@ -15,28 +15,21 @@ public partial class PieceEditorWindow : Window
     private CanonPieceVersion? _sourceVersion; // non-null when editing a version
     private readonly string? _inheritedComposer;
     private readonly IReadOnlyList<ComposerCredit>? _inheritedComposers;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<string>>? _composerCatalogs;
+    private readonly IReadOnlyList<RoleEntry>? _ancestorRoles;
     private readonly List<ComposerCredit> _composers;
     private readonly List<CanonPiece> _subpieces;
     private readonly List<CanonPieceVersion> _versions;
     private readonly List<RoleEntry> _roles;
     private readonly List<TempoInfo> _tempos;
+    private readonly List<VariantInfo> _variants;
     private readonly List<InstrumentEntry> _pieceInstruments = [];
     private readonly List<CatalogInfo> _catalogEntries = [];
-    private readonly List<string> _textAuthors = [];
 
     /// <summary>
     /// The piece being edited (or newly created).
     /// </summary>
     public CanonPiece Piece => _piece;
-
-    /// <summary>
-    /// Accumulated renames from pick list editing within this session.
-    /// </summary>
-    public Dictionary<string, string> FormRenames { get; } = new();
-    public Dictionary<string, string> CategoryRenames { get; } = new();
-    public Dictionary<string, string> CatalogRenames { get; } = new();
-    public Dictionary<string, string> KeyRenames { get; } = new();
-    public Dictionary<string, string> InstrumentRenames { get; } = new();
 
     // ── Piece / Subpiece constructor ─────────────────────────────────────────
 
@@ -47,7 +40,9 @@ public partial class PieceEditorWindow : Window
         IReadOnlyList<string>? composerNames = null,
         PieceEditorMode mode = PieceEditorMode.Piece,
         string? inheritedComposer = null,
-        IReadOnlyList<ComposerCredit>? inheritedComposers = null)
+        IReadOnlyList<ComposerCredit>? inheritedComposers = null,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? composerCatalogs = null,
+        IReadOnlyList<RoleEntry>? ancestorRoles = null)
     {
         InitializeComponent();
 
@@ -55,16 +50,20 @@ public partial class PieceEditorWindow : Window
         _mode               = mode;
         _inheritedComposer  = inheritedComposer;
         _inheritedComposers = inheritedComposers;
+        _composerCatalogs   = composerCatalogs;
+        _ancestorRoles      = ancestorRoles;
         _piece      = piece ?? new CanonPiece { Composer = composerName };
         _composers  = _piece.Composers?.ToList() ?? [];
         _subpieces  = _piece.Subpieces?.ToList() ?? [];
         _versions   = _piece.Versions?.ToList() ?? [];
         _roles      = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
         _tempos     = _piece.Tempos?.Select(CloneTempo).ToList() ?? [];
+        _variants   = _piece.Variants?.Select(CloneVariant).ToList() ?? [];
 
         Title = BuildTitle(mode, piece == null);
 
         ComposerCombo.ItemsSource = composerNames ?? [];
+        ComposerCombo.SelectionChanged += (_, _) => UpdateCatalogPrefixDropdown();
 
         PopulateDropdowns();
         LoadFromPiece();
@@ -72,6 +71,7 @@ public partial class PieceEditorWindow : Window
         RefreshSubpieceList();
         RefreshVersionList();
         RefreshRoleList();
+        RefreshVariantList();
     }
 
     // ── Version constructor ───────────────────────────────────────────────────
@@ -82,7 +82,9 @@ public partial class PieceEditorWindow : Window
         bool showSubpieceNumbers = true,
         IReadOnlyList<string>? composerNames = null,
         string? inheritedComposer = null,
-        IReadOnlyList<ComposerCredit>? inheritedComposers = null)
+        IReadOnlyList<ComposerCredit>? inheritedComposers = null,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? composerCatalogs = null,
+        IReadOnlyList<RoleEntry>? ancestorRoles = null)
     {
         InitializeComponent();
 
@@ -90,6 +92,8 @@ public partial class PieceEditorWindow : Window
         _mode               = PieceEditorMode.Version;
         _inheritedComposer  = inheritedComposer;
         _inheritedComposers = inheritedComposers;
+        _composerCatalogs   = composerCatalogs;
+        _ancestorRoles      = ancestorRoles;
         _sourceVersion = version ?? new CanonPieceVersion();
         _piece         = VersionToPiece(_sourceVersion, showSubpieceNumbers);
         _composers     = _piece.Composers?.ToList() ?? [];
@@ -97,6 +101,7 @@ public partial class PieceEditorWindow : Window
         _versions      = [];  // versions cannot have nested versions
         _roles         = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
         _tempos        = _piece.Tempos?.Select(CloneTempo).ToList() ?? [];
+        _variants      = _piece.Variants?.Select(CloneVariant).ToList() ?? [];
 
         Title = BuildTitle(PieceEditorMode.Version, version == null);
 
@@ -107,6 +112,7 @@ public partial class PieceEditorWindow : Window
         VersionsSectionPanel.Visibility  = Visibility.Collapsed;
 
         ComposerCombo.ItemsSource = composerNames ?? [];
+        ComposerCombo.SelectionChanged += (_, _) => UpdateCatalogPrefixDropdown();
 
         PopulateDropdowns();
         LoadFromPiece();
@@ -114,6 +120,7 @@ public partial class PieceEditorWindow : Window
         RefreshSubpieceList();
         RefreshVersionList();
         RefreshRoleList();
+        RefreshVariantList();
     }
 
     // ── Constructor helpers ───────────────────────────────────────────────────
@@ -156,7 +163,8 @@ public partial class PieceEditorWindow : Window
             NumberedSubpieces      = numberedOverride ?? (showSubpieceNumbers ? null : false),
             SubpiecesStart         = v.SubpiecesStart,
             FirstLine              = v.FirstLine,
-            TextAuthor             = v.TextAuthor,
+            Notes                  = v.Notes,
+            Variants               = v.Variants?.ToList(),
             Roles                  = v.Roles,
             Tempos                 = v.Tempos?.ToList(),
             Subpieces              = v.Subpieces?.ToList(),
@@ -190,7 +198,8 @@ public partial class PieceEditorWindow : Window
         v.NumberedSubpieces     = _piece.NumberedSubpieces;
         v.SubpiecesStart        = _piece.SubpiecesStart;
         v.FirstLine             = _piece.FirstLine;
-        v.TextAuthor            = _piece.TextAuthor;
+        v.Notes                 = _piece.Notes;
+        v.Variants              = _piece.Variants;
         v.Roles                 = _piece.Roles;
         v.Tempos                = _piece.Tempos;
         v.Subpieces             = _piece.Subpieces;
@@ -198,10 +207,37 @@ public partial class PieceEditorWindow : Window
 
     private void PopulateDropdowns()
     {
-        FormCombo.ItemsSource = _pickLists.Forms;
+        FormCombo.ItemsSource        = _pickLists.Forms;
         KeyTonalityCombo.ItemsSource = _pickLists.KeyTonalities;
-        CatalogPrefixCombo.ItemsSource = _pickLists.CatalogPrefixes;
-        CategoryCombo.ItemsSource = _pickLists.Categories;
+        CategoryCombo.ItemsSource    = _pickLists.Categories;
+        UpdateCatalogPrefixDropdown();
+    }
+
+    /// <summary>
+    /// Rebuilds the catalogue prefix dropdown to show only prefixes permitted for
+    /// the currently selected composer. Falls back to the full pick-list when the
+    /// composer has no restrictions defined.
+    /// </summary>
+    private void UpdateCatalogPrefixDropdown()
+    {
+        var composerName = ComposerCombo.Text?.Trim() ?? "";
+        IReadOnlyList<string> prefixes = _pickLists.CatalogPrefixes;
+
+        if (_composerCatalogs != null
+            && !string.IsNullOrEmpty(composerName)
+            && _composerCatalogs.TryGetValue(composerName, out var permitted)
+            && permitted.Count > 0)
+        {
+            var permittedSet = new HashSet<string>(permitted, StringComparer.OrdinalIgnoreCase);
+            prefixes = _pickLists.CatalogPrefixes
+                .Where(p => permittedSet.Contains(p))
+                .ToList();
+        }
+
+        // Preserve the current text across the reset
+        var current = CatalogPrefixCombo.Text;
+        CatalogPrefixCombo.ItemsSource = prefixes;
+        CatalogPrefixCombo.Text = current;
     }
 
     private void LoadFromPiece()
@@ -226,22 +262,12 @@ public partial class PieceEditorWindow : Window
         SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
         PubYearBox.Text = _piece.PublicationYear?.ToString() ?? "";
         FirstLineBox.Text = _piece.FirstLine ?? "";
+        NotesBox.Text = _piece.Notes ?? "";
 
         // Composition years (stored as a JSON string value)
         CompYearsBox.Text = _piece.CompositionYears?.ValueKind == System.Text.Json.JsonValueKind.String
             ? _piece.CompositionYears.Value.GetString() ?? ""
             : _piece.CompositionYears?.ToString() ?? "";
-
-        // Text Author (stored as JSON array of strings)
-        if (_piece.TextAuthor?.ValueKind == System.Text.Json.JsonValueKind.Array)
-            _textAuthors.AddRange(_piece.TextAuthor.Value.EnumerateArray()
-                .Select(e => e.GetString() ?? "").Where(s => s.Length > 0));
-        else if (_piece.TextAuthor?.ValueKind == System.Text.Json.JsonValueKind.String)
-        {
-            var s = _piece.TextAuthor.Value.GetString();
-            if (!string.IsNullOrWhiteSpace(s)) _textAuthors.Add(s.Trim());
-        }
-        RefreshTextAuthorList();
 
         // Key mode combo
         var mode = (_piece.KeyMode ?? "").ToLowerInvariant();
@@ -281,6 +307,7 @@ public partial class PieceEditorWindow : Window
         _piece.MusicNumber = NullIfEmpty(MusicNumberBox.Text);
         _piece.PublicationYear = int.TryParse(PubYearBox.Text.Trim(), out var y) ? y : null;
         _piece.FirstLine = NullIfEmpty(FirstLineBox.Text);
+        _piece.Notes = NullIfEmpty(NotesBox.Text);
 
         var selectedMode = (KeyModeCombo.SelectedItem as ComboBoxItem)?.Content as string;
         _piece.KeyMode = string.IsNullOrEmpty(selectedMode) ? null : selectedMode;
@@ -291,10 +318,6 @@ public partial class PieceEditorWindow : Window
             ? System.Text.Json.JsonDocument.Parse($"\"{compYears}\"").RootElement.Clone()
             : null;
 
-        // Text Author — store as JSON string array
-        _piece.TextAuthor = _textAuthors.Count > 0
-            ? System.Text.Json.JsonSerializer.SerializeToElement(_textAuthors.ToArray())
-            : null;
 
         // Catalog info — all entries from the list
         _piece.CatalogInfo = _catalogEntries.Count > 0 ? _catalogEntries.ToList() : null;
@@ -325,6 +348,9 @@ public partial class PieceEditorWindow : Window
 
         // Roles
         _piece.Roles = RoleEntry.SerializeRoles(_roles);
+
+        // Variants
+        _piece.Variants = _variants.Count > 0 ? _variants.ToList() : null;
     }
 
     // --- Composer credit management ---
@@ -430,7 +456,9 @@ public partial class PieceEditorWindow : Window
             _pickLists, "", newSubpiece,
             ComposerCombo.ItemsSource as IReadOnlyList<string>, PieceEditorMode.Subpiece,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
+            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            composerCatalogs: _composerCatalogs,
+            ancestorRoles: AncestorRolesForChildren()) { Owner = this };
         if (editor.ShowDialog() == true)
         {
             _subpieces.Add(editor.Piece);
@@ -455,7 +483,9 @@ public partial class PieceEditorWindow : Window
             _pickLists, sp.Composer ?? "", sp,
             ComposerCombo.ItemsSource as IReadOnlyList<string>, PieceEditorMode.Subpiece,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
+            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            composerCatalogs: _composerCatalogs,
+            ancestorRoles: AncestorRolesForChildren()) { Owner = this };
         if (editor.ShowDialog() == true)
             RefreshSubpieceList();
     }
@@ -504,6 +534,22 @@ public partial class PieceEditorWindow : Window
 
     private void OnAddRoleClick(object sender, RoutedEventArgs e)
     {
+        // When ancestor roles are available (editing a subpiece), present the cast
+        // picker so the user can select from roles defined in the parent piece.
+        if (_ancestorRoles is { Count: > 0 })
+        {
+            var picker = new RolePickerWindow(_ancestorRoles, _roles) { Owner = this };
+            if (picker.ShowDialog() == true && picker.SelectedRoles.Count > 0)
+            {
+                // Add as name-only references — the full definition lives on the parent piece.
+                foreach (var r in picker.SelectedRoles)
+                    _roles.Add(new RoleEntry { Name = r.Name });
+                RefreshRoleList();
+            }
+            return;
+        }
+
+        // No ancestor roles — free-form entry (top-level piece cast definition).
         var editor = new RoleEditorWindow(_pickLists) { Owner = this };
         if (editor.ShowDialog() == true)
         {
@@ -552,6 +598,80 @@ public partial class PieceEditorWindow : Window
         (_roles[idx], _roles[idx + 1]) = (_roles[idx + 1], _roles[idx]);
         RefreshRoleList();
     }
+
+    // --- Variant management ---
+
+    private void RefreshVariantList()
+    {
+        var selectedTag = (VariantList.SelectedItem as ListBoxItem)?.Tag;
+        VariantList.Items.Clear();
+        foreach (var v in _variants)
+        {
+            var item = new ListBoxItem { Content = v.Description, Tag = v };
+            VariantList.Items.Add(item);
+            if (v == selectedTag) VariantList.SelectedItem = item;
+        }
+    }
+
+    private VariantInfo? SelectedVariant =>
+        (VariantList.SelectedItem as ListBoxItem)?.Tag as VariantInfo;
+
+    private void OnAddVariantClick(object sender, RoutedEventArgs e)
+    {
+        var editor = new VariantEditorWindow { Owner = this };
+        if (editor.ShowDialog() == true)
+        {
+            _variants.Add(editor.Variant);
+            RefreshVariantList();
+        }
+    }
+
+    private void OnEditVariantClick(object sender, RoutedEventArgs e) => EditSelectedVariant();
+
+    private void OnVariantDoubleClick(object sender, MouseButtonEventArgs e) => EditSelectedVariant();
+
+    private void EditSelectedVariant()
+    {
+        if (SelectedVariant is not { } variant) return;
+        var editor = new VariantEditorWindow(variant) { Owner = this };
+        if (editor.ShowDialog() == true)
+        {
+            var idx = _variants.IndexOf(variant);
+            _variants[idx] = editor.Variant;
+            RefreshVariantList();
+        }
+    }
+
+    private void OnRemoveVariantClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedVariant is not { } variant) return;
+        _variants.Remove(variant);
+        RefreshVariantList();
+    }
+
+    private void OnMoveVariantUpClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedVariant is not { } variant) return;
+        var idx = _variants.IndexOf(variant);
+        if (idx <= 0) return;
+        (_variants[idx], _variants[idx - 1]) = (_variants[idx - 1], _variants[idx]);
+        RefreshVariantList();
+    }
+
+    private void OnMoveVariantDownClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedVariant is not { } variant) return;
+        var idx = _variants.IndexOf(variant);
+        if (idx < 0 || idx >= _variants.Count - 1) return;
+        (_variants[idx], _variants[idx + 1]) = (_variants[idx + 1], _variants[idx]);
+        RefreshVariantList();
+    }
+
+    private static VariantInfo CloneVariant(VariantInfo v) => new()
+    {
+        Description     = v.Description,
+        LongDescription = v.LongDescription,
+    };
 
     // --- Tempo management ---
 
@@ -679,35 +799,6 @@ public partial class PieceEditorWindow : Window
         RefreshCatalogList();
     }
 
-    // --- Text Author list ---
-
-    private void RefreshTextAuthorList()
-    {
-        var selected = TextAuthorList.SelectedItem as string;
-        TextAuthorList.Items.Clear();
-        foreach (var name in _textAuthors)
-            TextAuthorList.Items.Add(name);
-        if (selected != null && TextAuthorList.Items.Contains(selected))
-            TextAuthorList.SelectedItem = selected;
-    }
-
-    private void OnAddTextAuthorClick(object sender, RoutedEventArgs e)
-    {
-        var name = TextAuthorEntryBox.Text.Trim();
-        if (string.IsNullOrEmpty(name)) return;
-        _textAuthors.Add(name);
-        RefreshTextAuthorList();
-        TextAuthorList.SelectedItem = name;
-        TextAuthorEntryBox.Text = "";
-        TextAuthorEntryBox.Focus();
-    }
-
-    private void OnRemoveTextAuthorClick(object sender, RoutedEventArgs e)
-    {
-        if (TextAuthorList.SelectedItem is not string name) return;
-        _textAuthors.Remove(name);
-        RefreshTextAuthorList();
-    }
 
     // --- Instrumentation list ---
 
@@ -721,17 +812,53 @@ public partial class PieceEditorWindow : Window
             InstrumentsList.SelectedIndex = selectedIdx;
 
         AvailableInstrumentsList.Items.Clear();
+        // Show ensembles first, then individual instruments
+        if (_pickLists.Ensembles is { Count: > 0 })
+        {
+            foreach (var ens in _pickLists.Ensembles.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                AvailableInstrumentsList.Items.Add($"\u266B {ens.Name}");
+            AvailableInstrumentsList.Items.Add("───────────");
+        }
         foreach (var inst in _pickLists.Instruments.Order())
             AvailableInstrumentsList.Items.Add(CanonFormat.TitleCase(inst));
     }
 
     /// <summary>
-    /// "Add" button or double-click on available list: adds simple instrument via the editor.
+    /// Finds the EnsembleDefinition for an available-list item prefixed with the ensemble marker.
+    /// Returns null if the item is a plain instrument.
+    /// </summary>
+    private EnsembleDefinition? GetEnsembleFromAvailableItem(string? item)
+    {
+        if (item == null || !item.StartsWith("\u266B ")) return null;
+        var name = item[2..]; // strip "♫ " prefix
+        return _pickLists.Ensembles?.FirstOrDefault(e =>
+            string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// "Add" button: opens the instrument editor (or ensemble editor if an ensemble is selected).
     /// Pre-populates the editor with the selected available instrument if one is highlighted.
     /// </summary>
     private void OnAddInstrumentClick(object sender, RoutedEventArgs e)
     {
         var preselect = AvailableInstrumentsList.SelectedItem as string;
+        var ensemble = GetEnsembleFromAvailableItem(preselect);
+
+        if (ensemble != null)
+        {
+            var entry = new InstrumentEntry { Instrument = ensemble.Name, IsEnsemble = true };
+            if (!ensemble.IsFixed)
+            {
+                var ensEditor = new EnsembleEntryEditorWindow(_pickLists, entry) { Owner = this };
+                if (ensEditor.ShowDialog() != true) return;
+                entry = ensEditor.Entry;
+            }
+            _pieceInstruments.Add(entry);
+            RefreshInstrumentList();
+            InstrumentsList.SelectedIndex = InstrumentsList.Items.Count - 1;
+            return;
+        }
+
         var seed = preselect != null ? new InstrumentEntry { Instrument = preselect } : null;
         var editor = new InstrumentEntryEditorWindow(_pickLists, seed) { Owner = this };
         if (editor.ShowDialog() == true)
@@ -745,15 +872,34 @@ public partial class PieceEditorWindow : Window
     /// <summary>
     /// Right-arrow button or double-click on available list: adds the selected available
     /// instrument directly as a simple entry (no dialog needed for plain names).
+    /// For variable ensembles, opens an editor to specify members.
     /// </summary>
     private void OnAddFromAvailableClick(object sender, RoutedEventArgs e)
     {
-        if (AvailableInstrumentsList.SelectedItem is not string instrument) return;
-        _pieceInstruments.Add(new InstrumentEntry { Instrument = instrument });
+        if (AvailableInstrumentsList.SelectedItem is not string item) return;
+        if (item.StartsWith("───")) return; // separator
+
+        var ensemble = GetEnsembleFromAvailableItem(item);
+        if (ensemble != null)
+        {
+            var entry = new InstrumentEntry { Instrument = ensemble.Name, IsEnsemble = true };
+            if (!ensemble.IsFixed)
+            {
+                // Variable ensemble — open editor for members
+                var editor = new EnsembleEntryEditorWindow(_pickLists, entry) { Owner = this };
+                if (editor.ShowDialog() != true) return;
+                entry = editor.Entry;
+            }
+            _pieceInstruments.Add(entry);
+        }
+        else
+        {
+            _pieceInstruments.Add(new InstrumentEntry { Instrument = item });
+        }
+
         RefreshInstrumentList();
         InstrumentsList.SelectedIndex = InstrumentsList.Items.Count - 1;
-        // Keep the same available item selected for quick repeated adds
-        var idx = AvailableInstrumentsList.Items.IndexOf(instrument);
+        var idx = AvailableInstrumentsList.Items.IndexOf(item);
         if (idx >= 0) AvailableInstrumentsList.SelectedIndex = idx;
     }
 
@@ -770,7 +916,26 @@ public partial class PieceEditorWindow : Window
     {
         var idx = InstrumentsList.SelectedIndex;
         if (idx < 0) return;
-        var editor = new InstrumentEntryEditorWindow(_pickLists, _pieceInstruments[idx]) { Owner = this };
+
+        var current = _pieceInstruments[idx];
+        if (current.IsEnsemble)
+        {
+            var def = _pickLists.Ensembles?.FirstOrDefault(e =>
+                string.Equals(e.Name, current.Instrument, StringComparison.OrdinalIgnoreCase));
+            // Fixed ensembles have nothing to edit
+            if (def?.IsFixed == true) return;
+
+            var ensEditor = new EnsembleEntryEditorWindow(_pickLists, current) { Owner = this };
+            if (ensEditor.ShowDialog() == true)
+            {
+                _pieceInstruments[idx] = ensEditor.Entry;
+                RefreshInstrumentList();
+                InstrumentsList.SelectedIndex = idx;
+            }
+            return;
+        }
+
+        var editor = new InstrumentEntryEditorWindow(_pickLists, current) { Owner = this };
         if (editor.ShowDialog() == true)
         {
             _pieceInstruments[idx] = editor.Entry;
@@ -806,6 +971,18 @@ public partial class PieceEditorWindow : Window
         RefreshInstrumentList();
         InstrumentsList.SelectedIndex = idx + 1;
     }
+
+    /// <summary>
+    /// Returns the role list that should be passed as <c>ancestorRoles</c> when
+    /// opening a subpiece editor from within this window.
+    /// <list type="bullet">
+    ///   <item>If we already have ancestor roles (we are a subpiece), pass them through unchanged.</item>
+    ///   <item>If we are a top-level piece that has roles defined, our roles become the ancestors for our subpieces.</item>
+    ///   <item>Otherwise return null (no restriction).</item>
+    /// </list>
+    /// </summary>
+    private IReadOnlyList<RoleEntry>? AncestorRolesForChildren() =>
+        _ancestorRoles ?? (_roles.Count > 0 ? (IReadOnlyList<RoleEntry>)_roles : null);
 
     // --- Version management ---
 
@@ -844,7 +1021,8 @@ public partial class PieceEditorWindow : Window
             showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true,
             composerNames: ComposerCombo.ItemsSource as IReadOnlyList<string>,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
+            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            composerCatalogs: _composerCatalogs) { Owner = this };
         if (editor.ShowDialog() == true)
         {
             _versions.Add(newVersion);
@@ -864,7 +1042,8 @@ public partial class PieceEditorWindow : Window
             showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true,
             composerNames: ComposerCombo.ItemsSource as IReadOnlyList<string>,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null) { Owner = this };
+            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            composerCatalogs: _composerCatalogs) { Owner = this };
         if (editor.ShowDialog() == true) RefreshVersionList();
     }
 
@@ -901,41 +1080,6 @@ public partial class PieceEditorWindow : Window
         if (_mode == PieceEditorMode.Version)
             CopyPieceToVersion();
         DialogResult = true;
-    }
-
-    private void OnEditPickListsClick(object sender, RoutedEventArgs e)
-    {
-        var editor = new PickListEditorWindow(_pickLists) { Owner = this };
-        if (editor.ShowDialog() == true)
-        {
-            editor.ApplyTo(_pickLists);
-            PopulateDropdowns();
-
-            // Accumulate renames so the caller can propagate them
-            MergeRenames(FormRenames, editor.FormRenames);
-            MergeRenames(CategoryRenames, editor.CategoryRenames);
-            MergeRenames(CatalogRenames, editor.CatalogRenames);
-            MergeRenames(KeyRenames, editor.KeyRenames);
-            MergeRenames(InstrumentRenames, editor.InstrumentRenames);
-
-            // Refresh the instruments list after pick list changes
-            RefreshInstrumentList();
-        }
-    }
-
-    /// <summary>
-    /// Merges new renames into accumulated renames, chaining through prior mappings.
-    /// </summary>
-    private static void MergeRenames(Dictionary<string, string> accumulated, Dictionary<string, string> incoming)
-    {
-        foreach (var (oldVal, newVal) in incoming)
-        {
-            var originalKey = accumulated.FirstOrDefault(r => r.Value == oldVal).Key;
-            if (originalKey != null)
-                accumulated[originalKey] = newVal;
-            else
-                accumulated[oldVal] = newVal;
-        }
     }
 
     private static string? NullIfEmpty(string? s) =>

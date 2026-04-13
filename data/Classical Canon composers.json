@@ -84,10 +84,10 @@
     "sort_name": "Allegri, Gregorio",
     "birth_local_place": "Rome",
     "birth_country": "Italy",
-    "birth_notes": "born c1582",
     "death_date": "1652-02-07",
     "death_local_place": "Rome",
-    "death_country": "Italy"
+    "death_country": "Italy",
+    "notes": "Born c1582"
   },
   {
     "name": "Antheil, George Johann Carl",
@@ -113,7 +113,7 @@
   },
   {
     "name": "Argento, Dominick",
-    "sort_name": "",
+    "sort_name": "Argento, Dominick",
     "birth_date": "1927-10-27",
     "birth_local_place": "York",
     "birth_state": "Pennsylvania",
@@ -191,10 +191,10 @@
     "birth_date": "1685-03-21",
     "birth_local_place": "Eisenach",
     "birth_country": "Germany",
-    "birth_notes": "Born 31 March new style",
     "death_date": "1750-07-28",
     "death_local_place": "Leipzig",
-    "death_country": "Germany"
+    "death_country": "Germany",
+    "notes": "Born 31 March new style"
   },
   {
     "name": "Bach, Wilhelm Friedemann",
@@ -212,10 +212,10 @@
     "birth_date": "1837-01-02",
     "birth_local_place": "Nizhny Novgorod",
     "birth_country": "Russia",
-    "birth_notes": "Born 21 December 1936 old style",
     "death_date": "1910-05-29",
     "death_local_place": "Saint Petersburg",
-    "death_country": "Russia"
+    "death_country": "Russia",
+    "notes": "Born 21 December 1936 old style"
   },
   {
     "name": "Barber, Samuel",
@@ -227,7 +227,10 @@
     "death_date": "1981-01-23",
     "death_local_place": "New York City",
     "death_state": "New York",
-    "death_country": "United States"
+    "death_country": "United States",
+    "catalog_prefixes": [
+      "Op."
+    ]
   },
   {
     "name": "Bartók, Bela",
@@ -268,9 +271,13 @@
     "birth_date": "1770-12-16",
     "birth_local_place": "Bonn",
     "birth_country": "Germany",
-    "death_date": "1826-03-26",
+    "death_date": "1827-03-26",
     "death_local_place": "Vienna",
-    "death_country": "Austria"
+    "death_country": "Austria",
+    "catalog_prefixes": [
+      "Op.",
+      "WoO"
+    ]
   },
   {
     "name": "Bellini, Vincenzo",
@@ -337,7 +344,7 @@
   },
   {
     "name": "Berwald, Franz",
-    "sort_name": "",
+    "sort_name": "Berwald, Franz",
     "birth_date": "1796-07-23",
     "birth_local_place": "Stockholm",
     "birth_country": "Sweden",
@@ -427,6 +434,18 @@
     "death_country": "Spain"
   },
   {
+    "name": "Bogan, Louise",
+    "sort_name": "Bogan, Louise",
+    "birth_date": "1897-08-11",
+    "birth_local_place": "Livermore Falls",
+    "birth_state": "Maine",
+    "birth_country": "United States",
+    "death_date": "1970-02-04",
+    "death_local_place": "New York City",
+    "death_state": "New York",
+    "death_country": "United States"
+  },
+  {
     "name": "Boito, Arrigo",
     "sort_name": "Boito, Arrigo",
     "birth_date": "1842-02-24",
@@ -493,6 +512,16 @@
     "birth_local_place": "Hamburg",
     "birth_country": "Germany",
     "death_date": "1897-04-03",
+    "death_local_place": "Vienna",
+    "death_country": "Austria"
+  },
+  {
+    "name": "Breuning, Stephan von",
+    "sort_name": "Breuning, Stephan von",
+    "birth_date": "1774-08-17",
+    "birth_local_place": "Bonn",
+    "birth_country": "Germany",
+    "death_date": "1827-06-04",
     "death_local_place": "Vienna",
     "death_country": "Austria"
   },
@@ -580,20 +609,20 @@
     "sort_name": "Buxtehude, Dieterich",
     "birth_local_place": "Helsingborg",
     "birth_country": "Sweden",
-    "birth_notes": "born c1637",
     "death_date": "1707-05-09",
     "death_local_place": "Lübeck",
-    "death_country": "Germany"
+    "death_country": "Germany",
+    "notes": "Born c1637"
   },
   {
     "name": "Byrd, William",
     "sort_name": "Byrd, William",
     "birth_local_place": "London",
     "birth_country": "England",
-    "birth_notes": "born c1540, probably in London",
     "death_date": "1623-07-04",
     "death_local_place": "Stondon Massey",
-    "death_country": "England"
+    "death_country": "England",
+    "notes": "Born c1540, probably in London"
   },
   {
     "name": "Cage, John",
@@ -678,7 +707,11 @@
     "birth_country": "Poland",
     "death_date": "1849-10-17",
     "death_local_place": "Paris",
-    "death_country": "France"
+    "death_country": "France",
+    "catalog_prefixes": [
+      "Op.",
+      "B."
+    ]
   },
   {
     "name": "Cilèa, Francesco",
@@ -845,6 +878,18 @@
     "death_country": "France"
   },
   {
+    "name": "Dickinson, Emily",
+    "sort_name": "Dickinson, Emily",
+    "birth_date": "1830-12-10",
+    "birth_local_place": "Amherst",
+    "birth_state": "Massachusetts",
+    "birth_country": "United States",
+    "death_date": "1886-05-15",
+    "death_local_place": "Amherst",
+    "death_state": "Massachusetts",
+    "death_country": "United States"
+  },
+  {
     "name": "Dohnányi, Ernö",
     "sort_name": "Dohnanyi, Erno",
     "birth_date": "1877-07-27",
@@ -868,10 +913,10 @@
   {
     "name": "Dowland, John",
     "sort_name": "Dowland, John",
-    "birth_notes": "born c1563, possibly in London or Dublin",
     "death_date": "1626-02-20",
     "death_local_place": "London",
-    "death_country": "England"
+    "death_country": "England",
+    "notes": "Born c1563, possibly in London or Dublin"
   },
   {
     "name": "Dufay, Guillaume",
@@ -1134,10 +1179,10 @@
     "sort_name": "Gabrieli, Giovanni",
     "birth_local_place": "Venice",
     "birth_country": "Italy",
-    "birth_notes": "born possibly 1556",
     "death_date": "1612-08-12",
     "death_local_place": "Venice",
-    "death_country": "Italy"
+    "death_country": "Italy",
+    "notes": "Born possibly 1556"
   },
   {
     "name": "Gay, John",
@@ -1515,10 +1560,10 @@
     "sort_name": "Hildegard of Bingen",
     "birth_local_place": "Bermersheim vor der Höhe",
     "birth_country": "Germany",
-    "birth_notes": "Born c1098",
     "death_date": "1179-09-17",
     "death_local_place": "Bingen am Rhine",
-    "death_country": "Germany"
+    "death_country": "Germany",
+    "notes": "Born c1098"
   },
   {
     "name": "Hindemith, Paul",
@@ -1692,11 +1737,11 @@
     "birth_local_place": "Texarkana",
     "birth_state": "Texas",
     "birth_country": "United States",
-    "birth_notes": "Birth date may be incorrect, according to one biographer; birth place disputed: could also be Linden",
     "death_date": "1917-04-01",
     "death_local_place": "New York City",
     "death_state": "New York",
-    "death_country": "United States"
+    "death_country": "United States",
+    "notes": "Birth date may be incorrect, according to one biographer; birth place disputed: could also be Linden"
   },
   {
     "name": "Kalkbrenner, Friedrich",
@@ -1844,10 +1889,10 @@
     "sort_name": "Lasso, Orlando di",
     "birth_local_place": "Mons",
     "birth_country": "Belgium",
-    "birth_notes": "Probably born c1532",
     "death_date": "1594-06-14",
     "death_local_place": "Munich",
-    "death_country": "Germany"
+    "death_country": "Germany",
+    "notes": "Probably born c1532"
   },
   {
     "name": "Lauridsen, Morten",
@@ -1856,6 +1901,18 @@
     "birth_local_place": "Colfax",
     "birth_state": "Washington",
     "birth_country": "United States"
+  },
+  {
+    "name": "Lee, Laurie",
+    "sort_name": "Lee, Laurie",
+    "birth_date": "1914-06-26",
+    "birth_local_place": "Stroud",
+    "birth_state": "Gloucestershire",
+    "birth_country": "England",
+    "death_date": "1997-05-13",
+    "death_local_place": "Slad",
+    "death_state": "Gloucestershire",
+    "death_country": "England"
   },
   {
     "name": "Lehár, Franz",
@@ -1971,10 +2028,10 @@
     "sort_name": "Machaut, Guillaume de",
     "birth_local_place": "Reims",
     "birth_country": "France",
-    "birth_notes": "Born c1300",
     "death_date": "1377-04-13",
     "death_local_place": "Reims",
-    "death_country": "France"
+    "death_country": "France",
+    "notes": "Born c1300"
   },
   {
     "name": "MacMillan, James",
@@ -2165,10 +2222,10 @@
     "sort_name": "Monteverdi, Claudio",
     "birth_local_place": "Cremona",
     "birth_country": "Italy",
-    "birth_notes": "Baptized 15 May 1567",
     "death_date": "1643-11-29",
     "death_local_place": "Venice",
-    "death_country": "Italy"
+    "death_country": "Italy",
+    "notes": "Baptized 15 May 1567"
   },
   {
     "name": "Moore, Douglas",
@@ -2224,10 +2281,10 @@
     "name": "Mouton, Jean",
     "sort_name": "Mouton, Jean",
     "birth_country": "France",
-    "birth_notes": "Born 1459 or earlier, probably near Haut-Wignes, France",
     "death_date": "1522-10-30",
     "death_local_place": "Saint-Quentin",
-    "death_country": "France"
+    "death_country": "France",
+    "notes": "Born 1459 or earlier, probably near Haut-Wignes, France"
   },
   {
     "name": "Mozart, Leopold",
@@ -2247,7 +2304,10 @@
     "birth_country": "Austria",
     "death_date": "1791-12-05",
     "death_local_place": "Vienna",
-    "death_country": "Austria"
+    "death_country": "Austria",
+    "catalog_prefixes": [
+      "KV"
+    ]
   },
   {
     "name": "Muhly, Nico",
@@ -2308,10 +2368,10 @@
     "sort_name": "Ockeghem, Johannes",
     "birth_local_place": "Saint-Ghislain",
     "birth_country": "Belgium",
-    "birth_notes": "Born c1410",
     "death_date": "1497-02-06",
     "death_local_place": "Tours",
-    "death_country": "France"
+    "death_country": "France",
+    "notes": "Born c1410"
   },
   {
     "name": "Offenbach, Jacques",
@@ -2338,10 +2398,10 @@
     "sort_name": "Pachelbel, Johann",
     "birth_local_place": "Nuremberg",
     "birth_country": "Germany",
-    "birth_notes": "Baptized 11 September 1653",
     "death_date": "1706-03-03",
     "death_local_place": "Nuremberg",
-    "death_country": "Germany"
+    "death_country": "Germany",
+    "notes": "Baptized 11 September 1653"
   },
   {
     "name": "Paderewski, Ignacy Jan",
@@ -2367,10 +2427,10 @@
     "sort_name": "Palestrina, Giovanni Pierluigi da",
     "birth_local_place": "Palestrina",
     "birth_country": "Italy",
-    "birth_notes": "Born c1525",
     "death_date": "1594-02-02",
     "death_local_place": "Rome",
-    "death_country": "Italy"
+    "death_country": "Italy",
+    "notes": "Born c1525"
   },
   {
     "name": "Parry, Hubert",
@@ -2487,10 +2547,10 @@
     "birth_date": "1571-09-28",
     "birth_local_place": "Creuzburg",
     "birth_country": "Germany",
-    "birth_notes": "Probably born 28 September 1571",
     "death_date": "1621-02-15",
     "death_local_place": "Wolfenbüttel",
-    "death_country": "Germany"
+    "death_country": "Germany",
+    "notes": "Probably born 28 September 1571"
   },
   {
     "name": "Previn, André",
@@ -2506,10 +2566,10 @@
   {
     "name": "Prez, Josquin des",
     "sort_name": "Prez, Josquin des",
-    "birth_notes": "born c1450–1455 in the French-speaking area of Flanders, in modern-day northeastern France or Belgium",
     "death_date": "1521-08-27",
     "death_local_place": "Condé-sur-l'Escaut",
-    "death_country": "France"
+    "death_country": "France",
+    "notes": "Born c1450–1455 in the French-speaking area of Flanders, in modern-day northeastern France or Belgium"
   },
   {
     "name": "Price, Florence",
@@ -2549,10 +2609,10 @@
     "birth_date": "1659-09-10",
     "birth_local_place": "London",
     "birth_country": "England",
-    "birth_notes": "Born c. 10 September 1659",
     "death_date": "1695-11-21",
     "death_local_place": "London",
-    "death_country": "England"
+    "death_country": "England",
+    "notes": "Born c. 10 September 1659"
   },
   {
     "name": "Puts, Kevin",
@@ -2572,6 +2632,22 @@
     "death_local_place": "Beverly Hills",
     "death_state": "California",
     "death_country": "United States"
+  },
+  {
+    "name": "Raifteiri, Antoine Ó",
+    "sort_name": "Raifteiri, Antoine O",
+    "birth_date": "1779-03-30",
+    "birth_local_place": "Kiltimagh",
+    "birth_state": "County Mayo",
+    "birth_country": "Ireland",
+    "death_date": "1835-12-25",
+    "death_local_place": "Craughwell",
+    "death_state": "County Galway",
+    "death_country": "Ireland",
+    "aliases": [
+      "Reachtabhra, Antoine Ó",
+      "Raftery, Anthony"
+    ]
   },
   {
     "name": "Rameau, Jean-Philippe",
@@ -2601,7 +2677,10 @@
     "birth_country": "France",
     "death_date": "1937-12-28",
     "death_local_place": "Paris",
-    "death_country": "France"
+    "death_country": "France",
+    "catalog_prefixes": [
+      "M."
+    ]
   },
   {
     "name": "Reger, Max",
@@ -3131,6 +3210,16 @@
     "death_country": "United States"
   },
   {
+    "name": "Sonnleithner, Joseph",
+    "sort_name": "Sonnleithner, Joseph",
+    "birth_date": "1766-03-03",
+    "birth_local_place": "Vienna",
+    "birth_country": "Austria",
+    "death_date": "1835-12-25",
+    "death_local_place": "Vienna",
+    "death_country": "Austria"
+  },
+  {
     "name": "Sor, Fernando",
     "sort_name": "Sor, Fernando",
     "birth_date": "1778-02-14",
@@ -3152,6 +3241,16 @@
     "death_country": "United States"
   },
   {
+    "name": "Spender, Stephen",
+    "sort_name": "Spender, Stephen",
+    "birth_date": "1909-02-28",
+    "birth_local_place": "London",
+    "birth_country": "England",
+    "death_date": "1995-07-16",
+    "death_local_place": "London",
+    "death_country": "England"
+  },
+  {
     "name": "Stanford, Charles Villiers",
     "sort_name": "Stanford, Charles Villiers",
     "birth_date": "1852-09-30",
@@ -3170,6 +3269,16 @@
     "death_date": "1927-11-20",
     "death_local_place": "Jonsered",
     "death_country": "Sweden"
+  },
+  {
+    "name": "Stephens, James",
+    "sort_name": "Stephens, James",
+    "birth_date": "1880-02-09",
+    "birth_local_place": "Dublin",
+    "birth_country": "Ireland",
+    "death_date": "1950-12-26",
+    "death_local_place": "London",
+    "death_country": "England"
   },
   {
     "name": "Stevenson, Ronald",
@@ -3435,6 +3544,16 @@
     "birth_country": "United States"
   },
   {
+    "name": "Treitschke, Georg Friedrich",
+    "sort_name": "Treitschke, Georg Friedrich",
+    "birth_date": "1776-08-29",
+    "birth_local_place": "Leipzig",
+    "birth_country": "Germany",
+    "death_date": "1842-06-04",
+    "death_local_place": "Vienna",
+    "death_country": "Austria"
+  },
+  {
     "name": "Tubin, Eduard",
     "sort_name": "Tubin, Eduard",
     "birth_date": "1905-06-18",
@@ -3460,6 +3579,15 @@
     "birth_date": "1960-06-10",
     "birth_local_place": "Corringham",
     "birth_country": "England"
+  },
+  {
+    "name": "Turner, Charles",
+    "sort_name": "Turner, Charles",
+    "birth_date": "1921-09-02",
+    "birth_local_place": "Baltimore",
+    "birth_state": "Maryland",
+    "birth_country": "United States",
+    "death_date": "2003-05-17"
   },
   {
     "name": "Tuukkanen, Kalervo",
@@ -3527,10 +3655,10 @@
     "sort_name": "Victoria, Tomas Luis de",
     "birth_local_place": "Ávila",
     "birth_country": "Spain",
-    "birth_notes": "Born c1548",
     "death_date": "1611-08-27",
     "death_local_place": "Madrid",
-    "death_country": "Spain"
+    "death_country": "Spain",
+    "notes": "Born c1548"
   },
   {
     "name": "Vierne, Louis",
@@ -3571,6 +3699,16 @@
     "death_date": "1741-07-28",
     "death_local_place": "Vienna",
     "death_country": "Austria"
+  },
+  {
+    "name": "Waddell, Helen",
+    "sort_name": "Waddell, Helen",
+    "birth_date": "1889-05-31",
+    "birth_local_place": "Toyko",
+    "birth_country": "Japan",
+    "death_date": "1965-03-05",
+    "death_local_place": "London",
+    "death_country": "England"
   },
   {
     "name": "Wagner, Richard",
@@ -3631,7 +3769,10 @@
     "birth_country": "Austria",
     "death_date": "1945-09-15",
     "death_local_place": "Mittersill",
-    "death_country": "Austria"
+    "death_country": "Austria",
+    "catalog_prefixes": [
+      "Op."
+    ]
   },
   {
     "name": "Weill, Kurt",
@@ -3742,6 +3883,16 @@
     "death_date": "1931-05-12",
     "death_local_place": "Forest",
     "death_country": "Belgium"
+  },
+  {
+    "name": "Zeffirelli, Franco",
+    "sort_name": "Zeffirelli, Franco",
+    "birth_date": "1923-02-12",
+    "birth_local_place": "Florence",
+    "birth_country": "Italy",
+    "death_date": "2019-06-15",
+    "death_local_place": "Rome",
+    "death_country": "Italy"
   },
   {
     "name": "Zemlinsky, Alexander von",

@@ -12,9 +12,8 @@ public partial class CanonView : UserControl
 {
     // ── Composer sort state ──────────────────────────────────────────────────
 
-    private string _sortColumn = "Name";
-    private bool   _sortAscending = true;
-    private Dictionary<string, TextBlock> _sortIndicators = null!;
+    private string _sortColumn    = "Pieces";
+    private bool   _sortAscending = false;   // most pieces first by default
 
     // ── Piece sort state ─────────────────────────────────────────────────────
 
@@ -24,6 +23,15 @@ public partial class CanonView : UserControl
 
     private CanonComposer? _activeComposer;
     private CanonPiece?    _activePiece;
+
+    // ── Context-menu target (set on right-click, independent of selection) ────
+    // Tracking this separately avoids calling tvi.IsSelected = true inside any
+    // mouse-button handler.  Any selection change during mouse-button routing
+    // triggers a SelectedItemChanged→layout cascade that corrupts expander state
+    // on unrelated rows, so we never touch IsSelected from a mouse handler.
+
+    private object?      _ctxTarget;   // data item that was right-clicked
+    private TreeViewItem? _ctxTvi;     // its container
 
     // ── Expansion state (all three levels) ───────────────────────────────────
 
@@ -39,23 +47,16 @@ public partial class CanonView : UserControl
     private readonly HashSet<object> _expandedSubpieces =
         new(ReferenceEqualityComparer.Instance);
 
+    /// <summary>Which contributed-role group headers are expanded, keyed by (role, composerName).</summary>
+    private readonly HashSet<(string, string)> _expandedContributedGroups = [];
+
     // ── Constructor ──────────────────────────────────────────────────────────
 
     public CanonView()
     {
         InitializeComponent();
 
-        Loaded += (_, _) =>
-        {
-            _sortIndicators = new Dictionary<string, TextBlock>
-            {
-                ["Pieces"] = SortPieces,
-                ["Name"]   = SortName,
-                ["Birth"]  = SortBirth,
-                ["Death"]  = SortDeath,
-            };
-            UpdateSortIndicators();
-        };
+        Loaded += (_, _) => { };
     }
 
     // ── Initial data load ────────────────────────────────────────────────────
@@ -104,18 +105,19 @@ public partial class CanonView : UserControl
             ApplySortedFilter(vm);
     }
 
-    private void OnColumnHeaderClick(object sender, MouseButtonEventArgs e)
+    private void OnComposerSortChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is not Border border || border.Tag is not string column) return;
+        if (ComposerSortCombo.SelectedItem is not ComboBoxItem item) return;
         if (DataContext is not CanonViewModel vm) return;
 
-        if (_sortColumn == column)
-            _sortAscending = !_sortAscending;
-        else
+        (_sortColumn, _sortAscending) = item.Content?.ToString() switch
         {
-            _sortColumn    = column;
-            _sortAscending = true;
-        }
+            "Pieces" => ("Pieces", false),   // most pieces first
+            "Name"   => ("Name",   true),    // A → Z
+            "Born"   => ("Birth",  true),    // oldest first
+            "Died"   => ("Death",  true),    // oldest death first
+            _        => (_sortColumn, _sortAscending),
+        };
 
         ApplySortedFilter(vm);
     }
@@ -140,11 +142,15 @@ public partial class CanonView : UserControl
         filtered = ApplyComposerSort(filtered);
 
         var nodes = filtered
-            .Select(c => new ComposerTreeNode(c, GetSortedPieces(vm, c.Name)))
+            .Select(c =>
+            {
+                var node = new ComposerTreeNode(c, GetSortedPieces(vm, c.Name));
+                node.ContributedGroups = ContributedWorksFinder.FindContributedGroups(vm.Pieces, c.Name);
+                return node;
+            })
             .ToList();
 
         ComposerTree.ItemsSource = nodes;
-        UpdateSortIndicators();
         RestoreAllExpansionState(nodes);
     }
 
@@ -203,13 +209,6 @@ public partial class CanonView : UserControl
               .ThenBy(p => p.Number ?? int.MaxValue)
               .ThenBy(p => p.FirstLine, StringComparer.OrdinalIgnoreCase);
 
-    private void UpdateSortIndicators()
-    {
-        if (_sortIndicators == null) return;
-        foreach (var (col, indicator) in _sortIndicators)
-            indicator.Text = col == _sortColumn ? (_sortAscending ? "\u25B2" : "\u25BC") : "";
-    }
-
     // ── Expansion state: save / restore (all three levels) ───────────────────
 
     /// <summary>
@@ -221,6 +220,7 @@ public partial class CanonView : UserControl
         _expandedComposers.Clear();
         _expandedPieces.Clear();
         _expandedSubpieces.Clear();
+        _expandedContributedGroups.Clear();
 
         if (ComposerTree.ItemsSource is not IEnumerable<ComposerTreeNode> nodes) return;
 
@@ -244,6 +244,27 @@ public partial class CanonView : UserControl
                 // Level 3+: subpiece / version nodes
                 CollectExpandedSubpieces(pi, pi.Items);
             }
+
+            // Contributed-work groups
+            foreach (var group in node.ContributedGroups)
+            {
+                if (ci.ItemContainerGenerator.ContainerFromItem(group)
+                        is not TreeViewItem gi) continue;
+
+                if (gi.IsExpanded)
+                    _expandedContributedGroups.Add((group.Role, group.ComposerName));
+
+                foreach (var contribPiece in group.Pieces)
+                {
+                    if (gi.ItemContainerGenerator.ContainerFromItem(contribPiece)
+                            is not TreeViewItem cpi) continue;
+
+                    if (cpi.IsExpanded)
+                        _expandedPieces.Add(contribPiece.Piece);
+
+                    CollectExpandedSubpieces(cpi, cpi.Items);
+                }
+            }
         }
     }
 
@@ -253,7 +274,8 @@ public partial class CanonView : UserControl
     /// </summary>
     private void RestoreAllExpansionState(List<ComposerTreeNode> nodes)
     {
-        if (_expandedComposers.Count == 0 && _expandedPieces.Count == 0) return;
+        if (_expandedComposers.Count == 0 && _expandedPieces.Count == 0
+            && _expandedContributedGroups.Count == 0) return;
         ComposerTree.UpdateLayout();
 
         foreach (var node in nodes)
@@ -274,6 +296,28 @@ public partial class CanonView : UserControl
                 pi.IsExpanded = true;
                 pi.UpdateLayout();
                 ApplyExpandedSubpieces(pi, pi.Items);
+            }
+
+            // Restore contributed-group expansion
+            foreach (var group in node.ContributedGroups)
+            {
+                if (!_expandedContributedGroups.Contains((group.Role, group.ComposerName))) continue;
+                if (ci.ItemContainerGenerator.ContainerFromItem(group)
+                        is not TreeViewItem gi) continue;
+
+                gi.IsExpanded = true;
+                gi.UpdateLayout();
+
+                foreach (var contribPiece in group.Pieces)
+                {
+                    if (!_expandedPieces.Contains(contribPiece.Piece)) continue;
+                    if (gi.ItemContainerGenerator.ContainerFromItem(contribPiece)
+                            is not TreeViewItem cpi) continue;
+
+                    cpi.IsExpanded = true;
+                    cpi.UpdateLayout();
+                    ApplyExpandedSubpieces(cpi, cpi.Items);
+                }
             }
         }
     }
@@ -359,6 +403,20 @@ public partial class CanonView : UserControl
             NewPieceButton.IsEnabled    = true;
             DeletePieceButton.IsEnabled = true;
         }
+        else if (e.NewValue is ContributedRoleGroupNode)
+        {
+            // Group header — no piece/composer change, disable New/Delete
+            NewPieceButton.IsEnabled    = false;
+            DeletePieceButton.IsEnabled = false;
+        }
+        else if (e.NewValue is ContributedPieceNode contribNode)
+        {
+            _activePiece = contribNode.Piece;
+            _activeComposer = vm.Composers.FirstOrDefault(c =>
+                string.Equals(c.Name, contribNode.Piece.Composer, StringComparison.OrdinalIgnoreCase));
+            NewPieceButton.IsEnabled    = false;
+            DeletePieceButton.IsEnabled = false;
+        }
         else if (e.NewValue is SubpieceDisplayNode)
         {
             // Keep _activeComposer / _activePiece and button state from the
@@ -379,17 +437,129 @@ public partial class CanonView : UserControl
     {
         if (sender is not TreeViewItem item || !item.IsSelected) return;
         e.Handled = true;
+        await EditSelectedItemAsync(item.DataContext);
+    }
 
-        if (item.DataContext is ComposerTreeNode node)
-            await EditComposerAsync(node.Composer);
-        else if (item.DataContext is CanonPiece piece)
-            await EditPieceAsync(piece);
-        else if (item.DataContext is PieceOriginalNode origNode)
-            await EditPieceAsync(origNode.Piece);
-        else if (item.DataContext is VersionDisplayNode versionNode)
-            await EditVersionAsync(versionNode);
-        else if (item.DataContext is SubpieceDisplayNode subNode)
-            await EditSubpieceAsync(subNode.Piece, subNode.ParentPiece);
+    // ── Enter key ─────────────────────────────────────────────────────────────
+
+    private async void OnTreeKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        var selected = ComposerTree.SelectedItem;
+        if (selected == null) return;
+        e.Handled = true;
+        await EditSelectedItemAsync(selected);
+    }
+
+    // ── Shared edit dispatcher ────────────────────────────────────────────────
+
+    private async Task EditSelectedItemAsync(object? item)
+    {
+        switch (item)
+        {
+            case ComposerTreeNode node:
+                await EditComposerAsync(node.Composer);
+                break;
+            case ContributedPieceNode contribNode:
+                await EditPieceAsync(contribNode.Piece);
+                break;
+            case ContributedRoleGroupNode:
+                break;   // group header — no edit
+            case CanonPiece piece:
+                await EditPieceAsync(piece);
+                break;
+            case PieceOriginalNode origNode:
+                await EditPieceAsync(origNode.Piece);
+                break;
+            case VersionDisplayNode versionNode:
+                await EditVersionAsync(versionNode);
+                break;
+            case SubpieceDisplayNode subNode:
+                await EditSubpieceAsync(subNode.Piece, subNode.ParentPiece);
+                break;
+        }
+    }
+
+    // ── Context menu: record right-clicked item (never touch IsSelected) ────────
+
+    private void OnTreeMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var hit = e.OriginalSource as DependencyObject;
+        while (hit != null && hit is not TreeViewItem)
+            hit = System.Windows.Media.VisualTreeHelper.GetParent(hit);
+
+        if (hit is TreeViewItem tvi)
+        {
+            _ctxTarget = tvi.DataContext;
+            _ctxTvi    = tvi;
+        }
+        else
+        {
+            _ctxTarget = null;
+            _ctxTvi    = null;
+        }
+    }
+
+    // ── Context menu: enable/disable items before showing ────────────────────
+
+    private void OnTreeContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        // Suppress menu if right-click landed on empty space
+        if (_ctxTarget == null)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        bool canEdit = _ctxTarget is not ContributedRoleGroupNode;
+        bool hasChildren = _ctxTarget switch
+        {
+            ComposerTreeNode n          => n.AllItems.Count > 0,
+            CanonPiece p                => p.HasTreeChildren,
+            SubpieceDisplayNode s       => s.HasChildren,
+            PieceOriginalNode o         => o.HasChildren,
+            VersionDisplayNode v        => v.HasSubpieces,
+            ContributedRoleGroupNode g  => g.Pieces.Count > 0,
+            ContributedPieceNode cp     => cp.HasChildren,
+            _                           => false,
+        };
+
+        CtxEdit.IsEnabled        = canEdit;
+        CtxExpandAll.IsEnabled   = hasChildren;
+        CtxCollapseAll.IsEnabled = hasChildren;
+    }
+
+    // ── Context menu: handlers ────────────────────────────────────────────────
+
+    private async void OnContextEdit(object sender, RoutedEventArgs e) =>
+        await EditSelectedItemAsync(_ctxTarget);
+
+    private void OnContextExpandAll(object sender, RoutedEventArgs e)
+    {
+        if (_ctxTvi == null) return;
+        _ctxTvi.IsExpanded = true;
+        SetExpandedRecursive(_ctxTvi, expand: true);
+    }
+
+    private void OnContextCollapseAll(object sender, RoutedEventArgs e)
+    {
+        if (_ctxTvi == null) return;
+        SetExpandedRecursive(_ctxTvi, expand: false);
+        _ctxTvi.IsExpanded = false;
+    }
+
+    // ── Expand / collapse helpers ─────────────────────────────────────────────
+
+    private static void SetExpandedRecursive(TreeViewItem parent, bool expand)
+    {
+        parent.UpdateLayout();   // ensure child containers are generated
+        foreach (var item in parent.Items)
+        {
+            if (parent.ItemContainerGenerator.ContainerFromItem(item)
+                    is not TreeViewItem child) continue;
+            child.IsExpanded = expand;
+            SetExpandedRecursive(child, expand);
+        }
     }
 
     // ── Edit: composer ───────────────────────────────────────────────────────
@@ -398,7 +568,7 @@ public partial class CanonView : UserControl
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        var window = new ComposerEditorWindow(composer)
+        var window = new ComposerEditorWindow(vm.PickLists, composer)
         {
             Owner = Window.GetWindow(this)
         };
@@ -419,16 +589,15 @@ public partial class CanonView : UserControl
         if (DataContext is not CanonViewModel vm) return;
 
         var composerNames = vm.Composers.Select(c => c.Name).ToList();
-        var window = new PieceEditorWindow(vm.PickLists, piece.Composer ?? "", piece, composerNames)
+        var composerCatalogs = BuildComposerCatalogDict(vm);
+        var window = new PieceEditorWindow(vm.PickLists, piece.Composer ?? "", piece, composerNames,
+            composerCatalogs: composerCatalogs)
         {
             Owner = Window.GetWindow(this)
         };
 
         if (window.ShowDialog() == true)
         {
-            ApplyRenamesFromDicts(vm,
-                window.FormRenames, window.CategoryRenames,
-                window.CatalogRenames, window.KeyRenames);
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
             await SaveAllAsync(vm);
@@ -444,13 +613,15 @@ public partial class CanonView : UserControl
         if (versionNode.ParentPiece is not { } parentPiece) return;
 
         var composerNames = vm.Composers.Select(c => c.Name).ToList();
+        var composerCatalogs = BuildComposerCatalogDict(vm);
         var window = new PieceEditorWindow(
             vm.PickLists,
             versionNode.Version,
             showSubpieceNumbers: parentPiece.EffectiveSubpiecesNumbered,
             composerNames: composerNames,
             inheritedComposer: parentPiece.Composer,
-            inheritedComposers: parentPiece.Composers)
+            inheritedComposers: parentPiece.Composers,
+            composerCatalogs: composerCatalogs)
         {
             Owner = Window.GetWindow(this)
         };
@@ -473,10 +644,14 @@ public partial class CanonView : UserControl
         var parent = parentPiece ?? _activePiece;
 
         var composerNames = vm.Composers.Select(c => c.Name).ToList();
+        var composerCatalogs = BuildComposerCatalogDict(vm);
+        var ancestorRoles = ParseAncestorRoles(parent, subpiece);
         var window = new PieceEditorWindow(
             vm.PickLists, subpiece.Composer ?? "", subpiece, composerNames, PieceEditorMode.Subpiece,
             inheritedComposer: parent?.Composer,
-            inheritedComposers: parent?.Composers)
+            inheritedComposers: parent?.Composers,
+            composerCatalogs: composerCatalogs,
+            ancestorRoles: ancestorRoles)
         {
             Owner = Window.GetWindow(this)
         };
@@ -498,7 +673,7 @@ public partial class CanonView : UserControl
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        var window = new ComposerEditorWindow
+        var window = new ComposerEditorWindow(vm.PickLists)
         {
             Owner = Window.GetWindow(this)
         };
@@ -546,7 +721,9 @@ public partial class CanonView : UserControl
 
         var composerName = _activeComposer?.Name ?? _activePiece?.Composer ?? "";
         var composerNames = vm.Composers.Select(c => c.Name).ToList();
-        var window = new PieceEditorWindow(vm.PickLists, composerName, null, composerNames)
+        var composerCatalogs = BuildComposerCatalogDict(vm);
+        var window = new PieceEditorWindow(vm.PickLists, composerName, null, composerNames,
+            composerCatalogs: composerCatalogs)
         {
             Owner = Window.GetWindow(this)
         };
@@ -554,9 +731,6 @@ public partial class CanonView : UserControl
         if (window.ShowDialog() == true)
         {
             vm.Pieces.Add(window.Piece);
-            ApplyRenamesFromDicts(vm,
-                window.FormRenames, window.CategoryRenames,
-                window.CatalogRenames, window.KeyRenames);
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
             await SaveAllAsync(vm);
@@ -590,101 +764,132 @@ public partial class CanonView : UserControl
         vm.StatusMessage = $"Deleted: {title}.";
     }
 
-    // ── Pick list editor (called from MainWindow menu) ───────────────────────
+    // ── Shared helpers ───────────────────────────────────────────────────────
 
-    internal async void OpenPickListEditor()
+    /// <summary>
+    /// Builds a case-insensitive dictionary from composer name to their permitted catalogue
+    /// prefixes. Composers with no restrictions are omitted (callers treat a missing key as
+    /// "no restriction — show all prefixes").
+    /// </summary>
+    /// <summary>
+    /// Parses the roles from a parent piece into a flat list suitable for passing
+    /// as <c>ancestorRoles</c> to a subpiece editor. Returns null if the piece has
+    /// no roles defined.
+    /// </summary>
+    /// <summary>
+    /// Returns the ancestor roles visible to <paramref name="subpieceContext"/>.
+    /// Checks the top-level piece's roles first; if absent, walks the piece's versions
+    /// to find whichever version contains the subpiece (by reference) and returns
+    /// that version's roles instead.
+    /// </summary>
+    private static IReadOnlyList<RoleEntry>? ParseAncestorRoles(
+        CanonPiece? piece, CanonPiece? subpieceContext = null)
     {
-        if (DataContext is not CanonViewModel vm) return;
+        if (piece == null) return null;
 
-        var editor = new PickListEditorWindow(vm.PickLists)
+        if (piece.Roles is { } roles)
         {
-            Owner = Window.GetWindow(this)
-        };
-
-        if (editor.ShowDialog() == true)
-        {
-            editor.ApplyTo(vm.PickLists);
-            ApplyPickListRenames(vm, editor);
-            await SaveAllAsync(vm);
+            var parsed = RoleEntry.ParseRoles(roles);
+            if (parsed.Count > 0) return parsed;
         }
-    }
 
-    // ── Rename propagation ───────────────────────────────────────────────────
-
-    private void ApplyPickListRenames(CanonViewModel vm, PickListEditorWindow editor)
-    {
-        ApplyRenamesFromDicts(vm,
-            editor.FormRenames, editor.CategoryRenames,
-            editor.CatalogRenames, editor.KeyRenames);
-    }
-
-    private static void ApplyRenamesFromDicts(
-        CanonViewModel vm,
-        Dictionary<string, string> formRenames,
-        Dictionary<string, string> categoryRenames,
-        Dictionary<string, string> catalogRenames,
-        Dictionary<string, string> keyRenames)
-    {
-        if (formRenames.Count == 0 && categoryRenames.Count == 0 &&
-            catalogRenames.Count == 0 && keyRenames.Count == 0)
-            return;
-
-        var count = 0;
-        foreach (var piece in vm.Pieces)
-            count += ApplyRenamesToPiece(piece, formRenames, categoryRenames, catalogRenames, keyRenames);
-
-        if (count > 0)
-            vm.StatusMessage = $"Renamed values propagated to {count} field(s). Save to persist.";
-    }
-
-    private static int ApplyRenamesToPiece(
-        CanonPiece piece,
-        Dictionary<string, string> formRenames,
-        Dictionary<string, string> categoryRenames,
-        Dictionary<string, string> catalogRenames,
-        Dictionary<string, string> keyRenames)
-    {
-        var count = 0;
-
-        if (piece.Form != null && formRenames.TryGetValue(piece.Form, out var newForm))
-        { piece.Form = newForm; count++; }
-
-        if (piece.InstrumentationCategory != null &&
-            categoryRenames.TryGetValue(piece.InstrumentationCategory, out var newCat))
-        { piece.InstrumentationCategory = newCat; count++; }
-
-        if (piece.KeyTonality != null && keyRenames.TryGetValue(piece.KeyTonality, out var newKey))
-        { piece.KeyTonality = newKey; count++; }
-
-        if (piece.CatalogInfo != null)
+        // Fall back to whichever version contains the subpiece
+        if (subpieceContext != null && piece.Versions != null)
         {
-            foreach (var cat in piece.CatalogInfo)
+            foreach (var v in piece.Versions)
             {
-                if (catalogRenames.TryGetValue(cat.Catalog, out var newPrefix))
-                { cat.Catalog = newPrefix; count++; }
+                if (v.Roles != null && SubpieceExistsInTree(v.Subpieces, subpieceContext))
+                {
+                    var parsed = RoleEntry.ParseRoles(v.Roles.Value);
+                    if (parsed.Count > 0) return parsed;
+                }
             }
         }
 
-        if (piece.Subpieces != null)
-        {
-            foreach (var sub in piece.Subpieces)
-                count += ApplyRenamesToPiece(sub, formRenames, categoryRenames, catalogRenames, keyRenames);
-        }
-
-        return count;
+        return null;
     }
 
-    // ── Shared helpers ───────────────────────────────────────────────────────
+    /// <summary>
+    /// Returns true if <paramref name="target"/> exists anywhere in the subpiece tree
+    /// rooted at <paramref name="subpieces"/> (reference equality, recursive).
+    /// </summary>
+    private static bool SubpieceExistsInTree(List<CanonPiece>? subpieces, CanonPiece target)
+    {
+        if (subpieces == null) return false;
+        foreach (var sp in subpieces)
+        {
+            if (ReferenceEquals(sp, target)) return true;
+            if (SubpieceExistsInTree(sp.Subpieces, target)) return true;
+        }
+        return false;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildComposerCatalogDict(CanonViewModel vm)
+    {
+        var dict = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var composer in vm.Composers)
+        {
+            if (composer.CatalogPrefixes is { Count: > 0 })
+                dict[composer.Name] = composer.CatalogPrefixes;
+        }
+        return dict;
+    }
 
     private static void UpdatePieceCounts(CanonViewModel vm)
     {
-        var counts = vm.Pieces
+        var ownCounts = vm.Pieces
             .Where(p => !string.IsNullOrEmpty(p.Composer))
             .GroupBy(p => p.Composer!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
+        // For each piece, collect all Other Contributor names from the full hierarchy,
+        // then credit each contributor with +1 (excluding the piece's primary composer).
+        var contributedCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var piece in vm.Pieces)
+        {
+            var contributors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            CollectAllContributorNames(piece, contributors);
+            contributors.Remove(piece.Composer ?? "");   // don't double-count own pieces
+
+            foreach (var name in contributors)
+            {
+                contributedCounts.TryGetValue(name, out var c);
+                contributedCounts[name] = c + 1;
+            }
+        }
+
         foreach (var composer in vm.Composers)
-            composer.PieceCount = counts.TryGetValue(composer.Name, out var c) ? c : 0;
+        {
+            ownCounts.TryGetValue(composer.Name, out var own);
+            contributedCounts.TryGetValue(composer.Name, out var contrib);
+            composer.PieceCount = own + contrib;
+        }
+    }
+
+    /// <summary>
+    /// Recursively collects all Other Contributor names (non-null role) from a piece,
+    /// its versions, and all subpieces at every depth.
+    /// </summary>
+    private static void CollectAllContributorNames(CanonPiece piece, HashSet<string> names)
+    {
+        if (piece.Composers != null)
+            foreach (var c in piece.Composers)
+                if (!string.IsNullOrEmpty(c.Role)) names.Add(c.Name);
+
+        if (piece.Versions != null)
+            foreach (var v in piece.Versions)
+            {
+                if (v.Composers != null)
+                    foreach (var c in v.Composers)
+                        if (!string.IsNullOrEmpty(c.Role)) names.Add(c.Name);
+                if (v.Subpieces != null)
+                    foreach (var sp in v.Subpieces)
+                        CollectAllContributorNames(sp, names);
+            }
+
+        if (piece.Subpieces != null)
+            foreach (var sp in piece.Subpieces)
+                CollectAllContributorNames(sp, names);
     }
 
     private static async Task SaveAllAsync(CanonViewModel vm)

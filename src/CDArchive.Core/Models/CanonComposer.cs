@@ -25,9 +25,6 @@ public class CanonComposer
     [JsonPropertyName("birth_country")]
     public string? BirthCountry { get; set; }
 
-    [JsonPropertyName("birth_notes")]
-    public string? BirthNotes { get; set; }
-
     [JsonPropertyName("death_date")]
     public string? DeathDate { get; set; }
 
@@ -40,13 +37,29 @@ public class CanonComposer
     [JsonPropertyName("death_country")]
     public string? DeathCountry { get; set; }
 
+    [JsonPropertyName("notes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Notes { get; set; }
+
+    /// <summary>
+    /// The catalogue prefixes permitted for this composer (e.g. ["Op.", "WoO", "Hess"]).
+    /// When non-null and non-empty, the piece editor limits the catalogue prefix dropdown
+    /// to these values. Null means all pick-list prefixes are available.
+    /// </summary>
+    [JsonPropertyName("aliases")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Aliases { get; set; }
+
+    [JsonPropertyName("catalog_prefixes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? CatalogPrefixes { get; set; }
+
     /// <summary>
     /// Extracts just the year from a date string like "1803-07-24" or returns the birth_notes.
     /// </summary>
     [JsonIgnore]
     public string BirthYear =>
-        BirthDate != null && BirthDate.Length >= 4 ? BirthDate[..4]
-        : BirthNotes ?? "";
+        BirthDate != null && BirthDate.Length >= 4 ? BirthDate[..4] : "";
 
     [JsonIgnore]
     public string DeathYear =>
@@ -62,7 +75,7 @@ public class CanonComposer
             if (string.IsNullOrEmpty(b) && string.IsNullOrEmpty(d))
                 return "";
             if (string.IsNullOrEmpty(d))
-                return $"(b. {b})";
+                return $"({b}\u2013)";
             return $"({b}\u2013{d})";
         }
     }

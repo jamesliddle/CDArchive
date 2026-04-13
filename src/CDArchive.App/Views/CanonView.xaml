@@ -23,124 +23,125 @@
 
         <DockPanel Margin="5,10,5,5">
 
-            <!-- ── Toolbar ── -->
-            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="DeletePieceButton" Content="Delete Piece"
-                            Padding="12,4" Margin="8,0,0,0" FontSize="12"
-                            IsEnabled="False" Foreground="#D32F2F"
-                            Click="OnDeletePieceClick" />
-                    <Button x:Name="NewPieceButton" Content="New Piece"
-                            Padding="12,4" Margin="8,0,0,0" FontSize="12"
-                            IsEnabled="False"
-                            Click="OnNewPieceClick" />
-                    <Button Content="New Composer" Padding="12,4" Margin="8,0,0,0" FontSize="12"
-                            Click="OnNewComposerClick" />
-                    <Button Content="Delete Composer" Padding="12,4" Margin="8,0,0,0" FontSize="12"
-                            Foreground="#D32F2F"
-                            Click="OnDeleteComposerClick" />
-                </StackPanel>
+            <!-- ── Toolbar (two rows) ── -->
+            <!--
+                Column map (shared across both rows for alignment):
+                  0 = Refresh icon   1 = gap
+                  2 = New btn        3 = gap
+                  4 = Delete btn     5 = gap
+                  6 = Sort label     7 = Sort dropdown
+                  8 = gap            9 = Filter label   10 = Filter box
+            -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="5" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />  <!-- 0: Refresh -->
+                    <ColumnDefinition Width="8"    />  <!-- 1 -->
+                    <ColumnDefinition Width="Auto" />  <!-- 2: New Composer / New Piece -->
+                    <ColumnDefinition Width="8"    />  <!-- 3 -->
+                    <ColumnDefinition Width="Auto" />  <!-- 4: Delete Composer / Delete Piece -->
+                    <ColumnDefinition Width="16"   />  <!-- 5 -->
+                    <ColumnDefinition Width="Auto" />  <!-- 6: Sort label -->
+                    <ColumnDefinition Width="90"   />  <!-- 7: Sort dropdown -->
+                    <ColumnDefinition Width="16"   />  <!-- 8 -->
+                    <ColumnDefinition Width="Auto" />  <!-- 9: Filter label -->
+                    <ColumnDefinition Width="150"  />  <!-- 10: Filter box -->
+                </Grid.ColumnDefinitions>
 
-                <!-- Sort pieces combo -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
-                            VerticalAlignment="Center" Margin="0,0,16,0">
-                    <TextBlock Text="Sort pieces:" VerticalAlignment="Center"
-                               FontSize="12" Foreground="#555" Margin="0,0,6,0" />
-                    <ComboBox x:Name="PieceSortCombo" Width="90" FontSize="12"
-                              SelectedIndex="0"
-                              SelectionChanged="OnPieceSortChanged">
-                        <ComboBoxItem Content="Catalogue" />
-                        <ComboBoxItem Content="Title" />
-                        <ComboBoxItem Content="Category" />
-                        <ComboBoxItem Content="Year" />
-                    </ComboBox>
-                </StackPanel>
-
-                <Button Content="↻ Refresh" Padding="10,4" FontSize="12"
-                        Margin="0,0,12,0"
+                <!-- ── Row 0: Refresh · New Composer · Delete Composer · Sort Composers · Filter ── -->
+                <Button Grid.Row="0" Grid.Column="0"
+                        Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
                         Command="{Binding LoadDataCommand}"
                         ToolTip="Reload all data from the database" />
-                <TextBlock Text="Filter:" VerticalAlignment="Center"
-                           Margin="0,0,8,0" FontSize="12" Foreground="#555" />
-                <TextBox Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
+
+                <Button Grid.Row="0" Grid.Column="2"
+                        Content="New Composer" Padding="12,4" FontSize="12" Height="28"
+                        Click="OnNewComposerClick" />
+
+                <Button Grid.Row="0" Grid.Column="4"
+                        Content="Delete Composer" Padding="12,4" FontSize="12" Height="28"
+                        Foreground="#D32F2F"
+                        Click="OnDeleteComposerClick" />
+
+                <TextBlock Grid.Row="0" Grid.Column="6"
+                           Text="Sort Composers:" FontSize="12" Foreground="#555"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox Grid.Row="0" Grid.Column="7"
+                          x:Name="ComposerSortCombo" FontSize="12" Height="23"
+                          SelectedIndex="0"
+                          SelectionChanged="OnComposerSortChanged">
+                    <ComboBoxItem Content="Pieces" />
+                    <ComboBoxItem Content="Name" />
+                    <ComboBoxItem Content="Born" />
+                    <ComboBoxItem Content="Died" />
+                </ComboBox>
+
+                <TextBlock Grid.Row="0" Grid.Column="9"
+                           Text="Filter:" FontSize="12" Foreground="#555"
+                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Grid.Row="0" Grid.Column="10"
+                         Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
                          FontSize="13" Padding="6,4"
                          TextChanged="OnFilterTextChanged" />
-            </DockPanel>
+
+                <!-- ── Row 2: New Piece · Delete Piece · Sort Pieces ── -->
+                <Button Grid.Row="2" Grid.Column="2"
+                        x:Name="NewPieceButton" Content="New Piece"
+                        Padding="12,4" FontSize="12" Height="28"
+                        IsEnabled="False"
+                        Click="OnNewPieceClick" />
+
+                <Button Grid.Row="2" Grid.Column="4"
+                        x:Name="DeletePieceButton" Content="Delete Piece"
+                        Padding="12,4" FontSize="12" Height="28"
+                        IsEnabled="False" Foreground="#D32F2F"
+                        Click="OnDeletePieceClick" />
+
+                <TextBlock Grid.Row="2" Grid.Column="6"
+                           Text="Sort Pieces:" FontSize="12" Foreground="#555"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox Grid.Row="2" Grid.Column="7"
+                          x:Name="PieceSortCombo" FontSize="12" Height="23"
+                          SelectedIndex="0"
+                          SelectionChanged="OnPieceSortChanged">
+                    <ComboBoxItem Content="Catalogue" />
+                    <ComboBoxItem Content="Title" />
+                    <ComboBoxItem Content="Category" />
+                    <ComboBoxItem Content="Year" />
+                </ComboBox>
+            </Grid>
 
             <!-- ── Single unified tree panel ── -->
             <Border BorderThickness="1" BorderBrush="#E0E0E0" Background="White">
                 <DockPanel>
 
-                    <!-- Composer column headers (controls composer-level sort) -->
+                    <!-- Composer column headers -->
                     <Grid DockPanel.Dock="Top" Margin="0,4,0,4">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="19" />            <!-- expander space -->
-                            <ColumnDefinition Width="65" MinWidth="50" />  <!-- Pieces -->
-                            <ColumnDefinition Width="Auto" />          <!-- splitter -->
+                            <ColumnDefinition Width="19" />               <!-- expander space -->
+                            <ColumnDefinition Width="65" MinWidth="50" /> <!-- Pieces -->
+                            <ColumnDefinition Width="Auto" />             <!-- splitter -->
                             <ColumnDefinition Width="*" MinWidth="100" /> <!-- Name -->
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="75" MinWidth="45" /> <!-- Born -->
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="75" MinWidth="45" /> <!-- Died -->
                         </Grid.ColumnDefinitions>
 
                         <Border Grid.Column="0" x:Name="LHdrExpander" />
 
-                        <Border Grid.Column="1" x:Name="LHdrPieces" Cursor="Hand"
-                                Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
-                                Tag="Pieces">
-                            <StackPanel Orientation="Horizontal"
-                                        HorizontalAlignment="Right" Margin="0,0,8,0">
-                                <TextBlock Text="Pieces" FontSize="12"
-                                           FontWeight="SemiBold" Foreground="#555" />
-                                <TextBlock x:Name="SortPieces" FontSize="10" Margin="3,0,0,0"
-                                           Foreground="#999" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Border Grid.Column="1" x:Name="LHdrPieces">
+                            <TextBlock Text="Pieces" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#555" TextAlignment="Right" Margin="0,0,8,0" />
                         </Border>
 
                         <GridSplitter Grid.Column="2" Width="4" Background="Transparent"
                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"
                                       Cursor="SizeWE" />
 
-                        <Border Grid.Column="3" x:Name="LHdrName" Cursor="Hand"
-                                Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
-                                Tag="Name">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Name" FontSize="12"
-                                           FontWeight="SemiBold" Foreground="#555" />
-                                <TextBlock x:Name="SortName" FontSize="10" Margin="3,0,0,0"
-                                           Foreground="#999" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-
-                        <GridSplitter Grid.Column="4" Width="4" Background="Transparent"
-                                      HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                                      Cursor="SizeWE" />
-
-                        <Border Grid.Column="5" x:Name="LHdrBirth" Cursor="Hand"
-                                Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
-                                Tag="Birth">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Born" FontSize="12"
-                                           FontWeight="SemiBold" Foreground="#555" />
-                                <TextBlock x:Name="SortBirth" FontSize="10" Margin="3,0,0,0"
-                                           Foreground="#999" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-
-                        <GridSplitter Grid.Column="6" Width="4" Background="Transparent"
-                                      HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                                      Cursor="SizeWE" />
-
-                        <Border Grid.Column="7" x:Name="LHdrDeath" Cursor="Hand"
-                                Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
-                                Tag="Death">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Died" FontSize="12"
-                                           FontWeight="SemiBold" Foreground="#555" />
-                                <TextBlock x:Name="SortDeath" FontSize="10" Margin="3,0,0,0"
-                                           Foreground="#999" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Border Grid.Column="3" x:Name="LHdrName">
+                            <TextBlock Text="Name" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#555" />
                         </Border>
                     </Grid>
 
@@ -152,7 +153,23 @@
                               BorderThickness="0" Background="White"
                               FontSize="13"
                               VirtualizingStackPanel.IsVirtualizing="False"
-                              SelectedItemChanged="OnComposerTreeSelectionChanged">
+                              SelectedItemChanged="OnComposerTreeSelectionChanged"
+                              MouseRightButtonDown="OnTreeMouseRightButtonDown"
+                              ContextMenuOpening="OnTreeContextMenuOpening"
+                              KeyDown="OnTreeKeyDown">
+                        <TreeView.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem x:Name="CtxEdit"
+                                          Header="Edit" Click="OnContextEdit" />
+                                <Separator />
+                                <MenuItem x:Name="CtxExpandAll"
+                                          Header="Expand all below"
+                                          Click="OnContextExpandAll" />
+                                <MenuItem x:Name="CtxCollapseAll"
+                                          Header="Collapse all below"
+                                          Click="OnContextCollapseAll" />
+                            </ContextMenu>
+                        </TreeView.ContextMenu>
                         <TreeView.Template>
                             <ControlTemplate TargetType="TreeView">
                                 <ScrollViewer Focusable="False" CanContentScroll="False"
@@ -223,31 +240,25 @@
 
                             <!-- ── Level 1: Composer node ── -->
                             <HierarchicalDataTemplate DataType="{x:Type vm:ComposerTreeNode}"
-                                                      ItemsSource="{Binding Pieces}">
+                                                      ItemsSource="{Binding AllItems}">
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrExpander}">
+                                    <Border Width="19">
                                         <ToggleButton Style="{StaticResource ExpanderToggle}"
                                                       IsChecked="{Binding IsExpanded,
                                                           RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
                                     </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                    <Border Width="65">
                                         <TextBlock Text="{Binding Composer.PieceCount}"
                                                    TextAlignment="Right" Margin="0,0,8,0"
                                                    Foreground="#888888" FontSize="12" />
                                     </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrName}">
+                                    <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Composer.Name}"
-                                                   FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrBirth}">
-                                        <TextBlock Text="{Binding Composer.BirthYear}"
-                                                   Foreground="#888888" FontSize="12" />
-                                    </Border>
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrDeath}">
-                                        <TextBlock Text="{Binding Composer.DeathYear}"
-                                                   Foreground="#888888" FontSize="12" />
-                                    </Border>
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Composer.LifeSpan}"
+                                                   Foreground="#888888" FontSize="12"
+                                                   Margin="6,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -262,7 +273,7 @@
                                         sits right-aligned inside that placeholder; 4 px after it
                                         matches the GridSplitter between the Pieces and Name columns.
                                     -->
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                    <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right">
                                             <ToggleButton Style="{StaticResource ExpanderToggle}"
                                                           IsChecked="{Binding IsExpanded,
@@ -273,8 +284,7 @@
                                     </Border>
                                     <Border Width="4" /> <!-- matches the GridSplitter column -->
                                     <TextBlock Text="{Binding DisplayTitleShort}"
-                                               FontSize="12" Foreground="#333"
-                                               TextTrimming="CharacterEllipsis" MaxWidth="420">
+                                               FontSize="12" Foreground="#333">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding ToolTipText}"
@@ -299,7 +309,7 @@
                             <HierarchicalDataTemplate DataType="{x:Type local:SubpieceDisplayNode}"
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                    <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right">
                                             <ToggleButton Style="{StaticResource ExpanderToggle}"
                                                           IsChecked="{Binding IsExpanded,
@@ -310,8 +320,7 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#444"
-                                               TextTrimming="CharacterEllipsis" MaxWidth="380">
+                                               FontSize="12" Foreground="#444">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Piece.ToolTipText}"
@@ -329,7 +338,7 @@
                             <HierarchicalDataTemplate DataType="{x:Type local:PieceOriginalNode}"
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                    <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right">
                                             <ToggleButton Style="{StaticResource ExpanderToggle}"
                                                           IsChecked="{Binding IsExpanded,
@@ -340,8 +349,7 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="Original"
-                                               FontSize="12" Foreground="#555"
-                                               TextTrimming="CharacterEllipsis" MaxWidth="380" />
+                                               FontSize="12" Foreground="#555" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -349,7 +357,7 @@
                             <HierarchicalDataTemplate DataType="{x:Type local:VersionDisplayNode}"
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
-                                    <Border Width="{Binding ActualWidth, ElementName=LHdrPieces}">
+                                    <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right">
                                             <ToggleButton Style="{StaticResource ExpanderToggle}"
                                                           IsChecked="{Binding IsExpanded,
@@ -360,8 +368,53 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#666" FontStyle="Italic"
-                                               TextTrimming="CharacterEllipsis" MaxWidth="380" />
+                                               FontSize="12" Foreground="#666" FontStyle="Italic" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                            <!-- ── Contributed works: role + composer group header ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:ContributedRoleGroupNode}"
+                                                      ItemsSource="{Binding Pieces}">
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,1">
+                                    <Border Width="65">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
+                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                          IsChecked="{Binding IsExpanded,
+                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" />
+                                    <TextBlock Text="{Binding DisplayTitle}"
+                                               FontSize="12" Foreground="#777" FontStyle="Italic" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                            <!-- ── Contributed works: piece node under a role group ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:ContributedPieceNode}"
+                                                      ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Border Width="65">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
+                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
+                                                          IsChecked="{Binding IsExpanded,
+                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                          Visibility="{Binding HasChildren,
+                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" />
+                                    <TextBlock Text="{Binding DisplayTitle}"
+                                               FontSize="12" Foreground="#333">
+                                        <TextBlock.ToolTip>
+                                            <ToolTip MaxWidth="600">
+                                                <TextBlock Text="{Binding Piece.ToolTipText}"
+                                                           TextWrapping="Wrap" FontSize="13" />
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Catalog}"
+                                               FontSize="11" Foreground="#888"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 

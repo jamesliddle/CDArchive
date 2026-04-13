@@ -15,10 +15,9 @@ public partial class ComposerCreditEditorWindow : Window
         InitializeComponent();
 
         NameCombo.ItemsSource = composerNames;
-        // Prepend a blank entry so the role can be cleared
-        RoleCombo.ItemsSource = new[] { "" }.Concat(creativeRoles);
+        RoleCombo.ItemsSource = creativeRoles;
 
-        Title = credit == null ? "Add Composer" : "Edit Composer Credit";
+        Title = credit == null ? "Add Other Contributor" : "Edit Other Contributor";
 
         if (credit != null)
         {

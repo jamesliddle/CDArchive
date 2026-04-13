@@ -27,8 +27,9 @@ public partial class App : Application
             services.AddTransient<ConversionStatusViewModel>();
             services.AddTransient<SettingsViewModel>();
             services.AddTransient<CatalogueViewModel>();
-            services.AddTransient<CanonViewModel>();
+            services.AddSingleton<CanonViewModel>();
             services.AddTransient<ImportExportViewModel>();
+            services.AddSingleton<PickListsViewModel>();
 
             ServiceProvider = services.BuildServiceProvider();
 

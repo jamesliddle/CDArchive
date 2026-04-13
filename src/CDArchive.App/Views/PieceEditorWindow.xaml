@@ -29,9 +29,6 @@
         <!-- Buttons at bottom -->
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Content="Edit Pick Lists..." Width="110" Padding="0,6"
-                    HorizontalAlignment="Left" Click="OnEditPickListsClick" />
-            <Border Width="80" />
             <Button Content="OK" Width="80" Padding="0,6"
                     IsDefault="True" Click="OnOkClick" />
             <Button Content="Cancel" Width="80" Padding="0,6"
@@ -84,7 +81,7 @@
                            ToolTip="Primary composer — determines which composer this piece is grouped under" />
 
                 <!-- Additional composer credits -->
-                <TextBlock Grid.Row="1" Text="Other contributors" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Row="1" Text="Other Contributors" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
                 <Border Grid.Row="1" Grid.Column="1" Margin="0,3"
                         BorderThickness="1" BorderBrush="#CCC">
@@ -249,28 +246,13 @@
                            x:Name="FirstLineBox"
                            ToolTip="Opening line of text for vocal numbers" />
 
-                <!-- Text Author — supports multiple names -->
-                <TextBlock Grid.Row="16" Text="Text Author" Style="{StaticResource FieldLabel}"
+                <!-- Notes — free-form text, multi-line -->
+                <TextBlock Grid.Row="16" Text="Notes" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
-                <Border Grid.Row="16" Grid.Column="1" Margin="0,3"
-                        BorderThickness="1" BorderBrush="#CCC">
-                    <StackPanel>
-                        <DockPanel MinHeight="20" MaxHeight="72">
-                            <Button DockPanel.Dock="Right" Content="✕" Padding="6,3" FontSize="11"
-                                    VerticalAlignment="Top" Margin="2"
-                                    ToolTip="Remove selected text author"
-                                    Click="OnRemoveTextAuthorClick" />
-                            <ListBox x:Name="TextAuthorList" FontSize="12" BorderThickness="0" />
-                        </DockPanel>
-                        <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
-                        <DockPanel Margin="4,4,4,4">
-                            <Button DockPanel.Dock="Right" Content="Add" Padding="8,3" FontSize="11"
-                                    Margin="4,0,0,0" Click="OnAddTextAuthorClick" />
-                            <TextBox x:Name="TextAuthorEntryBox" FontSize="12" Padding="4,3"
-                                     ToolTip="Type a text author name and click Add" />
-                        </DockPanel>
-                    </StackPanel>
-                </Border>
+                <TextBox   Grid.Row="16" Grid.Column="1" x:Name="NotesBox"
+                           FontSize="13" Padding="4,3" Margin="0,3"
+                           AcceptsReturn="True" TextWrapping="Wrap"
+                           Height="80" VerticalScrollBarVisibility="Auto" />
 
             </Grid>
 
@@ -377,6 +359,27 @@
                     <ListBox x:Name="RoleList" FontSize="12" MinHeight="40"
                              BorderThickness="1" BorderBrush="#CCC"
                              MouseDoubleClick="OnRoleDoubleClick" />
+                </DockPanel>
+            </Border>
+
+            <!-- Variants section -->
+            <TextBlock Text="Variants" FontWeight="SemiBold" FontSize="12"
+                       Foreground="#555" Margin="0,14,0,6" />
+
+            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                    Padding="6" MinHeight="60">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
+                        <Button Content="Add"    Padding="8,3" FontSize="11" Margin="0,0,0,0" Click="OnAddVariantClick" />
+                        <Button Content="Edit"   Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnEditVariantClick" />
+                        <Button Content="Remove" Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnRemoveVariantClick" />
+                        <Border Height="8" />
+                        <Button Content="Up"     Padding="8,3" FontSize="11" Margin="0,0,0,0" Click="OnMoveVariantUpClick" />
+                        <Button Content="Down"   Padding="8,3" FontSize="11" Margin="0,4,0,0" Click="OnMoveVariantDownClick" />
+                    </StackPanel>
+                    <ListBox x:Name="VariantList" FontSize="12" MinHeight="40"
+                             BorderThickness="1" BorderBrush="#CCC"
+                             MouseDoubleClick="OnVariantDoubleClick" />
                 </DockPanel>
             </Border>
           </StackPanel>

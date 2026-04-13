@@ -13,9 +13,8 @@
         <TextBlock Text="Export" FontSize="15" FontWeight="SemiBold"
                    Foreground="#333" Margin="0,0,0,8" />
         <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
-            Export the current database contents to a JSON file.
-            The default location and filename match the canonical data files,
-            but you can choose any name and location.
+            Save the current data to a JSON file of your choosing.
+            The default filename and location match the canonical data files.
         </TextBlock>
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -26,10 +25,10 @@
                     Command="{Binding ExportPiecesCommand}" />
         </StackPanel>
 
-        <Button Content="Sync to Canonical JSON Files" Width="330" Padding="0,7"
-                HorizontalAlignment="Left" Margin="0,4,0,0"
-                Command="{Binding SyncToJsonCommand}"
-                ToolTip="Overwrite the canonical data files with the current database contents" />
+        <Button Content="Normalize JSON Files" Width="200" Padding="0,7"
+                HorizontalAlignment="Left" Margin="0,6,0,0"
+                Command="{Binding NormalizeJsonCommand}"
+                ToolTip="Re-read and re-write the canonical JSON files, applying standard sort order and formatting" />
 
         <!-- Separator -->
         <Separator Margin="0,20,0,16" />
@@ -38,8 +37,8 @@
         <TextBlock Text="Import" FontSize="15" FontWeight="SemiBold"
                    Foreground="#333" Margin="0,0,0,8" />
         <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
-            Import new records from a JSON file. Only records not already present
-            in the database will be added — existing records are never modified or deleted.
+            Merge records from a JSON file into the current data.
+            Only records not already present will be added — existing records are never modified.
             Composers are matched by name; pieces are matched by composer + title.
         </TextBlock>
 
@@ -54,23 +53,18 @@
         <!-- Separator -->
         <Separator Margin="0,20,0,16" />
 
-        <!-- Database section -->
-        <TextBlock Text="Database" FontSize="15" FontWeight="SemiBold"
+        <!-- Restore section -->
+        <TextBlock Text="Restore" FontSize="15" FontWeight="SemiBold"
                    Foreground="#333" Margin="0,0,0,8" />
         <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
-            Manage the local SQLite database. Deleting the database is safe as long as
-            you have synced to JSON first — the app will recreate and reseed it on next launch.
+            Overwrite the canonical data files with files you select.
+            Use this to restore from a backup. The current data will be replaced.
         </TextBlock>
 
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-            <Button Content="Delete Database…" Width="160" Padding="0,7"
-                    Command="{Binding DeleteDatabaseCommand}"
-                    ToolTip="Permanently delete the database file. The app will reseed from JSON on next launch." />
-            <Button Content="Reseed from JSON…" Width="160" Padding="0,7"
-                    Margin="10,0,0,0"
-                    Command="{Binding ReseedFromJsonCommand}"
-                    ToolTip="Delete the database and recreate it from JSON files you select" />
-        </StackPanel>
+        <Button Content="Restore from JSON…" Width="180" Padding="0,7"
+                HorizontalAlignment="Left"
+                Command="{Binding RestoreFromJsonCommand}"
+                ToolTip="Replace the canonical JSON files with files you choose" />
 
         <!-- Status bar -->
         <Border Margin="0,24,0,0" Background="#F0F4F8" BorderBrush="#D0D8E0"

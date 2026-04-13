@@ -20,9 +20,9 @@ public class ComposerRow
     public string? BirthPlace { get; set; }
     public string? BirthState { get; set; }
     public string? BirthCountry { get; set; }
-    public string? BirthNotes { get; set; }
     public string? DeathDate { get; set; }
     public string? DeathPlace { get; set; }
     public string? DeathState { get; set; }
     public string? DeathCountry { get; set; }
+    public string? Notes { get; set; }
 }

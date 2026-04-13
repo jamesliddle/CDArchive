@@ -7,7 +7,6 @@ using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 
 namespace CDArchive.App.ViewModels;
@@ -79,10 +78,12 @@ public partial class ImportExportViewModel : ObservableObject
         });
     }
 
-    // ── Sync (export to canonical files, same as before) ────────────────────
-
+    /// <summary>
+    /// Normalises the canonical JSON files: reloads and re-saves them, applying
+    /// the standard sort order and stripping any null fields.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(IsNotBusy))]
-    private async Task SyncToJsonAsync()
+    private async Task NormalizeJsonAsync()
     {
         await RunAsync(async () =>
         {
@@ -95,11 +96,11 @@ public partial class ImportExportViewModel : ObservableObject
             var pickLists = await _svc.LoadPickListsAsync();
             await _svc.SavePickListsAsync(pickLists);
 
-            return $"Synced {composers.Count} composers and {pieces.Count} pieces to JSON.";
+            return $"Normalised {composers.Count} composers and {pieces.Count} pieces.";
         });
     }
 
-    // ── Import (merge — only adds rows not already present) ─────────────────
+    // ── Import (merge — only adds records not already present) ───────────────
 
     [RelayCommand(CanExecute = nameof(IsNotBusy))]
     private async Task ImportComposersAsync()
@@ -177,80 +178,60 @@ public partial class ImportExportViewModel : ObservableObject
         });
     }
 
-    // ── DB management ────────────────────────────────────────────────────────
+    // ── Restore ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Lets the user pick replacement JSON files and overwrites the canonical
+    /// data files with them. Useful for restoring from a backup.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(IsNotBusy))]
-    private void DeleteDatabase()
+    private async Task RestoreFromJsonAsync()
     {
-        var dbPath = _svc.DbPath;
-        if (string.IsNullOrEmpty(dbPath) || !File.Exists(dbPath))
+        var composersPath = PickOpenFile("Select Composers JSON (cancel to keep current)");
+        var piecesPath    = PickOpenFile("Select Pieces JSON (cancel to keep current)");
+
+        if (composersPath == null && piecesPath == null)
         {
-            StatusMessage = "No database file found.";
+            StatusMessage = "No files selected — nothing changed.";
             return;
         }
 
-        var result = MessageBox.Show(
-            $"Delete the database at:\n{dbPath}\n\nThe app will reseed from JSON on next load.",
-            "Confirm Delete", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-
-        if (result != MessageBoxResult.OK) return;
-
-        try
-        {
-            _svc.ResetInitialisation();
-            SqliteConnection.ClearAllPools();
-            File.Delete(dbPath);
-            StatusMessage = "Database deleted. Restart the app to reseed from JSON.";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Failed to delete database: {ex.Message}";
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(IsNotBusy))]
-    private async Task ReseedFromJsonAsync()
-    {
-        // Let the user optionally pick replacement JSON files,
-        // or use the canonical ones if they cancel/skip.
-        var composersPath = PickOpenFile("Select Composers JSON (cancel to use default)")
-                            ?? _svc.ComposersFilePath;
-        var piecesPath    = PickOpenFile("Select Pieces JSON (cancel to use default)")
-                            ?? _svc.PiecesFilePath;
-
-        var dbPath = _svc.DbPath;
-        if (string.IsNullOrEmpty(dbPath))
-        {
-            StatusMessage = "Database path not available.";
-            return;
-        }
+        var lines = new List<string>();
+        if (composersPath != null) lines.Add($"Composers: {Path.GetFileName(composersPath)}");
+        if (piecesPath != null)    lines.Add($"Pieces: {Path.GetFileName(piecesPath)}");
 
         var result = MessageBox.Show(
-            $"This will delete the current database and reseed it from:\n\nComposers: {Path.GetFileName(composersPath)}\nPieces: {Path.GetFileName(piecesPath)}\n\nContinue?",
-            "Confirm Reseed", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+            $"This will overwrite the canonical data files with:\n\n{string.Join("\n", lines)}\n\nContinue?",
+            "Confirm Restore", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
 
         if (result != MessageBoxResult.OK) return;
 
         await RunAsync(async () =>
         {
-            if (File.Exists(dbPath))
+            var composerCount = 0;
+            var pieceCount    = 0;
+
+            if (composersPath != null)
             {
-                _svc.ResetInitialisation();
-                SqliteConnection.ClearAllPools();
-                File.Delete(dbPath);
+                var json = await File.ReadAllTextAsync(composersPath);
+                var composers = JsonSerializer.Deserialize<List<CanonComposer>>(json, ReadOptions) ?? [];
+                await _svc.SaveComposersAsync(composers);
+                composerCount = composers.Count;
             }
 
-            // Load from chosen files and save through the service,
-            // which will recreate and seed the DB.
-            var composersJson = await File.ReadAllTextAsync(composersPath);
-            var composers = JsonSerializer.Deserialize<List<CanonComposer>>(composersJson, ReadOptions) ?? [];
-            await _svc.SaveComposersAsync(composers);
+            if (piecesPath != null)
+            {
+                var json = await File.ReadAllTextAsync(piecesPath);
+                var pieces = JsonSerializer.Deserialize<List<CanonPiece>>(json, ReadOptions) ?? [];
+                await _svc.SavePiecesAsync(pieces);
+                pieceCount = pieces.Count;
+            }
 
-            var piecesJson = await File.ReadAllTextAsync(piecesPath);
-            var pieces = JsonSerializer.Deserialize<List<CanonPiece>>(piecesJson, ReadOptions) ?? [];
-            await _svc.SavePiecesAsync(pieces);
-
-            return $"Reseeded: {composers.Count} composers, {pieces.Count} pieces.";
+            return composersPath != null && piecesPath != null
+                ? $"Restored {composerCount} composers and {pieceCount} pieces."
+                : composersPath != null
+                    ? $"Restored {composerCount} composers."
+                    : $"Restored {pieceCount} pieces.";
         });
     }
 
@@ -282,11 +263,10 @@ public partial class ImportExportViewModel : ObservableObject
     {
         ExportComposersCommand.NotifyCanExecuteChanged();
         ExportPiecesCommand.NotifyCanExecuteChanged();
-        SyncToJsonCommand.NotifyCanExecuteChanged();
+        NormalizeJsonCommand.NotifyCanExecuteChanged();
         ImportComposersCommand.NotifyCanExecuteChanged();
         ImportPiecesCommand.NotifyCanExecuteChanged();
-        DeleteDatabaseCommand.NotifyCanExecuteChanged();
-        ReseedFromJsonCommand.NotifyCanExecuteChanged();
+        RestoreFromJsonCommand.NotifyCanExecuteChanged();
     }
 
     private static string PieceKey(CanonPiece p) =>
