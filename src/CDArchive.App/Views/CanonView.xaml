@@ -181,30 +181,27 @@
                         </TreeView.Template>
                         <TreeView.Resources>
 
-                            <!-- Expander triangle toggle button -->
-                            <Style x:Key="ExpanderToggle" TargetType="ToggleButton">
-                                <Setter Property="Focusable" Value="False" />
-                                <Setter Property="Width"     Value="16" />
-                                <Setter Property="Height"    Value="16" />
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border Background="Transparent" Padding="3">
-                                                <Path x:Name="Arrow"
-                                                      Data="M 0,0 L 6,4 L 0,8 Z"
-                                                      Fill="#888"
-                                                      HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="Arrow" Property="Data"
-                                                            Value="M 0,0 L 8,0 L 4,6 Z" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
+                            <!-- Expander arrow (Path + one-way DataTrigger).
+                                 A plain Path avoids the TwoWay ToggleButton.IsChecked ↔
+                                 TreeViewItem.IsExpanded binding, which was fragile: WPF's
+                                 IsEnabled-propagation during ShowDialog() owner-disable could
+                                 briefly reset IsChecked, and the TwoWay path then collapsed
+                                 every expanded row.  With a DataTrigger the arrow reflects
+                                 IsExpanded read-only; toggling is done by OnExpanderBorderMouseDown. -->
+                            <Style x:Key="ExpanderArrow" TargetType="Path">
+                                <Setter Property="Data"                Value="M 0,0 L 6,4 L 0,8 Z" />
+                                <Setter Property="Fill"                Value="#888" />
+                                <Setter Property="Width"               Value="10" />
+                                <Setter Property="Height"              Value="10" />
+                                <Setter Property="HorizontalAlignment" Value="Center" />
+                                <Setter Property="VerticalAlignment"   Value="Center" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsExpanded,
+                                                     RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                 Value="True">
+                                        <Setter Property="Data" Value="M 0,0 L 8,0 L 4,6 Z" />
+                                    </DataTrigger>
+                                </Style.Triggers>
                             </Style>
 
                             <!-- Custom TreeViewItem style -->
@@ -242,10 +239,9 @@
                             <HierarchicalDataTemplate DataType="{x:Type vm:ComposerTreeNode}"
                                                       ItemsSource="{Binding AllItems}">
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <Border Width="19">
-                                        <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                      IsChecked="{Binding IsExpanded,
-                                                          RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
+                                    <Border Width="19" Background="Transparent"
+                                            MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                        <Path Style="{StaticResource ExpanderArrow}" />
                                     </Border>
                                     <Border Width="65">
                                         <TextBlock Text="{Binding Composer.PieceCount}"
@@ -274,12 +270,12 @@
                                         matches the GridSplitter between the Pieces and Name columns.
                                     -->
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasTreeChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasTreeChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" /> <!-- matches the GridSplitter column -->
@@ -310,12 +306,12 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
@@ -339,12 +335,12 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
@@ -358,12 +354,12 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasSubpieces,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasSubpieces,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
@@ -377,10 +373,10 @@
                                                       ItemsSource="{Binding Pieces}">
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
@@ -394,12 +390,12 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />

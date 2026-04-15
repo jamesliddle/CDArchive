@@ -30,8 +30,16 @@ public partial class CanonView : UserControl
     // triggers a SelectedItemChanged→layout cascade that corrupts expander state
     // on unrelated rows, so we never touch IsSelected from a mouse handler.
 
-    private object?      _ctxTarget;   // data item that was right-clicked
-    private TreeViewItem? _ctxTvi;     // its container
+    private object?       _ctxTarget;   // data item that was right-clicked
+    private TreeViewItem? _ctxTvi;      // its container
+
+    // ── Auto-refresh suppression ─────────────────────────────────────────────
+    // When an edit handler calls ApplySortedFilter directly (after dialog close)
+    // and then awaits SaveAllAsync, the save commands set IsLoading=true→false,
+    // which would normally trigger a second ApplySortedFilter via
+    // OnViewModelPropertyChanged.  We suppress that redundant rebuild.
+
+    private bool _suppressAutoRefresh;
 
     // ── Expansion state (all three levels) ───────────────────────────────────
 
@@ -84,6 +92,10 @@ public partial class CanonView : UserControl
         if (e.PropertyName != nameof(CanonViewModel.IsLoading)) return;
         if (sender is not CanonViewModel vm) return;
         if (vm.IsLoading) return;   // only act on the transition to false
+
+        // Edit handlers call ApplySortedFilter directly before awaiting SaveAllAsync.
+        // When the save commands flip IsLoading=false, skip the redundant second rebuild.
+        if (_suppressAutoRefresh) { _suppressAutoRefresh = false; return; }
 
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
@@ -431,6 +443,24 @@ public partial class CanonView : UserControl
         }
     }
 
+    // ── Expander arrow click ──────────────────────────────────────────────────
+    // The expand arrows in the DataTemplates are plain Path elements with a
+    // one-way DataTrigger (no TwoWay binding).  Clicking the arrow's hit area
+    // (the Border / Grid it sits in) calls this handler to toggle IsExpanded.
+    // e.Handled is NOT set so the click also propagates to the TreeViewItem's
+    // normal selection machinery.
+
+    private void OnExpanderBorderMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 1) return;   // ignore the second tap of a double-click
+        var hit = sender as DependencyObject;
+        while (hit != null && hit is not TreeViewItem)
+            hit = System.Windows.Media.VisualTreeHelper.GetParent(hit);
+        if (hit is TreeViewItem tvi && tvi.HasItems)
+            tvi.IsExpanded = !tvi.IsExpanded;
+        // Do NOT set e.Handled — let the click also select the item normally.
+    }
+
     // ── Double-click dispatcher ───────────────────────────────────────────────
 
     private async void OnTreeItemDoubleClick(object sender, MouseButtonEventArgs e)
@@ -577,6 +607,7 @@ public partial class CanonView : UserControl
         {
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
+            _suppressAutoRefresh = true;
             await vm.SaveComposersCommand.ExecuteAsync(null);
             vm.StatusMessage = $"Updated {composer.Name}.";
         }
@@ -600,6 +631,7 @@ public partial class CanonView : UserControl
         {
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
+            _suppressAutoRefresh = true;
             await SaveAllAsync(vm);
             vm.StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
         }
@@ -629,6 +661,7 @@ public partial class CanonView : UserControl
         if (window.ShowDialog() == true)
         {
             ApplySortedFilter(vm);
+            _suppressAutoRefresh = true;
             await SaveAllAsync(vm);
             vm.StatusMessage = $"Updated version: {versionNode.Version.Description ?? "(no description)"}.";
         }
@@ -662,6 +695,7 @@ public partial class CanonView : UserControl
             // restores it — so the expanded piece and any expanded sub-nodes
             // are all preserved across the refresh.
             ApplySortedFilter(vm);
+            _suppressAutoRefresh = true;
             await SaveAllAsync(vm);
             vm.StatusMessage = $"Updated: {subpiece.SubpieceDisplayTitle}.";
         }
@@ -683,6 +717,7 @@ public partial class CanonView : UserControl
             vm.Composers.Add(window.Composer);
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
+            _suppressAutoRefresh = true;
             await vm.SaveComposersCommand.ExecuteAsync(null);
             vm.StatusMessage = $"Added {window.Composer.Name}.";
         }
@@ -709,6 +744,7 @@ public partial class CanonView : UserControl
         _activeComposer = null;
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
+        _suppressAutoRefresh = true;
         await vm.SaveComposersCommand.ExecuteAsync(null);
         vm.StatusMessage = $"Deleted {name}.";
     }
@@ -733,6 +769,7 @@ public partial class CanonView : UserControl
             vm.Pieces.Add(window.Piece);
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
+            _suppressAutoRefresh = true;
             await SaveAllAsync(vm);
             vm.StatusMessage = $"Added new piece: {window.Piece.DisplayTitle}.";
         }
@@ -760,6 +797,7 @@ public partial class CanonView : UserControl
         DeletePieceButton.IsEnabled = false;
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
+        _suppressAutoRefresh = true;
         await SaveAllAsync(vm);
         vm.StatusMessage = $"Deleted: {title}.";
     }
