@@ -1,0 +1,305 @@
+<Window x:Class="CDArchive.App.Views.AlbumEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New Album"
+        Width="860" Height="640"
+        MinWidth="680" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False">
+
+    <DockPanel Margin="0">
+
+        <!-- Save / Cancel -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="12,8">
+            <Button x:Name="SaveButton" Content="Save" Width="80" Padding="0,6"
+                    IsDefault="True" Click="OnSaveClick" />
+            <Button Content="Cancel" Width="80" Padding="0,6" Margin="8,0,0,0"
+                    IsCancel="True" />
+        </StackPanel>
+
+        <!-- Tabs -->
+        <TabControl x:Name="MainTabs" Margin="12,12,12,0"
+                    SelectionChanged="OnTabSelectionChanged">
+
+            <!-- ══ Tab 1: Details ══════════════════════════════════════════════ -->
+            <TabItem Header="Details">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Title -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Title *"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="TitleBox"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- Subtitle -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Subtitle"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="SubtitleBox"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- Label -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Label"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="LabelBox"
+                                  IsEditable="True" FontSize="13" Padding="2,2"
+                                  Margin="0,0,0,8" />
+
+                        <!-- Catalogue Number -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Catalogue Number"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBox Grid.Row="3" Grid.Column="1" x:Name="CatalogueNumberBox"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- Barcode -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Barcode"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBox Grid.Row="4" Grid.Column="1" x:Name="BarcodeBox"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- SPARS Code -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="SPARS Code"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <ComboBox Grid.Row="5" Grid.Column="1" x:Name="SparsCodeBox"
+                                  IsEditable="True" Width="100" HorizontalAlignment="Left"
+                                  FontSize="13" Margin="0,0,0,8"
+                                  ToolTip="D=digital, A=analogue: recording / mixing / mastering">
+                            <ComboBoxItem Content="DDD" />
+                            <ComboBoxItem Content="ADD" />
+                            <ComboBoxItem Content="AAD" />
+                            <ComboBoxItem Content="Unknown" />
+                        </ComboBox>
+
+                        <!-- Stereo -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Stereo"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <ComboBox Grid.Row="6" Grid.Column="1" x:Name="StereoBox"
+                                  Width="120" HorizontalAlignment="Left"
+                                  FontSize="13" Margin="0,0,0,8">
+                            <ComboBoxItem Content="Unknown" />
+                            <ComboBoxItem Content="Stereo" />
+                            <ComboBoxItem Content="Mono" />
+                        </ComboBox>
+
+                        <!-- Notes -->
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Notes"
+                                   FontSize="13" VerticalAlignment="Top"
+                                   Margin="0,4,8,0" />
+                        <TextBox Grid.Row="7" Grid.Column="1" x:Name="NotesBox"
+                                 Height="60" FontSize="13" Padding="4,3"
+                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                 Margin="0,0,0,8" />
+
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ══ Tab 2: Performers ══════════════════════════════════════════ -->
+            <TabItem x:Name="PerformersTab" Header="Performers">
+                <DockPanel Margin="10">
+
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="Album-level performers appear on all tracks unless overridden per-track."
+                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
+                                   Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="AddPerformerButton" Content="Add"
+                                    Padding="10,5" Click="OnAddPerformer" />
+                            <Button x:Name="EditPerformerButton" Content="Edit"
+                                    Padding="10,5" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnEditPerformer" />
+                            <Button x:Name="RemovePerformerButton" Content="Remove"
+                                    Padding="10,5" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnRemovePerformer" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ListView x:Name="PerformerList" FontSize="13"
+                              BorderThickness="1" BorderBrush="#CCC" Margin="0,8,0,0"
+                              SelectionChanged="OnPerformerSelectionChanged">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Name" Width="200">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Role" Width="160">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Role}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Instrument" Width="160">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Instrument}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                </DockPanel>
+            </TabItem>
+
+            <!-- ══ Tab 3: Sessions ════════════════════════════════════════════ -->
+            <TabItem x:Name="SessionsTab" Header="Sessions">
+                <DockPanel Margin="10">
+
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="Recording sessions describe where and when the album was recorded. Tracks can reference a specific session by index."
+                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
+                                   Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="AddSessionButton" Content="Add"
+                                    Padding="10,5" Click="OnAddSession" />
+                            <Button x:Name="EditSessionButton" Content="Edit"
+                                    Padding="10,5" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnEditSession" />
+                            <Button x:Name="RemoveSessionButton" Content="Remove"
+                                    Padding="10,5" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnRemoveSession" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ListView x:Name="SessionList" FontSize="13"
+                              BorderThickness="1" BorderBrush="#CCC" Margin="0,8,0,0"
+                              SelectionChanged="OnSessionSelectionChanged">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Dates" Width="140">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Dates}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Location" Width="200">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding LocationSummary}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Engineers" Width="200">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplaySummary}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding DisplaySummary}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                </DockPanel>
+            </TabItem>
+
+            <!-- ══ Tab 4: Discs & Tracks ══════════════════════════════════════ -->
+            <TabItem x:Name="DiscTracksTab" Header="Discs &amp; Tracks">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
+                                HorizontalAlignment="Right" Margin="0,0,0,6">
+                        <Button x:Name="AddDiscButton" Content="Add Disc"
+                                Padding="10,4" Click="OnAddDisc" />
+                        <Button x:Name="AddTrackButton" Content="Add Track"
+                                Padding="10,4" Margin="6,0,0,0"
+                                IsEnabled="False" Click="OnAddTrack" />
+                        <Button x:Name="EditTrackButton" Content="Edit"
+                                Padding="10,4" Margin="6,0,0,0"
+                                IsEnabled="False" Click="OnEditTrack" />
+                        <Button x:Name="RemoveTrackButton" Content="Remove"
+                                Padding="10,4" Margin="6,0,0,0"
+                                IsEnabled="False" Click="OnRemoveTrack" />
+                    </StackPanel>
+                    <ListView x:Name="TrackList" FontSize="13"
+                              BorderThickness="1" BorderBrush="#CCC"
+                              SelectionMode="Extended"
+                              SelectionChanged="OnTrackSelectionChanged"
+                              MouseDoubleClick="OnTrackDoubleClick">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn x:Name="AlbumColumn" Header="Album" Width="0">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding AlbumTitle}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding AlbumTitle}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Disc" Width="45">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DiscNumber}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Track" Width="45">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Track.TrackNumber}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Duration" Width="70">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Track.Duration}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Content" Width="500">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Track.DisplaySummary}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Track.DisplaySummary}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </DockPanel>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
+</Window>

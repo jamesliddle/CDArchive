@@ -333,6 +333,75 @@ public class CanonPiece
         BuildDisplayTitle(includeCatalog: false, isSubpiece: true, showNumber: showNumber) + RolesSuffix;
 
     /// <summary>
+    /// Reorders this piece's <see cref="CatalogInfo"/> so that entries whose
+    /// <see cref="CatalogInfo.Catalog"/> prefix appears in <paramref name="preferredPrefixes"/>
+    /// are placed first, in the preference order. Unmatched entries keep
+    /// their original relative order after the preferred ones.
+    /// Recurses into subpieces and versions so the composer's preference
+    /// applies consistently throughout the piece tree.
+    /// </summary>
+    /// <param name="preferredPrefixes">
+    /// Ordered list of catalog prefixes (e.g. ["Op.", "B."]). Null or empty
+    /// is a no-op, leaving the piece's catalog order untouched.
+    /// </param>
+    public void SortCatalogInfoByPreference(IReadOnlyList<string>? preferredPrefixes)
+    {
+        if (preferredPrefixes is null || preferredPrefixes.Count == 0) return;
+
+        SortCatalogInfoList(CatalogInfo, preferredPrefixes);
+
+        if (Subpieces is not null)
+            foreach (var sub in Subpieces)
+                sub.SortCatalogInfoByPreference(preferredPrefixes);
+
+        // CanonPieceVersion doesn't host its own SortCatalogInfoByPreference method —
+        // versions can't nest further versions, so we just sort their catalog list
+        // and recurse into their subpieces here.
+        if (Versions is not null)
+        {
+            foreach (var ver in Versions)
+            {
+                SortCatalogInfoList(ver.CatalogInfo, preferredPrefixes);
+                if (ver.Subpieces is not null)
+                    foreach (var sub in ver.Subpieces)
+                        sub.SortCatalogInfoByPreference(preferredPrefixes);
+            }
+        }
+    }
+
+    private static void SortCatalogInfoList(
+        List<CatalogInfo>? list, IReadOnlyList<string> preferredPrefixes)
+    {
+        if (list is null || list.Count <= 1) return;
+
+        // Stable partition: matched entries ordered by preference index, then
+        // unmatched entries in original order. Unknown prefixes get rank
+        // int.MaxValue, which keeps them at the end.
+        int RankOf(CatalogInfo ci)
+        {
+            for (var i = 0; i < preferredPrefixes.Count; i++)
+            {
+                if (string.Equals(preferredPrefixes[i], ci.Catalog,
+                                  StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+            return int.MaxValue;
+        }
+
+        // Pair each entry with its original index so OrderBy stability
+        // preserves the relative order of unmatched entries.
+        var reordered = list
+            .Select((ci, originalIndex) => (ci, rank: RankOf(ci), originalIndex))
+            .OrderBy(t => t.rank)
+            .ThenBy(t => t.originalIndex)
+            .Select(t => t.ci)
+            .ToList();
+
+        list.Clear();
+        list.AddRange(reordered);
+    }
+
+    /// <summary>
     /// Computes the numeric prefix string for subpiece display.
     /// Priority: MusicNumber (always shown when set) → ordering Number (shown when
     /// <paramref name="showNumber"/> is true) → empty string.

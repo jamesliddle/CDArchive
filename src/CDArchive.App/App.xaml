@@ -25,6 +25,9 @@
         <DataTemplate DataType="{x:Type vm:CatalogueViewModel}">
             <views:CatalogueView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AlbumsViewModel}">
+            <views:AlbumsView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ImportExportViewModel}">
             <views:ImportExportView />
         </DataTemplate>

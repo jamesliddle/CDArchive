@@ -17,14 +17,16 @@ public partial class PickListsViewModel : ObservableObject
     private readonly CanonViewModel _canonVm;
 
     // Working copies — always kept sorted
-    private readonly List<string> _forms          = [];
-    private readonly List<string> _categories     = [];
+    private readonly List<string> _forms           = [];
+    private readonly List<string> _categories      = [];
     private readonly List<string> _catalogPrefixes = [];
-    private readonly List<string> _keyTonalities  = [];
-    private readonly List<string> _instruments    = [];
-    private readonly List<string> _creativeRoles  = [];
+    private readonly List<string> _keyTonalities   = [];
+    private readonly List<string> _instruments     = [];
+    private readonly List<string> _creativeRoles   = [];
     private readonly List<EnsembleDefinition> _ensembles = [];
-    private readonly List<string> _voiceTypes     = [];
+    private readonly List<string> _voiceTypes      = [];
+    private readonly List<string> _performerRoles  = [];
+    private readonly List<string> _labels          = [];
 
     // Rename tracking for lists that map to piece fields
     private readonly Dictionary<string, string> _formRenames     = new();
@@ -33,7 +35,8 @@ public partial class PickListsViewModel : ObservableObject
     private readonly Dictionary<string, string> _keyRenames      = new();
 
     public static IReadOnlyList<string> PickListNames { get; } =
-        ["Forms", "Categories", "Catalogues", "Keys", "Instruments", "Creative Roles", "Ensembles", "Voice Types"];
+        ["Forms", "Categories", "Catalogues", "Keys", "Instruments", "Creative Roles", "Ensembles", "Voice Types",
+         "Performer Roles", "Labels"];
 
     [ObservableProperty] private int _selectedListIndex;
     [ObservableProperty] private ObservableCollection<string> _currentItems = [];
@@ -53,13 +56,15 @@ public partial class PickListsViewModel : ObservableObject
     {
         var pl = await _svc.LoadPickListsAsync();
 
-        Load(_forms,          pl.Forms);
-        Load(_categories,     pl.Categories);
+        Load(_forms,           pl.Forms);
+        Load(_categories,      pl.Categories);
         Load(_catalogPrefixes, pl.CatalogPrefixes);
-        Load(_keyTonalities,  pl.KeyTonalities);
-        Load(_instruments,    pl.Instruments);
-        Load(_creativeRoles,  pl.CreativeRoles);
-        Load(_voiceTypes,     pl.VoiceTypes);
+        Load(_keyTonalities,   pl.KeyTonalities);
+        Load(_instruments,     pl.Instruments);
+        Load(_creativeRoles,   pl.CreativeRoles);
+        Load(_voiceTypes,      pl.VoiceTypes);
+        Load(_performerRoles,  pl.PerformerRoles);
+        Load(_labels,          pl.Labels);
 
         _ensembles.Clear();
         if (pl.Ensembles != null)
@@ -201,6 +206,8 @@ public partial class PickListsViewModel : ObservableObject
                 CreativeRoles   = _creativeRoles.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
                 Ensembles       = SortedEnsembles().ToList(),
                 VoiceTypes      = _voiceTypes.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
+                PerformerRoles  = _performerRoles.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
+                Labels          = _labels.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
             };
 
             await _svc.SavePickListsAsync(pl);
@@ -256,7 +263,7 @@ public partial class PickListsViewModel : ObservableObject
 
     private void RefreshCurrentList()
     {
-        IsEnsembleList = SelectedListIndex == 6;
+        IsEnsembleList = SelectedListIndex == 6;   // index 6 = Ensembles
 
         IEnumerable<string> items = IsEnsembleList
             ? SortedEnsembles().Select(e => e.IsFixed ? $"{e.Name}  ({e.Members!.Count})" : e.Name)
@@ -284,7 +291,10 @@ public partial class PickListsViewModel : ObservableObject
         3 => _keyTonalities,
         4 => _instruments,
         5 => _creativeRoles,
+        // 6 = Ensembles — handled separately (not a List<string>)
         7 => _voiceTypes,
+        8 => _performerRoles,
+        9 => _labels,
         _ => [],
     };
 

@@ -129,8 +129,13 @@
                 <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="NicknameBox" />
 
-                <TextBlock Grid.Row="7" Text="Number" Style="{StaticResource FieldLabel}" />
-                <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal">
+                <TextBlock Grid.Row="7" Text="First Line" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="7" Grid.Column="1" Style="{StaticResource FieldBox}"
+                           x:Name="FirstLineBox"
+                           ToolTip="Opening line of text for vocal numbers" />
+
+                <TextBlock Grid.Row="8" Text="Number" Style="{StaticResource FieldLabel}" />
+                <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
                     <TextBox x:Name="NumberBox" Style="{StaticResource FieldBox}"
                              Width="60" />
                     <TextBlock Text="Music No." VerticalAlignment="Center"
@@ -140,12 +145,12 @@
                              ToolTip="Visible number shown to the user (e.g. opera number 1, 2 …). Independent of the ordering sequence number." />
                 </StackPanel>
 
-                <TextBlock Grid.Row="8" Text="Key Tonality" Style="{StaticResource FieldLabel}" />
-                <ComboBox  Grid.Row="8" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                <TextBlock Grid.Row="9" Text="Key Tonality" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="9" Grid.Column="1" Style="{StaticResource FieldCombo}"
                            x:Name="KeyTonalityCombo" Width="120" HorizontalAlignment="Left" />
 
-                <TextBlock Grid.Row="9" Text="Key Mode" Style="{StaticResource FieldLabel}" />
-                <ComboBox  Grid.Row="9" Grid.Column="1" Width="120" HorizontalAlignment="Left"
+                <TextBlock Grid.Row="10" Text="Key Mode" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="10" Grid.Column="1" Width="120" HorizontalAlignment="Left"
                            Margin="0,3" Padding="4,4" FontSize="13"
                            x:Name="KeyModeCombo">
                     <ComboBoxItem Content="" />
@@ -154,9 +159,9 @@
                 </ComboBox>
 
                 <!-- Catalogue — supports multiple catalog systems (e.g. Op. + B.) -->
-                <TextBlock Grid.Row="10" Text="Catalogue" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Row="11" Text="Catalogue" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
-                <Border Grid.Row="10" Grid.Column="1" Margin="0,3"
+                <Border Grid.Row="11" Grid.Column="1" Margin="0,3"
                         BorderThickness="1" BorderBrush="#CCC">
                     <StackPanel>
                         <DockPanel MinHeight="20" MaxHeight="72">
@@ -183,13 +188,13 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Grid.Row="11" Text="Category" Style="{StaticResource FieldLabel}" />
-                <ComboBox  Grid.Row="11" Grid.Column="1" Style="{StaticResource FieldCombo}"
+                <TextBlock Grid.Row="12" Text="Category" Style="{StaticResource FieldLabel}" />
+                <ComboBox  Grid.Row="12" Grid.Column="1" Style="{StaticResource FieldCombo}"
                            x:Name="CategoryCombo" Width="160" HorizontalAlignment="Left" />
 
-                <TextBlock Grid.Row="12" Text="Instrumentation" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Row="13" Text="Instrumentation" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
-                <Grid Grid.Row="12" Grid.Column="1" Margin="0,3" Height="160">
+                <Grid Grid.Row="13" Grid.Column="1" Margin="0,3" Height="160">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -232,19 +237,14 @@
                     </DockPanel>
                 </Grid>
 
-                <TextBlock Grid.Row="13" Text="Pub. Year" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="13" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="14" Text="Pub. Year" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="14" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="PubYearBox" Width="80" HorizontalAlignment="Left" />
 
-                <TextBlock Grid.Row="14" Text="Comp. Years" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="14" Grid.Column="1" Style="{StaticResource FieldBox}"
+                <TextBlock Grid.Row="15" Text="Comp. Years" Style="{StaticResource FieldLabel}" />
+                <TextBox   Grid.Row="15" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="CompYearsBox"
                            ToolTip="Year(s) of composition, e.g. 1803, 1803-1804, c1893" />
-
-                <TextBlock Grid.Row="15" Text="First Line" Style="{StaticResource FieldLabel}" />
-                <TextBox   Grid.Row="15" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="FirstLineBox"
-                           ToolTip="Opening line of text for vocal numbers" />
 
                 <!-- Notes — free-form text, multi-line -->
                 <TextBlock Grid.Row="16" Text="Notes" Style="{StaticResource FieldLabel}"

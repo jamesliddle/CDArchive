@@ -5,12 +5,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
              xmlns:local="clr-namespace:CDArchive.Core.Models;assembly=CDArchive.Core"
+             xmlns:conv="clr-namespace:CDArchive.App.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:CanonViewModel}"
              Loaded="OnLoaded">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+        <conv:HitCountBadgeConverter x:Key="HitBadge" />
     </UserControl.Resources>
 
     <DockPanel>
@@ -156,11 +158,14 @@
                               SelectedItemChanged="OnComposerTreeSelectionChanged"
                               MouseRightButtonDown="OnTreeMouseRightButtonDown"
                               ContextMenuOpening="OnTreeContextMenuOpening"
-                              KeyDown="OnTreeKeyDown">
+                              KeyDown="OnTreeKeyDown"
+                              RequestBringIntoView="OnTreeRequestBringIntoView">
                         <TreeView.ContextMenu>
                             <ContextMenu>
                                 <MenuItem x:Name="CtxEdit"
                                           Header="Edit" Click="OnContextEdit" />
+                                <MenuItem x:Name="CtxShowAlbums"
+                                          Header="Show Albums…" Click="OnContextShowAlbums" />
                                 <Separator />
                                 <MenuItem x:Name="CtxExpandAll"
                                           Header="Expand all below"
@@ -254,6 +259,9 @@
                                         <TextBlock Text="{Binding Composer.LifeSpan}"
                                                    Foreground="#888888" FontSize="12"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                                   Foreground="#2E7D32" FontSize="11"
+                                                   Margin="6,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -291,6 +299,9 @@
                                     <TextBlock Text="{Binding Catalog}"
                                                FontSize="11" Foreground="#888"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -327,6 +338,9 @@
                                     <TextBlock Text="{Binding Piece.Category}"
                                                FontSize="11" Foreground="#999"
                                                Margin="10,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -346,6 +360,9 @@
                                     <Border Width="4" />
                                     <TextBlock Text="Original"
                                                FontSize="12" Foreground="#555" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -365,6 +382,9 @@
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
                                                FontSize="12" Foreground="#666" FontStyle="Italic" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -382,6 +402,9 @@
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
                                                FontSize="12" Foreground="#777" FontStyle="Italic" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -410,6 +433,9 @@
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
                                                FontSize="11" Foreground="#888"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>

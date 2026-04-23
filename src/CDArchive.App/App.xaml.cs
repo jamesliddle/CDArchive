@@ -28,6 +28,7 @@ public partial class App : Application
             services.AddTransient<SettingsViewModel>();
             services.AddTransient<CatalogueViewModel>();
             services.AddSingleton<CanonViewModel>();
+            services.AddSingleton<AlbumsViewModel>();
             services.AddTransient<ImportExportViewModel>();
             services.AddSingleton<PickListsViewModel>();
 

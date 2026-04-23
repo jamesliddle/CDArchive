@@ -56,9 +56,9 @@ public class CanonDataService : ICanonDataService
     }
 
     public string ComposersFilePath => Path.Combine(_dataDirectory, "Classical Canon composers.json");
-    public string PiecesFilePath => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
+    public string PiecesFilePath    => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
+    public string AlbumsFilePath    => Path.Combine(_dataDirectory, "Classical Canon albums.json");
     public string PickListsFilePath => Path.Combine(_dataDirectory, "Classical Canon pick lists.json");
-    public string DbPath => "";
 
     public async Task<List<CanonComposer>> LoadComposersAsync()
     {
@@ -131,6 +131,26 @@ public class CanonDataService : ICanonDataService
         await File.WriteAllTextAsync(PiecesFilePath, json);
     }
 
+    public async Task<List<CanonAlbum>> LoadAlbumsAsync()
+    {
+        if (!File.Exists(AlbumsFilePath))
+            return [];
+
+        var json = await File.ReadAllTextAsync(AlbumsFilePath);
+        return JsonSerializer.Deserialize<List<CanonAlbum>>(json, ReadOptions) ?? [];
+    }
+
+    public async Task SaveAlbumsAsync(List<CanonAlbum> albums)
+    {
+        var sorted = albums
+            .OrderBy(a => a.Label ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.CatalogueNumber ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.Title ?? "", StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var json = JsonSerializer.Serialize(sorted, WriteOptions);
+        await File.WriteAllTextAsync(AlbumsFilePath, json);
+    }
+
     public async Task<CanonPickLists> LoadPickListsAsync()
     {
         if (!File.Exists(PickListsFilePath))
@@ -147,11 +167,11 @@ public class CanonDataService : ICanonDataService
         pickLists.Categories.Sort(StringComparer.OrdinalIgnoreCase);
         pickLists.CatalogPrefixes.Sort(StringComparer.OrdinalIgnoreCase);
         pickLists.KeyTonalities.Sort(StringComparer.OrdinalIgnoreCase);
+        pickLists.PerformerRoles.Sort(StringComparer.OrdinalIgnoreCase);
+        pickLists.Labels.Sort(StringComparer.OrdinalIgnoreCase);
 
         var json = JsonSerializer.Serialize(pickLists, WriteOptions);
         await File.WriteAllTextAsync(PickListsFilePath, json);
     }
 
-    /// <summary>No-op: CanonDataService is JSON-only and has no initialisation state to reset.</summary>
-    public void ResetInitialisation() { }
 }

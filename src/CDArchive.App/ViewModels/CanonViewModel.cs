@@ -9,6 +9,7 @@ namespace CDArchive.App.ViewModels;
 public partial class CanonViewModel : ObservableObject
 {
     private readonly ICanonDataService _canonDataService;
+    private readonly PieceReferenceIndex _refIndex;
 
     // --- Composers ---
 
@@ -54,9 +55,10 @@ public partial class CanonViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
-    public CanonViewModel(ICanonDataService canonDataService)
+    public CanonViewModel(ICanonDataService canonDataService, PieceReferenceIndex refIndex)
     {
         _canonDataService = canonDataService;
+        _refIndex = refIndex;
     }
 
     partial void OnComposerFilterChanged(string value) => ApplyComposerFilter();
@@ -93,6 +95,14 @@ public partial class CanonViewModel : ObservableObject
             PickLists = await _canonDataService.LoadPickListsAsync();
 
             StatusMessage = $"Loaded {Composers.Count} composers and {Pieces.Count} pieces.";
+
+            // Rebuild cross-reference index (pieces × albums) so hit-count badges populate.
+            try
+            {
+                var albums = await _canonDataService.LoadAlbumsAsync();
+                _refIndex.Rebuild(Pieces, albums);
+            }
+            catch { /* non-fatal */ }
         }
         catch (Exception ex)
         {
@@ -133,6 +143,12 @@ public partial class CanonViewModel : ObservableObject
             StatusMessage = "Saving pieces...";
             await _canonDataService.SavePiecesAsync(Pieces.ToList());
             StatusMessage = $"Saved {Pieces.Count} pieces.";
+            try
+            {
+                var albums = await _canonDataService.LoadAlbumsAsync();
+                _refIndex.Rebuild(Pieces, albums);
+            }
+            catch { /* non-fatal */ }
         }
         catch (Exception ex)
         {

@@ -4,7 +4,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using CDArchive.App.ViewModels;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
+using CDArchive.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CDArchive.App.Views;
 
@@ -78,10 +81,34 @@ public partial class CanonView : UserControl
         vm.PropertyChanged -= OnViewModelPropertyChanged;
         vm.PropertyChanged += OnViewModelPropertyChanged;
 
+        // When the album↔piece cross-reference is rebuilt (e.g. after saving an album),
+        // our hit-count badges are stale until the tree re-renders. Force a refresh.
+        if (PieceReferenceIndex.Current is { } idx)
+        {
+            idx.Indexed -= OnIndexRebuilt;
+            idx.Indexed += OnIndexRebuilt;
+        }
+
         // Initial data load.
         await vm.LoadDataCommand.ExecuteAsync(null);
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
+    }
+
+    private void OnIndexRebuilt(object? sender, EventArgs e)
+    {
+        // Converters don't re-fire when a static index changes; nudge the tree.
+        // Items.Refresh() regenerates every TreeViewItem container, which wipes
+        // expansion state — so save and restore it around the refresh. Without
+        // this, opening the Albums screen (which triggers a rebuild) would
+        // collapse the Canon tree and lose the user's current context.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            SaveAllExpansionState();
+            ComposerTree.Items.Refresh();
+            if (ComposerTree.ItemsSource is IEnumerable<ComposerTreeNode> nodes)
+                RestoreAllExpansionState(nodes.ToList());
+        }));
     }
 
     /// <summary>
@@ -461,6 +488,30 @@ public partial class CanonView : UserControl
         // Do NOT set e.Handled — let the click also select the item normally.
     }
 
+    // ── Suppress horizontal auto-scroll ──────────────────────────────────────
+    // WPF raises RequestBringIntoView when a TreeViewItem is selected/focused,
+    // causing the ScrollViewer to shift right to show the indented item's full
+    // bounding rect.  We cancel the default event and re-raise it with X forced
+    // to 0 so vertical bring-into-view (keyboard navigation) still works, but
+    // horizontal scrolling never occurs.
+
+    private bool _suppressBringIntoView;   // prevents the re-raised call from looping
+
+    private void OnTreeRequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
+    {
+        if (_suppressBringIntoView) return;
+        if (e.TargetObject is not FrameworkElement target) return;
+
+        e.Handled = true;   // cancel the default horizontal+vertical scroll
+
+        // Re-request with X=0: the ScrollViewer sees the element's left edge,
+        // so it scrolls vertically if needed but never horizontally.
+        var rect = e.TargetRect.IsEmpty ? new Rect(target.RenderSize) : e.TargetRect;
+        _suppressBringIntoView = true;
+        try   { target.BringIntoView(new Rect(0, rect.Y, rect.Width, rect.Height)); }
+        finally { _suppressBringIntoView = false; }
+    }
+
     // ── Double-click dispatcher ───────────────────────────────────────────────
 
     private async void OnTreeItemDoubleClick(object sender, MouseButtonEventArgs e)
@@ -557,6 +608,81 @@ public partial class CanonView : UserControl
         CtxEdit.IsEnabled        = canEdit;
         CtxExpandAll.IsEnabled   = hasChildren;
         CtxCollapseAll.IsEnabled = hasChildren;
+        CtxShowAlbums.IsEnabled  = HitCountForTarget(_ctxTarget) > 0;
+    }
+
+    private static int HitCountForTarget(object? target)
+    {
+        var idx = PieceReferenceIndex.Current;
+        if (idx is null || target is null) return 0;
+        return target switch
+        {
+            ComposerTreeNode n          => idx.CountForComposer(n.Composer.Name),
+            CanonComposer c             => idx.CountForComposer(c.Name),
+            PieceOriginalNode pon       => idx.CountForOriginal(pon.Piece),
+            VersionDisplayNode vdn      => idx.CountForVersion(vdn.Version),
+            SubpieceDisplayNode sdn     => idx.CountForPiece(sdn.Piece),
+            ContributedPieceNode cpn    => idx.CountForPiece(cpn.Piece),
+            ContributedRoleGroupNode g  => idx.CountForPieces(g.Pieces.Select(p => p.Piece)),
+            CanonPiece p                => idx.CountForPiece(p),
+            _ => 0
+        };
+    }
+
+    private static (string Header, IReadOnlyList<PieceAlbumHit> Hits) ResolveHits(object target)
+    {
+        var idx = PieceReferenceIndex.Current!;
+        return target switch
+        {
+            ComposerTreeNode n          => ($"Albums referencing works by {n.Composer.Name}",                      idx.HitsForComposer(n.Composer.Name)),
+            CanonComposer c             => ($"Albums referencing works by {c.Name}",                               idx.HitsForComposer(c.Name)),
+            PieceOriginalNode pon       => ($"Albums referencing “{pon.Piece.DisplayTitleShort}” (Original)",      idx.HitsForOriginal(pon.Piece)),
+            VersionDisplayNode vdn      => ($"Albums referencing {vdn.DisplayTitle}",                              idx.HitsForVersion(vdn.Version)),
+            SubpieceDisplayNode sdn     => ($"Albums referencing “{sdn.DisplayTitle}”",                            idx.HitsForPiece(sdn.Piece)),
+            ContributedPieceNode cpn    => ($"Albums referencing “{cpn.Piece.DisplayTitleShort}”",                 idx.HitsForPiece(cpn.Piece)),
+            ContributedRoleGroupNode g  => ($"Albums referencing {g.DisplayTitle}",                                idx.HitsForPieces(g.Pieces.Select(p => p.Piece))),
+            CanonPiece p                => ($"Albums referencing “{p.DisplayTitleShort}”",                         idx.HitsForPiece(p)),
+            _                           => ("", Array.Empty<PieceAlbumHit>()),
+        };
+    }
+
+    private async void OnContextShowAlbums(object sender, RoutedEventArgs e)
+    {
+        if (_ctxTarget is null) return;
+        var (header, hits) = ResolveHits(_ctxTarget);
+        if (hits.Count == 0) return;
+
+        var dlg = new PieceAlbumsWindow(header, hits) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true || dlg.SelectedAlbum is not CanonAlbum album) return;
+
+        // User chose an album — open it in the album editor.
+        await OpenAlbumEditorAsync(album);
+    }
+
+    /// <summary>
+    /// Opens the standard album editor for <paramref name="album"/>, mirroring the
+    /// flow used by <see cref="AlbumsView"/> so saves persist back to storage and
+    /// the Canon-side cross-reference index is refreshed.
+    /// </summary>
+    private async Task OpenAlbumEditorAsync(CanonAlbum album)
+    {
+        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+        // Ensure we're editing the live in-memory instance (not a stale copy from the index).
+        if (albumsVm.AllAlbums.Count == 0) await albumsVm.LoadDataCommand.ExecuteAsync(null);
+        var liveAlbum = albumsVm.AllAlbums.FirstOrDefault(a => ReferenceEquals(a, album)) ?? album;
+
+        var (pieces, pickLists) = await albumsVm.LoadEditorDataAsync();
+        var dlg = new AlbumEditorWindow(pickLists, pieces, liveAlbum)
+        {
+            Owner = Window.GetWindow(this)
+        };
+        if (dlg.ShowDialog() != true || dlg.Result is not CanonAlbum result) return;
+
+        var idx = albumsVm.AllAlbums.IndexOf(liveAlbum);
+        if (idx >= 0) albumsVm.AllAlbums[idx] = result;
+        else          albumsVm.AllAlbums.Add(result);
+        albumsVm.ApplyFilter();
+        await albumsVm.SaveAsync();
     }
 
     // ── Context menu: handlers ────────────────────────────────────────────────
@@ -598,19 +724,113 @@ public partial class CanonView : UserControl
     {
         if (DataContext is not CanonViewModel vm) return;
 
+        // Snapshot the catalog-prefix preference before the dialog so we can
+        // detect order changes and reapply them to the composer's pieces.
+        var prefixesBefore = composer.CatalogPrefixes?.ToList() ?? [];
+
         var window = new ComposerEditorWindow(vm.PickLists, composer)
         {
             Owner = Window.GetWindow(this)
         };
 
-        if (window.ShowDialog() == true)
+        if (ShowDialogWithExpansionGuard(window) != true) return;
+
+        UpdatePieceCounts(vm);
+        ApplySortedFilter(vm);
+        _suppressAutoRefresh = true;
+
+        var prefixesAfter = composer.CatalogPrefixes ?? [];
+        var prefsChanged  = !prefixesBefore.SequenceEqual(prefixesAfter, StringComparer.Ordinal);
+
+        await vm.SaveComposersCommand.ExecuteAsync(null);
+
+        // If the preference order changed, reorder every piece of this composer's
+        // catalog_info list and propagate any resulting display-title changes to
+        // album track refs.  The helper is a no-op when prefixesAfter is empty.
+        if (prefsChanged && prefixesAfter.Count > 0)
         {
-            UpdatePieceCounts(vm);
-            ApplySortedFilter(vm);
-            _suppressAutoRefresh = true;
-            await vm.SaveComposersCommand.ExecuteAsync(null);
-            vm.StatusMessage = $"Updated {composer.Name}.";
+            var renames = new List<PieceRename>();
+            var owned = vm.Pieces
+                .Where(p => string.Equals(p.Composer, composer.Name,
+                                          StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            ApplyCatalogPreference(prefixesAfter, owned, composer.Name, renames);
+
+            if (renames.Count > 0)
+            {
+                await vm.SavePiecesCommand.ExecuteAsync(null);
+
+                var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+                var updated  = AlbumRefUpdater.ApplyRenames(albumsVm.AllAlbums, renames);
+                if (updated > 0)
+                    await albumsVm.SaveAsync();
+
+                vm.StatusMessage = $"Updated {composer.Name}. Reordered catalogues"
+                    + (updated > 0 ? $"; updated {updated} album track reference(s)." : ".");
+                return;
+            }
         }
+
+        vm.StatusMessage = $"Updated {composer.Name}.";
+    }
+
+    /// <summary>
+    /// Applies the composer's <c>preferredPrefixes</c> to each target piece's
+    /// <see cref="CanonPiece.CatalogInfo"/> (recursively), and emits a
+    /// <see cref="PieceRename"/> for every piece whose display title changed
+    /// as a result.  Two renames are emitted per change — the full form
+    /// (with nickname/subtitle) and the stripped form — because album refs
+    /// have historically stored either one.
+    /// </summary>
+    private static void ApplyCatalogPreference(
+        IReadOnlyList<string>? preferredPrefixes,
+        IEnumerable<CanonPiece> targets,
+        string composerName,
+        List<PieceRename> renames)
+    {
+        if (preferredPrefixes is null || preferredPrefixes.Count == 0) return;
+
+        foreach (var piece in targets)
+        {
+            var oldFull     = piece.DisplayTitle;
+            var oldStripped = StripNickAndSub(oldFull, piece);
+
+            piece.SortCatalogInfoByPreference(preferredPrefixes);
+
+            var newFull     = piece.DisplayTitle;
+            var newStripped = StripNickAndSub(newFull, piece);
+
+            if (string.Equals(oldFull, newFull, StringComparison.Ordinal))
+                continue;
+
+            renames.Add(new PieceRename(composerName, oldFull, newFull, null, null));
+            if (!string.Equals(oldStripped, oldFull, StringComparison.Ordinal))
+                renames.Add(new PieceRename(composerName, oldStripped, newStripped, null, null));
+        }
+    }
+
+    /// <summary>
+    /// Mirrors <c>PieceReferenceIndex.StripNicknameAndSubtitle</c>: strips the
+    /// trailing <c>, Subtitle</c> and/or <c> "Nickname"</c> suffixes that
+    /// <see cref="CanonPiece.BuildDisplayTitle"/> appends.
+    /// </summary>
+    private static string StripNickAndSub(string displayTitle, CanonPiece p)
+    {
+        var result = displayTitle;
+        if (!string.IsNullOrEmpty(p.Nickname))
+        {
+            var nick = $" \"{p.Nickname}\"";
+            if (result.EndsWith(nick, StringComparison.Ordinal))
+                result = result[..^nick.Length];
+        }
+        if (!string.IsNullOrEmpty(p.Subtitle))
+        {
+            var sub = $", {p.Subtitle}";
+            if (result.EndsWith(sub, StringComparison.Ordinal))
+                result = result[..^sub.Length];
+        }
+        return result;
     }
 
     // ── Edit: piece ──────────────────────────────────────────────────────────
@@ -618,6 +838,10 @@ public partial class CanonView : UserControl
     private async Task EditPieceAsync(CanonPiece piece)
     {
         if (DataContext is not CanonViewModel vm) return;
+
+        // Phase 6: snapshot the piece's path structure before editing so we can
+        // detect title renames and propagate them to album track references.
+        var snapshot = PieceRefPathDiffer.Snapshot(piece);
 
         var composerNames = vm.Composers.Select(c => c.Name).ToList();
         var composerCatalogs = BuildComposerCatalogDict(vm);
@@ -627,13 +851,40 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this)
         };
 
-        if (window.ShowDialog() == true)
+        if (ShowDialogWithExpansionGuard(window) == true)
         {
+            // Apply the composer's catalog-prefix preference to the edited piece
+            // before computing renames, so freshly-added catalog entries land in
+            // canonical order and any resulting display-title change flows into
+            // the album-ref rename stream.
+            var composer = vm.Composers.FirstOrDefault(c =>
+                string.Equals(c.Name, piece.Composer, StringComparison.OrdinalIgnoreCase));
+            var catalogRenames = new List<PieceRename>();
+            ApplyCatalogPreference(
+                composer?.CatalogPrefixes,
+                [piece],
+                piece.Composer ?? "",
+                catalogRenames);
+
             UpdatePieceCounts(vm);
             ApplySortedFilter(vm);
             _suppressAutoRefresh = true;
             await SaveAllAsync(vm);
             vm.StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
+
+            // Phase 6: propagate any title renames to album track references.
+            var renames = PieceRefPathDiffer.Diff(snapshot, piece)
+                .Concat(catalogRenames).ToList();
+            if (renames.Count > 0)
+            {
+                var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+                var updated  = AlbumRefUpdater.ApplyRenames(albumsVm.AllAlbums, renames);
+                if (updated > 0)
+                {
+                    await albumsVm.SaveAsync();
+                    vm.StatusMessage += $"  Updated {updated} album track reference(s).";
+                }
+            }
         }
     }
 
@@ -658,7 +909,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this)
         };
 
-        if (window.ShowDialog() == true)
+        if (ShowDialogWithExpansionGuard(window) == true)
         {
             ApplySortedFilter(vm);
             _suppressAutoRefresh = true;
@@ -689,7 +940,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this)
         };
 
-        if (window.ShowDialog() == true)
+        if (ShowDialogWithExpansionGuard(window) == true)
         {
             // ApplySortedFilter saves expansion state, rebuilds the tree, then
             // restores it — so the expanded piece and any expanded sub-nodes
@@ -712,7 +963,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this)
         };
 
-        if (window.ShowDialog() == true)
+        if (ShowDialogWithExpansionGuard(window) == true)
         {
             vm.Composers.Add(window.Composer);
             UpdatePieceCounts(vm);
@@ -764,7 +1015,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this)
         };
 
-        if (window.ShowDialog() == true)
+        if (ShowDialogWithExpansionGuard(window) == true)
         {
             vm.Pieces.Add(window.Piece);
             UpdatePieceCounts(vm);
@@ -860,6 +1111,32 @@ public partial class CanonView : UserControl
             if (SubpieceExistsInTree(sp.Subpieces, target)) return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Shows a dialog window while preserving the tree's expansion state.
+    /// <para>
+    /// <c>ShowDialog()</c> calls Win32 <c>EnableWindow(ownerHandle, false/true)</c>,
+    /// which propagates <c>IsEnabled = false → true</c> through the entire visual tree.
+    /// WPF's coercion during that cycle can clear the local value of
+    /// <c>TreeViewItem.IsExpanded</c>, letting the Style's default <c>Value="False"</c>
+    /// setter win — collapsing every node silently.  Saving/restoring expansion state
+    /// around the dialog call prevents this.
+    /// </para>
+    /// Expansion is restored unconditionally (cancel <i>and</i> save paths) so the tree
+    /// never flickers even when the user dismisses the dialog.
+    /// </summary>
+    private bool? ShowDialogWithExpansionGuard(Window dialog)
+    {
+        SaveAllExpansionState();
+        var result = dialog.ShowDialog();
+
+        // Restore into the current tree (pre-rebuild).  If the caller then calls
+        // ApplySortedFilter it will save this state again, rebuild, and restore once more.
+        if (ComposerTree.ItemsSource is IEnumerable<ComposerTreeNode> nodes)
+            RestoreAllExpansionState(nodes.ToList());
+
+        return result;
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildComposerCatalogDict(CanonViewModel vm)

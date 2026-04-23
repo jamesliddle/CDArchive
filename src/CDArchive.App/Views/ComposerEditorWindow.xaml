@@ -125,16 +125,23 @@
             <!-- Catalogues section -->
             <TextBlock Text="Catalogues" FontWeight="SemiBold" FontSize="12"
                        Foreground="#555" Margin="0,14,0,6" />
-            <TextBlock Text="Restrict the catalogue prefixes available when editing this composer's pieces. Leave empty to allow all prefixes."
+            <TextBlock Text="List the catalogue prefixes used for this composer, in order of display preference — the first match is shown. Leave empty to allow all prefixes with no preferred order."
                        FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,4" />
 
             <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA" Padding="6">
                 <StackPanel>
                     <DockPanel MinHeight="20" MaxHeight="80">
-                        <Button DockPanel.Dock="Right" Content="✕" Padding="6,3" FontSize="11"
-                                VerticalAlignment="Top" Margin="2"
-                                ToolTip="Remove selected prefix"
-                                Click="OnRemoveCatalogClick" />
+                        <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top" Margin="2">
+                            <Button Content="▲" Padding="6,3" FontSize="11" Margin="0,0,0,2"
+                                    ToolTip="Move selected prefix up (higher preference)"
+                                    Click="OnMoveCatalogUpClick" />
+                            <Button Content="▼" Padding="6,3" FontSize="11" Margin="0,0,0,2"
+                                    ToolTip="Move selected prefix down (lower preference)"
+                                    Click="OnMoveCatalogDownClick" />
+                            <Button Content="✕" Padding="6,3" FontSize="11"
+                                    ToolTip="Remove selected prefix"
+                                    Click="OnRemoveCatalogClick" />
+                        </StackPanel>
                         <ListBox x:Name="CatalogList" FontSize="12" BorderThickness="0" />
                     </DockPanel>
                     <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />

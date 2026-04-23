@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CompositeCatalogueReference>();
         services.AddTransient<ICataloguingService, CataloguingService>();
         services.AddSingleton<ICanonDataService, CanonDataService>();
+        services.AddSingleton<PieceReferenceIndex>();
 
         return services;
     }

@@ -97,6 +97,10 @@
                                  Command="{Binding NavigateToCatalogueCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Content="Album Catalogue"
+                                 Command="{Binding NavigateToAlbumsCommand}" />
+
+                    <RadioButton Style="{StaticResource NavButtonStyle}"
                                  Content="Import / Export"
                                  Command="{Binding NavigateToImportExportCommand}" />
 

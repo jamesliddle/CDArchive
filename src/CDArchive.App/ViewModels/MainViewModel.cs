@@ -13,6 +13,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SettingsViewModel _settingsViewModel;
     private readonly CatalogueViewModel _catalogueViewModel;
     private readonly CanonViewModel _canonViewModel;
+    private readonly AlbumsViewModel _albumsViewModel;
     private readonly ImportExportViewModel _importExportViewModel;
     private readonly PickListsViewModel _pickListsViewModel;
 
@@ -36,6 +37,7 @@ public partial class MainViewModel : ObservableObject
         SettingsViewModel settingsViewModel,
         CatalogueViewModel catalogueViewModel,
         CanonViewModel canonViewModel,
+        AlbumsViewModel albumsViewModel,
         ImportExportViewModel importExportViewModel,
         PickListsViewModel pickListsViewModel)
     {
@@ -47,6 +49,7 @@ public partial class MainViewModel : ObservableObject
         _settingsViewModel = settingsViewModel;
         _catalogueViewModel = catalogueViewModel;
         _canonViewModel = canonViewModel;
+        _albumsViewModel = albumsViewModel;
         _importExportViewModel = importExportViewModel;
         _pickListsViewModel = pickListsViewModel;
 
@@ -116,6 +119,15 @@ public partial class MainViewModel : ObservableObject
         IsCanonViewActive = false;
         CurrentView = _settingsViewModel;
         CurrentViewTitle = "Settings";
+    }
+
+    [RelayCommand]
+    private void NavigateToAlbums()
+    {
+        IsCanonViewActive = false;
+        CurrentView = _albumsViewModel;
+        CurrentViewTitle = "Album Catalogue";
+        _ = _albumsViewModel.LoadDataCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]
