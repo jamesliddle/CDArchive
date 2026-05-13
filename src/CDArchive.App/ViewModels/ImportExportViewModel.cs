@@ -79,8 +79,10 @@ public partial class ImportExportViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Normalises the canonical JSON files: reloads and re-saves them, applying
-    /// the standard sort order and stripping any null fields.
+    /// Normalises the SQLite store: reloads and re-saves each subsystem so
+    /// derived fields (catalog sort prefix/number/suffix, composer-preferred
+    /// catalog ordering, etc.) get rewritten consistently. Does not touch
+    /// JSON files — JSON output is via the explicit Export commands.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsNotBusy))]
     private async Task NormalizeJsonAsync()
@@ -181,8 +183,11 @@ public partial class ImportExportViewModel : ObservableObject
     // ── Restore ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Lets the user pick replacement JSON files and overwrites the canonical
-    /// data files with them. Useful for restoring from a backup.
+    /// Lets the user pick replacement JSON files and overwrites the SQLite
+    /// store from them. Useful for restoring from a JSON backup that was
+    /// produced by the Export commands or the seeder tool's <c>--export</c>
+    /// mode. The on-disk JSON files are not modified — the data only flows
+    /// JSON → SQLite.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsNotBusy))]
     private async Task RestoreFromJsonAsync()
@@ -201,7 +206,7 @@ public partial class ImportExportViewModel : ObservableObject
         if (piecesPath != null)    lines.Add($"Pieces: {Path.GetFileName(piecesPath)}");
 
         var result = MessageBox.Show(
-            $"This will overwrite the canonical data files with:\n\n{string.Join("\n", lines)}\n\nContinue?",
+            $"This will overwrite the SQLite database content with:\n\n{string.Join("\n", lines)}\n\nContinue?",
             "Confirm Restore", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
 
         if (result != MessageBoxResult.OK) return;

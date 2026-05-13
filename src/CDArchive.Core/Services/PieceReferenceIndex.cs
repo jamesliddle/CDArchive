@@ -46,6 +46,12 @@ public class PieceReferenceIndex
     // (piece, description) → version instance for resolution.
     private readonly Dictionary<(CanonPiece, string), CanonPieceVersion> _versionLookup = new();
 
+    // Composer → (normalized title → IndexEntry). Populated on Rebuild and reused
+    // by the public TryResolve API so external callers (e.g. CanonDbSeeder) share
+    // the same resolution semantics as the badge-hit pipeline.
+    private Dictionary<string, Dictionary<string, IndexEntry>> _byComposerTitle =
+        new(StringComparer.OrdinalIgnoreCase);
+
     // The piece list used on the last Rebuild. Cached so album-only rebuilds
     // (RebuildAlbums) can reuse the same CanonPiece instances — critical
     // because the CanonView tree holds reference-identity keys into the hit
@@ -61,6 +67,13 @@ public class PieceReferenceIndex
     /// </summary>
     public void Rebuild(IEnumerable<CanonPiece> pieces, IEnumerable<CanonAlbum> albums)
     {
+        // Re-claim Current. The constructor sets it, so any code that built a
+        // throwaway resolver (e.g. SaveAlbumsAsync, ItunesImporter pre-fix) will
+        // have stolen the static accessor and left it pointing at an index with
+        // no hit data. Whenever we fully Rebuild we know we have the canonical
+        // state, so put Current back on this instance — HitBadgeConverter and
+        // every other static-accessor consumer immediately see the right index.
+        Current = this;
         _cachedPieces = pieces as IReadOnlyList<CanonPiece> ?? pieces.ToList();
         RebuildInternal(_cachedPieces, albums);
     }
@@ -74,6 +87,7 @@ public class PieceReferenceIndex
     /// </summary>
     public void RebuildAlbums(IEnumerable<CanonAlbum> albums)
     {
+        Current = this;   // same Current-reclaim reasoning as Rebuild
         RebuildInternal(_cachedPieces, albums);
     }
 
@@ -94,8 +108,17 @@ public class PieceReferenceIndex
         // processing pass (AggregateSetHits) rather than per-ref, so the set's
         // badge only reflects albums that carry every member of the set.
         var byComposerTitle = new Dictionary<string, Dictionary<string, IndexEntry>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var p in pieces)
+        // Register approved (non-provisional) pieces first so they win the
+        // TryAdd tie-break when a provisional duplicate shares the same
+        // computed title key. A user's canonical entry like 5707
+        // (Title="Piano Concerto #21 in C, KV 467") and an old provisional
+        // duplicate like 979 (Form="Piano Concerto" + Number=21 + Key=C/major
+        // + catalog "KV 467", which BuildDisplayTitle renders identically)
+        // would otherwise be tiebroken by insertion order — and load-order is
+        // by id, which gives the provisional duplicate the win.
+        foreach (var p in pieces.OrderBy(p => p.IsProvisional))
             RegisterPiece(p, p.Composer?.Trim() ?? "", ancestors: [], byComposerTitle);
+        _byComposerTitle = byComposerTitle;
 
         foreach (var album in albums)
         {
@@ -242,8 +265,63 @@ public class PieceReferenceIndex
                  .ToList();
 
     /// <summary>
+    /// Builds only the composer+title index (and caches the piece list), without
+    /// doing the album hit aggregation pass. Used by seeders / migration tools
+    /// that need <see cref="TryResolve"/> to share the same resolution semantics
+    /// as the runtime but don't care about album-hit counts.
+    /// </summary>
+    public void BuildResolver(IEnumerable<CanonPiece> pieces)
+    {
+        _cachedPieces = pieces as IReadOnlyList<CanonPiece> ?? pieces.ToList();
+        var byComposerTitle = new Dictionary<string, Dictionary<string, IndexEntry>>(
+            StringComparer.OrdinalIgnoreCase);
+        // Approved pieces first — see comment in RebuildInternal.
+        foreach (var p in _cachedPieces.OrderBy(p => p.IsProvisional))
+            RegisterPiece(p, p.Composer?.Trim() ?? "", ancestors: [], byComposerTitle);
+        _byComposerTitle = byComposerTitle;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TrackPieceRef"/> to the <see cref="CanonPiece"/> /
+    /// <see cref="CanonPieceVersion"/> it refers to, or <c>null</c> when the ref
+    /// can't be matched. Uses the same strict-then-loose subpiece matching and
+    /// title-variant indexing as the hit-tracking pipeline.
+    /// Must be called after <see cref="Rebuild"/> or <see cref="BuildResolver"/>.
+    /// <para>
+    /// Returns the <em>leaf</em> piece — the deepest subpiece walked into via
+    /// <see cref="TrackPieceRef.SubpiecePath"/> — so callers (e.g. the seeder)
+    /// preserve movement-level identity when persisting refs. When the ref has
+    /// no subpath, the entry piece is itself the leaf.
+    /// </para>
+    /// </summary>
+    public (CanonPiece Piece, CanonPieceVersion? Version)? TryResolve(TrackPieceRef pr)
+    {
+        if (TryResolve(pr, _byComposerTitle, out var piece, out _, out var version,
+                       out var ancestorSubpieces))
+        {
+            var leaf = ancestorSubpieces.Count > 0 ? ancestorSubpieces[^1] : piece;
+            return (leaf, version);
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Resolves <paramref name="pr"/> and credits every bucket that should receive the hit.
     /// Extracted so the PieceRefs loop and the description-fallback path share one code path.
+    /// <para>
+    /// Range refs (<see cref="TrackPieceRef.EndSubpiecePath"/> populated): when both
+    /// endpoints resolve to siblings of the same parent at the same depth, every leaf
+    /// in <c>[start..end]</c> inclusive is credited. This matches the through-composed-
+    /// opera scenario where a single recording's track spans several adjacent
+    /// subpieces (e.g. La bohème Act III, "3j → 3k → 3l"). When the two endpoints
+    /// don't share a parent — a misformed ref — the start endpoint is credited alone.
+    /// </para>
+    /// <para>
+    /// Marker anchors (<see cref="TrackPieceRef.StartMarker"/> / <see cref="TrackPieceRef.EndMarker"/>)
+    /// don't change credit attribution — they describe <em>where in</em> a subpiece the
+    /// recording starts/ends, not <em>which</em> subpiece is referenced. They travel
+    /// on the hit for display purposes only.
+    /// </para>
     /// </summary>
     private static void AddHitForRef(
         TrackPieceRef pr, CanonAlbum album, AlbumDisc disc, AlbumTrack track,
@@ -292,6 +370,56 @@ public class PieceReferenceIndex
             {
                 Add(hitsForPiece, sp, hit);
                 Add(hitsForOriginal, sp, hit);
+            }
+        }
+
+        // Range credit: walk the sibling list from the start leaf to the end
+        // leaf (inclusive) and credit each intermediate sibling. We re-resolve
+        // the end path through TryResolve so loose-match rules apply uniformly
+        // and the resulting end-leaf is identity-comparable to the canon's
+        // CanonPiece instances used as keys in hitsForPiece.
+        if (pr.EndSubpiecePath is { Count: > 0 })
+        {
+            var endProbe = new TrackPieceRef
+            {
+                Composer           = pr.Composer ?? "",
+                PieceTitle         = pr.PieceTitle ?? "",
+                VersionDescription = pr.VersionDescription,
+                SubpiecePath       = pr.EndSubpiecePath,
+            };
+            if (TryResolve(endProbe, byComposerTitle, out _, out _, out _,
+                           out var endAncestors) &&
+                endAncestors.Count == ancestorSubpieces.Count &&
+                endAncestors.Count > 0)
+            {
+                // Identify the parent of both endpoints and the index range.
+                // start/end-1 are the immediate parents in the path; if the
+                // chain matches up to that point, the last segment names
+                // siblings under the same parent.
+                bool sharedParent = true;
+                for (int i = 0; i < ancestorSubpieces.Count - 1 && sharedParent; i++)
+                    sharedParent = ReferenceEquals(ancestorSubpieces[i], endAncestors[i]);
+
+                if (sharedParent)
+                {
+                    var siblings = ancestorSubpieces.Count == 1
+                        ? piece.Subpieces
+                        : ancestorSubpieces[^2].Subpieces;
+                    if (siblings is { Count: > 0 })
+                    {
+                        var startIdx = siblings.IndexOf(ancestorSubpieces[^1]);
+                        var endIdx   = siblings.IndexOf(endAncestors[^1]);
+                        if (startIdx >= 0 && endIdx >= 0 && endIdx >= startIdx)
+                        {
+                            for (int i = startIdx + 1; i <= endIdx; i++)
+                            {
+                                var sib = siblings[i];
+                                Add(hitsForPiece, sib, hit);
+                                if (version is null) Add(hitsForOriginal, sib, hit);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

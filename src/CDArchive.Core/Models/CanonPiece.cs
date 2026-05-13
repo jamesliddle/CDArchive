@@ -55,6 +55,9 @@ public class CanonPiece
     [JsonPropertyName("instrumentation_category")]
     public string? InstrumentationCategory { get; set; }
 
+    [JsonPropertyName("is_provisional")]
+    public bool IsProvisional { get; set; } = true;
+
     /// <summary>
     /// Explicit override controlling whether subpieces display a sequence number.
     /// When null the default applies: Opera → unnumbered, everything else → numbered.
@@ -105,11 +108,92 @@ public class CanonPiece
     [JsonPropertyName("roles")]
     public JsonElement? Roles { get; set; }
 
+    /// <summary>
+    /// Legacy <c>tempos</c> JSON array. Public surface no longer exposes a
+    /// <c>Tempos</c> property — anchor data lives on <see cref="Markers"/>
+    /// (filtered to <see cref="MarkerKind.Tempo"/> for tempo-flavoured access).
+    /// The <see cref="JsonInclude"/> on the internal setter lets historical
+    /// JSON snapshots deserialize cleanly: each entry mirrors into Markers as
+    /// a kind=Tempo entry. The getter returns null so the legacy key is
+    /// never written back out.
+    /// </summary>
+    [JsonInclude]
     [JsonPropertyName("tempos")]
-    public List<TempoInfo>? Tempos { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    internal List<TempoInfo>? Tempos
+    {
+        get => null;
+        set => MirrorTemposIntoMarkers(value);
+    }
 
+    /// <summary>
+    /// Legacy single first-line. Same JSON-read-only treatment as Tempos.
+    /// </summary>
+    [JsonInclude]
     [JsonPropertyName("first_line")]
-    public string? FirstLine { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    internal string? FirstLine
+    {
+        get => null;
+        set => MirrorFirstLineIntoMarkers(value);
+    }
+
+    private void MirrorTemposIntoMarkers(List<TempoInfo>? tempos)
+    {
+        if (tempos is null or { Count: 0 }) return;
+        Markers ??= [];
+        foreach (var t in tempos)
+        {
+            if (string.IsNullOrEmpty(t.Description)) continue;
+            int? num = t.Number == 0 ? null : t.Number;
+            // Idempotent: if an equivalent kind=Tempo marker is already there
+            // (same value + number), don't duplicate. Lets JSON that carries
+            // both `tempos` and `markers` round-trip cleanly regardless of
+            // the deserialization order System.Text.Json picks.
+            if (Markers.Any(m => m.Kind == MarkerKind.Tempo &&
+                string.Equals(m.Value, t.Description, StringComparison.OrdinalIgnoreCase) &&
+                m.Number == num))
+                continue;
+
+            Markers.Add(new MusicalMarker
+            {
+                Kind   = MarkerKind.Tempo,
+                Value  = t.Description,
+                Number = num,
+            });
+        }
+    }
+
+    private void MirrorFirstLineIntoMarkers(string? firstLine)
+    {
+        if (string.IsNullOrWhiteSpace(firstLine)) return;
+        Markers ??= [];
+        if (Markers.Any(m => m.Kind == MarkerKind.FirstLine &&
+            string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        Markers.Add(new MusicalMarker
+        {
+            Kind  = MarkerKind.FirstLine,
+            Value = firstLine.Trim(),
+        });
+    }
+
+    /// <summary>
+    /// Track-anchor markers (tempos, first lines, rehearsal marks, bar numbers, …)
+    /// with stable IDs. Album-track references can pin their start / end to
+    /// specific markers in this list — the smallest unit of cataloguing finer
+    /// than a subpiece. The list order is authoritative (matches musical order);
+    /// see <see cref="MusicalMarker"/> for the per-entry semantics.
+    /// <para>
+    /// Coexists with the legacy <see cref="Tempos"/> / <see cref="FirstLine"/>
+    /// fields, which remain the source for display logic. Future work may
+    /// migrate those into <c>Markers</c> with an automated derivation step.
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("markers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<MusicalMarker>? Markers { get; set; }
 
     [JsonPropertyName("notes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -185,9 +269,13 @@ public class CanonPiece
     {
         get
         {
-            if (Tempos is { Count: > 1 })
+            // Tempo descriptions for display now come from Markers (kind=Tempo)
+            // — same data as the legacy Tempos list, but read through the
+            // unified pipeline so we stay correct when Tempos is dropped in
+            // Stage 3+. Migration ensures Markers carries the entries.
+            var descriptions = CollectTempoMarkerValues(Markers);
+            if (descriptions.Count > 1)
             {
-                var descriptions = CollectTempoDescriptions(Tempos);
                 var prefix = Number.HasValue ? $"{Number}. " : "";
                 var formPart = !string.IsNullOrEmpty(Form) ? $"{TitleCase(Form)}. " : "";
                 var firstLine = $"{prefix}{formPart}{descriptions[0]}";
@@ -722,28 +810,27 @@ public class CanonPiece
     /// Multiple tempos are separated by " - ".
     /// </summary>
     [JsonIgnore]
-    public string TempoDescription
-    {
-        get
-        {
-            if (Tempos == null || Tempos.Count == 0) return "";
-            var descriptions = CollectTempoDescriptions(Tempos);
-            return string.Join(" - ", descriptions);
-        }
-    }
+    public string TempoDescription =>
+        string.Join(" - ", CollectTempoMarkerValues(Markers));
 
     /// <summary>
-    /// Recursively collects tempo descriptions from potentially nested tempo structures.
+    /// Walks <paramref name="markers"/> picking out kind=Tempo entries' values
+    /// (recursing into <see cref="MusicalMarker.SubMarkers"/> when an outer
+    /// marker has no own value). Marker order is authoritative — the list
+    /// position matches musical order, so we don't re-sort by the legacy
+    /// <c>Number</c> field.
     /// </summary>
-    private static List<string> CollectTempoDescriptions(List<TempoInfo> tempos)
+    private static List<string> CollectTempoMarkerValues(List<MusicalMarker>? markers)
     {
         var result = new List<string>();
-        foreach (var t in tempos.OrderBy(t => t.Number))
+        if (markers is null) return result;
+        foreach (var m in markers)
         {
-            if (!string.IsNullOrEmpty(t.Description))
-                result.Add(t.Description);
-            else if (t.SubTempos is { Count: > 0 })
-                result.AddRange(CollectTempoDescriptions(t.SubTempos));
+            if (m.Kind != MarkerKind.Tempo) continue;
+            if (!string.IsNullOrEmpty(m.Value))
+                result.Add(m.Value);
+            else if (m.SubMarkers is { Count: > 0 })
+                result.AddRange(CollectTempoMarkerValues(m.SubMarkers));
         }
         return result;
     }
@@ -777,7 +864,14 @@ public class CatalogInfo
     public string? CatalogSubnumber { get; set; }
 }
 
-public class TempoInfo
+/// <summary>
+/// Legacy JSON shape for the <c>tempos</c> array. Retained as an internal
+/// adapter so historical JSON files (and <c>data/Classical Canon pieces.json.bak.*</c>
+/// snapshots) still deserialize cleanly — the setter on
+/// <see cref="CanonPiece.Tempos"/> mirrors each entry into <see cref="CanonPiece.Markers"/>
+/// as a kind=Tempo marker. New code never instantiates <c>TempoInfo</c>.
+/// </summary>
+internal class TempoInfo
 {
     [JsonPropertyName("number")]
     public int Number { get; set; }
@@ -787,6 +881,128 @@ public class TempoInfo
 
     [JsonPropertyName("tempos")]
     public List<TempoInfo>? SubTempos { get; set; }
+}
+
+/// <summary>
+/// Kinds of <see cref="MusicalMarker"/>. A marker is a labelled point inside
+/// a piece (or subpiece) where a recording might begin or end a track. The
+/// kinds here cover the cataloguing styles common to the user's collection:
+/// classical orchestral and operatic scores.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum MarkerKind
+{
+    /// <summary>Tempo / character indication (e.g. "Allegro non troppo").</summary>
+    Tempo,
+    /// <summary>First line of a sung passage (e.g. "Wenn mein Schatz Hochzeit macht").</summary>
+    FirstLine,
+    /// <summary>Score rehearsal mark (e.g. "A", "47", "Cue 12").</summary>
+    RehearsalMark,
+    /// <summary>An absolute bar number used as a track-start anchor.</summary>
+    BarNumber,
+    /// <summary>Free-text section label (e.g. "Trio", "Coda") for cases the others don't fit.</summary>
+    Section,
+}
+
+/// <summary>
+/// A labelled reference point inside a piece — used to anchor album-track
+/// references at granularities finer than a subpiece. A piece (or version)
+/// owns an ordered list of markers, and a <see cref="TrackPieceRef"/> may
+/// optionally pin its start and end to specific markers.
+/// <para>
+/// <see cref="Id"/> is stable across edits (allocated once when the marker
+/// first lands in SQLite), so a track reference holds onto the same target
+/// even if the marker's display value is later edited. The list order is
+/// authoritative — insertion order matches the order in the music — and
+/// <see cref="BarNumber"/> is informational, not used for sorting.
+/// </para>
+/// </summary>
+public class MusicalMarker
+{
+    /// <summary>
+    /// Stable id assigned by SQLite. Zero on a freshly-constructed marker
+    /// that hasn't been persisted yet; populated on first save and preserved
+    /// across subsequent loads/edits. Track references store this id.
+    /// </summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Id { get; set; }
+
+    /// <summary>Discriminates the marker's kind — tempo, first-line, rehearsal mark, etc.</summary>
+    [JsonPropertyName("kind")]
+    public MarkerKind Kind { get; set; }
+
+    /// <summary>Primary display text (tempo phrase, first-line text, rehearsal label, …).</summary>
+    [JsonPropertyName("value")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Value { get; set; }
+
+    /// <summary>Absolute bar number when known. Optional informational field.</summary>
+    [JsonPropertyName("bar_number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? BarNumber { get; set; }
+
+    /// <summary>
+    /// Movement-relative ordinal (legacy <see cref="TempoInfo.Number"/> semantic).
+    /// Optional — only used when migrating tempo data into the marker model.
+    /// </summary>
+    [JsonPropertyName("number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Number { get; set; }
+
+    /// <summary>Freeform supplementary text (descriptive notes about this marker).</summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Sub-markers nested under this one. Used for tempo-with-internal-changes
+    /// (e.g. "Allegro – piu mosso – Tempo I") that today's <see cref="TempoInfo.SubTempos"/>
+    /// represents.
+    /// </summary>
+    [JsonPropertyName("sub_markers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<MusicalMarker>? SubMarkers { get; set; }
+
+    public override string ToString()
+        => Value ?? (BarNumber is { } bn ? $"bar {bn}" : Kind.ToString());
+}
+
+/// <summary>
+/// A reference to a <see cref="MusicalMarker"/> inside a specific subpiece —
+/// used by <see cref="TrackPieceRef"/> to anchor track starts/ends.
+/// <para>
+/// Resolution order: <see cref="Id"/> first (the only thing the runtime
+/// resolver needs once the canon is loaded). <see cref="Kind"/>+<see cref="Value"/>
+/// or <see cref="Kind"/>+<see cref="BarNumber"/> serve as fallback matchers
+/// during JSON import or when an id is missing — the resolver uses them to
+/// rebind to the closest matching marker on the target subpiece.
+/// </para>
+/// </summary>
+public class MarkerReference
+{
+    /// <summary>Stable marker id, the primary lookup key at runtime.</summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Id { get; set; }
+
+    /// <summary>Marker kind, for filtering when matching by value/bar.</summary>
+    [JsonPropertyName("kind")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public MarkerKind Kind { get; set; }
+
+    /// <summary>Display value to match if <see cref="Id"/> can't be resolved.</summary>
+    [JsonPropertyName("value")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Value { get; set; }
+
+    /// <summary>Bar number to match if <see cref="Id"/> can't be resolved.</summary>
+    [JsonPropertyName("bar_number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? BarNumber { get; set; }
+
+    public override string ToString()
+        => Id != 0 ? $"#{Id} ({Kind})" : Value ?? (BarNumber is { } bn ? $"bar {bn}" : Kind.ToString());
 }
 
 /// <summary>
@@ -1295,8 +1511,15 @@ public class CanonPieceVersion
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? SubpiecesStart { get; set; }
 
+    /// <summary>Legacy first_line JSON read — see CanonPiece.FirstLine.</summary>
+    [JsonInclude]
     [JsonPropertyName("first_line")]
-    public string? FirstLine { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    internal string? FirstLine
+    {
+        get => null;
+        set => MirrorFirstLineIntoMarkers(value);
+    }
 
     [JsonPropertyName("notes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -1312,8 +1535,58 @@ public class CanonPieceVersion
     [JsonPropertyName("roles")]
     public JsonElement? Roles { get; set; }
 
+    /// <summary>Legacy tempos JSON read — see CanonPiece.Tempos.</summary>
+    [JsonInclude]
     [JsonPropertyName("tempos")]
-    public List<TempoInfo>? Tempos { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    internal List<TempoInfo>? Tempos
+    {
+        get => null;
+        set => MirrorTemposIntoMarkers(value);
+    }
+
+    /// <summary>
+    /// Track-anchor markers for this version. Mirrors <see cref="CanonPiece.Markers"/>;
+    /// see that property's docs for the model.
+    /// </summary>
+    [JsonPropertyName("markers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<MusicalMarker>? Markers { get; set; }
+
+    private void MirrorTemposIntoMarkers(List<TempoInfo>? tempos)
+    {
+        if (tempos is null or { Count: 0 }) return;
+        Markers ??= [];
+        foreach (var t in tempos)
+        {
+            if (string.IsNullOrEmpty(t.Description)) continue;
+            int? num = t.Number == 0 ? null : t.Number;
+            if (Markers.Any(m => m.Kind == MarkerKind.Tempo &&
+                string.Equals(m.Value, t.Description, StringComparison.OrdinalIgnoreCase) &&
+                m.Number == num))
+                continue;
+            Markers.Add(new MusicalMarker
+            {
+                Kind   = MarkerKind.Tempo,
+                Value  = t.Description,
+                Number = num,
+            });
+        }
+    }
+
+    private void MirrorFirstLineIntoMarkers(string? firstLine)
+    {
+        if (string.IsNullOrWhiteSpace(firstLine)) return;
+        Markers ??= [];
+        if (Markers.Any(m => m.Kind == MarkerKind.FirstLine &&
+            string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
+            return;
+        Markers.Add(new MusicalMarker
+        {
+            Kind  = MarkerKind.FirstLine,
+            Value = firstLine.Trim(),
+        });
+    }
 
     [JsonPropertyName("subpieces")]
     public List<CanonPiece>? Subpieces { get; set; }
@@ -1565,6 +1838,178 @@ public static class ContributedWorksFinder
                 && !roles.Contains(c.Role, StringComparer.OrdinalIgnoreCase))
             {
                 roles.Add(c.Role);
+            }
+        }
+    }
+}
+
+/// <summary>
+/// A display node surfacing a (sub)piece whose composer differs from its
+/// containing top-level piece's composer — used to make collaborative works
+/// like <em>L'éventail de Jeanne</em> reachable from each contributing
+/// composer's piece list. The node carries a composite display title that
+/// includes the parent piece's title and the chain of intermediate
+/// subpiece-of-subpiece titles down to (but not including) the cross-credit
+/// root itself, e.g. "L'éventail de Jeanne - 1. Fanfare".
+/// <para>
+/// Selection delegates to <see cref="Subpiece"/>: the right-hand pane shows
+/// that subpiece's details in place, with no tree-level navigation. The set
+/// of descendants beneath <see cref="Subpiece"/> is presumed to share the
+/// same composer (per <c>CollectCrossComposerNodes</c>'s "stop at the first
+/// composer change" rule), so they appear under this node naturally without
+/// further cross-credit detection.
+/// </para>
+/// </summary>
+public class CrossComposerSubpieceNode
+{
+    public CrossComposerSubpieceNode(
+        CanonPiece topPiece,
+        IReadOnlyList<CanonPiece> ancestorPath,
+        CanonPiece subpiece,
+        bool parentNumberedSubpieces)
+    {
+        TopPiece            = topPiece;
+        AncestorPath        = ancestorPath;
+        Subpiece            = subpiece;
+        // Composite: top piece's short title, then intermediate ancestors'
+        // subpiece-formatted titles (skipping the top piece itself), then the
+        // cross-credit root's subpiece title using its parent's numbering rule.
+        var parts = new List<string> { topPiece.DisplayTitleShort };
+        for (var i = 1; i < ancestorPath.Count; i++)
+        {
+            var grandparent = ancestorPath[i - 1];
+            parts.Add(ancestorPath[i].BuildSubpieceTitle(grandparent.EffectiveSubpiecesNumbered));
+        }
+        parts.Add(subpiece.BuildSubpieceTitle(parentNumberedSubpieces));
+        DisplayTitle = string.Join(" - ", parts);
+    }
+
+    /// <summary>The top-level piece in the canon tree (e.g. L'éventail de Jeanne).</summary>
+    public CanonPiece TopPiece { get; }
+
+    /// <summary>
+    /// Path from the top-level piece down to the immediate parent of
+    /// <see cref="Subpiece"/>, inclusive at both ends:
+    /// <c>[topPiece, …, subpiece's parent]</c>. For a depth-1 cross-credit
+    /// (a subpiece directly under the top piece) this is just <c>[topPiece]</c>.
+    /// </summary>
+    public IReadOnlyList<CanonPiece> AncestorPath { get; }
+
+    /// <summary>The cross-credited subpiece — the click target.</summary>
+    public CanonPiece Subpiece { get; }
+
+    /// <summary>Composite display title shown in the tree.</summary>
+    public string DisplayTitle { get; }
+
+    /// <summary>
+    /// Children to display when this node is expanded — the cross-credit
+    /// subpiece's own subpieces / versions. Per the inheritance rule, every
+    /// descendant of <see cref="Subpiece"/> shares its composer, so this is
+    /// the natural place to surface them under the cross-crediting composer.
+    /// </summary>
+    public System.Collections.IList? Children => Subpiece.TreeChildren;
+
+    /// <summary>True when the cross-credit root has its own subpieces / versions.</summary>
+    public bool HasChildren => Subpiece.HasTreeChildren;
+
+    /// <summary>Catalogue badge inherited from the top-level piece.</summary>
+    public string Catalog => TopPiece.Catalog;
+
+    /// <summary>Publication year inherited from the top-level piece, used for Year sort.</summary>
+    public int? PublicationYear => TopPiece.PublicationYear;
+
+    /// <summary>Category inherited from the top-level piece, used for Category sort.</summary>
+    public string? Category => TopPiece.Category;
+
+    /// <summary>Catalog sort helpers inherited from the top-level piece.</summary>
+    public string? CatalogSortPrefix => TopPiece.CatalogSortPrefix;
+    public int?    CatalogSortNumber => TopPiece.CatalogSortNumber;
+    public string? CatalogSortSuffix => TopPiece.CatalogSortSuffix;
+
+    public override string ToString() => DisplayTitle;
+}
+
+/// <summary>
+/// Detects collaborative-work cross-credits — subpieces (at any depth) whose
+/// composer differs from their containing top-level piece's composer — and
+/// produces <see cref="CrossComposerSubpieceNode"/> entries grouped by the
+/// cross-crediting composer. The walk stops at the first composer change in a
+/// branch: descendants of a cross-credit root are presumed to inherit that
+/// composer, matching the seeder's resolution rule.
+/// </summary>
+public static class CrossComposerSubpieceFinder
+{
+    /// <summary>
+    /// Scans every top-level piece in <paramref name="topPieces"/> and returns
+    /// a dictionary keyed by composer name (case-insensitive) to the list of
+    /// cross-composer nodes that should appear under that composer.
+    /// </summary>
+    public static Dictionary<string, List<CrossComposerSubpieceNode>> Find(
+        IEnumerable<CanonPiece> topPieces)
+    {
+        var result = new Dictionary<string, List<CrossComposerSubpieceNode>>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var top in topPieces)
+        {
+            // Top-level pieces with no composer (shouldn't happen at runtime —
+            // the seeder requires a composer — but defensively skip) can't anchor
+            // a cross-credit, since there's nothing to differ from.
+            if (string.IsNullOrEmpty(top.Composer)) continue;
+
+            // Start the walk at the top piece. The ancestor path begins with
+            // [top] so depth-1 subpieces produce a path of [top].
+            var ancestors = new List<CanonPiece> { top };
+            WalkSubpieces(top, top.Composer!, ancestors, top, result);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Recursively walks <paramref name="current"/>.Subpieces. For each subpiece
+    /// whose composer differs from <paramref name="anchorComposer"/> (the
+    /// composer of the most recent cross-credit root, or the top-level piece if
+    /// none), records a cross-composer node and stops descending (the subtree's
+    /// composer is assumed to be inherited). Otherwise recurses with the
+    /// subpiece appended to the ancestor path.
+    /// </summary>
+    private static void WalkSubpieces(
+        CanonPiece current,
+        string anchorComposer,
+        List<CanonPiece> ancestorPath,
+        CanonPiece topPiece,
+        Dictionary<string, List<CrossComposerSubpieceNode>> result)
+    {
+        if (current.Subpieces is null or { Count: 0 }) return;
+
+        foreach (var sub in current.Subpieces)
+        {
+            var subComposer = sub.Composer;
+            var hasOwnComposer =
+                !string.IsNullOrEmpty(subComposer) &&
+                !string.Equals(subComposer, anchorComposer, StringComparison.OrdinalIgnoreCase);
+
+            if (hasOwnComposer)
+            {
+                if (!result.TryGetValue(subComposer!, out var list))
+                    result[subComposer!] = list = [];
+
+                list.Add(new CrossComposerSubpieceNode(
+                    topPiece:                topPiece,
+                    ancestorPath:            ancestorPath.ToArray(),
+                    subpiece:                sub,
+                    parentNumberedSubpieces: current.EffectiveSubpiecesNumbered));
+
+                // Don't descend — descendants inherit subComposer per the
+                // seeder's rule. They're reachable via the normal subpiece
+                // tree under this cross-credit root.
+            }
+            else
+            {
+                ancestorPath.Add(sub);
+                WalkSubpieces(sub, anchorComposer, ancestorPath, topPiece, result);
+                ancestorPath.RemoveAt(ancestorPath.Count - 1);
             }
         }
     }

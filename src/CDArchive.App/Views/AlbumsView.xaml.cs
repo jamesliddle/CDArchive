@@ -46,6 +46,62 @@ public partial class AlbumsView : UserControl
             vm.FilterText = FilterBox.Text;
     }
 
+    private void OnShowFilterChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is not AlbumsViewModel vm) return;
+        vm.ProvisionalFilter = ShowCombo.SelectedIndex switch
+        {
+            1 => ProvisionalFilter.Provisional,
+            2 => ProvisionalFilter.Accepted,
+            _ => ProvisionalFilter.All,
+        };
+    }
+
+    // ── Context menu: Approve / Reject ────────────────────────────────────────
+
+    private void OnAlbumContextMenuOpened(object sender, RoutedEventArgs e)
+    {
+        var hasProvisional = AlbumList.SelectedItems.Cast<CanonAlbum>().Any(a => a.IsProvisional);
+        CtxApproveAlbum.IsEnabled = hasProvisional;
+        CtxRejectAlbum.IsEnabled  = hasProvisional;
+    }
+
+    private async void OnContextApproveAlbum(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not AlbumsViewModel vm) return;
+        var selected = AlbumList.SelectedItems.Cast<CanonAlbum>().Where(a => a.IsProvisional).ToList();
+        if (selected.Count == 0) return;
+        foreach (var album in selected)
+            album.IsProvisional = false;
+        await vm.SaveAsync();
+        vm.ApplyFilter();
+        vm.StatusMessage = selected.Count == 1
+            ? $"Approved {selected[0].DisplayTitle}."
+            : $"Approved {selected.Count} album(s).";
+    }
+
+    private async void OnContextRejectAlbum(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not AlbumsViewModel vm) return;
+        var selected = AlbumList.SelectedItems.Cast<CanonAlbum>().Where(a => a.IsProvisional).ToList();
+        if (selected.Count == 0) return;
+
+        var prompt = selected.Count == 1
+            ? $"Delete provisional album '{selected[0].DisplayTitle}'?"
+            : $"Delete {selected.Count} provisional album(s)?";
+        var confirm = MessageBox.Show(prompt, "Confirm Rejection",
+            MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+
+        foreach (var album in selected)
+            vm.AllAlbums.Remove(album);
+        await vm.SaveAsync();
+        vm.ApplyFilter();
+        vm.StatusMessage = selected.Count == 1
+            ? $"Rejected and deleted {selected[0].DisplayTitle}."
+            : $"Rejected and deleted {selected.Count} album(s).";
+    }
+
     // ── Toolbar: refresh ──────────────────────────────────────────────────────
 
     private async void OnRefreshClick(object sender, RoutedEventArgs e)

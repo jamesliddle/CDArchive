@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
 using CDArchive.Core.Models;
@@ -503,7 +504,38 @@ public partial class TrackEditorWindow : Window
 
     private void OnPieceRefSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        RemovePieceRefButton.IsEnabled = PieceRefList.SelectedItem != null;
+        var hasSelection = PieceRefList.SelectedItem != null;
+        RemovePieceRefButton.IsEnabled = hasSelection;
+        EditPieceRefButton.IsEnabled   = hasSelection;
+    }
+
+    private void OnPieceRefDoubleClick(object sender, MouseButtonEventArgs e) =>
+        EditSelectedPieceRefDetails();
+
+    private void OnEditPieceRefDetails(object sender, RoutedEventArgs e) =>
+        EditSelectedPieceRefDetails();
+
+    /// <summary>
+    /// Opens the details dialog for the selected ref so the user can attach a
+    /// range and/or marker anchors. The ref is mutated in place; we replace
+    /// it in <see cref="_pieceRefs"/> at the same index so the ListBox
+    /// re-evaluates <see cref="TrackPieceRef.DisplaySummary"/>.
+    /// </summary>
+    private void EditSelectedPieceRefDetails()
+    {
+        if (PieceRefList.SelectedItem is not TrackPieceRef selected) return;
+        var idx = _pieceRefs.IndexOf(selected);
+        if (idx < 0) return;
+
+        var dlg = new PieceRefDetailsWindow(selected, _allPieces) { Owner = this };
+        if (dlg.ShowDialog() != true || !dlg.Saved) return;
+
+        // ObservableCollection's indexer raises a Replace event, which is the
+        // signal the ListBox needs to re-render the row with the updated
+        // DisplaySummary. Same instance — same identity — but the binding
+        // refreshes.
+        _pieceRefs[idx] = selected;
+        PieceRefList.SelectedIndex = idx;
     }
 
     // ── Performer override ────────────────────────────────────────────────────

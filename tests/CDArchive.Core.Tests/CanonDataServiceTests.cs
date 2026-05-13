@@ -8,12 +8,16 @@ public class CanonDataServiceTests
 {
     private static string FindDataDirectory()
     {
+        // Mirror the dual-marker resolution in CanonDataService: the data
+        // directory is identified by either composers.json or ClassicalCanon.db,
+        // so the suite still finds data/ when JSON has been deleted post-migration.
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null)
         {
             var candidate = Path.Combine(dir.FullName, "data");
             if (Directory.Exists(candidate) &&
-                File.Exists(Path.Combine(candidate, "Classical Canon composers.json")))
+                (File.Exists(Path.Combine(candidate, "Classical Canon composers.json")) ||
+                 File.Exists(Path.Combine(candidate, "ClassicalCanon.db"))))
                 return candidate;
             dir = dir.Parent;
         }
@@ -35,6 +39,41 @@ public class CanonDataServiceTests
         var service = new CanonDataService(FindDataDirectory());
         var pieces = await service.LoadPiecesAsync();
         Assert.True(pieces.Count > 400, $"Expected 400+ pieces, got {pieces.Count}");
+    }
+
+    /// <summary>
+    /// Regression: the parameterless <see cref="CanonDataService"/> ctor used to
+    /// rely solely on <c>Classical Canon composers.json</c> as its directory marker,
+    /// which meant deleting that JSON file would also break the SQLite path
+    /// (because <see cref="ServiceCollectionExtensions"/> derives the DB connection
+    /// string from <c>ComposersFilePath</c>). After the SQLite migration, the
+    /// resolver also accepts <c>ClassicalCanon.db</c> as a marker, so the data
+    /// directory remains discoverable when the JSON files have been deleted.
+    /// </summary>
+    [Fact]
+    public void Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent()
+    {
+        var dataDir       = FindDataDirectory();
+        var composersJson = Path.Combine(dataDir, "Classical Canon composers.json");
+        var dbFile        = Path.Combine(dataDir, "ClassicalCanon.db");
+
+        // The marker only kicks in if the DB file exists. If a clean checkout
+        // hasn't been seeded yet, skip — the resolver still falls back to JSON.
+        if (!File.Exists(dbFile)) return;
+
+        var bak = composersJson + ".test-resolver-bak";
+        File.Move(composersJson, bak);
+        try
+        {
+            var svc          = new CanonDataService();
+            var resolvedDir  = Path.GetDirectoryName(svc.ComposersFilePath);
+            Assert.Equal(dataDir, resolvedDir);
+        }
+        finally
+        {
+            // Restore aggressively so a test failure can't corrupt the data dir.
+            if (File.Exists(bak)) File.Move(bak, composersJson, overwrite: true);
+        }
     }
 
     [Fact]
@@ -132,7 +171,7 @@ public class CanonDataServiceTests
         {
             Form = "Scherzo",
             Number = 3,
-            Tempos = [new TempoInfo { Number = 1, Description = "Allegro assai" }]
+            Markers = [Tempo("Allegro assai")],
         };
         Assert.Equal("3. Scherzo. Allegro assai", piece.DisplayTitle);
     }
@@ -143,35 +182,22 @@ public class CanonDataServiceTests
         var piece = new CanonPiece
         {
             Number = 1,
-            Tempos =
-            [
-                new TempoInfo { Number = 1, Description = "Lent" },
-                new TempoInfo { Number = 2, Description = "Allegro vivo" }
-            ]
+            Markers = [Tempo("Lent"), Tempo("Allegro vivo")],
         };
         Assert.Equal("1. Lent - Allegro vivo", piece.DisplayTitle);
     }
 
     [Fact]
-    public void DisplayTitle_MovementWithNestedTempos()
+    public void DisplayTitle_MovementWithMultipleFlatTempos()
     {
-        // Some movements have tempos nested inside tempos (no direct Description)
+        // Movements with two consecutive tempos in the same section (e.g.
+        // a slow introduction followed by an Allegro main section, like
+        // Beethoven Op. 1 No. 2 mvt. I) carry them as flat siblings in the
+        // marker list.
         var piece = new CanonPiece
         {
             Number = 1,
-            Tempos =
-            [
-                new TempoInfo
-                {
-                    Number = 1,
-                    SubTempos = [new TempoInfo { Number = 1, Description = "Adagio" }]
-                },
-                new TempoInfo
-                {
-                    Number = 2,
-                    SubTempos = [new TempoInfo { Number = 1, Description = "Allegro vivace" }]
-                }
-            ]
+            Markers = [Tempo("Adagio"), Tempo("Allegro vivace")],
         };
         Assert.Equal("1. Adagio - Allegro vivace", piece.DisplayTitle);
     }
@@ -183,12 +209,12 @@ public class CanonDataServiceTests
         {
             Form = "Finale",
             Number = 4,
-            Tempos =
-            [
-                new TempoInfo { Number = 1, Description = "Lent" },
-                new TempoInfo { Number = 2, Description = "Allegro vivo" }
-            ]
+            Markers = [Tempo("Lent"), Tempo("Allegro vivo")],
         };
         Assert.Equal("4. Finale. Lent - Allegro vivo", piece.DisplayTitle);
     }
+
+    /// <summary>Test-fixture helper: a kind=Tempo marker with the given description.</summary>
+    private static MusicalMarker Tempo(string description) =>
+        new() { Kind = MarkerKind.Tempo, Value = description };
 }

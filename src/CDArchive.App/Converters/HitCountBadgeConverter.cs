@@ -26,14 +26,15 @@ public class HitCountBadgeConverter : IValueConverter
 
         int count = value switch
         {
-            ComposerTreeNode n        => idx.CountForComposer(n.Composer.Name),
-            CanonComposer c           => idx.CountForComposer(c.Name),
-            PieceOriginalNode pon     => idx.CountForOriginal(pon.Piece),
-            VersionDisplayNode vdn    => idx.CountForVersion(vdn.Version),
-            SubpieceDisplayNode sdn   => idx.CountForPiece(sdn.Piece),
-            ContributedPieceNode cpn  => idx.CountForPiece(cpn.Piece),
-            ContributedRoleGroupNode g=> idx.CountForPieces(g.Pieces.Select(p => p.Piece)),
-            CanonPiece p              => idx.CountForPiece(p),
+            ComposerTreeNode n            => idx.CountForComposer(n.Composer.Name),
+            CanonComposer c               => idx.CountForComposer(c.Name),
+            PieceOriginalNode pon         => idx.CountForOriginal(pon.Piece),
+            VersionDisplayNode vdn        => idx.CountForVersion(vdn.Version),
+            SubpieceDisplayNode sdn       => idx.CountForPiece(sdn.Piece),
+            ContributedPieceNode cpn      => idx.CountForPiece(cpn.Piece),
+            ContributedRoleGroupNode g    => idx.CountForPieces(g.Pieces.Select(p => p.Piece)),
+            CrossComposerSubpieceNode ccn => idx.CountForPiece(ccn.Subpiece),
+            CanonPiece p                  => idx.CountForPiece(p),
             _ => 0
         };
 

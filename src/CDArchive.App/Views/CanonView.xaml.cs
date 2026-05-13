@@ -15,8 +15,10 @@ public partial class CanonView : UserControl
 {
     // ── Composer sort state ──────────────────────────────────────────────────
 
-    private string _sortColumn    = "Pieces";
-    private bool   _sortAscending = false;   // most pieces first by default
+    // Holds the raw combo label (e.g. "Pieces", "Name", "Born", "Died",
+    // "Recordings"). ComposerSorting.ParseField turns it into the typed
+    // field + default direction.
+    private string _sortColumn = "Pieces";
 
     // ── Piece sort state ─────────────────────────────────────────────────────
 
@@ -116,8 +118,16 @@ public partial class CanonView : UserControl
     /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(CanonViewModel.IsLoading)) return;
         if (sender is not CanonViewModel vm) return;
+
+        if (e.PropertyName is nameof(CanonViewModel.ComposerProvisionalFilter)
+                           or nameof(CanonViewModel.PieceProvisionalFilter))
+        {
+            ApplySortedFilter(vm);
+            return;
+        }
+
+        if (e.PropertyName != nameof(CanonViewModel.IsLoading)) return;
         if (vm.IsLoading) return;   // only act on the transition to false
 
         // Edit handlers call ApplySortedFilter directly before awaiting SaveAllAsync.
@@ -136,6 +146,28 @@ public partial class CanonView : UserControl
             ApplySortedFilter(vm);
     }
 
+    private void OnComposerShowFilterChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        vm.ComposerProvisionalFilter = ComposerShowCombo.SelectedIndex switch
+        {
+            1 => ProvisionalFilter.Provisional,
+            2 => ProvisionalFilter.Accepted,
+            _ => ProvisionalFilter.All,
+        };
+    }
+
+    private void OnPieceShowFilterChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        vm.PieceProvisionalFilter = PieceShowCombo.SelectedIndex switch
+        {
+            1 => ProvisionalFilter.Provisional,
+            2 => ProvisionalFilter.Accepted,
+            _ => ProvisionalFilter.All,
+        };
+    }
+
     private void OnPieceSortChanged(object sender, SelectionChangedEventArgs e)
     {
         if (PieceSortCombo.SelectedItem is not ComboBoxItem item) return;
@@ -149,15 +181,10 @@ public partial class CanonView : UserControl
         if (ComposerSortCombo.SelectedItem is not ComboBoxItem item) return;
         if (DataContext is not CanonViewModel vm) return;
 
-        (_sortColumn, _sortAscending) = item.Content?.ToString() switch
-        {
-            "Pieces" => ("Pieces", false),   // most pieces first
-            "Name"   => ("Name",   true),    // A → Z
-            "Born"   => ("Birth",  true),    // oldest first
-            "Died"   => ("Death",  true),    // oldest death first
-            _        => (_sortColumn, _sortAscending),
-        };
-
+        // Single source of truth for label → (field, default direction)
+        // mapping lives in ComposerSorting.ParseField; the view just stashes
+        // the selected label so ApplyComposerSort can re-parse on rebuild.
+        _sortColumn = item.Content?.ToString() ?? "Pieces";
         ApplySortedFilter(vm);
     }
 
@@ -178,13 +205,42 @@ public partial class CanonView : UserControl
                 c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                 c.SortName.Contains(filter, StringComparison.OrdinalIgnoreCase));
 
+        filtered = vm.ComposerProvisionalFilter switch
+        {
+            ProvisionalFilter.Provisional => filtered.Where(c => c.IsProvisional),
+            ProvisionalFilter.Accepted    => filtered.Where(c => !c.IsProvisional),
+            _                             => filtered,
+        };
+
         filtered = ApplyComposerSort(filtered);
+
+        // Cross-composer detection runs once over the full piece tree per
+        // tree-rebuild, then we hand each composer's slice to their node.
+        // The walk is O(pieces) and the dictionary lookup is O(1), so this is
+        // cheaper than redoing the scan inside GetSortedPieces per composer.
+        var crossComposerByName = CrossComposerSubpieceFinder.Find(vm.Pieces);
+        var sortField           = PieceSorting.ParseField(_pieceSortField);
+        var idx                 = PieceReferenceIndex.Current;
+        // Adapter that lets the UI-free PieceSorting helper query album-hit
+        // counts without depending on PieceReferenceIndex directly.
+        Func<object, int>? recordingCount = idx is null ? null : o => o switch
+        {
+            CanonPiece p                  => idx.CountForPiece(p),
+            CrossComposerSubpieceNode ccn => idx.CountForPiece(ccn.Subpiece),
+            _                             => 0,
+        };
 
         var nodes = filtered
             .Select(c =>
             {
                 var node = new ComposerTreeNode(c, GetSortedPieces(vm, c.Name));
                 node.ContributedGroups = ContributedWorksFinder.FindContributedGroups(vm.Pieces, c.Name);
+                if (crossComposerByName.TryGetValue(c.Name, out var ccn))
+                    node.CrossComposerNodes = ccn;
+                // Apply the user's selected sort to the merged list. The
+                // node's constructor pre-built a catalogue-sorted view; this
+                // call replaces it with one matching the combo selection.
+                node.RebuildAllItems(sortField, recordingCount);
                 return node;
             })
             .ToList();
@@ -193,60 +249,41 @@ public partial class CanonView : UserControl
         RestoreAllExpansionState(nodes);
     }
 
-    private IEnumerable<CanonComposer> ApplyComposerSort(IEnumerable<CanonComposer> composers) =>
-        (_sortColumn, _sortAscending) switch
-        {
-            ("Pieces", true)  => composers.OrderBy(c => c.PieceCount)
-                                          .ThenBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-            ("Pieces", false) => composers.OrderByDescending(c => c.PieceCount)
-                                          .ThenBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-            ("Name",   true)  => composers.OrderBy(c => !string.IsNullOrEmpty(c.SortName) ? c.SortName : c.Name,
-                                                   StringComparer.OrdinalIgnoreCase),
-            ("Name",   false) => composers.OrderByDescending(c => !string.IsNullOrEmpty(c.SortName) ? c.SortName : c.Name,
-                                                             StringComparer.OrdinalIgnoreCase),
-            ("Birth",  true)  => composers.OrderBy(c => c.BirthYearSort)
-                                          .ThenBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-            ("Birth",  false) => composers.OrderByDescending(c => c.BirthYearSort)
-                                          .ThenBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-            ("Death",  true)  => composers.OrderBy(c => c.DeathYearSort)
-                                          .ThenBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-            ("Death",  false) => composers.OrderByDescending(c => c.DeathYearSort)
-                                          .ThenBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-            _                 => composers.OrderBy(c => c.SortName, StringComparer.OrdinalIgnoreCase),
-        };
-
-    private List<CanonPiece> GetSortedPieces(CanonViewModel vm, string composerName)
+    private IEnumerable<CanonComposer> ApplyComposerSort(IEnumerable<CanonComposer> composers)
     {
-        var pieces = vm.Pieces.Where(p =>
-            string.Equals(p.Composer, composerName, StringComparison.OrdinalIgnoreCase));
-        return OrderPieces(pieces).ToList();
+        var (field, ascending) = ComposerSorting.ParseField(_sortColumn);
+        // Recordings sort needs the runtime PieceReferenceIndex; for every
+        // other field the count delegate is ignored. When the index hasn't
+        // been built yet (e.g. data still loading) the delegate falls back
+        // to zero so we degrade to a stable name-sorted view.
+        var idx = PieceReferenceIndex.Current;
+        Func<CanonComposer, int>? recordingCount = idx is null
+            ? null
+            : c => idx.CountForComposer(c.Name);
+        return ComposerSorting.Sort(composers, field, ascending, recordingCount);
     }
 
-    private IEnumerable<CanonPiece> OrderPieces(IEnumerable<CanonPiece> pieces) =>
-        _pieceSortField switch
+    /// <summary>
+    /// Returns the pieces owned by the given composer. The actual sort
+    /// (Catalogue / Title / Category / Year) is applied uniformly via
+    /// <see cref="PieceSorting.Sort"/> in <see cref="ApplySortedFilter"/>,
+    /// where it's combined with cross-composer-credit nodes — so this method
+    /// is a plain composer filter with no per-list sort.
+    /// </summary>
+    private static List<CanonPiece> GetSortedPieces(CanonViewModel vm, string composerName)
+    {
+        IEnumerable<CanonPiece> pieces = vm.Pieces.Where(p =>
+            string.Equals(p.Composer, composerName, StringComparison.OrdinalIgnoreCase));
+
+        pieces = vm.PieceProvisionalFilter switch
         {
-            "Title"    => pieces.OrderBy(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-            "Category" => pieces
-                .OrderBy(p => p.Category, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortNumber)
-                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
-            "Year"     => pieces
-                .OrderBy(p => p.PublicationYear ?? int.MaxValue)
-                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortNumber)
-                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
-            _          => CatalogSort(pieces),   // "Catalogue" (default)
+            ProvisionalFilter.Provisional => pieces.Where(p => p.IsProvisional),
+            ProvisionalFilter.Accepted    => pieces.Where(p => !p.IsProvisional),
+            _                             => pieces,
         };
 
-    private static IOrderedEnumerable<CanonPiece> CatalogSort(IEnumerable<CanonPiece> pieces) =>
-        pieces.OrderBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-              .ThenBy(p => p.CatalogSortNumber)
-              .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase)
-              .ThenBy(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase)
-              .ThenBy(p => p.Form, StringComparer.OrdinalIgnoreCase)
-              .ThenBy(p => p.Number ?? int.MaxValue)
-              .ThenBy(p => p.FirstLine, StringComparer.OrdinalIgnoreCase);
+        return pieces.ToList();
+    }
 
     // ── Expansion state: save / restore (all three levels) ───────────────────
 
@@ -282,6 +319,22 @@ public partial class CanonView : UserControl
 
                 // Level 3+: subpiece / version nodes
                 CollectExpandedSubpieces(pi, pi.Items);
+            }
+
+            // Cross-composer subpiece nodes (collaborative-work entries) live
+            // alongside owned pieces in AllItems. We key their expansion on
+            // .Subpiece (a CanonPiece instance) using the same _expandedPieces
+            // set — that way expanding "Fanfare" under Ravel and under
+            // (Various) stays consistent.
+            foreach (var ccn in node.CrossComposerNodes)
+            {
+                if (ci.ItemContainerGenerator.ContainerFromItem(ccn)
+                        is not TreeViewItem cni) continue;
+
+                if (cni.IsExpanded)
+                    _expandedPieces.Add(ccn.Subpiece);
+
+                CollectExpandedSubpieces(cni, cni.Items);
             }
 
             // Contributed-work groups
@@ -335,6 +388,19 @@ public partial class CanonView : UserControl
                 pi.IsExpanded = true;
                 pi.UpdateLayout();
                 ApplyExpandedSubpieces(pi, pi.Items);
+            }
+
+            // Restore cross-composer node expansion (keyed by .Subpiece in
+            // _expandedPieces, mirroring the save pass).
+            foreach (var ccn in node.CrossComposerNodes)
+            {
+                if (!_expandedPieces.Contains(ccn.Subpiece)) continue;
+                if (ci.ItemContainerGenerator.ContainerFromItem(ccn)
+                        is not TreeViewItem cni) continue;
+
+                cni.IsExpanded = true;
+                cni.UpdateLayout();
+                ApplyExpandedSubpieces(cni, cni.Items);
             }
 
             // Restore contributed-group expansion
@@ -456,6 +522,22 @@ public partial class CanonView : UserControl
             NewPieceButton.IsEnabled    = false;
             DeletePieceButton.IsEnabled = false;
         }
+        else if (e.NewValue is CrossComposerSubpieceNode ccn)
+        {
+            // In-place preview: the right-hand pane (which binds to
+            // SelectedPiece) shows the cross-credited subpiece's details. We
+            // also lift _activeComposer to the subpiece's composer, matching
+            // the New/Delete button behaviour for the contributing composer.
+            _activePiece = ccn.Subpiece;
+            _activeComposer = vm.Composers.FirstOrDefault(c =>
+                string.Equals(c.Name, ccn.Subpiece.Composer, StringComparison.OrdinalIgnoreCase));
+            // New/Delete are scoped to a top-level piece. The cross-credited
+            // subpiece lives under (Various)'s tree, not this composer's,
+            // so we disable them here to avoid surprises — the user can still
+            // edit the subpiece via double-click or the Edit context menu.
+            NewPieceButton.IsEnabled    = false;
+            DeletePieceButton.IsEnabled = false;
+        }
         else if (e.NewValue is SubpieceDisplayNode)
         {
             // Keep _activeComposer / _activePiece and button state from the
@@ -546,6 +628,11 @@ public partial class CanonView : UserControl
                 break;
             case ContributedRoleGroupNode:
                 break;   // group header — no edit
+            case CrossComposerSubpieceNode ccn:
+                // Edit the cross-credited subpiece in place, scoped to its
+                // immediate parent (the last entry in AncestorPath).
+                await EditSubpieceAsync(ccn.Subpiece, ccn.AncestorPath[^1]);
+                break;
             case CanonPiece piece:
                 await EditPieceAsync(piece);
                 break;
@@ -595,20 +682,30 @@ public partial class CanonView : UserControl
         bool canEdit = _ctxTarget is not ContributedRoleGroupNode;
         bool hasChildren = _ctxTarget switch
         {
-            ComposerTreeNode n          => n.AllItems.Count > 0,
-            CanonPiece p                => p.HasTreeChildren,
-            SubpieceDisplayNode s       => s.HasChildren,
-            PieceOriginalNode o         => o.HasChildren,
-            VersionDisplayNode v        => v.HasSubpieces,
-            ContributedRoleGroupNode g  => g.Pieces.Count > 0,
-            ContributedPieceNode cp     => cp.HasChildren,
-            _                           => false,
+            ComposerTreeNode n              => n.AllItems.Count > 0,
+            CanonPiece p                    => p.HasTreeChildren,
+            SubpieceDisplayNode s           => s.HasChildren,
+            PieceOriginalNode o             => o.HasChildren,
+            VersionDisplayNode v            => v.HasSubpieces,
+            ContributedRoleGroupNode g      => g.Pieces.Count > 0,
+            ContributedPieceNode cp         => cp.HasChildren,
+            CrossComposerSubpieceNode ccn   => ccn.Subpiece.HasTreeChildren,
+            _                               => false,
+        };
+
+        bool isProvisional = _ctxTarget switch
+        {
+            ComposerTreeNode n => n.Composer.IsProvisional,
+            CanonPiece p       => p.IsProvisional,
+            _                  => false,
         };
 
         CtxEdit.IsEnabled        = canEdit;
         CtxExpandAll.IsEnabled   = hasChildren;
         CtxCollapseAll.IsEnabled = hasChildren;
         CtxShowAlbums.IsEnabled  = HitCountForTarget(_ctxTarget) > 0;
+        CtxApprove.IsEnabled     = isProvisional;
+        CtxReject.IsEnabled      = isProvisional;
     }
 
     private static int HitCountForTarget(object? target)
@@ -617,14 +714,15 @@ public partial class CanonView : UserControl
         if (idx is null || target is null) return 0;
         return target switch
         {
-            ComposerTreeNode n          => idx.CountForComposer(n.Composer.Name),
-            CanonComposer c             => idx.CountForComposer(c.Name),
-            PieceOriginalNode pon       => idx.CountForOriginal(pon.Piece),
-            VersionDisplayNode vdn      => idx.CountForVersion(vdn.Version),
-            SubpieceDisplayNode sdn     => idx.CountForPiece(sdn.Piece),
-            ContributedPieceNode cpn    => idx.CountForPiece(cpn.Piece),
-            ContributedRoleGroupNode g  => idx.CountForPieces(g.Pieces.Select(p => p.Piece)),
-            CanonPiece p                => idx.CountForPiece(p),
+            ComposerTreeNode n              => idx.CountForComposer(n.Composer.Name),
+            CanonComposer c                 => idx.CountForComposer(c.Name),
+            PieceOriginalNode pon           => idx.CountForOriginal(pon.Piece),
+            VersionDisplayNode vdn          => idx.CountForVersion(vdn.Version),
+            SubpieceDisplayNode sdn         => idx.CountForPiece(sdn.Piece),
+            ContributedPieceNode cpn        => idx.CountForPiece(cpn.Piece),
+            ContributedRoleGroupNode g      => idx.CountForPieces(g.Pieces.Select(p => p.Piece)),
+            CrossComposerSubpieceNode ccn   => idx.CountForPiece(ccn.Subpiece),
+            CanonPiece p                    => idx.CountForPiece(p),
             _ => 0
         };
     }
@@ -634,15 +732,16 @@ public partial class CanonView : UserControl
         var idx = PieceReferenceIndex.Current!;
         return target switch
         {
-            ComposerTreeNode n          => ($"Albums referencing works by {n.Composer.Name}",                      idx.HitsForComposer(n.Composer.Name)),
-            CanonComposer c             => ($"Albums referencing works by {c.Name}",                               idx.HitsForComposer(c.Name)),
-            PieceOriginalNode pon       => ($"Albums referencing “{pon.Piece.DisplayTitleShort}” (Original)",      idx.HitsForOriginal(pon.Piece)),
-            VersionDisplayNode vdn      => ($"Albums referencing {vdn.DisplayTitle}",                              idx.HitsForVersion(vdn.Version)),
-            SubpieceDisplayNode sdn     => ($"Albums referencing “{sdn.DisplayTitle}”",                            idx.HitsForPiece(sdn.Piece)),
-            ContributedPieceNode cpn    => ($"Albums referencing “{cpn.Piece.DisplayTitleShort}”",                 idx.HitsForPiece(cpn.Piece)),
-            ContributedRoleGroupNode g  => ($"Albums referencing {g.DisplayTitle}",                                idx.HitsForPieces(g.Pieces.Select(p => p.Piece))),
-            CanonPiece p                => ($"Albums referencing “{p.DisplayTitleShort}”",                         idx.HitsForPiece(p)),
-            _                           => ("", Array.Empty<PieceAlbumHit>()),
+            ComposerTreeNode n              => ($"Albums referencing works by {n.Composer.Name}",                      idx.HitsForComposer(n.Composer.Name)),
+            CanonComposer c                 => ($"Albums referencing works by {c.Name}",                               idx.HitsForComposer(c.Name)),
+            PieceOriginalNode pon           => ($"Albums referencing “{pon.Piece.DisplayTitleShort}” (Original)",      idx.HitsForOriginal(pon.Piece)),
+            VersionDisplayNode vdn          => ($"Albums referencing {vdn.DisplayTitle}",                              idx.HitsForVersion(vdn.Version)),
+            SubpieceDisplayNode sdn         => ($"Albums referencing “{sdn.DisplayTitle}”",                            idx.HitsForPiece(sdn.Piece)),
+            ContributedPieceNode cpn        => ($"Albums referencing “{cpn.Piece.DisplayTitleShort}”",                 idx.HitsForPiece(cpn.Piece)),
+            ContributedRoleGroupNode g      => ($"Albums referencing {g.DisplayTitle}",                                idx.HitsForPieces(g.Pieces.Select(p => p.Piece))),
+            CrossComposerSubpieceNode ccn   => ($"Albums referencing “{ccn.DisplayTitle}”",                            idx.HitsForPiece(ccn.Subpiece)),
+            CanonPiece p                    => ($"Albums referencing “{p.DisplayTitleShort}”",                         idx.HitsForPiece(p)),
+            _                               => ("", Array.Empty<PieceAlbumHit>()),
         };
     }
 
@@ -702,6 +801,87 @@ public partial class CanonView : UserControl
         if (_ctxTvi == null) return;
         SetExpandedRecursive(_ctxTvi, expand: false);
         _ctxTvi.IsExpanded = false;
+    }
+
+    private async void OnContextApprove(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        switch (_ctxTarget)
+        {
+            case ComposerTreeNode node:
+                node.Composer.IsProvisional = false;
+                _suppressAutoRefresh = true;
+                await vm.SaveComposersCommand.ExecuteAsync(null);
+                ApplySortedFilter(vm);
+                vm.StatusMessage = $"Approved {node.Composer.Name}.";
+                break;
+            case CanonPiece piece:
+                piece.IsProvisional = false;
+                _suppressAutoRefresh = true;
+                await vm.SavePiecesCommand.ExecuteAsync(null);
+                ApplySortedFilter(vm);
+                vm.StatusMessage = $"Approved {piece.DisplayTitle}.";
+                break;
+        }
+    }
+
+    private async void OnContextReject(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        switch (_ctxTarget)
+        {
+            case ComposerTreeNode node:
+            {
+                var name = node.Composer.Name;
+                // Pieces the composer owns get rejected too. SaveComposersAsync has
+                // an OnDelete: Restrict FK from pieces.composer_id, so the composer
+                // row can only be deleted after every piece it owns is gone.
+                var ownedPieces = vm.Pieces
+                    .Where(p => string.Equals(p.Composer, name,
+                                              StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var pieceTail = ownedPieces.Count switch
+                {
+                    0 => "",
+                    1 => $" and 1 piece",
+                    _ => $" and {ownedPieces.Count} pieces",
+                };
+                var confirm = MessageBox.Show(
+                    $"Delete provisional composer '{name}'{pieceTail}?",
+                    "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+                if (confirm != MessageBoxResult.OK) return;
+
+                foreach (var p in ownedPieces) vm.Pieces.Remove(p);
+                vm.Composers.Remove(node.Composer);
+                _suppressAutoRefresh = true;
+                if (ownedPieces.Count > 0)
+                    await vm.SavePiecesCommand.ExecuteAsync(null);     // pieces first (FK)
+                _suppressAutoRefresh = true;
+                await vm.SaveComposersCommand.ExecuteAsync(null);
+                UpdatePieceCounts(vm);
+                ApplySortedFilter(vm);
+                vm.StatusMessage = ownedPieces.Count > 0
+                    ? $"Rejected and deleted {name} and {ownedPieces.Count} piece(s)."
+                    : $"Rejected and deleted {name}.";
+                break;
+            }
+            case CanonPiece piece:
+            {
+                var title = piece.DisplayTitle;
+                var confirm = MessageBox.Show(
+                    $"Delete provisional piece '{title}'?",
+                    "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+                if (confirm != MessageBoxResult.OK) return;
+                vm.Pieces.Remove(piece);
+                _suppressAutoRefresh = true;
+                await vm.SavePiecesCommand.ExecuteAsync(null);
+                UpdatePieceCounts(vm);
+                ApplySortedFilter(vm);
+                vm.StatusMessage = $"Rejected and deleted {title}.";
+                break;
+            }
+        }
     }
 
     // ── Expand / collapse helpers ─────────────────────────────────────────────
@@ -1173,11 +1353,20 @@ public partial class CanonView : UserControl
             }
         }
 
+        // Cross-composer subpieces (collaborative-work parts, e.g. Ravel's
+        // Fanfare from L'éventail de Jeanne) — count one per cross-credit
+        // node, matching what appears under each composer's tree entry.
+        // Reusing CrossComposerSubpieceFinder keeps "what's counted" and
+        // "what's surfaced in the tree" in lockstep.
+        var crossComposerCounts = CrossComposerSubpieceFinder.Find(vm.Pieces)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.Count, StringComparer.OrdinalIgnoreCase);
+
         foreach (var composer in vm.Composers)
         {
             ownCounts.TryGetValue(composer.Name, out var own);
             contributedCounts.TryGetValue(composer.Name, out var contrib);
-            composer.PieceCount = own + contrib;
+            crossComposerCounts.TryGetValue(composer.Name, out var crossCredit);
+            composer.PieceCount = own + contrib + crossCredit;
         }
     }
 

@@ -21,7 +21,11 @@ public partial class PieceEditorWindow : Window
     private readonly List<CanonPiece> _subpieces;
     private readonly List<CanonPieceVersion> _versions;
     private readonly List<RoleEntry> _roles;
-    private readonly List<TempoInfo> _tempos;
+    // Markers are reference-shared with _piece — edits in MarkerEditorWindow
+    // mutate the actual MusicalMarker instances so their stable Ids stay
+    // attached to whatever album-track refs already point at them. Add/remove
+    // operations re-bind _piece.Markers via ApplyToPiece on save.
+    private readonly List<MusicalMarker> _markers;
     private readonly List<VariantInfo> _variants;
     private readonly List<InstrumentEntry> _pieceInstruments = [];
     private readonly List<CatalogInfo> _catalogEntries = [];
@@ -57,7 +61,9 @@ public partial class PieceEditorWindow : Window
         _subpieces  = _piece.Subpieces?.ToList() ?? [];
         _versions   = _piece.Versions?.ToList() ?? [];
         _roles      = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
-        _tempos     = _piece.Tempos?.Select(CloneTempo).ToList() ?? [];
+        // Markers are aliased into _markers (same instances). MarkerEditorWindow
+        // mutates the entries in place so stable Ids stay attached.
+        _markers    = _piece.Markers?.ToList() ?? [];
         _variants   = _piece.Variants?.Select(CloneVariant).ToList() ?? [];
 
         Title = BuildTitle(mode, piece == null);
@@ -67,7 +73,7 @@ public partial class PieceEditorWindow : Window
 
         PopulateDropdowns();
         LoadFromPiece();
-        RefreshTempoList();
+        RefreshMarkerList();
         RefreshSubpieceList();
         RefreshVersionList();
         RefreshRoleList();
@@ -100,7 +106,7 @@ public partial class PieceEditorWindow : Window
         _subpieces     = _piece.Subpieces?.ToList() ?? [];
         _versions      = [];  // versions cannot have nested versions
         _roles         = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
-        _tempos        = _piece.Tempos?.Select(CloneTempo).ToList() ?? [];
+        _markers       = _piece.Markers?.ToList() ?? [];
         _variants      = _piece.Variants?.Select(CloneVariant).ToList() ?? [];
 
         Title = BuildTitle(PieceEditorMode.Version, version == null);
@@ -116,7 +122,7 @@ public partial class PieceEditorWindow : Window
 
         PopulateDropdowns();
         LoadFromPiece();
-        RefreshTempoList();
+        RefreshMarkerList();
         RefreshSubpieceList();
         RefreshVersionList();
         RefreshRoleList();
@@ -162,11 +168,14 @@ public partial class PieceEditorWindow : Window
             // checkbox shows the right value.
             NumberedSubpieces      = numberedOverride ?? (showSubpieceNumbers ? null : false),
             SubpiecesStart         = v.SubpiecesStart,
-            FirstLine              = v.FirstLine,
             Notes                  = v.Notes,
             Variants               = v.Variants?.ToList(),
             Roles                  = v.Roles,
-            Tempos                 = v.Tempos?.ToList(),
+            // Markers are reference-shared (not cloned) so their stable Ids
+            // travel into the piece editor and back out on save. The legacy
+            // Tempos / FirstLine fields are no longer copied — every
+            // anchor entry lives on Markers now.
+            Markers                = v.Markers?.ToList(),
             Subpieces              = v.Subpieces?.ToList(),
         };
     }
@@ -197,11 +206,10 @@ public partial class PieceEditorWindow : Window
         v.CompositionYears      = _piece.CompositionYears;
         v.NumberedSubpieces     = _piece.NumberedSubpieces;
         v.SubpiecesStart        = _piece.SubpiecesStart;
-        v.FirstLine             = _piece.FirstLine;
         v.Notes                 = _piece.Notes;
         v.Variants              = _piece.Variants;
         v.Roles                 = _piece.Roles;
-        v.Tempos                = _piece.Tempos;
+        v.Markers               = _piece.Markers;
         v.Subpieces             = _piece.Subpieces;
     }
 
@@ -261,7 +269,6 @@ public partial class PieceEditorWindow : Window
         NumberedSubpiecesCheck.IsChecked = _piece.NumberedSubpieces ?? _piece.EffectiveSubpiecesNumbered;
         SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
         PubYearBox.Text = _piece.PublicationYear?.ToString() ?? "";
-        FirstLineBox.Text = _piece.FirstLine ?? "";
         NotesBox.Text = _piece.Notes ?? "";
 
         // Composition years (stored as a JSON string value)
@@ -306,7 +313,6 @@ public partial class PieceEditorWindow : Window
         _piece.Number = int.TryParse(NumberBox.Text.Trim(), out var n) ? n : null;
         _piece.MusicNumber = NullIfEmpty(MusicNumberBox.Text);
         _piece.PublicationYear = int.TryParse(PubYearBox.Text.Trim(), out var y) ? y : null;
-        _piece.FirstLine = NullIfEmpty(FirstLineBox.Text);
         _piece.Notes = NullIfEmpty(NotesBox.Text);
 
         var selectedMode = (KeyModeCombo.SelectedItem as ComboBoxItem)?.Content as string;
@@ -343,8 +349,11 @@ public partial class PieceEditorWindow : Window
         // Versions
         _piece.Versions = _versions.Count > 0 ? _versions.ToList() : null;
 
-        // Tempos
-        _piece.Tempos = _tempos.Count > 0 ? _tempos.ToList() : null;
+        // Markers — single anchor list now covers what the legacy Tempos +
+        // FirstLine fields used to. Preserves stable Ids on existing entries
+        // (the items in _markers are the actual MusicalMarker instances from
+        // the piece, not clones) so any track refs anchored to them stay valid.
+        _piece.Markers = _markers.Count > 0 ? _markers.ToList() : null;
 
         // Roles
         _piece.Roles = RoleEntry.SerializeRoles(_roles);
@@ -673,97 +682,115 @@ public partial class PieceEditorWindow : Window
         LongDescription = v.LongDescription,
     };
 
-    // --- Tempo management ---
+    // --- Marker management ---
+    // Markers carry stable Ids that album-track refs depend on, so they're
+    // edited in place rather than cloned. Add/Remove mutate the _markers list
+    // (and _piece.Markers via ApplyToPiece on save); Edit mutates the marker
+    // instance itself, so the Id never changes through a round-trip.
 
-    private void RefreshTempoList()
+    private void RefreshMarkerList()
     {
-        TempoList.Items.Clear();
-        foreach (var t in _tempos.OrderBy(t => t.Number))
+        var keep = SelectedMarker;
+        MarkerList.Items.Clear();
+        foreach (var m in _markers)
         {
-            var desc = !string.IsNullOrEmpty(t.Description) ? t.Description : "(no description)";
-            TempoList.Items.Add(new ListBoxItem
+            MarkerList.Items.Add(new ListBoxItem
             {
-                Content = $"{t.Number}. {desc}",
-                Tag = t
+                Content = FormatMarkerLabel(m),
+                Tag     = m,
             });
         }
+        if (keep is not null) SelectMarkerByRef(keep);
     }
 
-    private TempoInfo? SelectedTempo =>
-        (TempoList.SelectedItem as ListBoxItem)?.Tag as TempoInfo;
-
-    private void OnAddTempoClick(object sender, RoutedEventArgs e)
+    private static string FormatMarkerLabel(MusicalMarker m)
     {
-        var nextNumber = _tempos.Count > 0 ? _tempos.Max(t => t.Number) + 1 : 1;
-        var editor = new TempoEditorWindow(nextNumber) { Owner = this };
+        // Compact one-liner: "Kind: Value (bar N)" with bar / number elided
+        // when absent. Matches the density of the tempo list.
+        var sb = new System.Text.StringBuilder();
+        sb.Append(KindShort(m.Kind)).Append(": ");
+        sb.Append(string.IsNullOrEmpty(m.Value)
+            ? (m.BarNumber is { } bn ? $"bar {bn}" : "(no value)")
+            : m.Value);
+        if (!string.IsNullOrEmpty(m.Value) && m.BarNumber is { } bn2)
+            sb.Append("  (bar ").Append(bn2).Append(')');
+        return sb.ToString();
+    }
+
+    private static string KindShort(MarkerKind k) => k switch
+    {
+        MarkerKind.Tempo         => "Tempo",
+        MarkerKind.FirstLine     => "First line",
+        MarkerKind.RehearsalMark => "Rehearsal",
+        MarkerKind.BarNumber     => "Bar",
+        MarkerKind.Section       => "Section",
+        _                        => k.ToString(),
+    };
+
+    private MusicalMarker? SelectedMarker =>
+        (MarkerList.SelectedItem as ListBoxItem)?.Tag as MusicalMarker;
+
+    private void OnAddMarkerClick(object sender, RoutedEventArgs e)
+    {
+        var editor = new MarkerEditorWindow { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _tempos.Add(editor.Tempo);
-            RefreshTempoList();
+            _markers.Add(editor.Marker);
+            RefreshMarkerList();
+            SelectMarkerByRef(editor.Marker);
         }
     }
 
-    private void OnEditTempoClick(object sender, RoutedEventArgs e) => EditSelectedTempo();
+    private void OnEditMarkerClick(object sender, RoutedEventArgs e) => EditSelectedMarker();
 
-    private void OnTempoDoubleClick(object sender, MouseButtonEventArgs e) => EditSelectedTempo();
+    private void OnMarkerDoubleClick(object sender, MouseButtonEventArgs e) => EditSelectedMarker();
 
-    private void EditSelectedTempo()
+    private void EditSelectedMarker()
     {
-        if (SelectedTempo is not { } tempo) return;
-        var editor = new TempoEditorWindow(tempo) { Owner = this };
+        if (SelectedMarker is not { } marker) return;
+        var editor = new MarkerEditorWindow(marker) { Owner = this };
         if (editor.ShowDialog() == true)
-            RefreshTempoList();
+            RefreshMarkerList();
     }
 
-    private void OnRemoveTempoClick(object sender, RoutedEventArgs e)
+    private void OnRemoveMarkerClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedTempo is not { } tempo) return;
-        _tempos.Remove(tempo);
-        RefreshTempoList();
+        if (SelectedMarker is not { } marker) return;
+        _markers.Remove(marker);
+        RefreshMarkerList();
     }
 
-    private void OnMoveTempoUpClick(object sender, RoutedEventArgs e)
+    private void OnMoveMarkerUpClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedTempo is not { } tempo) return;
-        var ordered = _tempos.OrderBy(t => t.Number).ToList();
-        var idx = ordered.IndexOf(tempo);
+        if (SelectedMarker is not { } marker) return;
+        var idx = _markers.IndexOf(marker);
         if (idx <= 0) return;
-        (ordered[idx].Number, ordered[idx - 1].Number) =
-            (ordered[idx - 1].Number, ordered[idx].Number);
-        RefreshTempoList();
-        SelectTempoByRef(tempo);
+        (_markers[idx], _markers[idx - 1]) = (_markers[idx - 1], _markers[idx]);
+        RefreshMarkerList();
+        SelectMarkerByRef(marker);
     }
 
-    private void OnMoveTempoDownClick(object sender, RoutedEventArgs e)
+    private void OnMoveMarkerDownClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedTempo is not { } tempo) return;
-        var ordered = _tempos.OrderBy(t => t.Number).ToList();
-        var idx = ordered.IndexOf(tempo);
-        if (idx < 0 || idx >= ordered.Count - 1) return;
-        (ordered[idx].Number, ordered[idx + 1].Number) =
-            (ordered[idx + 1].Number, ordered[idx].Number);
-        RefreshTempoList();
-        SelectTempoByRef(tempo);
+        if (SelectedMarker is not { } marker) return;
+        var idx = _markers.IndexOf(marker);
+        if (idx < 0 || idx >= _markers.Count - 1) return;
+        (_markers[idx], _markers[idx + 1]) = (_markers[idx + 1], _markers[idx]);
+        RefreshMarkerList();
+        SelectMarkerByRef(marker);
     }
 
-    private void SelectTempoByRef(TempoInfo tempo)
+    private void SelectMarkerByRef(MusicalMarker marker)
     {
-        foreach (ListBoxItem item in TempoList.Items)
+        foreach (ListBoxItem item in MarkerList.Items)
         {
-            if (item.Tag == tempo)
+            if (item.Tag == marker)
             {
-                TempoList.SelectedItem = item;
+                MarkerList.SelectedItem = item;
                 break;
             }
         }
     }
-
-    private static TempoInfo CloneTempo(TempoInfo t) => new()
-    {
-        Number = t.Number,
-        Description = t.Description,
-        SubTempos = t.SubTempos?.Select(CloneTempo).ToList()
-    };
 
     // --- Catalog list ---
 

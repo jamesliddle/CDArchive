@@ -1,10 +1,14 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace CDArchive.App.ViewModels;
+
+/// <summary>Three-state filter controlling which items are shown by provisional status.</summary>
+public enum ProvisionalFilter { All, Provisional, Accepted }
 
 public partial class CanonViewModel : ObservableObject
 {
@@ -23,6 +27,9 @@ public partial class CanonViewModel : ObservableObject
     private string _composerFilter = "";
 
     [ObservableProperty]
+    private ProvisionalFilter _composerProvisionalFilter = ProvisionalFilter.All;
+
+    [ObservableProperty]
     private ObservableCollection<CanonComposer> _filteredComposers = [];
 
     // --- Pieces ---
@@ -35,6 +42,9 @@ public partial class CanonViewModel : ObservableObject
 
     [ObservableProperty]
     private string _piecesFilter = "";
+
+    [ObservableProperty]
+    private ProvisionalFilter _pieceProvisionalFilter = ProvisionalFilter.All;
 
     [ObservableProperty]
     private ObservableCollection<CanonPiece> _filteredPieces = [];
@@ -63,6 +73,8 @@ public partial class CanonViewModel : ObservableObject
 
     partial void OnComposerFilterChanged(string value) => ApplyComposerFilter();
     partial void OnPiecesFilterChanged(string value) => ApplyPiecesFilter();
+    partial void OnComposerProvisionalFilterChanged(ProvisionalFilter value) => ApplyComposerFilter();
+    partial void OnPieceProvisionalFilterChanged(ProvisionalFilter value) => ApplyPiecesFilter();
 
     partial void OnSelectedComposerChanged(CanonComposer? value)
     {
@@ -89,6 +101,27 @@ public partial class CanonViewModel : ObservableObject
             ApplyComposerFilter();
 
             var pieces = await _canonDataService.LoadPiecesAsync();
+
+            // Apply each composer's CatalogPrefixes preference to their pieces. This reorders
+            // CatalogInfo in-memory so DisplayTitle leads with the preferred catalog (e.g. Op.
+            // before B. for Chopin). The JSON file isn't touched here — a save path (edit piece,
+            // edit composer, or the one-off migration script) normalizes the on-disk order.
+            var prefsByComposer = composers
+                .Where(c => c.CatalogPrefixes is { Count: > 0 })
+                .ToDictionary(c => c.Name, c => c.CatalogPrefixes!,
+                    StringComparer.OrdinalIgnoreCase);
+            if (prefsByComposer.Count > 0)
+            {
+                foreach (var piece in pieces)
+                {
+                    if (piece.Composer is { } name &&
+                        prefsByComposer.TryGetValue(name, out var prefs))
+                    {
+                        piece.SortCatalogInfoByPreference(prefs);
+                    }
+                }
+            }
+
             Pieces = new ObservableCollection<CanonPiece>(pieces);
             ApplyPiecesFilter();
 
@@ -189,12 +222,18 @@ public partial class CanonViewModel : ObservableObject
     private void ApplyComposerFilter()
     {
         var filter = ComposerFilter.Trim();
-        var filtered = string.IsNullOrEmpty(filter)
-            ? Composers.ToList()
+        IEnumerable<CanonComposer> filtered = string.IsNullOrEmpty(filter)
+            ? Composers
             : Composers.Where(c =>
                 c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                c.SortName.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+                c.SortName.Contains(filter, StringComparison.OrdinalIgnoreCase));
+
+        filtered = ComposerProvisionalFilter switch
+        {
+            ProvisionalFilter.Provisional => filtered.Where(c => c.IsProvisional),
+            ProvisionalFilter.Accepted    => filtered.Where(c => !c.IsProvisional),
+            _                             => filtered,
+        };
 
         FilteredComposers = new ObservableCollection<CanonComposer>(
             filtered.OrderBy(c => !string.IsNullOrEmpty(c.SortName) ? c.SortName : c.Name,
@@ -217,7 +256,70 @@ public partial class CanonViewModel : ObservableObject
                 p.Summary.Contains(textFilter, StringComparison.OrdinalIgnoreCase));
         }
 
+        filtered = PieceProvisionalFilter switch
+        {
+            ProvisionalFilter.Provisional => filtered.Where(p => p.IsProvisional),
+            ProvisionalFilter.Accepted    => filtered.Where(p => !p.IsProvisional),
+            _                             => filtered,
+        };
+
         FilteredPieces = new ObservableCollection<CanonPiece>(filtered.ToList());
+    }
+
+    // ── Approval / rejection — Composers ─────────────────────────────────────
+
+    [RelayCommand]
+    private async Task ApproveComposerAsync()
+    {
+        if (SelectedComposer == null) return;
+        SelectedComposer.IsProvisional = false;
+        await _canonDataService.SaveComposersAsync(Composers.ToList());
+        ApplyComposerFilter();
+        StatusMessage = $"Approved {SelectedComposer.Name}.";
+    }
+
+    [RelayCommand]
+    private async Task RejectComposerAsync()
+    {
+        if (SelectedComposer == null) return;
+        var name = SelectedComposer.Name;
+        var confirm = MessageBox.Show(
+            $"Delete provisional composer '{name}' and all associated data?",
+            "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+        Composers.Remove(SelectedComposer);
+        SelectedComposer = null;
+        await _canonDataService.SaveComposersAsync(Composers.ToList());
+        ApplyComposerFilter();
+        StatusMessage = $"Rejected and deleted {name}.";
+    }
+
+    // ── Approval / rejection — Pieces ─────────────────────────────────────────
+
+    [RelayCommand]
+    private async Task ApprovePieceAsync()
+    {
+        if (SelectedPiece == null) return;
+        SelectedPiece.IsProvisional = false;
+        await _canonDataService.SavePiecesAsync(Pieces.ToList());
+        ApplyPiecesFilter();
+        StatusMessage = $"Approved {SelectedPiece.DisplayTitle}.";
+    }
+
+    [RelayCommand]
+    private async Task RejectPieceAsync()
+    {
+        if (SelectedPiece == null) return;
+        var title = SelectedPiece.DisplayTitle;
+        var confirm = MessageBox.Show(
+            $"Delete provisional piece '{title}'?",
+            "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+        Pieces.Remove(SelectedPiece);
+        SelectedPiece = null;
+        await _canonDataService.SavePiecesAsync(Pieces.ToList());
+        ApplyPiecesFilter();
+        StatusMessage = $"Rejected and deleted {title}.";
     }
 
 }

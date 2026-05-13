@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
@@ -18,6 +19,7 @@ public partial class AlbumsViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<CanonAlbum> _albums = [];
     [ObservableProperty] private CanonAlbum? _selectedAlbum;
     [ObservableProperty] private string _filterText = "";
+    [ObservableProperty] private ProvisionalFilter _provisionalFilter = ProvisionalFilter.All;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = "";
 
@@ -73,6 +75,7 @@ public partial class AlbumsViewModel : ObservableObject
     // ── Filtering ────────────────────────────────────────────────────────────
 
     partial void OnFilterTextChanged(string value) => ApplyFilter();
+    partial void OnProvisionalFilterChanged(ProvisionalFilter value) => ApplyFilter();
 
     public void ApplyFilter()
     {
@@ -87,13 +90,49 @@ public partial class AlbumsViewModel : ObservableObject
                 (a.CatalogueNumber?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (a.Performers?.Any(p => p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)) ?? false));
 
+        filtered = ProvisionalFilter switch
+        {
+            ProvisionalFilter.Provisional => filtered.Where(a => a.IsProvisional),
+            ProvisionalFilter.Accepted    => filtered.Where(a => !a.IsProvisional),
+            _                             => filtered,
+        };
+
         var sorted = ApplySort(filtered).ToList();
 
         Albums = new ObservableCollection<CanonAlbum>(sorted);
 
-        StatusMessage = filter.Length > 0
+        StatusMessage = filter.Length > 0 || ProvisionalFilter != ProvisionalFilter.All
             ? $"{Albums.Count} of {_allAlbums.Count} album(s)"
             : $"{_allAlbums.Count} album(s)";
+    }
+
+    // ── Approval / rejection ─────────────────────────────────────────────────
+
+    /// <summary>Approves the given album: clears IsProvisional and persists.</summary>
+    public async Task ApproveAlbumAsync(CanonAlbum album)
+    {
+        album.IsProvisional = false;
+        await SaveAsync();
+        ApplyFilter();
+        StatusMessage = $"Approved {album.DisplayTitle}.";
+    }
+
+    /// <summary>
+    /// Rejects the given album: prompts for confirmation, removes it from the
+    /// in-memory list, and persists (which deletes the row via the SaveAlbumsAsync
+    /// orphan-cleanup pass).
+    /// </summary>
+    public async Task RejectAlbumAsync(CanonAlbum album)
+    {
+        var title = album.DisplayTitle;
+        var confirm = MessageBox.Show(
+            $"Delete provisional album '{title}'?",
+            "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+        _allAlbums.Remove(album);
+        await SaveAsync();
+        ApplyFilter();
+        StatusMessage = $"Rejected and deleted {title}.";
     }
 
     private IEnumerable<CanonAlbum> ApplySort(IEnumerable<CanonAlbum> source)

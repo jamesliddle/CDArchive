@@ -116,13 +116,18 @@
                         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
                             <Button x:Name="AddPieceRefButton" Content="Add"
                                     Padding="10,4" Click="OnAddPieceRef" />
+                            <Button x:Name="EditPieceRefButton" Content="Details…"
+                                    Padding="10,4" Margin="6,0,0,0"
+                                    ToolTip="Set start/end markers and range across sibling subpieces"
+                                    IsEnabled="False" Click="OnEditPieceRefDetails" />
                             <Button x:Name="RemovePieceRefButton" Content="Remove"
                                     Padding="10,4" Margin="6,0,0,0"
                                     IsEnabled="False" Click="OnRemovePieceRef" />
                         </StackPanel>
                         <ListBox x:Name="PieceRefList" MinHeight="80" MaxHeight="160"
                                  BorderThickness="1" BorderBrush="#CCC" Margin="0,6,0,0"
-                                 SelectionChanged="OnPieceRefSelectionChanged">
+                                 SelectionChanged="OnPieceRefSelectionChanged"
+                                 MouseDoubleClick="OnPieceRefDoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DisplaySummary}"

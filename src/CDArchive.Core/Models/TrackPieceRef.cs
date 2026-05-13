@@ -24,10 +24,46 @@ public class TrackPieceRef
     ///   <item>["Allegro"] — a single movement at the first level.</item>
     ///   <item>["Act I", "No. 3 Aria"] — a nested section.</item>
     /// </list>
+    /// When <see cref="EndSubpiecePath"/> is non-null, this is the <em>start</em>
+    /// of an inclusive range over sibling subpieces.
     /// </summary>
     [JsonPropertyName("subpiece_path")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? SubpiecePath { get; set; }
+
+    /// <summary>
+    /// Optional end path for range-spanning track refs (collaborative-work
+    /// scenarios where one track spans several adjacent subpieces).
+    /// <para>
+    /// Must be a sibling of <see cref="SubpiecePath"/> at the same depth and
+    /// under the same parent. Resolution credits every leaf subpiece in
+    /// <c>[SubpiecePath..EndSubpiecePath]</c> inclusive, so a track that
+    /// covers Act III sections 3j through 3l ends up crediting 3j, 3k, 3l.
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("end_subpiece_path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? EndSubpiecePath { get; set; }
+
+    /// <summary>
+    /// Optional marker pinning the start of the track inside the referenced
+    /// subpiece. Resolves through <see cref="MarkerReference.Id"/> first,
+    /// falling back to kind+value/bar-number matching against the subpiece's
+    /// <see cref="CanonPiece.Markers"/> list.
+    /// </summary>
+    [JsonPropertyName("start_marker")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MarkerReference? StartMarker { get; set; }
+
+    /// <summary>
+    /// Optional marker pinning the end of the track. When set without
+    /// <see cref="EndSubpiecePath"/>, the end marker lives in the same
+    /// subpiece as <see cref="StartMarker"/>; with <see cref="EndSubpiecePath"/>
+    /// set, it lives in the end subpiece.
+    /// </summary>
+    [JsonPropertyName("end_marker")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MarkerReference? EndMarker { get; set; }
 
     /// <summary>
     /// Optional display label that overrides how the reference is shown in list views,
@@ -53,6 +89,7 @@ public class TrackPieceRef
     /// Single-line display, e.g. "Beethoven – Piano Sonata No. 4: Allegro molto e con brio".
     /// When a version is referenced, its description is appended in parentheses before
     /// the subpiece path, e.g. "… (arr. for piano duet): Allegro".
+    /// Marker anchors and end-paths/markers are appended when present.
     /// </summary>
     [JsonIgnore]
     public string DisplaySummary
@@ -65,6 +102,12 @@ public class TrackPieceRef
                 sb.Append(" (").Append(VersionDescription).Append(')');
             if (SubpiecePath is { Count: > 0 })
                 sb.Append(": ").Append(string.Join(" › ", SubpiecePath));
+            if (StartMarker is not null)
+                sb.Append(" [from ").Append(StartMarker).Append(']');
+            if (EndSubpiecePath is { Count: > 0 })
+                sb.Append(" through ").Append(string.Join(" › ", EndSubpiecePath));
+            if (EndMarker is not null)
+                sb.Append(" [to ").Append(EndMarker).Append(']');
             return sb.ToString();
         }
     }
@@ -72,6 +115,14 @@ public class TrackPieceRef
     /// <summary>True if the ref points at the whole piece (no subpiece path).</summary>
     [JsonIgnore]
     public bool IsWholePiece => SubpiecePath is null or { Count: 0 };
+
+    /// <summary>True if the ref describes a range across sibling subpieces.</summary>
+    [JsonIgnore]
+    public bool IsRange => EndSubpiecePath is { Count: > 0 };
+
+    /// <summary>True if the ref pins a specific marker as its start.</summary>
+    [JsonIgnore]
+    public bool HasMarkerAnchor => StartMarker is not null || EndMarker is not null;
 }
 
 // ── Referential-integrity support types ─────────────────────────────────────

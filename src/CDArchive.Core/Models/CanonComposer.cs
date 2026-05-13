@@ -54,6 +54,9 @@ public class CanonComposer
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? CatalogPrefixes { get; set; }
 
+    [JsonPropertyName("is_provisional")]
+    public bool IsProvisional { get; set; } = true;
+
     /// <summary>
     /// Extracts just the year from a date string like "1803-07-24" or returns the birth_notes.
     /// </summary>

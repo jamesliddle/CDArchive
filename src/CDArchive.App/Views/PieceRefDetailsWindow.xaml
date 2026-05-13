@@ -1,0 +1,60 @@
+<Window x:Class="CDArchive.App.Views.PieceRefDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit Piece-Ref Details" Width="640" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False">
+    <StackPanel Margin="16">
+
+        <!-- Summary banner (read-only) -->
+        <TextBlock Text="Reference" FontWeight="SemiBold" FontSize="12"
+                   Foreground="#555" Margin="0,0,0,4" />
+        <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                Padding="8" Margin="0,0,0,8">
+            <TextBlock x:Name="SummaryText"
+                       FontSize="13" TextWrapping="Wrap"
+                       Foreground="#222" />
+        </Border>
+
+        <!-- Range -->
+        <CheckBox x:Name="RangeCheck" FontSize="12"
+                  Content="This track covers a range of sibling subpieces"
+                  Checked="OnRangeChanged" Unchecked="OnRangeChanged" />
+
+        <DockPanel x:Name="RangePanel" LastChildFill="True" Margin="0,6,0,0" IsEnabled="False">
+            <TextBlock Text="End subpiece:" VerticalAlignment="Center"
+                       FontSize="12" Foreground="#555"
+                       DockPanel.Dock="Left" Margin="0,0,8,0" />
+            <ComboBox x:Name="EndSubpieceCombo" FontSize="12" Padding="4,3"
+                      SelectionChanged="OnEndSubpieceChanged" />
+        </DockPanel>
+        <TextBlock x:Name="RangeNote"
+                   FontSize="10" Foreground="#888" Margin="0,4,0,0"
+                   TextWrapping="Wrap"
+                   Text="The range covers every leaf subpiece from the start path through the chosen end subpiece, inclusive." />
+
+        <!-- Start marker -->
+        <TextBlock Text="Start marker" FontWeight="SemiBold" FontSize="12"
+                   Foreground="#555" Margin="0,14,0,4" />
+        <ComboBox x:Name="StartMarkerCombo" FontSize="12" Padding="4,3" />
+        <TextBlock x:Name="StartMarkerHint"
+                   FontSize="10" Foreground="#888" Margin="0,2,0,0"
+                   TextWrapping="Wrap" />
+
+        <!-- End marker -->
+        <TextBlock Text="End marker" FontWeight="SemiBold" FontSize="12"
+                   Foreground="#555" Margin="0,12,0,4" />
+        <ComboBox x:Name="EndMarkerCombo" FontSize="12" Padding="4,3" />
+        <TextBlock x:Name="EndMarkerHint"
+                   FontSize="10" Foreground="#888" Margin="0,2,0,0"
+                   TextWrapping="Wrap" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="OK" Width="80" Padding="0,6"
+                    IsDefault="True" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Padding="0,6"
+                    Margin="8,0,0,0" IsCancel="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

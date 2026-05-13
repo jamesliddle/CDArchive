@@ -43,6 +43,13 @@ public class CanonAlbum
     public string? Notes { get; set; }
 
     /// <summary>
+    /// True until the album is explicitly approved. New albums imported from iTunes
+    /// start provisional; the user opts them into the canon by approving.
+    /// </summary>
+    [JsonPropertyName("is_provisional")]
+    public bool IsProvisional { get; set; } = true;
+
+    /// <summary>
     /// Optional volume grouping for large box sets (e.g. the Brilliant Classics Bach Edition).
     /// null for single-disc albums and ordinary multi-disc sets.
     /// Each <see cref="AlbumDisc"/> references its volume via <see cref="AlbumDisc.VolumeNumber"/>.
@@ -73,14 +80,32 @@ public class CanonAlbum
     // ── Computed helpers ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Stable identity key used for merge/deduplication: "Label|CatalogueNumber".
-    /// Returns null if either component is missing.
+    /// Stable identity key used for merge / deduplication. Builds a composite
+    /// of <c>Label|CatalogueNumber|Title|Subtitle</c>, trimming and using empty
+    /// strings for nulls. Albums with no Label or CatalogueNumber (the user's
+    /// classical-music collection has many of these — Böhm Beethoven cycles,
+    /// Bernstein Mahler, etc.) still get a stable key from Title+Subtitle so
+    /// the data service's <c>SaveAlbumsAsync</c> matches them on save instead
+    /// of inserting duplicates.
+    /// <para>
+    /// Returns null only when every component is empty — which would be a
+    /// genuinely unidentified album that always inserts fresh.
+    /// </para>
     /// </summary>
     [JsonIgnore]
-    public string? IdentityKey =>
-        !string.IsNullOrWhiteSpace(Label) && !string.IsNullOrWhiteSpace(CatalogueNumber)
-            ? $"{Label.Trim()}|{CatalogueNumber.Trim()}"
-            : null;
+    public string? IdentityKey
+    {
+        get
+        {
+            var label    = (Label           ?? "").Trim();
+            var catalog  = (CatalogueNumber ?? "").Trim();
+            var title    = (Title           ?? "").Trim();
+            var subtitle = (Subtitle        ?? "").Trim();
+            if (label.Length == 0 && catalog.Length == 0 && title.Length == 0 && subtitle.Length == 0)
+                return null;
+            return $"{label}|{catalog}|{title}|{subtitle}";
+        }
+    }
 
     /// <summary>Short title for list views.</summary>
     [JsonIgnore]
@@ -191,6 +216,13 @@ public class AlbumTrack
     [JsonPropertyName("session_index")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? SessionIndex { get; set; }
+
+    /// <summary>
+    /// True until the track is explicitly approved. New tracks imported from iTunes
+    /// start provisional; can be approved individually or as part of bulk album approval.
+    /// </summary>
+    [JsonPropertyName("is_provisional")]
+    public bool IsProvisional { get; set; } = true;
 
     /// <summary>
     /// Track-level SPARS code override (e.g. "DDD", "ADD").

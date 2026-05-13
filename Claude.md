@@ -28,10 +28,11 @@ The application has two major subsystems:
 ```
 CDArchive/
   data/
-    Classical Canon composers.json     # Canonical composer reference (JSON array)
-    Classical Canon pieces.json        # Canonical works reference (JSON array)
-    Classical Canon pick lists.json    # Dropdown/pick-list values (forms, keys, etc.)
-    ClassicalCanon.db                  # SQLite database (auto-created, seeded from JSON)
+    ClassicalCanon.db                  # SQLite database — single source of truth at runtime
+    Classical Canon composers.json     # Optional JSON snapshots — used only for one-shot
+    Classical Canon pieces.json        #   import/export via the seeder tool or the
+    Classical Canon pick lists.json    #   Import/Export screen. Not auto-synced with the DB.
+    Classical Canon albums.json
   src/
     CDArchive.App/                     # WPF application
       ViewModels/                      # MVVM view models
@@ -41,12 +42,15 @@ CDArchive/
       App.xaml / App.xaml.cs           # Startup, DI container, DataTemplates
       MainWindow.xaml                  # Shell: nav bar + content area
     CDArchive.Core/                    # Business logic library
-      Models/                          # Data models (CanonPiece, CanonComposer, etc.)
-      Services/                        # Data access, conversion, archive scanning
-      Data/                            # EF Core DbContext and row entities
+      Models/                          # Domain models (CanonPiece, CanonComposer, CanonAlbum, …)
+      Services/                        # Data access, conversion, archive scanning, ref index
+      Data/                            # EF Core DbContext, row entities, CanonDbSeeder
       Helpers/
       ServiceCollectionExtensions.cs   # DI registration
+  tools/
+    CDArchive.Tools.SeedDb/            # One-shot CLI: seeds the DB from JSON, exports DB → JSON
   tests/
+    CDArchive.Core.Tests/              # xUnit suite (model, parser, round-trip, invariants)
   scripts/
   docs/
 ```
@@ -72,6 +76,7 @@ Represents a classical music composer.
 | DeathPlace | string? | `death_local_place` | |
 | DeathState | string? | `death_state` | |
 | DeathCountry | string? | `death_country` | |
+| IsProvisional | bool | `is_provisional` | Defaults to `true`; cleared explicitly via Approve. Stored in the `is_provisional` column of the `composers` table. |
 
 Computed properties: `BirthYear`, `DeathYear`, `LifeSpan`, `BirthLocation`, `DeathLocation`, `BirthYearSort`, `DeathYearSort`, `PieceCount`.
 
@@ -91,6 +96,7 @@ Represents a musical work. This is a recursive, hierarchical model -- a piece ca
 | Form | string? | `form` | Musical form (Sonata, Symphony, etc.) |
 | Number | int? | `number` | Work number within form |
 | MusicNumber | int? | `music_number` | Traditional numbering (e.g. opera scene numbers) |
+| IsProvisional | bool | `is_provisional` | Defaults to `true`; cleared explicitly via Approve. Stored in the `is_provisional` column of the `pieces` table. |
 
 **Tonality:**
 
@@ -180,38 +186,116 @@ Reference data for editor dropdowns:
 
 When a user renames a pick-list value in any editor, the rename propagates to all pieces using that value. Renames are tracked via dictionaries (`FormRenames`, `CategoryRenames`, `CatalogRenames`, `KeyRenames`) and applied after dialog close.
 
+### Album (`CanonAlbum`)
+
+Represents a physical CD release the owner has ripped. Albums own one or more `AlbumDisc`s, each owning `AlbumTrack`s; tracks carry zero or more `TrackPieceRef`s linking them back into the canon piece tree.
+
+| Field | Type | Notes |
+|---|---|---|
+| `Title` / `Subtitle` | string? | |
+| `Label` / `CatalogueNumber` / `Barcode` | string? | Identifying release info |
+| `SparsCode` | string? | "DDD", "ADD", etc. |
+| `IsStereo` | bool? | |
+| `Volumes` | List\<AlbumVolume\>? | For multi-disc box-set hierarchies |
+| `Sessions` | List\<RecordingSession\>? | Date / venue / engineers / producers |
+| `Performers` | List\<AlbumPerformer\>? | Album-level performer credits |
+| `Discs` | List\<AlbumDisc\> | One entry per physical disc |
+
+Each `AlbumTrack` carries `TrackNumber`, `Duration`, `Description`, `SparsCode`, `SessionIndex`, `Performers`, and `PieceRefs` (`List<TrackPieceRef>`). A `TrackPieceRef` is the (composer, piece-title, optional subpiece-path, optional version-description) tuple that resolves to a `CanonPiece` / `CanonPieceVersion` via `PieceReferenceIndex`.
+
+### Provisional Status
+
+Composers and pieces carry an `IsProvisional` flag (default `true`). It distinguishes data that has been auto-created (iTunes import, ad-hoc imports, in-code defaults) from data that has been explicitly reviewed and approved by the user.
+
+- **Display:** Provisional items show a `(provisional)` suffix in the Canon view, beside the composer's lifespan or the piece's title.
+- **Filter:** Each list has a three-state **Show** dropdown — *All* / *Provisional* / *Accepted* — bound to `ComposerProvisionalFilter` and `PieceProvisionalFilter` on `CanonViewModel`.
+- **Approve / Reject:** Right-click a provisional composer or piece. *Approve* sets `IsProvisional = false` and saves. *Reject* prompts for confirmation, then hard-deletes the row.
+- **Persistence:** `IsProvisional` is a real SQLite column (`composers.is_provisional`, `pieces.is_provisional`, both `INTEGER NOT NULL`). It is also exported in the JSON snapshots as `is_provisional` for round-trip via the seeder tool's `--export` / re-seed cycle.
+- **Migration default:** When the `is_provisional` column is added to an existing database, the `DEFAULT 1` clause flips every pre-existing row to provisional. The contract is uniform — every row starts provisional and is opted into the canon by an explicit Approve, including data that pre-dated the flag.
+
+### Album reference resolution (`PieceReferenceIndex`)
+
+The runtime cross-reference between albums and the piece tree lives in a single singleton service. It builds three lookup tables on `Rebuild(pieces, albums)`:
+
+- **`_byComposerTitle`** — composer-name → (normalized title → `IndexEntry(piece, setAncestors)`). Indexes every title variant a ref might use: `Title`, `DisplayTitle`, `DisplayTitleShort`, plus stripped-nickname/subtitle versions. **Set members are recursively re-indexed at top level under their own titles** so a ref like `"Piano Sonata #1 in f, Op. 2 #1"` resolves directly to the sonata, with movements addressable via `subpiece_path`.
+- **`_hitsForPiece` / `_hitsForVersion` / `_hitsForOriginal` / `_hitsForComposer`** — domain models → list of `PieceAlbumHit`. Drives the album-count badges in the UI.
+
+Set containers (`form: "set"` pieces) get their hit list computed by an `AggregateSetHits` post-pass: a set's badge counts only albums that contain *every* member of the set, computed by intersecting member-album sets. This prevents a partial-set album from incorrectly crediting the container.
+
+Resolution is tolerant: bad refs are silently dropped at runtime (the seeder reports them in its summary instead).
+
 ---
 
 ## Data Persistence Architecture
 
-### Dual storage: SQLite + JSON write-through
+### SQLite is the single source of truth
 
-The application uses `SqliteCanonDataService` as its primary data service. It stores data in a SQLite database (`ClassicalCanon.db`) with EF Core, but **every save operation also writes the data back to the canonical JSON files**. This ensures the JSON files always reflect the current state of the database and serve as a human-readable backup.
+`ClassicalCanon.db` (EF Core 8 + Microsoft.Data.Sqlite) holds all canon data at runtime. The JSON files in `data/` are decoupled from the runtime entirely — they exist only as input to the seeder tool and as output of explicit export operations. Saving through the WPF app writes to SQLite and *only* to SQLite.
 
 ```
 User edits piece in UI
   -> CanonViewModel.SavePiecesCommand
     -> SqliteCanonDataService.SavePiecesAsync()
-      -> EF Core upsert to SQLite
-      -> CanonDataService.SavePiecesAsync()  (JSON write-through)
+      -> EF Core upsert to SQLite (only)
 ```
 
-### Database schema
+This is a deliberate departure from an earlier dual-write design (SQLite + JSON write-through) that allowed the two stores to silently diverge — see *Lessons Learned: JSON write-through divergence*.
 
-**Pieces table** -- Scalar columns for indexed/searchable fields, JSON blob columns for complex nested data:
-- Indexed: `Composer`, `InstrumentationCategory`, composite `(Composer, CatalogSortPrefix, CatalogSortNumber, CatalogSortSuffix)`
-- JSON blobs: `CatalogInfoJson`, `InstrumentationJson`, `SubpiecesJson`, `VersionsJson`, `RolesJson`, `TemposJson`, `TextAuthorJson`, etc.
-- Sort helpers: `CatalogSortPrefix`, `CatalogSortNumber` (int), `CatalogSortSuffix` -- derived from `CatalogInfo` at save time for efficient `ORDER BY`
+### Schema (normalized)
 
-**Composers table** -- Flat columns mirroring `CanonComposer` properties. Indexed on `SortName`.
+The schema is defined by `CanonDbContext` and the row entities under `src/CDArchive.Core/Data/`. Tables and columns use `snake_case`. The schema is fully relational; large flexible substructures (Instrumentation, Roles, TextAuthor, etc.) are stored as JSON-blob columns on the parent row, but ownership relationships, catalog entries, tempos, composer credits, variants, and album-track piece-refs are all proper tables with foreign keys.
 
-**Settings table** -- Key/value store. Currently holds `pick_lists` (JSON blob of `CanonPickLists`).
+**Composers** — `composers`, `composer_aliases`, `composer_catalog_prefixes`. Indexed on `sort_name`.
+
+**Pieces** — `pieces` (recursive: `parent_piece_id` for movements, `parent_version_id` for version-of-version movements), plus side tables `piece_versions`, `piece_catalog_entries`, `piece_tempos` (recursive), `piece_composer_credits`, `piece_variants`. Sort helpers `catalog_sort_prefix` / `catalog_sort_number` / `catalog_sort_suffix` are computed at save time from `CatalogInfo[0]` for efficient `ORDER BY`.
+
+**Albums** — `albums`, `album_volumes`, `album_discs`, `album_tracks`, `album_track_piece_refs`, `album_performers` (with `track_id` nullable for album-level vs track-level performers), `album_sessions`.
+
+**Pick lists** — `pick_list_values` keyed by `list_name`/`position`.
+
+**Multi-owner CHECK constraints.** Several tables have a row that may be owned by one of several principals — for example `piece_catalog_entries` belongs to either a piece or a version, and `piece_tempos` belongs to a piece, version, or another tempo (sub-tempo). These tables carry CHECK constraints requiring exactly one of the owner FKs to be non-null. The save path explicitly `Remove()`s orphaned rows before clearing navigation collections, because EF nulls the FK on orphan and would otherwise create rows that violate the CHECK.
 
 ### Database lifecycle
 
-1. **First run**: `EnsureInitialisedAsync()` creates the database and seeds from JSON files if the Pieces table is empty.
-2. **Normal operation**: All reads come from SQLite; all writes go to SQLite + JSON.
-3. **Recovery**: If the database is corrupted or needs to be rebuilt, the user can delete it via Import/Export and it will be re-seeded from JSON on next launch.
+1. **Schema creation.** `SqliteCanonDataService.EnsureInitializedAsync()` is called lazily on the first `Load*Async` / `Save*Async`. It creates the schema if absent. **It does not auto-seed.** It then runs `ApplySchemaUpgradesAsync`, which uses `PRAGMA table_info` to detect missing columns and issues idempotent `ALTER TABLE` statements (e.g. the `is_provisional` columns added after the initial schema snapshot). These upgrades are append-only and safe to run on every startup; they let the model evolve without manual EF migrations.
+2. **Initial population.** Run the seeder tool once on a clean checkout:
+   ```
+   dotnet run --project tools/CDArchive.Tools.SeedDb
+   ```
+   The seeder reads the four JSON files in `data/`, builds the full piece tree + album cross-references via `PieceReferenceIndex`, and populates the SQLite database. It reports counts and any unresolved refs.
+3. **Normal operation.** Reads and writes go to SQLite only.
+4. **Recovery.** Delete `data/ClassicalCanon.db` and re-run the seeder. The JSON files in `data/` serve as the recovery source; keep them up to date with periodic `--export` runs (see below).
+
+### Backing up to JSON: `--export` mode
+
+```
+dotnet run --project tools/CDArchive.Tools.SeedDb -- --export
+```
+
+Loads everything from SQLite via `SqliteCanonDataService` and writes the four canonical JSON files via `CanonDataService` directly. The two services are deliberately decoupled:
+
+- `SqliteCanonDataService` reads/writes only SQLite.
+- `CanonDataService` reads/writes only JSON.
+- `--export` is the explicit composition of the two ("load from DB" → "save to JSON"). It is the *only* path that converts SQLite → JSON; nothing else does, ever.
+
+This composition rule is tested by `SaveOperations_DoNotTouchJsonFiles` (round-trips every subsystem through `SqliteCanonDataService.Save*Async`, asserts JSON-file mtimes are unchanged).
+
+### Inspecting the database
+
+`ClassicalCanon.db` is a standard SQLite 3 file. You can open it with any SQLite tool (DB Browser for SQLite, SQLiteStudio, DataGrip, the `sqlite3` CLI, the VS Code SQLite extension, Chrome SQLite browser extensions). Two important caveats:
+
+- **Close the WPF app first** to release the file lock before editing.
+- **Journal mode must stay `delete`.** Browser-based tools (sql.js / WASM) cannot read WAL-mode databases. If something flips the file to WAL mode (look for `.db-wal` / `.db-shm` sidecar files appearing), restore it with:
+  ```
+  sqlite3 data/ClassicalCanon.db "PRAGMA journal_mode=DELETE;"
+  ```
+  The setting is persisted in the file header and survives subsequent app runs. We don't enable WAL anywhere in our own code, but a third-party tool might.
+
+Direct edits to the DB persist as expected — the next app save will simply update the modified rows. They do **not** propagate to the JSON files; run `--export` afterward if you need the JSON snapshots refreshed.
+
+### Data directory resolution
+
+Both `CanonDataService` (parameterless ctor) and `tools/CDArchive.Tools.SeedDb`'s `FindRepoRoot()` walk up from the assembly location looking for a `data/` folder containing **either** `Classical Canon composers.json` **or** `ClassicalCanon.db`. Either marker is sufficient — that way the resolver still finds the data directory after the JSON files have been deleted, and after the database has been deleted too (if the JSONs are present).
 
 ---
 
@@ -240,19 +324,20 @@ This design was adopted because WPF's `DataTemplate` pattern creates a new `User
 
 ## Import / Export
 
-The Import/Export screen (`ImportExportViewModel`) provides:
+The Import/Export screen (`ImportExportViewModel`) provides explicit, user-driven JSON ↔ SQLite operations. None of these run automatically — JSON output and JSON-input restore are always deliberate steps.
 
 | Operation | Behavior |
 |---|---|
-| **Export Composers** | Save composers to a user-chosen JSON file (defaults to canonical path/name) |
-| **Export Pieces** | Save pieces to a user-chosen JSON file (defaults to canonical path/name) |
-| **Sync to Canonical JSON** | Bulk write-through: loads all data from DB, writes to all three canonical JSON files |
-| **Import Composers** | Merge-only: adds composers not already in DB (matched by `Name`, case-insensitive). No overwrite. |
-| **Import Pieces** | Merge-only: adds pieces not already in DB (matched by `Composer` + `Title` composite key, case-insensitive). No overwrite. |
-| **Delete Database** | Deletes `ClassicalCanon.db` with confirmation. App re-seeds from JSON on next launch. |
-| **Reseed from JSON** | Lets user pick replacement JSON files, deletes DB, recreates and seeds from the selected files. |
+| **Export Composers** | Reads composers from SQLite and writes them to a user-chosen JSON file (default location: the canonical path). |
+| **Export Pieces** | Same, for pieces. |
+| **Normalise** | Loads each subsystem from SQLite and saves it back. Re-applies derived ordering (catalog sort prefix/number/suffix, composer-preferred catalog ordering). Touches SQLite only — the JSON files are not affected. |
+| **Import Composers** | Merge-only: deserialises a user-picked JSON file and adds composers not already in the DB (matched by `Name`, case-insensitive). Existing rows are never overwritten. |
+| **Import Pieces** | Merge-only: deserialises a user-picked JSON file and adds pieces not already in the DB (matched by `Composer` + `Title` composite key, case-insensitive). Existing rows are never overwritten. |
+| **Restore from JSON** | Lets the user pick replacement JSON files. Loads them into the SQLite store, replacing the current data. The on-disk JSON files are not modified — data flows JSON → SQLite only. |
 
-**Import format**: Accepts both single-object `{}` and array `[]` JSON. Uses `JsonDocument.Parse` to detect the root element kind before deserialization.
+**Import format**: Both single-object `{}` and array `[]` JSON are accepted. `JsonDocument.Parse` detects the root element kind before deserialization.
+
+**There is no "Sync to Canonical JSON" button anymore.** Use the seeder tool's `--export` mode for that (see *Backing up to JSON* above). The previous design's automatic bidirectional sync is what allowed JSON ↔ SQLite divergence; explicit user-triggered export is the safer alternative.
 
 ---
 
@@ -396,26 +481,86 @@ When a user renames a value in a pick list (e.g., renaming a Form from "Concerti
 
 **Solution**: Set `LastChildFill="False"` on the `DockPanel`.
 
+### JSON write-through divergence
+
+**Problem**: An earlier design had every `SqliteCanonDataService.SaveXxxAsync` perform a JSON write-through after persisting to SQLite, on the theory that the JSON files would always mirror the DB. In practice, anything that wrote SQLite without going through that exact code path (the seeder, an ad-hoc tool, a test) created an inconsistency window. Worse, a bug in the round-trip path (`BuildTrackPieceRef` losing movement-level subpaths) silently corrupted the JSON files on every export-then-save, gradually replacing rich movement-level refs with sonata-only refs.
+
+**Solution**: SQLite is the sole source of truth. `SqliteCanonDataService` only writes SQLite. JSON I/O happens only through `CanonDataService`, only at explicit user request (Import/Export screen, seeder tool). The architectural invariant "saves don't touch JSON" is locked in by the `SaveOperations_DoNotTouchJsonFiles` test, which round-trips every subsystem through `Save*Async` and asserts JSON-file mtimes are unchanged.
+
+### Set member title collisions in `PieceReferenceIndex`
+
+**Problem**: `PieceReferenceIndex.RegisterPiece` uses `titleMap.TryAdd(...)` to register every title variant a piece might be referenced by. This silently dropped duplicate keys. Beethoven has at least four "Set" pieces whose `DisplayTitleShort` is "Three Piano Sonatas" (Op. 2, Op. 10, Op. 31, WoO 47); only the first to register won the key and the rest became unreachable via that title.
+
+This collided with an earlier shape of `BuildTrackPieceRef` that walked all the way up to the set container, producing refs of shape `(set-DisplayTitleShort, [member-title])`. With the wrapper title ambiguous, every Beethoven set except the first one ended up resolving to the wrong set, and album badges showed zero for them.
+
+**Solution**: `BuildTrackPieceRef` now stops the walk at set boundaries, so the ref addresses the set member directly using its catalog-bearing title (e.g. `"Piano Sonata #1 in f, Op. 2 #1"`) — which is unambiguous. Set members are still registered at top level by `RegisterPiece`'s recursion into set containers; the title key still collides for `DisplayTitleShort`, but the longer `DisplayTitle` (with catalog) doesn't, and that's the one the ref carries.
+
+### Movement-level resolution: `TryResolve` must return the leaf
+
+**Problem**: `PieceReferenceIndex.TryResolve()` used to return `entry.Piece` (the title-lookup top), not the leaf after walking the subpath. The runtime `AddHitForRef` path uses an internal overload that exposes the full `ancestorSubpieces` list, so it credited movements correctly. But the seeder calls the public `TryResolve`, so it stored `piece_id = sonata` for every ref, even those with movement subpaths. When the data round-tripped through SQLite, the movement information was gone — every track on the album pointed at the sonata, and movement-level badges showed zero hits.
+
+**Solution**: The public `TryResolve` now returns the leaf — `ancestorSubpieces[^1]` if the subpath was walked, otherwise `entry.Piece`. The seeder stores movement-level `piece_id`s, and `BuildTrackPieceRef` reconstructs the subpath correctly on the way back out.
+
+### EF Core orphan rows + multi-owner CHECK constraints
+
+**Problem**: `piece_catalog_entries` belongs to either a piece or a version (both FKs nullable, with a CHECK constraint requiring exactly one to be non-null). When a save replaces a piece's catalog entries, the natural pattern is `row.CatalogEntries.Clear(); ... row.CatalogEntries.Add(...)`. EF Core sees the cleared rows as orphans and — because the FK is nullable — sets `piece_id = null` rather than deleting them. Both FKs now null violates the CHECK and the save fails with `SQLITE_CONSTRAINT_CHECK`. The same trap exists for `piece_tempos` (three nullable owners) and the credits / variants tables.
+
+**Solution**: In `SqliteCanonDataService.Replace*` methods, explicitly `db.Remove(existing)` each row before clearing the navigation collection. Tempos additionally need recursive removal (`RemoveTempoTree`) because sub-tempos are themselves `PieceTempoRow`s with their own multi-owner CHECK.
+
+### SQLite WAL mode breaks browser-tool access
+
+**Problem**: SQLite's WAL (write-ahead logging) journal mode creates `-wal` and `-shm` sidecar files for pending writes. Browser-based SQLite tools (which use `sql.js`, a WASM build) can't read WAL-mode databases — they fail with `SQLITE_CANTOPEN`. Even after the sidecars are merged, the file header remembers it's a WAL-mode database and `sql.js` still refuses.
+
+**Solution**: Keep `journal_mode = DELETE` (SQLite's actual default). Our code doesn't explicitly set WAL anywhere. If something flips it (a third-party tool, a user pragma), restore it with `sqlite3 data/ClassicalCanon.db "PRAGMA journal_mode=DELETE;"`. The setting persists in the file header. Symptoms to watch for: `.db-wal` / `.db-shm` files in `data/`.
+
+### Multi-composer pieces have no primary composer field
+
+**Problem**: Some pieces are collaboratively composed (e.g. *L'éventail de Jeanne*, a ballet by 10 French composers). The current data model stores the primary composer in `CanonPiece.Composer` and additional contributors in `Composers` (List\<ComposerCredit\>). Pieces with no single primary composer have an empty `Composer` field. The seeder's `TryGetComposerId` skips such pieces silently, dropping them from the DB.
+
+**Status**: Open. Workarounds: model these as belonging to a sentinel "Various" composer, or extend the seeder to handle composerless pieces using the contributor list. Until then, `L'éventail de Jeanne` and any similar pieces are missing from the DB.
+
+### Album identity loss across the editor's JSON-clone
+
+**Problem**: `AlbumEditorWindow` JSON-serialises the input album into a fresh `CanonAlbum` for editing (so Cancel doesn't mutate the original). On OK it exposes the clone via `Result`, and `AlbumsView.xaml.cs` substitutes the clone for the original in `vm.AllAlbums`. The data service tracks album identity via `ConditionalWeakTable<CanonAlbum, IdHandle>` keyed on the in-memory model instance, so the substituted clone has *no CWT entry* — and the save path falls back to `CanonAlbum.IdentityKey` (a composite of identifying fields) to find the matching DB row. The original `IdentityKey` was just `Label|CatalogueNumber`, returning null when either was missing, so albums without label/catalogue (Böhm Beethoven cycles, Bernstein Mahler, etc. — common in the user's collection) skipped the dedup and inserted a fresh row on every edit, leaving the original untouched as a duplicate.
+
+**Solution**: `IdentityKey` now folds in `Title|Subtitle` as well, so any album with a non-empty title gets a stable lookup key. The dedup rule on the data-service side (`existingByKey` in `SqliteCanonDataService.SaveAlbumsAsync`) builds the same composite. Locked in by `AlbumIdentityTests.SaveTwice_AfterJsonCloneAndEdit_DoesNotDuplicate`.
+
+**Remaining edge case (deferred)**: if the user *renames* an album in the editor (e.g. changes the Title), the clone's `IdentityKey` differs from the row's, lookup misses, and a duplicate is created. Two ways to fix later: (a) have the editor mutate the original instance in-place (snapshot/restore for Cancel) so CWT identity survives, or (b) expose a CWT-rebind API on the data service that the editor calls after OK. Until then, renames-only edits create duplicates and need manual cleanup.
+
 ---
 
 ## Data Management Guidelines
 
-### Before any mass data update
+### Day-to-day editing
 
-1. **Sync to JSON first**: Use Import/Export > Sync to Canonical JSON to ensure the JSON files reflect the current DB state.
-2. **Back up the JSON files**: Copy `Classical Canon composers.json` and `Classical Canon pieces.json` to a safe location.
-3. **Never use PowerShell** for text replacement on JSON files. Use Python or the application's own export functions.
-4. **Verify encoding**: After any external edit to JSON files, open them in a UTF-8-aware editor and spot-check characters like `e`, `n`, `flat`, `a`.
+Use the WPF app. Edits go directly to SQLite; no JSON manipulation is needed or wanted.
 
-### After a mass data update
+### Before any operation that could affect the database
 
-1. **Spot-check for mojibake**: Search the JSON files for telltale sequences: `Ã©` (should be `e`), `Ã±` (should be `n`), `â™­` (should be `flat`), `Ã` followed by a space (should be `a`).
-2. **Delete and reseed the DB** if the update was done directly on JSON files: Import/Export > Reseed from JSON.
-3. **Verify counts**: After reseeding, check the status bar for expected composer and piece counts.
+1. **Snapshot the DB.** Copy `data/ClassicalCanon.db` to a safe location. It's a single file; recovery is one `cp` away.
+2. **Optionally export a JSON snapshot.** Run `dotnet run --project tools/CDArchive.Tools.SeedDb -- --export` to refresh the JSON files from the current DB state. Useful as a human-readable, diffable backup.
 
-### Fixing mojibake if it occurs
+### Recovering from a corrupted or empty database
 
-Use the Python cp1252-to-UTF-8 round-trip algorithm:
+The seeder is the recovery tool. If `ClassicalCanon.db` is missing, corrupted, or contains stale data, run:
+
+```
+dotnet run --project tools/CDArchive.Tools.SeedDb
+```
+
+This deletes the existing DB, recreates the schema, and seeds from the four JSON files in `data/`. It reports composer / piece / album counts and any unresolved refs in its summary. The seed is deterministic — running it twice from the same JSON yields the same DB.
+
+### Editing JSON files directly
+
+Don't, except for explicit one-off imports or recovery. JSON files are not the source of truth at runtime. If you do edit them (e.g. to merge data from another source or fix a corrupted character), follow these rules:
+
+1. **Always use a UTF-8-aware editor.** Search for telltale mojibake sequences afterward: `Ã©` (should be `é`), `Ã±` (should be `ñ`), `â™­` (should be `♭`), `Ã` followed by a space (should be `à`).
+2. **Never use PowerShell `Set-Content` or `Out-File`** without explicit `-Encoding UTF8`. PowerShell's default cp1252 encoding silently corrupts non-ASCII characters.
+3. **Reseed afterward**: `dotnet run --project tools/CDArchive.Tools.SeedDb` to push the edited JSON into SQLite.
+
+### Fixing mojibake if it occurs in JSON files
+
+Use the Python cp1252-to-UTF-8 round-trip algorithm. After fixing, reseed so the corrected data lives in SQLite.
 
 ```python
 import json, re
@@ -463,10 +608,12 @@ with open("Classical Canon pieces.json", "w", encoding="utf-8") as f:
 
 ## JSON Serialization Conventions
 
+JSON serialization is used for the seeder import format, the seeder `--export` output, and the Import/Export screen's user-driven file operations. The runtime data store (SQLite) does not use JSON for primary persistence — these conventions apply to the JSON snapshots and to the JSON-blob columns used for flexible substructures inside SQLite rows (`InstrumentationJson`, `RolesJson`, etc.).
+
 | Convention | Details |
 |---|---|
 | Property naming | `snake_case` in JSON, `PascalCase` in C# (via `[JsonPropertyName]`) |
-| Null handling | `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]` on optional properties -- omitted from JSON when null |
+| Null handling | `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]` on optional properties — omitted from JSON when null |
 | Default-value handling | Fields like `NumberedSubpieces` and `SubpiecesStart` are set to `null` when they match the default, keeping JSON clean |
 | Flexible types | `JsonElement?` for fields that can be strings, arrays, or objects (Instrumentation, Roles, TextAuthor, CompositionYears) |
 | Read options | `PropertyNameCaseInsensitive = true`, `AllowTrailingCommas = true` |
@@ -478,53 +625,100 @@ with open("Classical Canon pieces.json", "w", encoding="utf-8") as f:
 
 Registered in `ServiceCollectionExtensions.AddCoreServices()`:
 
-| Service | Lifetime | Implementation |
+| Service | Lifetime | Implementation / Notes |
 |---|---|---|
-| ICanonDataService | Singleton | SqliteCanonDataService |
-| IArchiveSettings | Singleton | ArchiveSettings |
-| LocalCatalogueReference | Singleton | -- |
-| ItunesLibraryReference | Singleton | -- |
-| MusicBrainzReference | Singleton | -- |
-| CompositeCatalogueReference | Singleton | -- |
-| IFileSystemService | Transient | FileSystemService |
-| IAlbumScaffoldingService | Transient | AlbumScaffoldingService |
-| IDuplicateDetectionService | Transient | DuplicateDetectionService |
-| IArchiveScannerService | Transient | ArchiveScannerService |
-| IConversionService | Transient | FfmpegConversionService |
-| IConversionStatusService | Transient | ConversionStatusService |
-| ICataloguingService | Transient | CataloguingService |
+| `IArchiveSettings` | Singleton | `ArchiveSettings` |
+| `IFileSystemService` | Transient | `FileSystemService` |
+| `IAlbumScaffoldingService` | Transient | `AlbumScaffoldingService` |
+| `IDuplicateDetectionService` | Transient | `DuplicateDetectionService` |
+| `IArchiveScannerService` | Transient | `ArchiveScannerService` |
+| `IConversionService` | Transient | `FfmpegConversionService` |
+| `IConversionStatusService` | Transient | `ConversionStatusService` |
+| `LocalCatalogueReference` | Singleton | |
+| `ItunesLibraryReference` | Singleton | |
+| `MusicBrainzReference` | Singleton | |
+| `CompositeCatalogueReference` | Singleton | |
+| `ICataloguingService` | Transient | `CataloguingService` |
+| `CanonDataService` | Singleton | Concrete-typed registration. Used by `SqliteCanonDataService` for the file-path properties and by `ImportExportViewModel` for default file dialog locations. **Not** registered as `ICanonDataService` — it is not the runtime data service. |
+| `IDbContextFactory<CanonDbContext>` | Singleton | Connection string derives from `CanonDataService.ComposersFilePath`'s directory. Each Load/Save call opens a fresh short-lived `CanonDbContext` from the factory. |
+| `ICanonDataService` | Singleton | `SqliteCanonDataService` — the runtime data service. Reads/writes only SQLite. |
+| `PieceReferenceIndex` | Singleton | Cross-references albums to pieces; rebuilt on load and album-edit. |
 
 Registered in `App.xaml.cs`:
 
 | ViewModel | Lifetime |
 |---|---|
-| MainViewModel | Singleton |
-| CanonViewModel | Transient |
-| ImportExportViewModel | Transient |
-| All other ViewModels | Transient |
+| `MainViewModel` | Singleton |
+| `CanonViewModel` | Singleton |
+| `AlbumsViewModel` | Singleton |
+| `PickListsViewModel` | Singleton |
+| `ImportExportViewModel`, all other ViewModels | Transient |
 
 ---
 
 ## File Locations
 
+### Data files
+
+| Path | Purpose |
+|---|---|
+| `data/ClassicalCanon.db` | **SQLite database — single source of truth at runtime.** Created by the seeder. Safe to delete and rebuild. |
+| `data/Classical Canon composers.json` | One-shot import/export snapshot. Read by the seeder; written by `--export`. Not auto-synced. |
+| `data/Classical Canon pieces.json` | Same. |
+| `data/Classical Canon pick lists.json` | Same. |
+| `data/Classical Canon albums.json` | Same. |
+
+### Domain models (`src/CDArchive.Core/Models/`)
+
 | File | Purpose |
 |---|---|
-| `data/Classical Canon composers.json` | Canonical composer data (JSON, always kept in sync with DB) |
-| `data/Classical Canon pieces.json` | Canonical works data (JSON, always kept in sync with DB) |
-| `data/Classical Canon pick lists.json` | Pick-list values for editor dropdowns |
-| `data/ClassicalCanon.db` | SQLite database (auto-created, can be safely deleted and rebuilt) |
-| `src/CDArchive.Core/Models/CanonPiece.cs` | Piece, Version, CatalogInfo, TempoInfo, RoleEntry, InstrumentEntry models |
-| `src/CDArchive.Core/Models/CanonComposer.cs` | Composer model |
-| `src/CDArchive.Core/Models/CanonPickLists.cs` | Pick-list model |
-| `src/CDArchive.Core/Services/SqliteCanonDataService.cs` | Primary data service (SQLite + JSON write-through) |
-| `src/CDArchive.Core/Services/CanonDataService.cs` | JSON-only data service (used for seeding and write-through) |
-| `src/CDArchive.Core/Services/ItunesLibraryReference.cs` | iTunes XML library parser |
-| `src/CDArchive.App/Views/CanonView.xaml[.cs]` | Main composer/piece tree view |
-| `src/CDArchive.App/Views/PieceEditorWindow.xaml[.cs]` | Piece editor dialog |
-| `src/CDArchive.App/Views/MovementEditorWindow.xaml[.cs]` | Movement/subpiece editor dialog |
-| `src/CDArchive.App/Views/VersionEditorWindow.xaml[.cs]` | Version editor dialog |
-| `src/CDArchive.App/Views/ComposerEditorWindow.xaml[.cs]` | Composer editor dialog |
-| `src/CDArchive.App/Views/ImportExportView.xaml[.cs]` | Import/Export screen |
-| `src/CDArchive.App/ViewModels/MainViewModel.cs` | Shell navigation, CanonView visibility |
-| `src/CDArchive.App/ViewModels/CanonViewModel.cs` | Data loading/saving commands |
-| `src/CDArchive.App/ViewModels/ImportExportViewModel.cs` | Import/export/reseed commands |
+| `CanonPiece.cs` | `CanonPiece`, `CanonPieceVersion`, `CatalogInfo`, `TempoInfo`, `RoleEntry`, `InstrumentEntry`, `ComposerCredit`, `VariantInfo` |
+| `CanonComposer.cs` | `CanonComposer` |
+| `CanonPickLists.cs` | `CanonPickLists` |
+| `CanonAlbum.cs` | `CanonAlbum`, `AlbumDisc`, `AlbumTrack`, `AlbumPerformer`, `AlbumVolume`, `RecordingSession`, `TrackPieceRef` |
+
+### Persistence layer (`src/CDArchive.Core/Data/`)
+
+| File | Purpose |
+|---|---|
+| `CanonDbContext.cs` | EF Core context. Defines schema, indexes, CHECK constraints. |
+| `CanonDbSeeder.cs` | One-shot JSON → SQLite migration. Used by the seeder tool and (historically) by auto-init. |
+| `*Row.cs` | Row entities mirroring the relational schema (`PieceRow`, `AlbumRow`, `PieceCatalogEntryRow`, etc.) |
+
+### Services (`src/CDArchive.Core/Services/`)
+
+| File | Purpose |
+|---|---|
+| `ICanonDataService.cs` | Runtime data service contract |
+| `SqliteCanonDataService.cs` | Runtime implementation. Reads/writes SQLite only. |
+| `CanonDataService.cs` | JSON read/write utility. Used by the seeder tool and Import/Export VM, not the runtime data path. |
+| `PieceReferenceIndex.cs` | Album ↔ piece cross-reference index. |
+| `ItunesLibraryReference.cs` | iTunes XML library parser |
+
+### Views & ViewModels (`src/CDArchive.App/`)
+
+| File | Purpose |
+|---|---|
+| `Views/CanonView.xaml[.cs]` | Main composer/piece tree view (permanent element in `MainWindow`) |
+| `Views/PieceEditorWindow.xaml[.cs]` | Piece editor dialog |
+| `Views/MovementEditorWindow.xaml[.cs]` | Movement/subpiece editor dialog |
+| `Views/VersionEditorWindow.xaml[.cs]` | Version editor dialog |
+| `Views/ComposerEditorWindow.xaml[.cs]` | Composer editor dialog |
+| `Views/ImportExportView.xaml[.cs]` | Import/Export screen |
+| `ViewModels/MainViewModel.cs` | Shell navigation, `CanonView` visibility |
+| `ViewModels/CanonViewModel.cs` | Composer/piece loading + saving |
+| `ViewModels/AlbumsViewModel.cs` | Album loading + saving |
+| `ViewModels/ImportExportViewModel.cs` | Import/export/restore commands |
+
+### Tooling (`tools/`)
+
+| Path | Purpose |
+|---|---|
+| `CDArchive.Tools.SeedDb/Program.cs` | CLI entry point. Default mode seeds JSON → SQLite; `--export` writes SQLite → JSON. |
+
+### Tests (`tests/CDArchive.Core.Tests/`)
+
+| File | Notable contents |
+|---|---|
+| `SqliteRoundTripTests.cs` | `BeethovenOp2_HasAlbumHits_AfterSqliteRoundTrip` (set + sonata + movement coverage), `SaveOperations_DoNotTouchJsonFiles` (architectural invariant) |
+| `CanonDataServiceTests.cs` | JSON loader sanity checks, dual-marker resolver regression test |
