@@ -31,4 +31,17 @@ public class CanonPickLists
 
     [JsonPropertyName("creative_roles")]
     public List<string> CreativeRoles { get; set; } = [];
+
+    /// <summary>
+    /// Roles for album performers, e.g. "Piano", "Conductor", "Orchestra".
+    /// Shown in the album editor's performer list.
+    /// </summary>
+    [JsonPropertyName("performer_roles")]
+    public List<string> PerformerRoles { get; set; } = [];
+
+    /// <summary>
+    /// Record-label names for the Album editor's Label dropdown.
+    /// </summary>
+    [JsonPropertyName("labels")]
+    public List<string> Labels { get; set; } = [];
 }

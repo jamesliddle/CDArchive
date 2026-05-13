@@ -20,14 +20,10 @@ public partial class App : Application
             services.AddCoreServices();
 
             services.AddSingleton<MainViewModel>();
-            services.AddTransient<NewAlbumViewModel>();
-            services.AddTransient<ArchiveBrowserViewModel>();
-            services.AddTransient<ValidationViewModel>();
-            services.AddTransient<ConversionViewModel>();
-            services.AddTransient<ConversionStatusViewModel>();
             services.AddTransient<SettingsViewModel>();
-            services.AddTransient<CatalogueViewModel>();
             services.AddSingleton<CanonViewModel>();
+            services.AddSingleton<AlbumsViewModel>();
+            services.AddSingleton<ItunesImportViewModel>();
             services.AddTransient<ImportExportViewModel>();
             services.AddSingleton<PickListsViewModel>();
 

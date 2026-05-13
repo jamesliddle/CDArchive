@@ -27,6 +27,91 @@ public class ItunesLibraryReference : ICatalogueReference
         _cache = new Lazy<Task<LibraryCache>>(() => Task.Run(BuildCache));
     }
 
+    /// <summary>
+    /// Reads every track from the iTunes Music Library XML (no path filter).
+    /// Skips podcasts. Returns a list of <see cref="ItunesTrack"/> DTOs.
+    /// </summary>
+    public Task<IReadOnlyList<ItunesTrack>> LoadAllTracksAsync() =>
+        Task.Run<IReadOnlyList<ItunesTrack>>(LoadAllTracks);
+
+    private List<ItunesTrack> LoadAllTracks()
+    {
+        var tracks = new List<ItunesTrack>();
+        if (string.IsNullOrEmpty(_libraryPath) || !File.Exists(_libraryPath))
+            return tracks;
+
+        var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore };
+        using var reader = XmlReader.Create(_libraryPath, settings);
+
+        if (!AdvanceToTracksDict(reader))
+            return tracks;
+
+        while (reader.Read())
+        {
+            if (reader.NodeType == XmlNodeType.EndElement && reader.Name == "dict")
+                break;
+
+            if (reader.NodeType != XmlNodeType.Element || reader.Name != "key")
+                continue;
+
+            var trackIdStr = reader.ReadElementContentAsString();
+            if (!int.TryParse(trackIdStr, out var trackId))
+                continue;
+
+            if (!AdvanceToElement(reader, "dict"))
+                continue;
+
+            var props = ReadDictProperties(reader);
+
+            // Only include Music. iTunes uses boolean flags per non-Music media kind
+            // (Podcast, Movie, TV Show, Audiobook, Music Video, Book); Music itself is
+            // the absence of any such flag. The "Has Video" flag catches video tracks
+            // that aren't explicitly tagged as movies but still aren't music.
+            if (IsTaggedTrue(props, "Podcast")     ||
+                IsTaggedTrue(props, "Movie")       ||
+                IsTaggedTrue(props, "TV Show")     ||
+                IsTaggedTrue(props, "Audiobook")   ||
+                IsTaggedTrue(props, "Music Video") ||
+                IsTaggedTrue(props, "Has Video")   ||
+                IsTaggedTrue(props, "Book"))
+                continue;
+
+            var name = props.GetValueOrDefault("Name", "");
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            tracks.Add(new ItunesTrack(
+                TrackId:      trackId,
+                PersistentId: NullIfEmpty(props.GetValueOrDefault("Persistent ID")),
+                DiscNumber:   ParseIntOrNull(props.GetValueOrDefault("Disc Number")),
+                TrackNumber:  ParseIntOrNull(props.GetValueOrDefault("Track Number")),
+                Name:         name,
+                DurationMs:   ParseIntOrNull(props.GetValueOrDefault("Total Time")),
+                Genre:        NullIfEmpty(props.GetValueOrDefault("Genre")),
+                Composer:     NullIfEmpty(props.GetValueOrDefault("Composer")),
+                Album:        NullIfEmpty(props.GetValueOrDefault("Album")),
+                AlbumArtist:  NullIfEmpty(props.GetValueOrDefault("Album Artist")),
+                Artist:       NullIfEmpty(props.GetValueOrDefault("Artist")),
+                DateAdded:    ParseDateOrNull(props.GetValueOrDefault("Date Added")),
+                Location:     NullIfEmpty(props.GetValueOrDefault("Location"))));
+        }
+
+        return tracks;
+    }
+
+    private static int? ParseIntOrNull(string? s) =>
+        int.TryParse(s, out var v) ? v : null;
+
+    private static DateTime? ParseDateOrNull(string? s) =>
+        DateTime.TryParse(s, null,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt : null;
+
+    private static string? NullIfEmpty(string? s) =>
+        string.IsNullOrEmpty(s) ? null : s;
+
+    private static bool IsTaggedTrue(Dictionary<string, string> p, string key) =>
+        string.Equals(p.GetValueOrDefault(key), "true", StringComparison.OrdinalIgnoreCase);
+
     public async Task<ComposerInfo?> LookupComposerAsync(string lastName, string? firstName = null)
     {
         var cache = await _cache.Value;
@@ -227,32 +312,30 @@ public class ItunesLibraryReference : ICatalogueReference
                 continue;
 
             var key = reader.ReadElementContentAsString();
-            if (!reader.Read())
-                break;
+
+            // After ReadElementContentAsString the reader is positioned on the node
+            // *following* </key> — which is the value element itself when iTunes
+            // writes `<key>X</key><type>v</type>` with no whitespace between them.
+            // An explicit reader.Read() here would skip *past* a self-closing value
+            // element (<true/>, <false/>) and read the wrong sibling. MoveToContent
+            // is a no-op when already on an Element and skips whitespace otherwise.
+            if (reader.MoveToContent() != XmlNodeType.Element)
+                continue;
 
             string value;
-            if (reader.NodeType == XmlNodeType.Element)
+            if (reader.Name == "true")
             {
-                if (reader.Name == "true")
-                {
-                    value = "true";
-                    if (reader.IsEmptyElement) continue;
-                    reader.Read(); // skip end element
-                }
-                else if (reader.Name == "false")
-                {
-                    value = "false";
-                    if (reader.IsEmptyElement) continue;
-                    reader.Read();
-                }
-                else
-                {
-                    value = reader.ReadElementContentAsString();
-                }
+                value = "true";
+                if (!reader.IsEmptyElement) reader.Read();
+            }
+            else if (reader.Name == "false")
+            {
+                value = "false";
+                if (!reader.IsEmptyElement) reader.Read();
             }
             else
             {
-                value = reader.Value;
+                value = reader.ReadElementContentAsString();
             }
 
             props[key] = value;

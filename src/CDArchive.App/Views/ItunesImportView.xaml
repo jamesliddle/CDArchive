@@ -1,0 +1,89 @@
+<UserControl x:Class="CDArchive.App.Views.ItunesImportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ItunesImportViewModel}">
+    <DockPanel>
+        <!-- Toolbar -->
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />  <!-- 0: Load button -->
+                <ColumnDefinition Width="8" />     <!-- 1 -->
+                <ColumnDefinition Width="Auto" />  <!-- 2: Import button -->
+                <ColumnDefinition Width="16" />    <!-- 3 -->
+                <ColumnDefinition Width="Auto" />  <!-- 4: Filter label -->
+                <ColumnDefinition Width="*" />     <!-- 5: Filter textbox -->
+                <ColumnDefinition Width="Auto" />  <!-- 6: Hide-imported checkbox -->
+                <ColumnDefinition Width="Auto" />  <!-- 7: count -->
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    Content="Load from iTunes" Padding="12,4" Height="28" FontSize="12"
+                    Command="{Binding LoadCommand}"
+                    IsEnabled="{Binding IsReady}" />
+
+            <Button Grid.Column="2"
+                    Content="Import Selected" Padding="12,4" Height="28" FontSize="12"
+                    Click="OnImportSelectedClick"
+                    IsEnabled="{Binding IsReady}" />
+
+            <TextBlock Grid.Column="4"
+                       Text="Filter:" FontSize="12" Foreground="#555"
+                       VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Grid.Column="5"
+                     Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                     FontSize="13" Padding="6,4" VerticalAlignment="Center" />
+
+            <CheckBox Grid.Column="6"
+                      Content="Hide already imported"
+                      IsChecked="{Binding HideAlreadyImported, Mode=TwoWay}"
+                      FontSize="12" Foreground="#555"
+                      VerticalAlignment="Center" Margin="16,0,0,0"
+                      ToolTip="Hide iTunes tracks already in the Album Catalogue (matched on album title + disc # + track #)." />
+            <TextBlock Grid.Column="7"
+                       VerticalAlignment="Center" Margin="16,0,0,0"
+                       FontSize="12" Foreground="#555">
+                <Run Text="{Binding ShownCount, Mode=OneWay}" />
+                <Run Text=" of " />
+                <Run Text="{Binding TotalCount, Mode=OneWay}" />
+            </TextBlock>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#E8E8E8" Padding="10,6"
+                BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#555" />
+        </Border>
+
+        <!-- Tracks DataGrid -->
+        <DataGrid x:Name="TracksGrid"
+                  ItemsSource="{Binding Tracks}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  SelectionMode="Extended"
+                  SelectionUnit="FullRow"
+                  GridLinesVisibility="Horizontal"
+                  HorizontalGridLinesBrush="#EEEEEE"
+                  AlternatingRowBackground="#FAFAFA"
+                  FontSize="12">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Disc"     Binding="{Binding DiscNumber}"      Width="50"  />
+                <DataGridTextColumn Header="Track"    Binding="{Binding TrackNumber}"     Width="60"  />
+                <DataGridTextColumn Header="Name"     Binding="{Binding Name}"            Width="*"   MinWidth="200" />
+                <DataGridTextColumn Header="Time"     Binding="{Binding DurationDisplay}" Width="70"  />
+                <DataGridTextColumn Header="Genre"    Binding="{Binding Genre}"           Width="120" />
+                <DataGridTextColumn Header="Composer" Binding="{Binding Composer}"        Width="220" />
+                <DataGridTextColumn Header="Album"    Binding="{Binding Album}"           Width="220" />
+                <DataGridTextColumn Header="Artist"   Binding="{Binding Artist}"          Width="180" />
+                <DataGridTextColumn Header="Added"    Binding="{Binding DateAdded, StringFormat=\{0:yyyy-MM-dd\}}"
+                                                                                          Width="100" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

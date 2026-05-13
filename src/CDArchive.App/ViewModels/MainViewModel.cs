@@ -5,14 +5,10 @@ namespace CDArchive.App.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly NewAlbumViewModel _newAlbumViewModel;
-    private readonly ArchiveBrowserViewModel _archiveBrowserViewModel;
-    private readonly ValidationViewModel _validationViewModel;
-    private readonly ConversionViewModel _conversionViewModel;
-    private readonly ConversionStatusViewModel _conversionStatusViewModel;
     private readonly SettingsViewModel _settingsViewModel;
-    private readonly CatalogueViewModel _catalogueViewModel;
     private readonly CanonViewModel _canonViewModel;
+    private readonly AlbumsViewModel _albumsViewModel;
+    private readonly ItunesImportViewModel _itunesImportViewModel;
     private readonly ImportExportViewModel _importExportViewModel;
     private readonly PickListsViewModel _pickListsViewModel;
 
@@ -28,77 +24,21 @@ public partial class MainViewModel : ObservableObject
     public CanonViewModel CanonViewModel => _canonViewModel;
 
     public MainViewModel(
-        NewAlbumViewModel newAlbumViewModel,
-        ArchiveBrowserViewModel archiveBrowserViewModel,
-        ValidationViewModel validationViewModel,
-        ConversionViewModel conversionViewModel,
-        ConversionStatusViewModel conversionStatusViewModel,
         SettingsViewModel settingsViewModel,
-        CatalogueViewModel catalogueViewModel,
         CanonViewModel canonViewModel,
+        AlbumsViewModel albumsViewModel,
+        ItunesImportViewModel itunesImportViewModel,
         ImportExportViewModel importExportViewModel,
         PickListsViewModel pickListsViewModel)
     {
-        _newAlbumViewModel = newAlbumViewModel;
-        _archiveBrowserViewModel = archiveBrowserViewModel;
-        _validationViewModel = validationViewModel;
-        _conversionViewModel = conversionViewModel;
-        _conversionStatusViewModel = conversionStatusViewModel;
         _settingsViewModel = settingsViewModel;
-        _catalogueViewModel = catalogueViewModel;
         _canonViewModel = canonViewModel;
+        _albumsViewModel = albumsViewModel;
+        _itunesImportViewModel = itunesImportViewModel;
         _importExportViewModel = importExportViewModel;
         _pickListsViewModel = pickListsViewModel;
 
         // CanonView is always-alive in MainWindow; IsCanonViewActive=true (default) shows it on startup.
-    }
-
-    [RelayCommand]
-    private void NavigateToNewAlbum()
-    {
-        IsCanonViewActive = false;
-        CurrentView = _newAlbumViewModel;
-        CurrentViewTitle = "New Album";
-    }
-
-    [RelayCommand]
-    private void NavigateToArchiveBrowser()
-    {
-        IsCanonViewActive = false;
-        CurrentView = _archiveBrowserViewModel;
-        CurrentViewTitle = "Archive Browser";
-    }
-
-    [RelayCommand]
-    private void NavigateToValidation()
-    {
-        IsCanonViewActive = false;
-        CurrentView = _validationViewModel;
-        CurrentViewTitle = "Validation";
-    }
-
-    [RelayCommand]
-    private void NavigateToConversion()
-    {
-        IsCanonViewActive = false;
-        CurrentView = _conversionViewModel;
-        CurrentViewTitle = "Conversion";
-    }
-
-    [RelayCommand]
-    private void NavigateToConversionStatus()
-    {
-        IsCanonViewActive = false;
-        CurrentView = _conversionStatusViewModel;
-        CurrentViewTitle = "Conversion Status";
-    }
-
-    [RelayCommand]
-    private void NavigateToCatalogue()
-    {
-        IsCanonViewActive = false;
-        CurrentView = _catalogueViewModel;
-        CurrentViewTitle = "Catalogue";
     }
 
     [RelayCommand]
@@ -116,6 +56,23 @@ public partial class MainViewModel : ObservableObject
         IsCanonViewActive = false;
         CurrentView = _settingsViewModel;
         CurrentViewTitle = "Settings";
+    }
+
+    [RelayCommand]
+    private void NavigateToAlbums()
+    {
+        IsCanonViewActive = false;
+        CurrentView = _albumsViewModel;
+        CurrentViewTitle = "Album Catalogue";
+        _ = _albumsViewModel.LoadDataCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private void NavigateToItunesImport()
+    {
+        IsCanonViewActive = false;
+        CurrentView = _itunesImportViewModel;
+        CurrentViewTitle = "iTunes Import";
     }
 
     [RelayCommand]

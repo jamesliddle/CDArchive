@@ -138,6 +138,24 @@ public partial class ComposerEditorWindow : Window
         RefreshCatalogList();
     }
 
+    private void OnMoveCatalogUpClick(object sender, RoutedEventArgs e)
+    {
+        var idx = CatalogList.SelectedIndex;
+        if (idx <= 0) return;
+        (_catalogPrefixes[idx - 1], _catalogPrefixes[idx]) = (_catalogPrefixes[idx], _catalogPrefixes[idx - 1]);
+        RefreshCatalogList();
+        CatalogList.SelectedIndex = idx - 1;
+    }
+
+    private void OnMoveCatalogDownClick(object sender, RoutedEventArgs e)
+    {
+        var idx = CatalogList.SelectedIndex;
+        if (idx < 0 || idx >= _catalogPrefixes.Count - 1) return;
+        (_catalogPrefixes[idx + 1], _catalogPrefixes[idx]) = (_catalogPrefixes[idx], _catalogPrefixes[idx + 1]);
+        RefreshCatalogList();
+        CatalogList.SelectedIndex = idx + 1;
+    }
+
     // ── OK / Cancel ─────────────────────────────────────────────────────────
 
     private void OnOkClick(object sender, RoutedEventArgs e)

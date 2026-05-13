@@ -1174,7 +1174,7 @@
             "number": 2
           },
           {
-            "title": "“Under the willow tree . . .â€\u009D",
+            "title": "“Under the willow tree . . .â€",
             "number": 3
           },
           {
@@ -15012,7 +15012,7 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
-    "title": "Thirteen variations for piano on the aria 'Es war einmal ein alter Mann' from Carl Ditters von Dittersdorf's opera Das rote Käppchen (1792)",
+    "title": "Thirteen variations on Es war einmal ein alter Mann from Carl Ditters von Dittersdorf's opera Das rote Käppchen",
     "catalog_info": [
       {
         "catalog": "WoO",
@@ -53060,5 +53060,1065 @@
       }
     ],
     "instrumentation_category": "Chamber"
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 1,
+    "key_tonality": "D",
+    "key_mode": "major",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1898,
+    "composition_years": "1887-1888",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Langsam. Schleppend. Wie ein Naturlaut - Immer sehr gemächlich"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Kräftig bewegt, doch nicht zu schnell - Trio. Recht gemächlich"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Feierlich und gemessen, ohne zu schleppen"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Stürmisch bewegt"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 2,
+    "key_tonality": "C",
+    "key_mode": "minor",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1897,
+    "composition_years": "1888-1894",
+    "nickname": "Resurrection",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Allegro maestoso"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Andante moderato"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "In ruhig fließender Bewegung"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Urlicht. Sehr feierlich, aber schlicht"
+          }
+        ]
+      },
+      {
+        "number": 5,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Im Tempo des Scherzos. Wild herausfahrend"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 3,
+    "key_tonality": "D",
+    "key_mode": "minor",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1898,
+    "composition_years": "1893-1896",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Kräftig. Entschieden"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Tempo di Menuetto. Sehr mäßig"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Comodo. Scherzando. Ohne Hast"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Sehr langsam. Misterioso"
+          }
+        ]
+      },
+      {
+        "number": 5,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Lustig im Tempo und keck im Ausdruck"
+          }
+        ]
+      },
+      {
+        "number": 6,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Langsam. Ruhevoll. Empfunden"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 4,
+    "key_tonality": "G",
+    "key_mode": "major",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1902,
+    "composition_years": "1899-1900",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Bedächtig, nicht eilen"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "In gemächlicher Bewegung, ohne Hast"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Ruhevoll, poco adagio"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Sehr behaglich"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 5,
+    "key_tonality": "C-sharp",
+    "key_mode": "minor",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1904,
+    "composition_years": "1901-1902",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Trauermarsch. In gemessenem Schritt. Streng. Wie ein Kondukt"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Stürmisch bewegt, mit größter Vehemenz"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Scherzo. Kräftig, nicht zu schnell"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Adagietto. Sehr langsam"
+          }
+        ]
+      },
+      {
+        "number": 5,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Rondo-Finale. Allegro - Allegro giocoso. Frisch"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 6,
+    "key_tonality": "A",
+    "key_mode": "minor",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1906,
+    "composition_years": "1903-1904",
+    "nickname": "Tragic",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Allegro energico, ma non troppo. Heftig, aber markig"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Scherzo. Wuchtig"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Andante moderato"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Finale. Sostenuto - Allegro moderato - Allegro energico"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 7,
+    "key_tonality": "E",
+    "key_mode": "minor",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1909,
+    "composition_years": "1904-1905",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Langsam (Adagio) - Allegro risoluto, ma non troppo"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Nachtmusik. Allegro moderato"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Scherzo. Schattenhaft. Fließend, aber nicht schnell"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Nachtmusik. Andante amoroso"
+          }
+        ]
+      },
+      {
+        "number": 5,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Rondo-Finale. Tempo I (Allegro ordinario) - Gemessen! Nicht schnell! Tempo II (Allegro moderato ma energico)"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 8,
+    "key_tonality": "E-flat",
+    "key_mode": "major",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1910,
+    "composition_years": "1906-1907",
+    "nickname": "Symphony of a Thousand",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Allegro impetuoso",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Allegro impetuoso"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "title": "Part I. Hymnus. Veni, creator spiritus. A tempo. Etwas (aber unmerklich) gemäßigter; immer sehr fließend",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "A tempo. Etwas (aber unmerklich) gemäßigter; immer sehr fließend"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Etwas drängend - Noch einmal so langsam (Nicht schleppend)",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Etwas drängend - Noch einmal so langsam (Nicht schleppend)"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Tempo I. (Allegro, etwas hastig)",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Tempo I. (Allegro, etwas hastig)"
+          }
+        ]
+      },
+      {
+        "number": 5,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Sehr fließend - Noch einmal so langsam als vorher. Nicht schleppend",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Sehr fließend - Noch einmal so langsam als vorher. Nicht schleppend"
+          }
+        ]
+      },
+      {
+        "number": 6,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Plötzlich sehr breit und leidenschaftlichen Ausdrucks - Mit plötzlichem Aufschwung",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Plötzlich sehr breit und leidenschaftlichen Ausdrucks - Mit plötzlichem Aufschwung"
+          }
+        ]
+      },
+      {
+        "number": 7,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Veni, creator spiritus",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Veni, creator spiritus"
+          }
+        ]
+      },
+      {
+        "number": 8,
+        "title": "Part I. Hymnus. Veni, creator spiritus. Wieder frisch",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Wieder frisch"
+          }
+        ]
+      },
+      {
+        "number": 9,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Poco adagio",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Poco adagio"
+          }
+        ]
+      },
+      {
+        "number": 10,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Più mosso (Allegro moderato)",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Più mosso (Allegro moderato)"
+          }
+        ]
+      },
+      {
+        "number": 11,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Wieder langsam",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Wieder langsam"
+          }
+        ]
+      },
+      {
+        "number": 12,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Moderato",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Moderato"
+          }
+        ]
+      },
+      {
+        "number": 13,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Allegro - (Allegro appassionato)",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Allegro - (Allegro appassionato)"
+          }
+        ]
+      },
+      {
+        "number": 14,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Allegro deciso (Im Anfang noch nicht eilen)",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Allegro deciso (Im Anfang noch nicht eilen)"
+          }
+        ]
+      },
+      {
+        "number": 15,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Molto leggiero",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Molto leggiero"
+          }
+        ]
+      },
+      {
+        "number": 16,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Schon etwas langsamer und immer noch mäßiger - Wie die gleiche Stelle im I. Teil",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Schon etwas langsamer und immer noch mäßiger - Wie die gleiche Stelle im I. Teil"
+          }
+        ]
+      },
+      {
+        "number": 17,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Im Anfang (die ersten vier Takte) noch etwas gehalten",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Im Anfang (die ersten vier Takte) noch etwas gehalten"
+          }
+        ]
+      },
+      {
+        "number": 18,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Sempre l'istesso tempo",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Sempre l'istesso tempo"
+          }
+        ]
+      },
+      {
+        "number": 19,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Äußerst langsam. Adagissimo",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Äußerst langsam. Adagissimo"
+          }
+        ]
+      },
+      {
+        "number": 20,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Fließend",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Fließend"
+          }
+        ]
+      },
+      {
+        "number": 21,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Una poenitentium",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Una poenitentium"
+          }
+        ]
+      },
+      {
+        "number": 22,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Unmerklich frischer werden",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Unmerklich frischer werden"
+          }
+        ]
+      },
+      {
+        "number": 23,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Sehr langsam",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Sehr langsam"
+          }
+        ]
+      },
+      {
+        "number": 24,
+        "title": "Part II. Schlußszene aus Goethes Faust II. Sehr langsam beginnend",
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Sehr langsam beginnend"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 9,
+    "key_tonality": "D",
+    "key_mode": "major",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1912,
+    "composition_years": "1909-1910",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Andante comodo"
+          }
+        ]
+      },
+      {
+        "number": 2,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Im Tempo eines gemächlichen Ländlers (Fernerhin mit Tempo I. beseichnet) Etwas täppisch und sehr derb"
+          }
+        ]
+      },
+      {
+        "number": 3,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Rondo-Burleske. Allegro assai. Sehr trotzig"
+          }
+        ]
+      },
+      {
+        "number": 4,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Adagio. Sehr langsam und noch zurückhaltend"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "form": "Symphony",
+    "number": 10,
+    "key_tonality": "F-sharp",
+    "key_mode": "major",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "publication_year": 1924,
+    "composition_years": "1910",
+    "subtitle": "unfinished",
+    "subpieces": [
+      {
+        "number": 1,
+        "tempos": [
+          {
+            "number": 1,
+            "tempo_description": "Adagio"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Das Lied von der Erde",
+    "title_english": "The Song of the Earth",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "tenor",
+      "alto",
+      "Orchestra"
+    ],
+    "publication_year": 1912,
+    "composition_years": "1908-1909",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Das Trinklied vom Jammer der Erde"
+      },
+      {
+        "number": 2,
+        "title": "Der Einsame im Herbst"
+      },
+      {
+        "number": 3,
+        "title": "Von der Jugend"
+      },
+      {
+        "number": 4,
+        "title": "Von der Schönheit"
+      },
+      {
+        "number": 5,
+        "title": "Der Trunkene im Frühling"
+      },
+      {
+        "number": 6,
+        "title": "Der Abschied"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Das klagende Lied",
+    "title_english": "Song of Lamentation",
+    "form": "Cantata",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "soloists",
+      "chorus",
+      "Orchestra"
+    ],
+    "publication_year": 1899,
+    "composition_years": "1878-1880",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Waldmärchen - Beim Weidenbaum, im kühlen Tann"
+      },
+      {
+        "number": 2,
+        "title": "Der Spielmann - Ein Spielmann zog einst des Weges daher"
+      },
+      {
+        "number": 3,
+        "title": "Der Spielmann - Ach Spielmann, lieber Spielmann mein!"
+      },
+      {
+        "number": 4,
+        "title": "Hochzeitsstück - Vom hohen Felsen erglänzt das Schloß"
+      },
+      {
+        "number": 5,
+        "title": "Hochzeitsstück - Was ist der König so stumm und bleich"
+      },
+      {
+        "number": 6,
+        "title": "Hochzeitsstück - Ach Spielmann, lieber Spielmann mein!"
+      },
+      {
+        "number": 7,
+        "title": "Hochzeitsstück - Auf springt der König von seinem Thron"
+      },
+      {
+        "number": 8,
+        "title": "Hochzeitsstück - Ach Bruder, lieber Bruder mein!"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Totenfeier",
+    "title_english": "Funeral Rite",
+    "subtitle": "early version of the 1st movement of Symphony #2",
+    "form": "Tone Poem",
+    "instrumentation_category": "Orchestra",
+    "instrumentation": [
+      "Orchestra"
+    ],
+    "composition_years": "1888"
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Lieder eines fahrenden Gesellen",
+    "title_english": "Songs of a Wayfarer",
+    "form": "Song Cycle",
+    "instrumentation_category": "Vocal",
+    "instrumentation": [
+      "baritone",
+      "Orchestra"
+    ],
+    "publication_year": 1897,
+    "composition_years": "1884-1885",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Wenn mein Schatz Hochzeit macht"
+      },
+      {
+        "number": 2,
+        "title": "Ging heut' morgen übers Feld"
+      },
+      {
+        "number": 3,
+        "title": "Ich hab ein glühend Messer"
+      },
+      {
+        "number": 4,
+        "title": "Die zwei blauen Augen"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Kindertotenlieder",
+    "title_english": "Songs on the Death of Children",
+    "form": "Song Cycle",
+    "instrumentation_category": "Vocal",
+    "instrumentation": [
+      "voice",
+      "Orchestra"
+    ],
+    "publication_year": 1905,
+    "composition_years": "1901-1904",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Nun will die Sonn' so hell aufgehn"
+      },
+      {
+        "number": 2,
+        "title": "Nun seh' ich wohl, warum so dunkle Flammen"
+      },
+      {
+        "number": 3,
+        "title": "Wenn dein Mütterlein tritt zur Tür herein"
+      },
+      {
+        "number": 4,
+        "title": "Oft denk' ich, sie sind nur ausgegangen"
+      },
+      {
+        "number": 5,
+        "title": "In diesem Wetter, in diesem Braus"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Rückert-Lieder",
+    "form": "Song Cycle",
+    "instrumentation_category": "Vocal",
+    "instrumentation": [
+      "voice",
+      "Orchestra"
+    ],
+    "publication_year": 1905,
+    "composition_years": "1901-1902",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Blicke mir nicht in die Lieder"
+      },
+      {
+        "number": 2,
+        "title": "Ich atmet' einen linden Duft"
+      },
+      {
+        "number": 3,
+        "title": "Liebst du um Schönheit"
+      },
+      {
+        "number": 4,
+        "title": "Ich bin der Welt abhanden gekommen"
+      },
+      {
+        "number": 5,
+        "title": "Um Mitternacht"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Des Knaben Wunderhorn",
+    "title_english": "The Youth's Magic Horn",
+    "form": "Song Cycle",
+    "instrumentation_category": "Vocal",
+    "instrumentation": [
+      "voice",
+      "Orchestra"
+    ],
+    "publication_year": 1899,
+    "composition_years": "1892-1898",
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Der Schildwache Nachtlied"
+      },
+      {
+        "number": 2,
+        "title": "Verlor'ne Müh'"
+      },
+      {
+        "number": 3,
+        "title": "Trost im Unglück"
+      },
+      {
+        "number": 4,
+        "title": "Wer hat dies Liedlein erdacht?"
+      },
+      {
+        "number": 5,
+        "title": "Das irdische Leben"
+      },
+      {
+        "number": 6,
+        "title": "Revelge"
+      },
+      {
+        "number": 7,
+        "title": "Des Antonius von Padua Fischpredigt"
+      },
+      {
+        "number": 8,
+        "title": "Rheinlegendchen"
+      },
+      {
+        "number": 9,
+        "title": "Lied des Verfolgten im Turm"
+      },
+      {
+        "number": 10,
+        "title": "Wo die schönen Trompeten blasen"
+      },
+      {
+        "number": 11,
+        "title": "Lob des hohen Verstandes"
+      },
+      {
+        "number": 12,
+        "title": "Der Tamboursg'sell"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Lieder und Gesänge, Vol. II",
+    "form": "Song Cycle",
+    "instrumentation_category": "Vocal",
+    "instrumentation": [
+      "voice",
+      "piano"
+    ],
+    "publication_year": 1892,
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Um schlimme Kinder artig zu machen"
+      },
+      {
+        "number": 2,
+        "title": "Ich ging mit Lust durch einen grünen Wald"
+      },
+      {
+        "number": 3,
+        "title": "Aus! Aus!"
+      },
+      {
+        "number": 4,
+        "title": "Starke Einbildungskraft"
+      }
+    ]
+  },
+  {
+    "composer": "Mahler, Gustav",
+    "title": "Lieder und Gesänge, Vol. III",
+    "form": "Song Cycle",
+    "instrumentation_category": "Vocal",
+    "instrumentation": [
+      "voice",
+      "piano"
+    ],
+    "publication_year": 1892,
+    "subpieces": [
+      {
+        "number": 1,
+        "title": "Zu Straßburg auf der Schanz'"
+      },
+      {
+        "number": 2,
+        "title": "Ablösung im Sommer"
+      },
+      {
+        "number": 3,
+        "title": "Scheiden und Meiden"
+      },
+      {
+        "number": 4,
+        "title": "Nicht Wiedersehen!"
+      },
+      {
+        "number": 5,
+        "title": "Selbstgefühl"
+      }
+    ]
   }
 ]

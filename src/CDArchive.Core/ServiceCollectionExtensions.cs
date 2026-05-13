@@ -1,4 +1,6 @@
+using CDArchive.Core.Data;
 using CDArchive.Core.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CDArchive.Core;
@@ -19,7 +21,31 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MusicBrainzReference>();
         services.AddSingleton<CompositeCatalogueReference>();
         services.AddTransient<ICataloguingService, CataloguingService>();
-        services.AddSingleton<ICanonDataService, CanonDataService>();
+
+        // Canon data path — SQLite is the sole source of truth at runtime:
+        //   • SqliteCanonDataService is the only ICanonDataService implementation.
+        //     Every Load reads from SQLite; every Save writes to SQLite. JSON files
+        //     are never touched during normal Load/Save — they exist purely for
+        //     ad hoc import/export via the Import/Export screen or the SeedDb tool.
+        //   • CanonDbContext is created on-demand via IDbContextFactory; the data
+        //     service constructs short-lived contexts per Load/Save call. Schema
+        //     upgrades (PRAGMA-guarded ALTER TABLEs) run inside EnsureInitializedAsync
+        //     so the database evolves with the model without manual migrations.
+        //   • CanonDataService is retained as a JSON helper (path resolution and
+        //     ad-hoc serialize/deserialize for the Import/Export screen). It is
+        //     intentionally NOT registered as ICanonDataService; nothing in the
+        //     runtime data flow uses it. SqliteCanonDataService takes a reference
+        //     only to reuse its data-directory probe for locating the .db file.
+        services.AddSingleton<CanonDataService>();
+        services.AddDbContextFactory<CanonDbContext>((sp, options) =>
+        {
+            var json    = sp.GetRequiredService<CanonDataService>();
+            var dataDir = Path.GetDirectoryName(json.ComposersFilePath)!;
+            var dbPath  = Path.Combine(dataDir, "ClassicalCanon.db");
+            options.UseSqlite($"Data Source={dbPath}");
+        });
+        services.AddSingleton<ICanonDataService, SqliteCanonDataService>();
+        services.AddSingleton<PieceReferenceIndex>();
 
         return services;
     }

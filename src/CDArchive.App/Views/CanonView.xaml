@@ -5,12 +5,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
              xmlns:local="clr-namespace:CDArchive.Core.Models;assembly=CDArchive.Core"
+             xmlns:conv="clr-namespace:CDArchive.App.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:CanonViewModel}"
              Loaded="OnLoaded">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+        <conv:HitCountBadgeConverter x:Key="HitBadge" />
     </UserControl.Resources>
 
     <DockPanel>
@@ -50,6 +52,9 @@
                     <ColumnDefinition Width="16"   />  <!-- 8 -->
                     <ColumnDefinition Width="Auto" />  <!-- 9: Filter label -->
                     <ColumnDefinition Width="150"  />  <!-- 10: Filter box -->
+                    <ColumnDefinition Width="16"   />  <!-- 11 -->
+                    <ColumnDefinition Width="Auto" />  <!-- 12: Show label -->
+                    <ColumnDefinition Width="90"   />  <!-- 13: Show dropdown -->
                 </Grid.ColumnDefinitions>
 
                 <!-- ── Row 0: Refresh · New Composer · Delete Composer · Sort Composers · Filter ── -->
@@ -75,6 +80,7 @@
                           SelectedIndex="0"
                           SelectionChanged="OnComposerSortChanged">
                     <ComboBoxItem Content="Pieces" />
+                    <ComboBoxItem Content="Recordings" />
                     <ComboBoxItem Content="Name" />
                     <ComboBoxItem Content="Born" />
                     <ComboBoxItem Content="Died" />
@@ -87,6 +93,18 @@
                          Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
                          FontSize="13" Padding="6,4"
                          TextChanged="OnFilterTextChanged" />
+
+                <TextBlock Grid.Row="0" Grid.Column="12"
+                           Text="Show:" FontSize="12" Foreground="#555"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox Grid.Row="0" Grid.Column="13"
+                          x:Name="ComposerShowCombo" FontSize="12" Height="23"
+                          SelectedIndex="0"
+                          SelectionChanged="OnComposerShowFilterChanged">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="Provisional" />
+                    <ComboBoxItem Content="Accepted" />
+                </ComboBox>
 
                 <!-- ── Row 2: New Piece · Delete Piece · Sort Pieces ── -->
                 <Button Grid.Row="2" Grid.Column="2"
@@ -112,6 +130,19 @@
                     <ComboBoxItem Content="Title" />
                     <ComboBoxItem Content="Category" />
                     <ComboBoxItem Content="Year" />
+                    <ComboBoxItem Content="Recordings" />
+                </ComboBox>
+
+                <TextBlock Grid.Row="2" Grid.Column="12"
+                           Text="Show:" FontSize="12" Foreground="#555"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox Grid.Row="2" Grid.Column="13"
+                          x:Name="PieceShowCombo" FontSize="12" Height="23"
+                          SelectedIndex="0"
+                          SelectionChanged="OnPieceShowFilterChanged">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="Provisional" />
+                    <ComboBoxItem Content="Accepted" />
                 </ComboBox>
             </Grid>
 
@@ -156,11 +187,14 @@
                               SelectedItemChanged="OnComposerTreeSelectionChanged"
                               MouseRightButtonDown="OnTreeMouseRightButtonDown"
                               ContextMenuOpening="OnTreeContextMenuOpening"
-                              KeyDown="OnTreeKeyDown">
+                              KeyDown="OnTreeKeyDown"
+                              RequestBringIntoView="OnTreeRequestBringIntoView">
                         <TreeView.ContextMenu>
                             <ContextMenu>
                                 <MenuItem x:Name="CtxEdit"
                                           Header="Edit" Click="OnContextEdit" />
+                                <MenuItem x:Name="CtxShowAlbums"
+                                          Header="Show Albums…" Click="OnContextShowAlbums" />
                                 <Separator />
                                 <MenuItem x:Name="CtxExpandAll"
                                           Header="Expand all below"
@@ -168,6 +202,11 @@
                                 <MenuItem x:Name="CtxCollapseAll"
                                           Header="Collapse all below"
                                           Click="OnContextCollapseAll" />
+                                <Separator />
+                                <MenuItem x:Name="CtxApprove"
+                                          Header="Approve" Click="OnContextApprove" />
+                                <MenuItem x:Name="CtxReject"
+                                          Header="Reject" Click="OnContextReject" />
                             </ContextMenu>
                         </TreeView.ContextMenu>
                         <TreeView.Template>
@@ -181,30 +220,27 @@
                         </TreeView.Template>
                         <TreeView.Resources>
 
-                            <!-- Expander triangle toggle button -->
-                            <Style x:Key="ExpanderToggle" TargetType="ToggleButton">
-                                <Setter Property="Focusable" Value="False" />
-                                <Setter Property="Width"     Value="16" />
-                                <Setter Property="Height"    Value="16" />
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border Background="Transparent" Padding="3">
-                                                <Path x:Name="Arrow"
-                                                      Data="M 0,0 L 6,4 L 0,8 Z"
-                                                      Fill="#888"
-                                                      HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="Arrow" Property="Data"
-                                                            Value="M 0,0 L 8,0 L 4,6 Z" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
+                            <!-- Expander arrow (Path + one-way DataTrigger).
+                                 A plain Path avoids the TwoWay ToggleButton.IsChecked ↔
+                                 TreeViewItem.IsExpanded binding, which was fragile: WPF's
+                                 IsEnabled-propagation during ShowDialog() owner-disable could
+                                 briefly reset IsChecked, and the TwoWay path then collapsed
+                                 every expanded row.  With a DataTrigger the arrow reflects
+                                 IsExpanded read-only; toggling is done by OnExpanderBorderMouseDown. -->
+                            <Style x:Key="ExpanderArrow" TargetType="Path">
+                                <Setter Property="Data"                Value="M 0,0 L 6,4 L 0,8 Z" />
+                                <Setter Property="Fill"                Value="#888" />
+                                <Setter Property="Width"               Value="10" />
+                                <Setter Property="Height"              Value="10" />
+                                <Setter Property="HorizontalAlignment" Value="Center" />
+                                <Setter Property="VerticalAlignment"   Value="Center" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsExpanded,
+                                                     RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
+                                                 Value="True">
+                                        <Setter Property="Data" Value="M 0,0 L 8,0 L 4,6 Z" />
+                                    </DataTrigger>
+                                </Style.Triggers>
                             </Style>
 
                             <!-- Custom TreeViewItem style -->
@@ -242,10 +278,9 @@
                             <HierarchicalDataTemplate DataType="{x:Type vm:ComposerTreeNode}"
                                                       ItemsSource="{Binding AllItems}">
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <Border Width="19">
-                                        <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                      IsChecked="{Binding IsExpanded,
-                                                          RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
+                                    <Border Width="19" Background="Transparent"
+                                            MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                        <Path Style="{StaticResource ExpanderArrow}" />
                                     </Border>
                                     <Border Width="65">
                                         <TextBlock Text="{Binding Composer.PieceCount}"
@@ -257,6 +292,14 @@
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Composer.LifeSpan}"
                                                    Foreground="#888888" FontSize="12"
+                                                   Margin="6,0,0,0" VerticalAlignment="Center" />
+                                        <TextBlock Text=" (provisional)"
+                                                   Foreground="#E65100" FontSize="11" FontStyle="Italic"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"
+                                                   Visibility="{Binding Composer.IsProvisional,
+                                                                Converter={StaticResource BoolToVisConverter}}" />
+                                        <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                                   Foreground="#2E7D32" FontSize="11"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
@@ -274,12 +317,12 @@
                                         matches the GridSplitter between the Pieces and Name columns.
                                     -->
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasTreeChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasTreeChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" /> <!-- matches the GridSplitter column -->
@@ -292,8 +335,16 @@
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
+                                    <TextBlock Text=" (provisional)"
+                                               Foreground="#E65100" FontSize="11" FontStyle="Italic"
+                                               VerticalAlignment="Center"
+                                               Visibility="{Binding IsProvisional,
+                                                            Converter={StaticResource BoolToVisConverter}}" />
                                     <TextBlock Text="{Binding Catalog}"
                                                FontSize="11" Foreground="#888"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -310,12 +361,12 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
@@ -331,6 +382,9 @@
                                     <TextBlock Text="{Binding Piece.Category}"
                                                FontSize="11" Foreground="#999"
                                                Margin="10,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -339,17 +393,20 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="Original"
                                                FontSize="12" Foreground="#555" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -358,17 +415,20 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasSubpieces,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasSubpieces,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
                                                FontSize="12" Foreground="#666" FontStyle="Italic" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -377,15 +437,56 @@
                                                       ItemsSource="{Binding Pieces}">
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
                                                FontSize="12" Foreground="#777" FontStyle="Italic" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                            <!-- ── Cross-composer subpiece (collaborative work, e.g. Ravel's
+                                     Fanfare under L'éventail de Jeanne).
+                                     Italic to distinguish from owned works.
+                                     Expands to show the cross-credit subpiece's own
+                                     subpieces / versions (descendants inherit the
+                                     cross-crediting composer per the seeder rule). ── -->
+                            <HierarchicalDataTemplate DataType="{x:Type local:CrossComposerSubpieceNode}"
+                                                      ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Border Width="65">
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Width="4" />
+                                    <TextBlock Text="{Binding DisplayTitle}"
+                                               FontSize="12" Foreground="#444"
+                                               FontStyle="Italic">
+                                        <TextBlock.ToolTip>
+                                            <ToolTip MaxWidth="600">
+                                                <TextBlock Text="{Binding Subpiece.ToolTipText}"
+                                                           TextWrapping="Wrap" FontSize="13" />
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Catalog}"
+                                               FontSize="11" Foreground="#888"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
 
@@ -394,12 +495,12 @@
                                                       ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="65">
-                                        <Grid Width="16" Height="16" HorizontalAlignment="Right">
-                                            <ToggleButton Style="{StaticResource ExpanderToggle}"
-                                                          IsChecked="{Binding IsExpanded,
-                                                              RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                          Visibility="{Binding HasChildren,
-                                                              Converter={StaticResource BoolToVisConverter}}" />
+                                        <Grid Width="16" Height="16" HorizontalAlignment="Right"
+                                              Background="Transparent"
+                                              MouseLeftButtonDown="OnExpanderBorderMouseDown">
+                                            <Path Style="{StaticResource ExpanderArrow}"
+                                                  Visibility="{Binding HasChildren,
+                                                      Converter={StaticResource BoolToVisConverter}}" />
                                         </Grid>
                                     </Border>
                                     <Border Width="4" />
@@ -414,6 +515,9 @@
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
                                                FontSize="11" Foreground="#888"
+                                               Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
+                                               FontSize="11" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>

@@ -1,0 +1,44 @@
+<Window x:Class="CDArchive.App.Views.PieceAlbumsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Albums referencing this piece"
+        Width="720" Height="480"
+        MinWidth="520" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <DockPanel Margin="10">
+        <TextBlock x:Name="HeaderText" DockPanel.Dock="Top"
+                   FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"
+                   TextWrapping="Wrap" />
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <Button x:Name="OpenButton" DockPanel.Dock="Right"
+                    Content="Open Album" Width="110" Padding="0,6"
+                    IsEnabled="False" Click="OnOpenClick" />
+            <Button Content="Close" Width="80" Padding="0,6" Margin="0,0,8,0"
+                    DockPanel.Dock="Right" IsCancel="True" />
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center"
+                       Foreground="#666" FontSize="12" />
+        </DockPanel>
+
+        <ListView x:Name="HitList"
+                  BorderBrush="#CCC" BorderThickness="1"
+                  MouseDoubleClick="OnListDoubleClick"
+                  SelectionChanged="OnListSelectionChanged">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Album"   Width="220"
+                                    DisplayMemberBinding="{Binding AlbumTitle}" />
+                    <GridViewColumn Header="Label"   Width="150"
+                                    DisplayMemberBinding="{Binding LabelCatalogue}" />
+                    <GridViewColumn Header="Disc"    Width="70"
+                                    DisplayMemberBinding="{Binding DiscLabel}" />
+                    <GridViewColumn Header="Track"   Width="50"
+                                    DisplayMemberBinding="{Binding TrackNumber}" />
+                    <GridViewColumn Header="Reference" Width="200"
+                                    DisplayMemberBinding="{Binding RefSummary}" />
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</Window>

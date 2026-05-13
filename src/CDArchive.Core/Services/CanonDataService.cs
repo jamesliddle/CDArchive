@@ -33,13 +33,18 @@ public class CanonDataService : ICanonDataService
         var dataDir = Path.Combine(assemblyDir, "data");
         if (!Directory.Exists(dataDir))
         {
-            // Walk up to find the repo root's data/ folder
+            // Walk up to find the repo root's data/ folder. We accept either the
+            // canonical composers JSON OR the SQLite database file as the marker
+            // — the SQLite migration made either one a sufficient indicator that
+            // we've found the canon data directory, so the resolver no longer
+            // depends on the JSON file surviving.
             var dir = new DirectoryInfo(assemblyDir);
             while (dir != null)
             {
                 var candidate = Path.Combine(dir.FullName, "data");
                 if (Directory.Exists(candidate) &&
-                    File.Exists(Path.Combine(candidate, "Classical Canon composers.json")))
+                    (File.Exists(Path.Combine(candidate, "Classical Canon composers.json")) ||
+                     File.Exists(Path.Combine(candidate, "ClassicalCanon.db"))))
                 {
                     dataDir = candidate;
                     break;
@@ -56,9 +61,9 @@ public class CanonDataService : ICanonDataService
     }
 
     public string ComposersFilePath => Path.Combine(_dataDirectory, "Classical Canon composers.json");
-    public string PiecesFilePath => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
+    public string PiecesFilePath    => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
+    public string AlbumsFilePath    => Path.Combine(_dataDirectory, "Classical Canon albums.json");
     public string PickListsFilePath => Path.Combine(_dataDirectory, "Classical Canon pick lists.json");
-    public string DbPath => "";
 
     public async Task<List<CanonComposer>> LoadComposersAsync()
     {
@@ -82,7 +87,88 @@ public class CanonDataService : ICanonDataService
         foreach (var piece in pieces)
             PropagateCatalogNumbers(piece);
 
+        // Stage-2 migration: legacy JSON without a `markers` key needs its
+        // tempos / first_line entries folded into Markers so the unified
+        // anchor pipeline (resolver, picker UI) sees them. Idempotent — when
+        // a piece's Markers list already contains an equivalent entry the
+        // synthesis is skipped, so re-loading after `--export` (which writes
+        // both shapes during the transition) doesn't double-up.
+        foreach (var piece in pieces)
+            MigrateLegacyAnchorsToMarkers(piece);
+
         return pieces;
+    }
+
+    /// <summary>
+    /// Walks a piece (and its subpieces / versions / version-subpieces) and
+    /// synthesises kind=Tempo / kind=FirstLine entries on <see cref="CanonPiece.Markers"/>
+    /// from the legacy <see cref="CanonPiece.Tempos"/> / <see cref="CanonPiece.FirstLine"/>
+    /// fields when they aren't already represented. Mirrors the seeder's
+    /// <c>SynthesizeLegacyAnchorMarkers</c> so JSON loaded directly through
+    /// this service ends up in the same shape as JSON loaded via the seeder.
+    /// </summary>
+    private static void MigrateLegacyAnchorsToMarkers(CanonPiece piece)
+    {
+        piece.Markers = FoldLegacyAnchors(piece.Tempos, piece.FirstLine, piece.Markers);
+
+        if (piece.Subpieces is { Count: > 0 })
+            foreach (var sub in piece.Subpieces) MigrateLegacyAnchorsToMarkers(sub);
+
+        if (piece.Versions is { Count: > 0 })
+            foreach (var v in piece.Versions)
+            {
+                v.Markers = FoldLegacyAnchors(v.Tempos, v.FirstLine, v.Markers);
+                if (v.Subpieces is { Count: > 0 })
+                    foreach (var sub in v.Subpieces) MigrateLegacyAnchorsToMarkers(sub);
+            }
+    }
+
+    /// <summary>
+    /// Returns a markers list with kind=Tempo / kind=FirstLine entries
+    /// synthesised from the legacy fields when missing, deduping on
+    /// (kind, value, number) so repeated reseeds don't double up.
+    /// Returns null only when nothing's accumulated.
+    /// </summary>
+    private static List<MusicalMarker>? FoldLegacyAnchors(
+        List<TempoInfo>? tempos, string? firstLine, List<MusicalMarker>? markers)
+    {
+        if ((tempos is null or { Count: 0 }) && string.IsNullOrWhiteSpace(firstLine))
+            return markers;
+
+        markers ??= [];
+
+        if (tempos is { Count: > 0 })
+        {
+            foreach (var t in tempos)
+            {
+                if (string.IsNullOrEmpty(t.Description)) continue;
+                int? num = t.Number == 0 ? null : t.Number;
+                if (markers.Any(m => m.Kind == MarkerKind.Tempo &&
+                    string.Equals(m.Value, t.Description, StringComparison.OrdinalIgnoreCase) &&
+                    m.Number == num))
+                    continue;
+
+                markers.Add(new MusicalMarker
+                {
+                    Kind   = MarkerKind.Tempo,
+                    Value  = t.Description,
+                    Number = num,
+                });
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(firstLine) &&
+            !markers.Any(m => m.Kind == MarkerKind.FirstLine &&
+                string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
+        {
+            markers.Add(new MusicalMarker
+            {
+                Kind  = MarkerKind.FirstLine,
+                Value = firstLine.Trim(),
+            });
+        }
+
+        return markers;
     }
 
     /// <summary>
@@ -131,6 +217,26 @@ public class CanonDataService : ICanonDataService
         await File.WriteAllTextAsync(PiecesFilePath, json);
     }
 
+    public async Task<List<CanonAlbum>> LoadAlbumsAsync()
+    {
+        if (!File.Exists(AlbumsFilePath))
+            return [];
+
+        var json = await File.ReadAllTextAsync(AlbumsFilePath);
+        return JsonSerializer.Deserialize<List<CanonAlbum>>(json, ReadOptions) ?? [];
+    }
+
+    public async Task SaveAlbumsAsync(List<CanonAlbum> albums)
+    {
+        var sorted = albums
+            .OrderBy(a => a.Label ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.CatalogueNumber ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.Title ?? "", StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var json = JsonSerializer.Serialize(sorted, WriteOptions);
+        await File.WriteAllTextAsync(AlbumsFilePath, json);
+    }
+
     public async Task<CanonPickLists> LoadPickListsAsync()
     {
         if (!File.Exists(PickListsFilePath))
@@ -147,11 +253,11 @@ public class CanonDataService : ICanonDataService
         pickLists.Categories.Sort(StringComparer.OrdinalIgnoreCase);
         pickLists.CatalogPrefixes.Sort(StringComparer.OrdinalIgnoreCase);
         pickLists.KeyTonalities.Sort(StringComparer.OrdinalIgnoreCase);
+        pickLists.PerformerRoles.Sort(StringComparer.OrdinalIgnoreCase);
+        pickLists.Labels.Sort(StringComparer.OrdinalIgnoreCase);
 
         var json = JsonSerializer.Serialize(pickLists, WriteOptions);
         await File.WriteAllTextAsync(PickListsFilePath, json);
     }
 
-    /// <summary>No-op: CanonDataService is JSON-only and has no initialisation state to reset.</summary>
-    public void ResetInitialisation() { }
 }

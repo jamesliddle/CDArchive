@@ -73,28 +73,12 @@
                                  Command="{Binding NavigateToCanonCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="New Album"
-                                 Command="{Binding NavigateToNewAlbumCommand}" />
+                                 Content="Album Catalogue"
+                                 Command="{Binding NavigateToAlbumsCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Browse Archive"
-                                 Command="{Binding NavigateToArchiveBrowserCommand}" />
-
-                    <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Validate Archive"
-                                 Command="{Binding NavigateToValidationCommand}" />
-
-                    <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Convert to MP3"
-                                 Command="{Binding NavigateToConversionCommand}" />
-
-                    <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Conversion Status"
-                                 Command="{Binding NavigateToConversionStatusCommand}" />
-
-                    <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Catalogue"
-                                 Command="{Binding NavigateToCatalogueCommand}" />
+                                 Content="iTunes Import"
+                                 Command="{Binding NavigateToItunesImportCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
                                  Content="Import / Export"
