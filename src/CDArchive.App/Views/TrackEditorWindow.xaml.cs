@@ -109,8 +109,27 @@ public partial class TrackEditorWindow : Window
         SetOrMixed(DurationBox, "Duration",
             tracks.Select(t => t.Duration ?? "").Distinct());
 
-        SetOrMixedEditableCombo(TrackSparsCodeBox, "SparsCode",
-            tracks.Select(t => t.SparsCode ?? "").Distinct());
+        if (SparsCodeCombo.PopulateMixed(TrackSparsCodeBox, tracks.Select(t => t.SparsCode)))
+            _mixedFields.Add("SparsCode");
+
+        // Stereo — non-editable ComboBox; add a "Mixed" sentinel item when needed.
+        // SelectedIndex: 0=Unknown (null), 1=Stereo (true), 2=Mono (false), 3=Mixed sentinel.
+        var stereoDistinct = tracks.Select(t => t.IsStereo).Distinct().ToList();
+        if (stereoDistinct.Count == 1)
+        {
+            TrackStereoBox.SelectedIndex = stereoDistinct[0] switch { true => 1, false => 2, _ => 0 };
+        }
+        else
+        {
+            TrackStereoBox.Items.Add(new ComboBoxItem
+            {
+                Content    = "Mixed",
+                Foreground = Brushes.DarkGray,
+                FontStyle  = FontStyles.Italic
+            });
+            TrackStereoBox.SelectedIndex = 3;
+            _mixedFields.Add("IsStereo");
+        }
 
         SetOrMixed(DescriptionBox, "Description",
             tracks.Select(t => t.Description ?? "").Distinct());
@@ -142,32 +161,23 @@ public partial class TrackEditorWindow : Window
             };
         }
 
-        // ── Performer Override ────────────────────────────────────────────────
-        var overrideStates = tracks
-            .Select(t => t.Performers is { Count: > 0 })
-            .Distinct()
-            .ToList();
+        // ── Performers ────────────────────────────────────────────────────────
+        // Track performers are always shown (no override checkbox). When all
+        // selected tracks share the same list, load it; when they differ, show
+        // a "Mixed" banner that the first add/remove clears.
         var performerFingerprints = tracks
             .Select(t => JsonSerializer.Serialize(t.Performers ?? []))
             .Distinct()
             .ToList();
 
-        if (overrideStates.Count == 1 && performerFingerprints.Count == 1)
+        if (performerFingerprints.Count == 1)
         {
-            var hasOverride = overrideStates[0];
-            OverridePerformersCheck.IsChecked = hasOverride;
-            PerformerOverridePanel.Visibility = hasOverride ? Visibility.Visible : Visibility.Collapsed;
             foreach (var p in tracks[0].Performers ?? [])
                 _trackPerformers.Add(p);
         }
         else
         {
-            // Mixed — show three-state checkbox (indeterminate), empty list, and banner.
-            // Any toggle or list edit clears the Mixed flag.
-            OverridePerformersCheck.IsThreeState = true;
-            OverridePerformersCheck.IsChecked    = null;
-            PerformerOverridePanel.Visibility    = Visibility.Visible;
-            PerformerMixedNote.Visibility        = Visibility.Visible;
+            PerformerMixedNote.Visibility = Visibility.Visible;
             _mixedFields.Add("Performers");
             _performersUntouched = true;
             _trackPerformers.CollectionChanged += (_, _) => MarkPerformersTouched();
@@ -223,8 +233,7 @@ public partial class TrackEditorWindow : Window
     private void MarkPerformersTouched()
     {
         _performersUntouched = false;
-        PerformerMixedNote.Visibility        = Visibility.Collapsed;
-        OverridePerformersCheck.IsThreeState = false;
+        PerformerMixedNote.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
@@ -289,16 +298,12 @@ public partial class TrackEditorWindow : Window
         // Basic fields
         TrackNumberBox.Text      = track.TrackNumber.ToString();
         DurationBox.Text         = track.Duration    ?? "";
-        TrackSparsCodeBox.Text   = track.SparsCode   ?? "";
+        SparsCodeCombo.SelectValue(TrackSparsCodeBox, track.SparsCode);
+        TrackStereoBox.SelectedIndex = track.IsStereo switch { true => 1, false => 2, _ => 0 };
         DescriptionBox.Text      = track.Description ?? "";
 
         // Session combo
         RebuildSessionCombo(track.SessionIndex);
-
-        // Performer override
-        var hasOverride = track.Performers is { Count: > 0 };
-        OverridePerformersCheck.IsChecked        = hasOverride;
-        PerformerOverridePanel.Visibility        = hasOverride ? Visibility.Visible : Visibility.Collapsed;
 
         UpdateTitleAndButtons();
     }
@@ -369,13 +374,14 @@ public partial class TrackEditorWindow : Window
     {
         target.TrackNumber  = int.Parse(TrackNumberBox.Text.Trim());
         target.Duration     = NullIfEmpty(DurationBox.Text);
-        target.SparsCode    = NullIfEmpty(TrackSparsCodeBox.Text);
+        target.SparsCode    = SparsCodeCombo.GetValue(TrackSparsCodeBox);
+        target.IsStereo     = TrackStereoBox.SelectedIndex == 1 ? true
+                            : TrackStereoBox.SelectedIndex == 2 ? false
+                            : (bool?)null;
         target.Description  = NullIfEmpty(DescriptionBox.Text);
         target.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
         target.SessionIndex = SessionBox.SelectedIndex < 0 ? null : SessionBox.SelectedIndex;
-        target.Performers   = OverridePerformersCheck.IsChecked == true && _trackPerformers.Count > 0
-            ? [.. _trackPerformers]
-            : null;
+        target.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
     }
 
     // ── Session ───────────────────────────────────────────────────────────────
@@ -436,10 +442,25 @@ public partial class TrackEditorWindow : Window
         // ── Simple text fields ────────────────────────────────────────────────
         ApplyText("Duration",    DurationBox.Text.Trim(),
             v => { foreach (var t in _editTracks!) t.Duration    = v; });
-        ApplyText("SparsCode",   TrackSparsCodeBox.Text.Trim(),
-            v => { foreach (var t in _editTracks!) t.SparsCode   = v; });
         ApplyText("Description", DescriptionBox.Text.Trim(),
             v => { foreach (var t in _editTracks!) t.Description = v; });
+
+        // ── SPARS Code — skip if Mixed sentinel still selected ─────────────────
+        if (!_mixedFields.Contains("SparsCode")
+            || !SparsCodeCombo.IsMixedSentinelSelected(TrackSparsCodeBox))
+        {
+            var spars = SparsCodeCombo.GetValue(TrackSparsCodeBox);
+            foreach (var t in _editTracks!) t.SparsCode = spars;
+        }
+
+        // ── Stereo — SelectedIndex 3 is the "Mixed" sentinel; skip if still there ─
+        if (!_mixedFields.Contains("IsStereo") || TrackStereoBox.SelectedIndex != 3)
+        {
+            var stereo = TrackStereoBox.SelectedIndex == 1 ? (bool?)true
+                       : TrackStereoBox.SelectedIndex == 2 ? false
+                       : null;
+            foreach (var t in _editTracks!) t.IsStereo = stereo;
+        }
 
         // ── Session ───────────────────────────────────────────────────────────
         // Skip when the sentinel items ("Mixed" or "(multiple albums — cannot edit)") are selected
@@ -460,14 +481,12 @@ public partial class TrackEditorWindow : Window
             foreach (var t in _editTracks!) t.PieceRefs = refs;
         }
 
-        // ── Performer Override ────────────────────────────────────────────────
-        // Apply when: not mixed, or user toggled the checkbox / edited the list.
+        // ── Performers ─────────────────────────────────────────────────────────
+        // Apply when: not mixed (i.e. user is editing a known shared list), or
+        // mixed but the user touched the list (Add/Remove cleared the flag).
         if (!_mixedFields.Contains("Performers") || !_performersUntouched)
         {
-            var hasOverride = OverridePerformersCheck.IsChecked == true;
-            var performers  = hasOverride && _trackPerformers.Count > 0
-                ? _trackPerformers.ToList()
-                : null;
+            var performers = _trackPerformers.Count > 0 ? _trackPerformers.ToList() : null;
             foreach (var t in _editTracks!) t.Performers = performers;
         }
 
@@ -538,22 +557,7 @@ public partial class TrackEditorWindow : Window
         PieceRefList.SelectedIndex = idx;
     }
 
-    // ── Performer override ────────────────────────────────────────────────────
-
-    private void OnOverrideCheckChanged(object sender, RoutedEventArgs e)
-    {
-        var state = OverridePerformersCheck.IsChecked;  // true / false / null
-        var showPanel = state == true ||
-                        (_isMixed && _mixedFields.Contains("Performers") && state == null);
-        PerformerOverridePanel.Visibility = showPanel ? Visibility.Visible : Visibility.Collapsed;
-
-        if (state == false)
-            _trackPerformers.Clear();
-
-        // In multi-edit mode: user toggled the checkbox — no longer "Mixed"
-        if (_isMixed && _mixedFields.Contains("Performers") && state != null)
-            MarkPerformersTouched();
-    }
+    // ── Track performers ──────────────────────────────────────────────────────
 
     private void OnAddTrackPerformer(object sender, RoutedEventArgs e)
     {

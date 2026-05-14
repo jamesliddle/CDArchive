@@ -809,17 +809,24 @@ public partial class CanonView : UserControl
         switch (_ctxTarget)
         {
             case ComposerTreeNode node:
+                // Match the OnNewComposer pattern: mutate → rebuild tree → suppress → save.
+                // Rebuilding before the save's async await avoids a WPF rendering glitch
+                // where the TreeViewItem containers end up in a partially-stale state
+                // (composer-level expander triangles disappear) when the rebuild happens
+                // after the await completes.
                 node.Composer.IsProvisional = false;
+                UpdatePieceCounts(vm);
+                ApplySortedFilter(vm);
                 _suppressAutoRefresh = true;
                 await vm.SaveComposersCommand.ExecuteAsync(null);
-                ApplySortedFilter(vm);
                 vm.StatusMessage = $"Approved {node.Composer.Name}.";
                 break;
             case CanonPiece piece:
                 piece.IsProvisional = false;
+                UpdatePieceCounts(vm);
+                ApplySortedFilter(vm);
                 _suppressAutoRefresh = true;
                 await vm.SavePiecesCommand.ExecuteAsync(null);
-                ApplySortedFilter(vm);
                 vm.StatusMessage = $"Approved {piece.DisplayTitle}.";
                 break;
         }

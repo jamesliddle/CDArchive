@@ -41,6 +41,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="90" />
@@ -67,22 +68,34 @@
                         <!-- SPARS Code -->
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="SPARS Code:"
                                    VerticalAlignment="Center" Margin="0,0,8,8"
-                                   ToolTip="Overrides the album-level SPARS code for this track" />
+                                   ToolTip="Track-level SPARS code. Changing the album-level value pushes the new value to every track." />
                         <ComboBox Grid.Row="2" Grid.Column="1" x:Name="TrackSparsCodeBox"
-                                  IsEditable="True" Width="100" HorizontalAlignment="Left"
+                                  Width="100" HorizontalAlignment="Left"
                                   FontSize="13" Margin="0,0,0,8"
-                                  ToolTip="D=digital, A=analogue: recording / mixing / mastering. Leave blank to inherit the album SPARS code.">
+                                  ToolTip="D=digital, A=analogue: recording / mixing / mastering">
                             <ComboBoxItem Content="DDD" />
                             <ComboBoxItem Content="ADD" />
                             <ComboBoxItem Content="AAD" />
                             <ComboBoxItem Content="Unknown" />
                         </ComboBox>
 
+                        <!-- Stereo -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Stereo:"
+                                   VerticalAlignment="Center" Margin="0,0,8,8"
+                                   ToolTip="Track-level stereo setting. Changing the album-level value pushes the new value to every track." />
+                        <ComboBox Grid.Row="3" Grid.Column="1" x:Name="TrackStereoBox"
+                                  Width="120" HorizontalAlignment="Left"
+                                  FontSize="13" Margin="0,0,0,8">
+                            <ComboBoxItem Content="Unknown" />
+                            <ComboBoxItem Content="Stereo" />
+                            <ComboBoxItem Content="Mono" />
+                        </ComboBox>
+
                         <!-- Session: dropdown + Add button on the same row -->
-                        <TextBlock Grid.Row="3" Grid.Column="0" x:Name="SessionLabel"
+                        <TextBlock Grid.Row="4" Grid.Column="0" x:Name="SessionLabel"
                                    Text="Session:"
                                    VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <DockPanel Grid.Row="3" Grid.Column="1" x:Name="SessionPanel">
+                        <DockPanel Grid.Row="4" Grid.Column="1" x:Name="SessionPanel">
                             <Button DockPanel.Dock="Right" Content="Add…"
                                     Padding="8,3" Margin="6,0,0,0"
                                     Click="OnAddSession" />
@@ -138,41 +151,33 @@
                     </DockPanel>
                 </GroupBox>
 
-                <!-- Performer Override -->
+                <!-- Performers -->
                 <GroupBox x:Name="PerformerOverrideGroup"
-                          Header="Performer Override" Margin="0,10,0,0" Padding="8">
+                          Header="Performers" Margin="0,10,0,0" Padding="8">
                     <StackPanel>
-                        <CheckBox x:Name="OverridePerformersCheck"
-                                  Content="Override album-level performers for this track"
-                                  Checked="OnOverrideCheckChanged"
-                                  Unchecked="OnOverrideCheckChanged"
-                                  Indeterminate="OnOverrideCheckChanged" />
                         <TextBlock x:Name="PerformerMixedNote"
-                                   Text="Mixed — override state and/or performer lists differ across selected tracks. Toggle the checkbox or edit the list to apply the same value to all."
+                                   Text="Mixed — performer lists differ across selected tracks. Add or remove any entry to replace the list for all selected tracks."
                                    Foreground="DarkGray" FontStyle="Italic"
-                                   TextWrapping="Wrap" Margin="0,4,0,0"
+                                   TextWrapping="Wrap" Margin="0,0,0,6"
                                    Visibility="Collapsed" />
-                        <StackPanel x:Name="PerformerOverridePanel"
-                                    Visibility="Collapsed" Margin="0,8,0,0">
-                            <DockPanel Margin="0,0,0,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="Add" Padding="10,4"
-                                            Click="OnAddTrackPerformer" />
-                                    <Button x:Name="RemoveTrackPerformerButton" Content="Remove"
-                                            Padding="10,4" Margin="6,0,0,0"
-                                            IsEnabled="False" Click="OnRemoveTrackPerformer" />
-                                </StackPanel>
-                            </DockPanel>
-                            <ListBox x:Name="TrackPerformerList" MinHeight="60" MaxHeight="120"
-                                     BorderThickness="1" BorderBrush="#CCC" Margin="0,6,0,0"
-                                     SelectionChanged="OnTrackPerformerSelectionChanged">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding DisplayName}" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </StackPanel>
+                        <DockPanel Margin="0,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Add" Padding="10,4"
+                                        Click="OnAddTrackPerformer" />
+                                <Button x:Name="RemoveTrackPerformerButton" Content="Remove"
+                                        Padding="10,4" Margin="6,0,0,0"
+                                        IsEnabled="False" Click="OnRemoveTrackPerformer" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ListBox x:Name="TrackPerformerList" MinHeight="60" MaxHeight="120"
+                                 BorderThickness="1" BorderBrush="#CCC" Margin="0,6,0,0"
+                                 SelectionChanged="OnTrackPerformerSelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </StackPanel>
                 </GroupBox>
 

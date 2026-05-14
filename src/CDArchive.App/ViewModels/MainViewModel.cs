@@ -63,7 +63,7 @@ public partial class MainViewModel : ObservableObject
     {
         IsCanonViewActive = false;
         CurrentView = _albumsViewModel;
-        CurrentViewTitle = "Album Catalogue";
+        CurrentViewTitle = "Albums";
         _ = _albumsViewModel.LoadDataCommand.ExecuteAsync(null);
     }
 
@@ -72,7 +72,8 @@ public partial class MainViewModel : ObservableObject
     {
         IsCanonViewActive = false;
         CurrentView = _itunesImportViewModel;
-        CurrentViewTitle = "iTunes Import";
+        CurrentViewTitle = "iTunes Library";
+        _ = _itunesImportViewModel.LoadCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]
@@ -80,7 +81,7 @@ public partial class MainViewModel : ObservableObject
     {
         IsCanonViewActive = false;
         CurrentView = _importExportViewModel;
-        CurrentViewTitle = "Import / Export";
+        CurrentViewTitle = "JSON Import / Export";
     }
 
     [RelayCommand]

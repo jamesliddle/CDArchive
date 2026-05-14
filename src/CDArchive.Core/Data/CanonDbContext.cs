@@ -558,6 +558,7 @@ public class CanonDbContext : DbContext
             b.Property(x => x.Description).HasColumnName("description");
             b.Property(x => x.SessionId).HasColumnName("session_id");
             b.Property(x => x.SparsCode).HasColumnName("spars_code");
+            b.Property(x => x.IsStereo).HasColumnName("is_stereo");
             // No HasDefaultValue here: with it, EF Core omits the column from the
             // INSERT statement when the CLR value happens to match the configured
             // default, letting the database apply its own (possibly stale) default

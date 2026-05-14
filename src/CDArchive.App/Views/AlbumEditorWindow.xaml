@@ -84,7 +84,7 @@
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <ComboBox Grid.Row="5" Grid.Column="1" x:Name="SparsCodeBox"
-                                  IsEditable="True" Width="100" HorizontalAlignment="Left"
+                                  Width="100" HorizontalAlignment="Left"
                                   FontSize="13" Margin="0,0,0,8"
                                   ToolTip="D=digital, A=analogue: recording / mixing / mastering">
                             <ComboBoxItem Content="DDD" />

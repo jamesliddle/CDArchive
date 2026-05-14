@@ -24,7 +24,7 @@ public partial class AlbumsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "";
 
     // Current sort state; the view updates these before calling ApplyFilter().
-    public string SortColumn    { get; set; } = "Label";
+    public string SortColumn    { get; set; } = "DisplayTitle";
     public bool   SortAscending { get; set; } = true;
 
     public AlbumsViewModel(ICanonDataService svc, PieceReferenceIndex refIndex)

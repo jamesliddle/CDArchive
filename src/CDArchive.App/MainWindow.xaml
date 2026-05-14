@@ -73,15 +73,15 @@
                                  Command="{Binding NavigateToCanonCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Album Catalogue"
+                                 Content="Albums"
                                  Command="{Binding NavigateToAlbumsCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="iTunes Import"
+                                 Content="iTunes Library"
                                  Command="{Binding NavigateToItunesImportCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
-                                 Content="Import / Export"
+                                 Content="JSON Import / Export"
                                  Command="{Binding NavigateToImportExportCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
