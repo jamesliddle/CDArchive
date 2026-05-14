@@ -11,6 +11,14 @@ The application has two major subsystems:
 
 ---
 
+## Currently in progress / open questions
+
+Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
+
+- **(none)** — latest changes shipped via PR #3 (`feature/canon-ui-improvements` → `master`), awaiting review/merge.
+
+---
+
 ## Technology Stack
 
 | Layer | Technology |
@@ -201,7 +209,18 @@ Represents a physical CD release the owner has ripped. Albums own one or more `A
 | `Performers` | List\<AlbumPerformer\>? | Album-level performer credits |
 | `Discs` | List\<AlbumDisc\> | One entry per physical disc |
 
-Each `AlbumTrack` carries `TrackNumber`, `Duration`, `Description`, `SparsCode`, `SessionIndex`, `Performers`, and `PieceRefs` (`List<TrackPieceRef>`). A `TrackPieceRef` is the (composer, piece-title, optional subpiece-path, optional version-description) tuple that resolves to a `CanonPiece` / `CanonPieceVersion` via `PieceReferenceIndex`.
+Each `AlbumTrack` carries `TrackNumber`, `Duration`, `Description`, `SparsCode`, `IsStereo`, `SessionIndex`, `Performers`, and `PieceRefs` (`List<TrackPieceRef>`). A `TrackPieceRef` is the (composer, piece-title, optional subpiece-path, optional version-description) tuple that resolves to a `CanonPiece` / `CanonPieceVersion` via `PieceReferenceIndex`.
+
+### Inheritable album-level fields (`SparsCode`, `IsStereo`, `Performers`)
+
+These three fields exist at both the album and track levels with the same shape. The semantic is **not** runtime inheritance — every track carries its own copy. The album editor is the chokepoint that keeps them in sync:
+
+- When the user changes the album-level value in the album editor, `PropagateAlbumFieldsToTracks` (single-edit) and the equivalent block in `SaveMulti` push the new value to **every track on the album**, overwriting any prior track-level value. The intent: "set at album → propagate to all."
+- For unchanged album fields, the same pass **backfills** any track whose value is still `null` with the album's current value. New tracks added in this session and any legacy null tracks therefore end up with explicit values, consistent with the "no Inherit" UI contract.
+- Tracks whose value is non-null and whose album-level value was not changed are left alone, preserving prior track-level overrides.
+- The Track editor edits each field on a single track only — never touches the album or other tracks.
+
+**SPARS Code constraint:** the dropdown's permitted values are exactly `DDD`, `ADD`, `AAD`, `Unknown`. Both the album and track dropdowns are non-editable (so they share the gray styling of the other dropdowns in the app). `null` / empty values map to `Unknown` on display via `SparsCodeCombo.SelectValue`. Legacy non-standard codes are appended to the dropdown dynamically rather than being silently dropped.
 
 ### Provisional Status
 
@@ -526,6 +545,14 @@ This collided with an earlier shape of `BuildTrackPieceRef` that walked all the 
 **Solution**: `IdentityKey` now folds in `Title|Subtitle` as well, so any album with a non-empty title gets a stable lookup key. The dedup rule on the data-service side (`existingByKey` in `SqliteCanonDataService.SaveAlbumsAsync`) builds the same composite. Locked in by `AlbumIdentityTests.SaveTwice_AfterJsonCloneAndEdit_DoesNotDuplicate`.
 
 **Remaining edge case (deferred)**: if the user *renames* an album in the editor (e.g. changes the Title), the clone's `IdentityKey` differs from the row's, lookup misses, and a duplicate is created. Two ways to fix later: (a) have the editor mutate the original instance in-place (snapshot/restore for Cancel) so CWT identity survives, or (b) expose a CWT-rebind API on the data service that the editor calls after OK. Until then, renames-only edits create duplicates and need manual cleanup.
+
+### WPF mutate-then-save handlers: rebuild the tree *before* the save's await
+
+**Problem**: `OnContextApprove` in `CanonView.xaml.cs` (both the composer and piece branches) originally ran `mutate → suppress → await save → ApplySortedFilter`. After approving a composer, the expander triangles for *every* composer would disappear from the tree until a manual refresh restored them.
+
+The mechanism: during the save command's async `await`, the UI thread is free to process other dispatcher work, and WPF re-evaluates layout against the still-old data. When `ApplySortedFilter` finally rebuilds the tree afterward, the freshly-generated `TreeViewItem` containers end up in a partially-stale state where the expander `Path`'s `RelativeSource AncestorType=TreeViewItem` binding can't resolve cleanly, and the triangles fail to render.
+
+**Solution**: Run the rebuild *before* the save's async await — `mutate → UpdatePieceCounts → ApplySortedFilter → suppress → await save` — matching the pattern already used by `OnNewComposer`. Every other handler that both rebuilds the tree and saves should follow the same order.
 
 ---
 
