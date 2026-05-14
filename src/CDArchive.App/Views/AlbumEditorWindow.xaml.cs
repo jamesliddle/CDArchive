@@ -19,6 +19,15 @@ public partial class AlbumEditorWindow : Window
     private List<AlbumPerformer> _performers;
     private List<RecordingSession> _sessions;
 
+    // Snapshots captured at load time so we can detect album-level changes to
+    // SparsCode / IsStereo / Performers and propagate them down to every track
+    // on save. (Tracks always carry their own copy of these fields — there is
+    // no "inherit" semantic — so the album editor's job is to push changes to
+    // them. Track-level edits via the track editor remain isolated to that track.)
+    private string?               _origSparsCode;
+    private bool?                 _origIsStereo;
+    private string?               _origPerformersFingerprint;
+
     // ── Multi-edit state ──────────────────────────────────────────────────────
 
     private readonly bool _isMixed;                          // true when editing several albums at once
@@ -66,6 +75,12 @@ public partial class AlbumEditorWindow : Window
 
         _performers = _album.Performers ?? [];
         _sessions   = _album.Sessions   ?? [];
+
+        // Snapshot the inheritable album-level fields so SaveSingle can detect
+        // changes and propagate them down to every track.
+        _origSparsCode             = _album.SparsCode;
+        _origIsStereo              = _album.IsStereo;
+        _origPerformersFingerprint = FingerprintPerformers(_album.Performers);
 
         PopulateDetailsTab();
         PopulatePerformerList();
@@ -123,7 +138,7 @@ public partial class AlbumEditorWindow : Window
         BarcodeBox.Text         = _album.Barcode         ?? "";
         NotesBox.Text           = _album.Notes           ?? "";
 
-        SparsCodeBox.Text = _album.SparsCode ?? "";
+        SparsCodeCombo.SelectValue(SparsCodeBox, _album.SparsCode);
 
         StereoBox.SelectedIndex = _album.IsStereo.HasValue
             ? (_album.IsStereo.Value ? 1 : 2)
@@ -144,8 +159,8 @@ public partial class AlbumEditorWindow : Window
             albums.Select(a => a.CatalogueNumber ?? "").Distinct());
         SetOrMixed(BarcodeBox,         "Barcode",
             albums.Select(a => a.Barcode         ?? "").Distinct());
-        SetOrMixedEditableCombo(SparsCodeBox, "SparsCode",
-            albums.Select(a => a.SparsCode       ?? "").Distinct());
+        if (SparsCodeCombo.PopulateMixed(SparsCodeBox, albums.Select(a => a.SparsCode)))
+            _mixedFields.Add("SparsCode");
         SetOrMixed(NotesBox,           "Notes",
             albums.Select(a => a.Notes           ?? "").Distinct());
 
@@ -522,7 +537,7 @@ public partial class AlbumEditorWindow : Window
         _album.Label           = NullIfEmpty(LabelBox.Text);
         _album.CatalogueNumber = NullIfEmpty(CatalogueNumberBox.Text);
         _album.Barcode         = NullIfEmpty(BarcodeBox.Text);
-        _album.SparsCode       = NullIfEmpty(SparsCodeBox.Text);
+        _album.SparsCode       = SparsCodeCombo.GetValue(SparsCodeBox);
         _album.Notes           = NullIfEmpty(NotesBox.Text);
         _album.IsStereo        = StereoBox.SelectedIndex == 1 ? true
                                : StereoBox.SelectedIndex == 2 ? false
@@ -532,6 +547,12 @@ public partial class AlbumEditorWindow : Window
         _album.Sessions   = _sessions.Count   > 0 ? _sessions   : null;
 
         _album.Discs.RemoveAll(d => d.Tracks.Count == 0);
+
+        // Propagate inheritable album-level fields down to every track when the
+        // user actually changed them in this editor session. This implements the
+        // "set at album level → push to every track" semantic. Track-level edits
+        // (via the Track editor) remain isolated.
+        PropagateAlbumFieldsToTracks(_album);
 
         Result = _album;
         DialogResult = true;
@@ -550,20 +571,104 @@ public partial class AlbumEditorWindow : Window
         ApplyText("Label",           LabelBox.Text.Trim(),           v => { foreach (var a in _editAlbums!) a.Label           = v; });
         ApplyText("CatalogueNumber", CatalogueNumberBox.Text.Trim(), v => { foreach (var a in _editAlbums!) a.CatalogueNumber = v; });
         ApplyText("Barcode",         BarcodeBox.Text.Trim(),         v => { foreach (var a in _editAlbums!) a.Barcode         = v; });
-        ApplyText("SparsCode",       SparsCodeBox.Text.Trim(),       v => { foreach (var a in _editAlbums!) a.SparsCode       = v; });
+        var sparsBoxIsMixedSentinel = SparsCodeCombo.IsMixedSentinelSelected(SparsCodeBox);
+        var sparsTouched = !_mixedFields.Contains("SparsCode") || !sparsBoxIsMixedSentinel;
+        var sparsBoxValue = sparsTouched ? SparsCodeCombo.GetValue(SparsCodeBox) : null;
+        if (sparsTouched)
+            foreach (var a in _editAlbums!) a.SparsCode = sparsBoxValue;
         ApplyText("Notes",           NotesBox.Text.Trim(),           v => { foreach (var a in _editAlbums!) a.Notes           = v; });
 
         // Stereo — SelectedIndex 3 is the "Mixed" sentinel; skip if still there
-        if (!_mixedFields.Contains("IsStereo") || StereoBox.SelectedIndex != 3)
+        var stereoChanged = !_mixedFields.Contains("IsStereo") || StereoBox.SelectedIndex != 3;
+        bool? stereoNew = null;
+        if (stereoChanged)
         {
-            var stereo = StereoBox.SelectedIndex == 1 ? (bool?)true
-                       : StereoBox.SelectedIndex == 2 ? false
-                       : null;
-            foreach (var a in _editAlbums!) a.IsStereo = stereo;
+            stereoNew = StereoBox.SelectedIndex == 1 ? (bool?)true
+                      : StereoBox.SelectedIndex == 2 ? false
+                      : null;
+            foreach (var a in _editAlbums!) a.IsStereo = stereoNew;
+        }
+
+        // Propagate to tracks. Two rules per inheritable field:
+        //   • If the user changed the field at the album level (i.e. it's not
+        //     still showing "Mixed"), push the new value down to every track of
+        //     every album, overwriting any prior track-level value.
+        //   • Otherwise, backfill — for each album, any track whose value is
+        //     null receives the album's current value. This keeps the "no
+        //     Inherit" contract for new tracks and legacy null tracks while
+        //     leaving non-null overrides alone.
+        // Performers aren't editable in multi-edit (the Performers tab is hidden),
+        // so we only backfill that field per-album.
+        foreach (var a in _editAlbums!)
+        {
+            foreach (var disc in a.Discs)
+            {
+                foreach (var track in disc.Tracks)
+                {
+                    if (sparsTouched || track.SparsCode is null)
+                        track.SparsCode = sparsTouched ? sparsBoxValue : a.SparsCode;
+
+                    if (stereoChanged || track.IsStereo is null)
+                        track.IsStereo  = stereoChanged ? stereoNew : a.IsStereo;
+
+                    // Performers are per-album in multi-edit; only backfill nulls.
+                    if (track.Performers is null)
+                        track.Performers = ClonePerformers(a.Performers);
+                }
+            }
         }
 
         DialogResult = true;
     }
+
+    // ── Album → track propagation ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Copies the album's inheritable fields (SparsCode, IsStereo, Performers)
+    /// down to every track on the album. Two propagation rules:
+    ///   • When the user changed the album-level value in this session, push it
+    ///     to every track, overwriting any existing track-level value (the
+    ///     user's clear intent: "set at album → propagate to all").
+    ///   • When the user didn't change it, backfill any track whose value is
+    ///     still null with the album's value (so new tracks added in this
+    ///     session, and any legacy null tracks, end up with explicit values —
+    ///     consistent with the "no Inherit" UI contract).
+    /// Tracks whose value is non-null and whose album-level value was not
+    ///     changed are left alone, preserving prior track-level overrides.
+    /// </summary>
+    private void PropagateAlbumFieldsToTracks(CanonAlbum album)
+    {
+        var sparsChanged  = !string.Equals(_origSparsCode, album.SparsCode, StringComparison.Ordinal);
+        var stereoChanged = _origIsStereo != album.IsStereo;
+        var perfsChanged  = _origPerformersFingerprint
+                            != FingerprintPerformers(album.Performers);
+
+        foreach (var disc in album.Discs)
+        {
+            foreach (var track in disc.Tracks)
+            {
+                if (sparsChanged || track.SparsCode is null)
+                    track.SparsCode = album.SparsCode;
+
+                if (stereoChanged || track.IsStereo is null)
+                    track.IsStereo = album.IsStereo;
+
+                if (perfsChanged || track.Performers is null)
+                    track.Performers = ClonePerformers(album.Performers);
+            }
+        }
+    }
+
+    /// <summary>JSON-roundtrip clone so each track owns an independent list.</summary>
+    private static List<AlbumPerformer>? ClonePerformers(List<AlbumPerformer>? src)
+    {
+        if (src is null || src.Count == 0) return null;
+        var json = JsonSerializer.Serialize(src);
+        return JsonSerializer.Deserialize<List<AlbumPerformer>>(json);
+    }
+
+    private static string FingerprintPerformers(List<AlbumPerformer>? src) =>
+        src is null || src.Count == 0 ? "" : JsonSerializer.Serialize(src);
 
     /// <summary>
     /// Applies <paramref name="newValue"/> to all albums via <paramref name="setter"/>

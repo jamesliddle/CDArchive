@@ -39,7 +39,8 @@
                             Margin="0,0,6,0"
                             ToolTip="Validate all track-to-piece links against the current Canon"
                             Click="OnCheckReferencesClick" />
-                    <Button Content="Refresh" Padding="12,5" FontSize="13"
+                    <Button Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
+                            ToolTip="Reload all data from the database"
                             Click="OnRefreshClick" />
                 </StackPanel>
 

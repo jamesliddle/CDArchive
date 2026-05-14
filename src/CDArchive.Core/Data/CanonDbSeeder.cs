@@ -588,6 +588,7 @@ public class CanonDbSeeder
                         Duration    = track.Duration,
                         Description = track.Description,
                         SparsCode   = track.SparsCode,
+                        IsStereo    = track.IsStereo,
                     };
                     if (track.SessionIndex is int si && sessionByIndex.TryGetValue(si, out var sessRow))
                         trackRow.Session = sessRow;

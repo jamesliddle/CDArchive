@@ -136,6 +136,8 @@ public class SqliteCanonDataService : ICanonDataService
             .ConfigureAwait(false);
         await EnsureColumnAsync(db, "album_tracks", "is_provisional", "INTEGER NOT NULL DEFAULT 1")
             .ConfigureAwait(false);
+        await EnsureColumnAsync(db, "album_tracks", "is_stereo", "INTEGER NULL")
+            .ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(
@@ -1541,6 +1543,7 @@ public class SqliteCanonDataService : ICanonDataService
                     Duration      = tr.Duration,
                     Description   = tr.Description,
                     SparsCode     = tr.SparsCode,
+                    IsStereo      = tr.IsStereo,
                     IsProvisional = tr.IsProvisional,
                     SessionIndex  = tr.SessionId.HasValue &&
                                     sessionIndexById.TryGetValue(tr.SessionId.Value, out var si)
@@ -1908,6 +1911,7 @@ public class SqliteCanonDataService : ICanonDataService
                     Duration      = track.Duration,
                     Description   = track.Description,
                     SparsCode     = track.SparsCode,
+                    IsStereo      = track.IsStereo,
                     IsProvisional = track.IsProvisional,
                 };
                 if (track.SessionIndex is int si && sessionRowByIndex.TryGetValue(si, out var sessRow))

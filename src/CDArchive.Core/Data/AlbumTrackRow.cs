@@ -25,6 +25,11 @@ public class AlbumTrackRow
 
     public string? SparsCode { get; set; }
 
+    /// <summary>
+    /// Track-level stereo override. null = inherit album stereo; true = stereo; false = mono.
+    /// </summary>
+    public bool? IsStereo { get; set; }
+
     /// <summary>True until explicitly approved. Defaults true for new tracks.</summary>
     public bool IsProvisional { get; set; } = true;
 

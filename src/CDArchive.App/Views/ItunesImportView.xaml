@@ -21,7 +21,8 @@
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0"
-                    Content="Load from iTunes" Padding="12,4" Height="28" FontSize="12"
+                    Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
+                    ToolTip="Reload tracks from the iTunes library"
                     Command="{Binding LoadCommand}"
                     IsEnabled="{Binding IsReady}" />
 

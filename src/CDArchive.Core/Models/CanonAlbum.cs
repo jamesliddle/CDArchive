@@ -234,6 +234,13 @@ public class AlbumTrack
     public string? SparsCode { get; set; }
 
     /// <summary>
+    /// Track-level stereo override. null = inherit album stereo; true = stereo; false = mono.
+    /// </summary>
+    [JsonPropertyName("stereo")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsStereo { get; set; }
+
+    /// <summary>
     /// Track-level performer override.  When non-null, replaces the album-level
     /// <see cref="CanonAlbum.Performers"/> list entirely for this track.
     /// null means "inherit album performers".
