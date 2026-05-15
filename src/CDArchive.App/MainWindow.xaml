@@ -113,6 +113,10 @@
                                Foreground="#333333" />
                 </Border>
 
+                <!-- Persistent player bar at the bottom — singleton VM, survives navigation. -->
+                <views:PlayerBar DockPanel.Dock="Bottom"
+                                 DataContext="{Binding PlayerViewModel}" />
+
                 <!-- Content area: CanonView lives permanently; other views use ContentControl -->
                 <Grid Margin="25,20">
                     <!-- CanonView is always alive — shown/hidden without being destroyed.

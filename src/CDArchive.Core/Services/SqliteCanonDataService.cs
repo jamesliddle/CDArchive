@@ -138,6 +138,17 @@ public class SqliteCanonDataService : ICanonDataService
             .ConfigureAwait(false);
         await EnsureColumnAsync(db, "album_tracks", "is_stereo", "INTEGER NULL")
             .ConfigureAwait(false);
+        // Audio-file location columns for the music player. Optional — populated
+        // by user input / the archive scan. Convention-based resolution doesn't
+        // need them; they're escape hatches for outliers.
+        await EnsureColumnAsync(db, "albums", "archive_folder", "TEXT NULL")
+            .ConfigureAwait(false);
+        await EnsureColumnAsync(db, "album_discs", "folder_name", "TEXT NULL")
+            .ConfigureAwait(false);
+        await EnsureColumnAsync(db, "album_tracks", "flac_path", "TEXT NULL")
+            .ConfigureAwait(false);
+        await EnsureColumnAsync(db, "album_tracks", "mp3_path", "TEXT NULL")
+            .ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(
@@ -1465,6 +1476,7 @@ public class SqliteCanonDataService : ICanonDataService
             SparsCode       = ar.SparsCode,
             IsStereo        = ar.IsStereo,
             Notes           = ar.Notes,
+            ArchiveFolder   = ar.ArchiveFolder,
             IsProvisional   = ar.IsProvisional,
         };
 
@@ -1530,6 +1542,7 @@ public class SqliteCanonDataService : ICanonDataService
             {
                 DiscNumber   = dr.DiscNumber,
                 Title        = dr.Title,
+                FolderName   = dr.FolderName,
                 VolumeNumber = dr.VolumeId.HasValue && volumeNumberById.TryGetValue(dr.VolumeId.Value, out var vn)
                                ? vn : null,
                 Tracks       = new List<AlbumTrack>(dr.Tracks.Count),
@@ -1545,6 +1558,8 @@ public class SqliteCanonDataService : ICanonDataService
                     SparsCode     = tr.SparsCode,
                     IsStereo      = tr.IsStereo,
                     IsProvisional = tr.IsProvisional,
+                    FlacPath      = tr.FlacPath,
+                    Mp3Path       = tr.Mp3Path,
                     SessionIndex  = tr.SessionId.HasValue &&
                                     sessionIndexById.TryGetValue(tr.SessionId.Value, out var si)
                                     ? si : null,
@@ -1849,6 +1864,7 @@ public class SqliteCanonDataService : ICanonDataService
             SparsCode       = album.SparsCode,
             IsStereo        = album.IsStereo,
             Notes           = album.Notes,
+            ArchiveFolder   = album.ArchiveFolder,
             IsProvisional   = album.IsProvisional,
         };
 
@@ -1899,6 +1915,7 @@ public class SqliteCanonDataService : ICanonDataService
             {
                 DiscNumber = disc.DiscNumber,
                 Title      = disc.Title,
+                FolderName = disc.FolderName,
             };
             if (disc.VolumeNumber is int vn && volumeRowByNumber.TryGetValue(vn, out var volRow))
                 dr.Volume = volRow;
@@ -1913,6 +1930,8 @@ public class SqliteCanonDataService : ICanonDataService
                     SparsCode     = track.SparsCode,
                     IsStereo      = track.IsStereo,
                     IsProvisional = track.IsProvisional,
+                    FlacPath      = track.FlacPath,
+                    Mp3Path       = track.Mp3Path,
                 };
                 if (track.SessionIndex is int si && sessionRowByIndex.TryGetValue(si, out var sessRow))
                     tr.Session = sessRow;

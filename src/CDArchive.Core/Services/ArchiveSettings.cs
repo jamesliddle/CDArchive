@@ -13,6 +13,7 @@ public class ArchiveSettings : IArchiveSettings
     public string ArchiveRootPath { get; set; } = @"D:\CD archive";
     public string FfmpegPath { get; set; } = "ffmpeg";
     public int Mp3Bitrate { get; set; } = 320;
+    public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
 
     public ArchiveSettings()
     {
@@ -29,7 +30,8 @@ public class ArchiveSettings : IArchiveSettings
         {
             ArchiveRootPath = ArchiveRootPath,
             FfmpegPath = FfmpegPath,
-            Mp3Bitrate = Mp3Bitrate
+            Mp3Bitrate = Mp3Bitrate,
+            PreferredAudioFormat = PreferredAudioFormat
         }, options);
 
         File.WriteAllText(SettingsFilePath, json);
@@ -49,6 +51,7 @@ public class ArchiveSettings : IArchiveSettings
                 ArchiveRootPath = data.ArchiveRootPath ?? ArchiveRootPath;
                 FfmpegPath = data.FfmpegPath ?? FfmpegPath;
                 Mp3Bitrate = data.Mp3Bitrate > 0 ? data.Mp3Bitrate : Mp3Bitrate;
+                PreferredAudioFormat = data.PreferredAudioFormat ?? PreferredAudioFormat;
             }
         }
         catch (JsonException)
@@ -62,5 +65,6 @@ public class ArchiveSettings : IArchiveSettings
         public string? ArchiveRootPath { get; set; }
         public string? FfmpegPath { get; set; }
         public int Mp3Bitrate { get; set; }
+        public PreferredAudioFormat? PreferredAudioFormat { get; set; }
     }
 }

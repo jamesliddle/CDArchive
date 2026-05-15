@@ -43,6 +43,21 @@ public class CanonAlbum
     public string? Notes { get; set; }
 
     /// <summary>
+    /// Folder containing this album's audio files, used by the music player's
+    /// path locator. Two shapes are accepted:
+    ///   • A bare folder name (e.g. "Beethoven Symphonies 1 3 Bernstein") —
+    ///     resolved against the configured archive root.
+    ///   • An absolute path — used as-is (escape hatch for albums living
+    ///     outside the configured root).
+    /// null means the convention isn't used for this album; per-track
+    /// <see cref="AlbumTrack.FlacPath"/> / <see cref="AlbumTrack.Mp3Path"/>
+    /// overrides are the only way to locate its files.
+    /// </summary>
+    [JsonPropertyName("archive_folder")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveFolder { get; set; }
+
+    /// <summary>
     /// True until the album is explicitly approved. New albums imported from iTunes
     /// start provisional; the user opts them into the canon by approving.
     /// </summary>
@@ -172,6 +187,16 @@ public class AlbumDisc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; set; }
 
+    /// <summary>
+    /// On-disk folder name for this disc, used by the music player's path
+    /// locator. null means the locator uses the default "Disc {DiscNumber}"
+    /// (or no disc folder at all for single-disc albums). Set this for
+    /// non-standard layouts like "Disc 3-06" in box sets.
+    /// </summary>
+    [JsonPropertyName("folder_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FolderName { get; set; }
+
     [JsonPropertyName("tracks")]
     public List<AlbumTrack> Tracks { get; set; } = [];
 }
@@ -248,6 +273,23 @@ public class AlbumTrack
     [JsonPropertyName("performers")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<AlbumPerformer>? Performers { get; set; }
+
+    /// <summary>
+    /// Absolute path to this track's FLAC file when it can't be derived from
+    /// the album/disc convention. null = let the locator derive it. Used for
+    /// outliers like loose MP3s in the user's Music folder.
+    /// </summary>
+    [JsonPropertyName("flac_path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FlacPath { get; set; }
+
+    /// <summary>
+    /// Absolute path to this track's MP3 file when it can't be derived from
+    /// the album/disc convention. null = let the locator derive it.
+    /// </summary>
+    [JsonPropertyName("mp3_path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Mp3Path { get; set; }
 
     // ── Computed helpers ─────────────────────────────────────────────────────
 

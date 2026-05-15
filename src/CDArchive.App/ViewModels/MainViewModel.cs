@@ -11,6 +11,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ItunesImportViewModel _itunesImportViewModel;
     private readonly ImportExportViewModel _importExportViewModel;
     private readonly PickListsViewModel _pickListsViewModel;
+    private readonly PlayerViewModel _playerViewModel;
 
     [ObservableProperty]
     private ObservableObject? _currentView;
@@ -22,6 +23,7 @@ public partial class MainViewModel : ObservableObject
     private bool _isCanonViewActive = true;
 
     public CanonViewModel CanonViewModel => _canonViewModel;
+    public PlayerViewModel PlayerViewModel => _playerViewModel;
 
     public MainViewModel(
         SettingsViewModel settingsViewModel,
@@ -29,7 +31,8 @@ public partial class MainViewModel : ObservableObject
         AlbumsViewModel albumsViewModel,
         ItunesImportViewModel itunesImportViewModel,
         ImportExportViewModel importExportViewModel,
-        PickListsViewModel pickListsViewModel)
+        PickListsViewModel pickListsViewModel,
+        PlayerViewModel playerViewModel)
     {
         _settingsViewModel = settingsViewModel;
         _canonViewModel = canonViewModel;
@@ -37,6 +40,7 @@ public partial class MainViewModel : ObservableObject
         _itunesImportViewModel = itunesImportViewModel;
         _importExportViewModel = importExportViewModel;
         _pickListsViewModel = pickListsViewModel;
+        _playerViewModel = playerViewModel;
 
         // CanonView is always-alive in MainWindow; IsCanonViewActive=true (default) shows it on startup.
     }

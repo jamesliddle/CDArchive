@@ -10,6 +10,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
         services.AddSingleton<IArchiveSettings, ArchiveSettings>();
+        services.AddSingleton<IArchiveAudioLocator, ArchiveAudioLocator>();
+        services.AddSingleton<IAudioPlayerService, NAudioPlayerService>();
         services.AddTransient<IFileSystemService, FileSystemService>();
         services.AddTransient<IAlbumScaffoldingService, AlbumScaffoldingService>();
         services.AddTransient<IDuplicateDetectionService, DuplicateDetectionService>();
