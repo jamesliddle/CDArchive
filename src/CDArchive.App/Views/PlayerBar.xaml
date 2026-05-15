@@ -9,6 +9,8 @@
 
     <UserControl.Resources>
 
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
         <!-- Borderless transport-icon button. Icon glyphs are rendered in Segoe UI Symbol. -->
         <Style x:Key="TransportButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
@@ -123,8 +125,11 @@
                            TextTrimming="CharacterEllipsis"
                            Margin="0,0,0,4" />
 
-                <!-- Time labels + slider -->
-                <Grid Grid.Row="1">
+                <!-- Time labels + slider — hidden until a track is loaded so an
+                     empty slider with Maximum=0 doesn't render the thumb pinned
+                     at the right edge. -->
+                <Grid Grid.Row="1"
+                      Visibility="{Binding IsTrackLoaded, Converter={StaticResource BoolToVis}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="50" />
                         <ColumnDefinition Width="*" />
