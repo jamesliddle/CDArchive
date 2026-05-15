@@ -15,7 +15,7 @@ The application has two major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
-- **(none)** — latest changes shipped via PR #3 (`feature/canon-ui-improvements` → `master`), awaiting review/merge.
+- **(none)** — Sessions-tab Engineers/Producers fix and GridView column alignment polish committed on `bugfix/sessions`. Open follow-up: consider refactoring `PropagateAlbumFieldsToTracks` out of `AlbumEditorWindow` into a static helper so it becomes unit-testable (the WPF-host coupling is the only thing blocking coverage today).
 
 ---
 
@@ -553,6 +553,18 @@ This collided with an earlier shape of `BuildTrackPieceRef` that walked all the 
 The mechanism: during the save command's async `await`, the UI thread is free to process other dispatcher work, and WPF re-evaluates layout against the still-old data. When `ApplySortedFilter` finally rebuilds the tree afterward, the freshly-generated `TreeViewItem` containers end up in a partially-stale state where the expander `Path`'s `RelativeSource AncestorType=TreeViewItem` binding can't resolve cleanly, and the triangles fail to render.
 
 **Solution**: Run the rebuild *before* the save's async await — `mutate → UpdatePieceCounts → ApplySortedFilter → suppress → await save` — matching the pattern already used by `OnNewComposer`. Every other handler that both rebuilds the tree and saves should follow the same order.
+
+### GridView column alignment requires three coordinated XAML settings
+
+**Problem**: `HorizontalAlignment="Right"` on a TextBlock inside a GridView cell does nothing — the data stays left-aligned. `HorizontalContentAlignment="Right"` on `GridViewColumnHeader` is also unreliable (the sort-arrow chrome reserves space on the right edge and the inner ContentPresenter often centres regardless). And styles defined inside `ListView.Resources` and referenced via `HeaderContainerStyle="{StaticResource ...}"` sometimes fail to resolve — `GridViewColumn` lives outside the visual tree.
+
+**Solution** — to align cell content in a GridView, all three of these must be set together:
+
+1. **`ListViewItem` → `HorizontalContentAlignment="Stretch"`**. Default is `Center`, which collapses the `GridViewRowPresenter` to its content width, so individual cells aren't column-width sized and `HorizontalAlignment` on inner TextBlocks has nothing to push against. This single setter is the unlock for the other two.
+2. **Column-header styles live at `Window.Resources` / `UserControl.Resources` scope**, not in `ListView.Resources`. The `HeaderContainerStyle` StaticResource lookup is reliable from there.
+3. **Right-aligned headers need `HeaderTemplate` + `TextAlignment="Right"`** on a `TextBlock` bound to `{Binding}`, combined with `HorizontalContentAlignment="Stretch"` on the header container style. The `{Binding}` pattern preserves sort-arrow append behaviour (handlers like `OnColumnHeaderClick` mutate `header.Content` directly).
+
+Locked in by AlbumsView.xaml and AlbumEditorWindow.xaml. The whole stack must be present — partial fixes silently leave alignment broken.
 
 ---
 

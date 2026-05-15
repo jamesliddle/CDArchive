@@ -10,6 +10,33 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+
+        <!-- Left-aligned header (default WPF centers; we want headers to
+             match the left-aligned cell content). Defined here, not in
+             ListView.Resources, because GridViewColumn lives outside the
+             visual tree and HeaderContainerStyle's StaticResource lookup
+             is more reliable from UserControl scope. -->
+        <Style x:Key="LeftAlignedHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+
+        <!-- Right-aligned header content. The default GridViewColumnHeader
+             template doesn't reliably honour HorizontalContentAlignment="Right"
+             (the sort-indicator chrome on the right edge reserves space), so
+             we use HeaderTemplate + a stretching TextBlock with TextAlignment
+             instead. HorizontalContentAlignment="Stretch" on the container is
+             what lets the TextBlock fill the cell so TextAlignment has room
+             to work. -->
+        <Style x:Key="RightAlignedHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- Shared template: binds to the Header value so the sort-arrow
+             append in AlbumsView.OnColumnHeaderClick (which mutates
+             header.Content) still surfaces. -->
+        <DataTemplate x:Key="RightAlignedHeaderTemplate">
+            <TextBlock Text="{Binding}" TextAlignment="Right" Padding="0,0,8,0" />
+        </DataTemplate>
     </UserControl.Resources>
 
     <DockPanel>
@@ -103,6 +130,14 @@
                     <Setter Property="Padding"      Value="0,3" />
                     <Setter Property="MinHeight"    Value="28" />
                     <Setter Property="FontSize"     Value="13" />
+                    <!-- Stretch the row presenter to fill the available width
+                         so each cell occupies its full column width. Without
+                         this, ListViewItem's default HorizontalContentAlignment
+                         (Center) causes the GridViewRowPresenter to auto-size,
+                         which collapses cells to their content and makes
+                         HorizontalAlignment="Right" on inner TextBlocks have
+                         no visible effect. -->
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Background" Value="#CCE5FF" />
@@ -124,7 +159,8 @@
             <ListView.View>
                 <GridView>
 
-                    <GridViewColumn Header="Title" Width="320">
+                    <GridViewColumn Header="Title" Width="320"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
@@ -142,12 +178,15 @@
                     </GridViewColumn>
 
                     <GridViewColumn Header="Label" Width="140"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}"
                                     DisplayMemberBinding="{Binding Label}" />
 
                     <GridViewColumn Header="Cat. No." Width="110"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}"
                                     DisplayMemberBinding="{Binding CatalogueNumber}" />
 
-                    <GridViewColumn Header="Performers" Width="220">
+                    <GridViewColumn Header="Performers" Width="220"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding PerformerSummary}"
@@ -158,9 +197,12 @@
                     </GridViewColumn>
 
                     <GridViewColumn Header="SPARS" Width="58"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}"
                                     DisplayMemberBinding="{Binding SparsCode}" />
 
-                    <GridViewColumn Header="Discs" Width="48">
+                    <GridViewColumn Header="Discs" Width="48"
+                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DiscCount}"
@@ -169,7 +211,9 @@
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
 
-                    <GridViewColumn Header="Tracks" Width="52">
+                    <GridViewColumn Header="Tracks" Width="52"
+                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding TotalTrackCount}"
