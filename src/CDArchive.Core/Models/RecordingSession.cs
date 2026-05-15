@@ -65,4 +65,16 @@ public class RecordingSession
             return parts.Count > 0 ? string.Join(" · ", parts) : "(no session details)";
         }
     }
+
+    [JsonIgnore]
+    public string EngineersSummary =>
+        Engineers is { Count: > 0 }
+            ? string.Join(", ", Engineers.Where(s => !string.IsNullOrWhiteSpace(s)))
+            : string.Empty;
+
+    [JsonIgnore]
+    public string ProducersSummary =>
+        Producers is { Count: > 0 }
+            ? string.Join(", ", Producers.Where(s => !string.IsNullOrWhiteSpace(s)))
+            : string.Empty;
 }

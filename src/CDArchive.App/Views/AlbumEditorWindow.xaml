@@ -8,6 +8,35 @@
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False">
 
+    <Window.Resources>
+        <!-- Left-aligned column header (default WPF centers). -->
+        <Style x:Key="LeftAlignedHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+
+        <!-- Right-aligned header for numeric columns. We stretch the
+             container and use a HeaderTemplate with TextAlignment="Right"
+             because the default GridViewColumnHeader template doesn't
+             reliably honour HorizontalContentAlignment="Right" (sort-arrow
+             chrome reserves space on the right edge). -->
+        <Style x:Key="RightAlignedHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+
+        <DataTemplate x:Key="RightAlignedHeaderTemplate">
+            <TextBlock Text="{Binding}" TextAlignment="Right" Padding="0,0,8,0" />
+        </DataTemplate>
+
+        <!-- Implicit ListViewItem style: stretch the row presenter so each
+             cell occupies its full column width. Without this, default
+             HorizontalContentAlignment=Center on ListViewItem causes the
+             GridViewRowPresenter to auto-size to its content, making
+             HorizontalAlignment="Right" on inner TextBlocks have no effect. -->
+        <Style TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+    </Window.Resources>
+
     <DockPanel Margin="0">
 
         <!-- Save / Cancel -->
@@ -143,7 +172,8 @@
                               SelectionChanged="OnPerformerSelectionChanged">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="Name" Width="200">
+                                <GridViewColumn Header="Name" Width="200"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Name}"
@@ -151,7 +181,8 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Role" Width="160">
+                                <GridViewColumn Header="Role" Width="160"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Role}"
@@ -159,7 +190,8 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Instrument" Width="160">
+                                <GridViewColumn Header="Instrument" Width="160"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Instrument}"
@@ -199,7 +231,8 @@
                               SelectionChanged="OnSessionSelectionChanged">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="Dates" Width="140">
+                                <GridViewColumn Header="Dates" Width="140"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Dates}"
@@ -207,7 +240,8 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Location" Width="200">
+                                <GridViewColumn Header="Location" Width="200"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding LocationSummary}"
@@ -215,12 +249,23 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Engineers" Width="200">
+                                <GridViewColumn Header="Engineers" Width="200"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding DisplaySummary}"
+                                            <TextBlock Text="{Binding EngineersSummary}"
                                                        TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding DisplaySummary}" />
+                                                       ToolTip="{Binding EngineersSummary}" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Producers" Width="200"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ProducersSummary}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding ProducersSummary}" />
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
@@ -255,7 +300,8 @@
                               MouseDoubleClick="OnTrackDoubleClick">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn x:Name="AlbumColumn" Header="Album" Width="0">
+                                <GridViewColumn x:Name="AlbumColumn" Header="Album" Width="0"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding AlbumTitle}"
@@ -264,28 +310,38 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Disc" Width="45">
+                                <GridViewColumn Header="Disc" Width="45"
+                                                HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                                HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding DiscNumber}" />
+                                            <TextBlock Text="{Binding DiscNumber}"
+                                                       HorizontalAlignment="Right" Margin="0,0,8,0" />
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Track" Width="45">
+                                <GridViewColumn Header="Track" Width="45"
+                                                HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                                HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Track.TrackNumber}" />
+                                            <TextBlock Text="{Binding Track.TrackNumber}"
+                                                       HorizontalAlignment="Right" Margin="0,0,8,0" />
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Duration" Width="70">
+                                <GridViewColumn Header="Duration" Width="70"
+                                                HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                                HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Track.Duration}" />
+                                            <TextBlock Text="{Binding Track.Duration}"
+                                                       HorizontalAlignment="Right" Margin="0,0,8,0" />
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Content" Width="500">
+                                <GridViewColumn Header="Content" Width="500"
+                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Track.DisplaySummary}"
