@@ -4,7 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
+using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CDArchive.App.Views;
 
@@ -136,6 +138,7 @@ public partial class AlbumEditorWindow : Window
         LabelBox.Text           = _album.Label           ?? "";
         CatalogueNumberBox.Text = _album.CatalogueNumber ?? "";
         BarcodeBox.Text         = _album.Barcode         ?? "";
+        ArchiveFolderBox.Text   = _album.ArchiveFolder   ?? "";
         NotesBox.Text           = _album.Notes           ?? "";
 
         SparsCodeCombo.SelectValue(SparsCodeBox, _album.SparsCode);
@@ -159,6 +162,8 @@ public partial class AlbumEditorWindow : Window
             albums.Select(a => a.CatalogueNumber ?? "").Distinct());
         SetOrMixed(BarcodeBox,         "Barcode",
             albums.Select(a => a.Barcode         ?? "").Distinct());
+        SetOrMixed(ArchiveFolderBox,   "ArchiveFolder",
+            albums.Select(a => a.ArchiveFolder   ?? "").Distinct());
         if (SparsCodeCombo.PopulateMixed(SparsCodeBox, albums.Select(a => a.SparsCode)))
             _mixedFields.Add("SparsCode");
         SetOrMixed(NotesBox,           "Notes",
@@ -417,6 +422,43 @@ public partial class AlbumEditorWindow : Window
 
     private void OnEditTrack(object sender, RoutedEventArgs e) => OpenTrackEditor();
 
+    // ── Playback context menu ────────────────────────────────────────────────
+
+    private void OnContextPlayTrack(object sender, RoutedEventArgs e) =>
+        PlaySelectedTrack(asSingle: true);
+
+    private void OnContextPlayFromHere(object sender, RoutedEventArgs e) =>
+        PlaySelectedTrack(asSingle: false);
+
+    private void PlaySelectedTrack(bool asSingle)
+    {
+        if (TrackList.SelectedItem is not TrackRow row) return;
+        // In multi-edit mode the row carries its own album reference; otherwise
+        // we're editing the single _album held by this window.
+        var album = row.Album ?? _album;
+
+        var player = App.ServiceProvider.GetRequiredService<PlayerViewModel>();
+        var result = asSingle
+            ? player.PlaySingleTrack(album, row.Disc, row.Track)
+            : player.PlayFromTrack(album, row.Disc, row.Track);
+
+        if (result == PlayRequestResult.Playing) return;
+
+        var reason = result switch
+        {
+            PlayRequestResult.NoAudioFile =>
+                "No audio file could be located. Check the album's Archive " +
+                "Folder field (Details tab), or set this track's FlacPath / " +
+                "Mp3Path override.",
+            PlayRequestResult.TrackNotInAlbum =>
+                "Track is not part of this album. (Save your edits first?)",
+            _ => result.ToString(),
+        };
+        MessageBox.Show(this,
+            $"Can't play track {row.Track.TrackNumber}:\n\n{reason}",
+            "Playback", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private void OpenTrackEditor()
     {
         var selectedRows = TrackList.SelectedItems.Cast<TrackRow>().ToList();
@@ -537,6 +579,7 @@ public partial class AlbumEditorWindow : Window
         _album.Label           = NullIfEmpty(LabelBox.Text);
         _album.CatalogueNumber = NullIfEmpty(CatalogueNumberBox.Text);
         _album.Barcode         = NullIfEmpty(BarcodeBox.Text);
+        _album.ArchiveFolder   = NullIfEmpty(ArchiveFolderBox.Text);
         _album.SparsCode       = SparsCodeCombo.GetValue(SparsCodeBox);
         _album.Notes           = NullIfEmpty(NotesBox.Text);
         _album.IsStereo        = StereoBox.SelectedIndex == 1 ? true
@@ -571,6 +614,7 @@ public partial class AlbumEditorWindow : Window
         ApplyText("Label",           LabelBox.Text.Trim(),           v => { foreach (var a in _editAlbums!) a.Label           = v; });
         ApplyText("CatalogueNumber", CatalogueNumberBox.Text.Trim(), v => { foreach (var a in _editAlbums!) a.CatalogueNumber = v; });
         ApplyText("Barcode",         BarcodeBox.Text.Trim(),         v => { foreach (var a in _editAlbums!) a.Barcode         = v; });
+        ApplyText("ArchiveFolder",   ArchiveFolderBox.Text.Trim(),   v => { foreach (var a in _editAlbums!) a.ArchiveFolder   = v; });
         var sparsBoxIsMixedSentinel = SparsCodeCombo.IsMixedSentinelSelected(SparsCodeBox);
         var sparsTouched = !_mixedFields.Contains("SparsCode") || !sparsBoxIsMixedSentinel;
         var sparsBoxValue = sparsTouched ? SparsCodeCombo.GetValue(SparsCodeBox) : null;

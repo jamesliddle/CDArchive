@@ -1,8 +1,21 @@
+using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace CDArchive.App.ViewModels;
+
+/// <summary>
+/// Outcome of a public play request — callers (Albums view, editor) use this
+/// to decide whether to show a "no audio file" message.
+/// </summary>
+public enum PlayRequestResult
+{
+    Playing,
+    NoAudioFile,
+    AlbumHasNoTracks,
+    TrackNotInAlbum,
+}
 
 /// <summary>
 /// View-model for the persistent player bar. Singleton so playback state
@@ -18,6 +31,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private const int SeekIncrementSeconds = 10;
 
     private readonly IAudioPlayerService _player;
+    private readonly IArchiveAudioLocator _locator;
+
+    // Playback context: which album we're playing and the flattened
+    // (disc-ordered) sequence of its tracks plus our position in it. Empty
+    // until the first successful Play*().
+    private CanonAlbum? _currentAlbum;
+    private List<TrackEntry> _currentSequence = new();
+    private int _currentIndex;
+
+    private readonly record struct TrackEntry(AlbumDisc Disc, AlbumTrack Track);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TrackInfoLine))]
@@ -84,29 +107,121 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>True between <see cref="BeginScrub"/> and <see cref="EndScrub"/>; suppresses playback-driven slider updates while the user is dragging.</summary>
     public bool IsScrubbing { get; private set; }
 
-    public PlayerViewModel(IAudioPlayerService player)
+    public PlayerViewModel(IAudioPlayerService player, IArchiveAudioLocator locator)
     {
-        _player = player;
+        _player  = player;
+        _locator = locator;
         _player.StateChanged   += OnStateChanged;
         _player.PositionChanged += OnPositionChanged;
         _player.DurationKnown  += OnDurationKnown;
         _player.PlaybackEnded  += OnPlaybackEnded;
     }
 
-    // ── Public API used by entry points (Albums view, etc.) ──────────────────
+    // ── Public API used by entry points (Albums view, editor track list) ─────
 
     /// <summary>
-    /// Load and immediately play <paramref name="filePath"/>. The display fields
-    /// (Title / Composer / Album) are set from the optional arguments; pass null
-    /// to leave them blank.
+    /// Play <paramref name="album"/> starting from its first track. Auto-advances
+    /// across discs in (VolumeNumber, DiscNumber, TrackNumber) order until the
+    /// album ends. Skips tracks whose audio file can't be located.
     /// </summary>
-    public void LoadAndPlay(string filePath, string? title, string? composer, string? album)
+    public PlayRequestResult PlayAlbum(CanonAlbum album)
     {
-        Title    = title;
-        Composer = composer;
-        Album    = album;
-        _player.Load(filePath);
-        _player.Play();
+        var seq = BuildSequence(album);
+        if (seq.Count == 0) return PlayRequestResult.AlbumHasNoTracks;
+        return StartAlbum(album, seq, startIndex: 0, requireExactStart: false);
+    }
+
+    /// <summary>
+    /// Play <paramref name="album"/> starting from <paramref name="track"/> on
+    /// <paramref name="disc"/>. The requested track must have a resolvable audio
+    /// file — if not, returns <see cref="PlayRequestResult.NoAudioFile"/> and
+    /// playback does not start. Subsequent tracks that fail to resolve are
+    /// silently skipped on auto-advance.
+    /// </summary>
+    public PlayRequestResult PlayFromTrack(CanonAlbum album, AlbumDisc disc, AlbumTrack track)
+    {
+        var seq = BuildSequence(album);
+        int idx = -1;
+        for (int i = 0; i < seq.Count; i++)
+            if (ReferenceEquals(seq[i].Disc, disc) && ReferenceEquals(seq[i].Track, track))
+            { idx = i; break; }
+        if (idx < 0) return PlayRequestResult.TrackNotInAlbum;
+        return StartAlbum(album, seq, idx, requireExactStart: true);
+    }
+
+    /// <summary>
+    /// Play a single track without auto-advance. Useful when the user wants
+    /// to audition one track without listening to the rest of the album.
+    /// </summary>
+    public PlayRequestResult PlaySingleTrack(CanonAlbum album, AlbumDisc disc, AlbumTrack track)
+    {
+        var result = PlayFromTrack(album, disc, track);
+        if (result == PlayRequestResult.Playing)
+        {
+            // Wipe the context so OnPlaybackEnded doesn't advance.
+            _currentAlbum    = null;
+            _currentSequence = new();
+        }
+        return result;
+    }
+
+    private PlayRequestResult StartAlbum(
+        CanonAlbum album, List<TrackEntry> seq, int startIndex, bool requireExactStart)
+    {
+        _currentAlbum    = album;
+        _currentSequence = seq;
+        return TryPlayAt(startIndex, requireExactStart);
+    }
+
+    /// <summary>
+    /// Tries to play the track at <paramref name="index"/>. When
+    /// <paramref name="requireExact"/> is true and the locator misses, returns
+    /// <see cref="PlayRequestResult.NoAudioFile"/> without falling through.
+    /// Otherwise (auto-advance) skips forward until a playable track is found
+    /// or the album ends.
+    /// </summary>
+    private PlayRequestResult TryPlayAt(int index, bool requireExact)
+    {
+        if (_currentAlbum is null) return PlayRequestResult.AlbumHasNoTracks;
+
+        for (int i = index; i < _currentSequence.Count; i++)
+        {
+            var entry = _currentSequence[i];
+            var hit = _locator.Resolve(_currentAlbum, entry.Disc, entry.Track);
+            if (hit is null)
+            {
+                if (requireExact) return PlayRequestResult.NoAudioFile;
+                continue;
+            }
+            _currentIndex = i;
+            ApplyDisplay(_currentAlbum, entry);
+            _player.Load(hit.Value.Path);
+            _player.Play();
+            return PlayRequestResult.Playing;
+        }
+        return PlayRequestResult.NoAudioFile;
+    }
+
+    private void ApplyDisplay(CanonAlbum album, TrackEntry entry)
+    {
+        // Composer comes from the first PieceRef; uncatalogued tracks have none.
+        var firstRef = entry.Track.PieceRefs?.FirstOrDefault();
+        Title    = entry.Track.DisplaySummary;
+        Composer = firstRef?.Composer;
+        Album    = album.DisplayTitle;
+    }
+
+    private static List<TrackEntry> BuildSequence(CanonAlbum album)
+    {
+        var list = new List<TrackEntry>();
+        foreach (var disc in album.Discs
+                     .OrderBy(d => d.VolumeNumber ?? 0)
+                     .ThenBy(d => d.DiscNumber))
+        {
+            foreach (var t in disc.Tracks.OrderBy(t => t.TrackNumber))
+                list.Add(new TrackEntry(disc, t));
+        }
+        return list;
     }
 
     // ── Scrub coordination ───────────────────────────────────────────────────
@@ -167,8 +282,12 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private void OnPlaybackEnded(object? sender, EventArgs e)
     {
-        // No queue model yet — step 4 will wire auto-advance here.
         SliderValue = 0;
+        // Auto-advance through the album. Tracks that fail to resolve are
+        // skipped silently; on end-of-album the player just stops at the
+        // last successful track's end position.
+        if (_currentAlbum is null) return;
+        TryPlayAt(_currentIndex + 1, requireExact: false);
     }
 
     private void UpdateTimeDisplays(double sliderSeconds)

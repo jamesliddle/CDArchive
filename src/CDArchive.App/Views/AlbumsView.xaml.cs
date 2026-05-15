@@ -4,6 +4,7 @@ using System.Windows.Input;
 using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CDArchive.App.Views;
 
@@ -64,6 +65,32 @@ public partial class AlbumsView : UserControl
         var hasProvisional = AlbumList.SelectedItems.Cast<CanonAlbum>().Any(a => a.IsProvisional);
         CtxApproveAlbum.IsEnabled = hasProvisional;
         CtxRejectAlbum.IsEnabled  = hasProvisional;
+    }
+
+    private void OnContextPlayAlbum(object sender, RoutedEventArgs e)
+    {
+        if (AlbumList.SelectedItem is not CanonAlbum album) return;
+
+        var player = App.ServiceProvider.GetRequiredService<PlayerViewModel>();
+        var result = player.PlayAlbum(album);
+        if (result == PlayRequestResult.Playing) return;
+
+        ShowPlaybackError(album, result);
+    }
+
+    private static void ShowPlaybackError(CanonAlbum album, PlayRequestResult result)
+    {
+        var reason = result switch
+        {
+            PlayRequestResult.NoAudioFile =>
+                "No audio file could be located for any track. Check the album's " +
+                "Archive Folder field (Albums → double-click → Details tab).",
+            PlayRequestResult.AlbumHasNoTracks => "This album has no tracks.",
+            _                                  => result.ToString(),
+        };
+        MessageBox.Show(
+            $"Can't play \"{album.DisplayTitle}\":\n\n{reason}",
+            "Playback", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private async void OnContextApproveAlbum(object sender, RoutedEventArgs e)
