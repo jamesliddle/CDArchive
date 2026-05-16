@@ -652,6 +652,12 @@ Locked in by `AlbumSaveInPlaceTests` — five tests covering: row IDs preserved 
 
 **When to extend this pattern**: any other persistence method with the "delete the parent's children, reinsert from input" shape should consider the same refactor. Look for `ToList()` + `Clear()` + repopulation patterns in `SqliteCanonDataService`'s `Replace*` methods; those are candidates.
 
+### `ToggleButton` styles can't `BasedOn` a `Button` style
+
+**Problem**: `ToggleButton` is *not* a `Button` — they share `ButtonBase` as a common ancestor but neither inherits from the other. WPF's `Style.BasedOn` requires the derived style's `TargetType` to be assignable to the base style's `TargetType`, so a `Style TargetType="ToggleButton" BasedOn="{StaticResource TransportButtonStyle}"` (where `TransportButtonStyle` targets `Button`) silently produces a runtime mismatch and the toggle visuals fall back to the WPF default Aero look — no shared template, no shared setters.
+
+**Solution**: write a parallel style with the same setters and a `Trigger Property="IsChecked"` for the active-state visuals. Locked in by `TransportToggleButtonStyle` in `PlayerBar.xaml`, which carries the same transparent / hover / disabled visuals as `TransportButtonStyle` plus a warm-yellow `IsChecked=True` background. The duplication is annoying but unavoidable until the styles are refactored onto a shared `ButtonBase` target (which then needs visual-state setup for both Press / Hover and Check).
+
 ### WPF mutate-then-save handlers: rebuild the tree *before* the save's await
 
 **Problem**: `OnContextApprove` in `CanonView.xaml.cs` (both the composer and piece branches) originally ran `mutate → suppress → await save → ApplySortedFilter`. After approving a composer, the expander triangles for *every* composer would disappear from the tree until a manual refresh restored them.
