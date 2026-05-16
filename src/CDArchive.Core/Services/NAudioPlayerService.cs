@@ -30,6 +30,22 @@ public sealed class NAudioPlayerService : IAudioPlayerService
     public TimeSpan Position => _reader?.CurrentTime ?? TimeSpan.Zero;
     public TimeSpan Duration => _reader?.TotalTime ?? TimeSpan.Zero;
 
+    private float _volume = 1.0f;
+    /// <summary>
+    /// Output volume. Applied to <c>WaveOutEvent.Volume</c> when an output
+    /// exists; held in the backing field so the next <see cref="Load"/> picks
+    /// up the same level. Clamped to [0, 1].
+    /// </summary>
+    public float Volume
+    {
+        get => _volume;
+        set
+        {
+            _volume = Math.Clamp(value, 0f, 1f);
+            if (_output is not null) _output.Volume = _volume;
+        }
+    }
+
     public event EventHandler? StateChanged;
     public event EventHandler? PositionChanged;
     public event EventHandler? DurationKnown;
@@ -56,6 +72,7 @@ public sealed class NAudioPlayerService : IAudioPlayerService
         _reader = new MediaFoundationReader(filePath);
         _output = new WaveOutEvent();
         _output.Init(_reader);
+        _output.Volume = _volume;
         _output.PlaybackStopped += OnPlaybackStoppedFromNAudio;
 
         CurrentFilePath = filePath;

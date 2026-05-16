@@ -40,6 +40,13 @@ public interface IAudioPlayerService : IDisposable
     /// <summary>Path of the currently loaded file, or null when in <see cref="PlayerState.Empty"/>.</summary>
     string? CurrentFilePath { get; }
 
+    /// <summary>
+    /// Output volume in [0.0, 1.0]. Setter applies to the active output (if
+    /// any) and is retained so a subsequent <see cref="Load"/> picks up the
+    /// last-set value. Out-of-range values are clamped.
+    /// </summary>
+    float Volume { get; set; }
+
     /// <summary>Raised when <see cref="State"/> changes.</summary>
     event EventHandler? StateChanged;
 

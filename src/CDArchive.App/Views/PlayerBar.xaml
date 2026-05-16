@@ -148,7 +148,7 @@
                         Command="{Binding SeekForwardCommand}" />
             </StackPanel>
 
-            <!-- Right controls: stop-after-current toggle (more to come). -->
+            <!-- Right controls: stop-after-current toggle + volume. -->
             <StackPanel Grid.Column="2"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
@@ -159,6 +159,18 @@
                               ToolTip="Stop after current track (auto-advance off)"
                               IsEnabled="{Binding IsTrackLoaded}"
                               IsChecked="{Binding StopAfterCurrent, Mode=TwoWay}" />
+
+                <TextBlock Text="🔈" FontFamily="Segoe UI Symbol" FontSize="14"
+                           Foreground="#555" VerticalAlignment="Center"
+                           Margin="10,0,4,0" />
+                <Slider Width="100"
+                        Minimum="0" Maximum="1"
+                        SmallChange="0.05" LargeChange="0.1"
+                        TickFrequency="0.1"
+                        Value="{Binding Volume, Mode=TwoWay}"
+                        IsMoveToPointEnabled="True"
+                        ToolTip="Volume"
+                        VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Track info (top) + progress slider with time labels (bottom) -->
