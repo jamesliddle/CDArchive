@@ -132,12 +132,18 @@ public static class ItunesImporter
 
                 // Defensive renumber: the album_tracks table has UNIQUE(disc_id,
                 // track_number), so two iTunes tracks sharing a (disc, track#)
-                // tuple would fail the save and (without the SaveAlbumsAsync
-                // transaction) wipe the table. If duplicates exist within this
-                // disc, renumber sequentially 1..N preserving iTunes order.
+                // tuple would fail the save. The track editor also requires
+                // TrackNumber >= 1 (validates "Track number must be a positive
+                // integer"), so a standalone MP3 with no iTunes track number
+                // would land as 0 and the user would be unable to re-edit it.
+                // If either condition holds — duplicates within the disc OR any
+                // missing / non-positive number — renumber the whole disc
+                // sequentially 1..N, preserving iTunes order.
                 var orderedTracks = discGroup.OrderBy(t => t.TrackNumber ?? 0).ToList();
-                var distinctCount = orderedTracks.Select(t => t.TrackNumber ?? 0).Distinct().Count();
-                var renumber = distinctCount != orderedTracks.Count;
+                var rawNumbers = orderedTracks.Select(t => t.TrackNumber ?? 0).ToList();
+                var anyNonPositive = rawNumbers.Any(n => n < 1);
+                var distinctCount = rawNumbers.Distinct().Count();
+                var renumber = anyNonPositive || distinctCount != orderedTracks.Count;
                 int seq = 1;
 
                 foreach (var track in orderedTracks)
