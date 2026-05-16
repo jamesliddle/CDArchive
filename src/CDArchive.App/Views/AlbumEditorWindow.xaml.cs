@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,9 +27,7 @@ public partial class AlbumEditorWindow : Window
     // on save. (Tracks always carry their own copy of these fields — there is
     // no "inherit" semantic — so the album editor's job is to push changes to
     // them. Track-level edits via the track editor remain isolated to that track.)
-    private string?               _origSparsCode;
-    private bool?                 _origIsStereo;
-    private string?               _origPerformersFingerprint;
+    private AlbumFieldPropagator.InheritableSnapshot _originalInheritable;
 
     // ── Multi-edit state ──────────────────────────────────────────────────────
 
@@ -80,9 +79,7 @@ public partial class AlbumEditorWindow : Window
 
         // Snapshot the inheritable album-level fields so SaveSingle can detect
         // changes and propagate them down to every track.
-        _origSparsCode             = _album.SparsCode;
-        _origIsStereo              = _album.IsStereo;
-        _origPerformersFingerprint = FingerprintPerformers(_album.Performers);
+        _originalInheritable = AlbumFieldPropagator.Snapshot(_album);
 
         PopulateDetailsTab();
         PopulatePerformerList();
@@ -595,7 +592,7 @@ public partial class AlbumEditorWindow : Window
         // user actually changed them in this editor session. This implements the
         // "set at album level → push to every track" semantic. Track-level edits
         // (via the Track editor) remain isolated.
-        PropagateAlbumFieldsToTracks(_album);
+        AlbumFieldPropagator.Propagate(_album, _originalInheritable);
 
         Result = _album;
         DialogResult = true;
@@ -657,7 +654,7 @@ public partial class AlbumEditorWindow : Window
 
                     // Performers are per-album in multi-edit; only backfill nulls.
                     if (track.Performers is null)
-                        track.Performers = ClonePerformers(a.Performers);
+                        track.Performers = AlbumFieldPropagator.ClonePerformers(a.Performers);
                 }
             }
         }
@@ -665,54 +662,8 @@ public partial class AlbumEditorWindow : Window
         DialogResult = true;
     }
 
-    // ── Album → track propagation ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Copies the album's inheritable fields (SparsCode, IsStereo, Performers)
-    /// down to every track on the album. Two propagation rules:
-    ///   • When the user changed the album-level value in this session, push it
-    ///     to every track, overwriting any existing track-level value (the
-    ///     user's clear intent: "set at album → propagate to all").
-    ///   • When the user didn't change it, backfill any track whose value is
-    ///     still null with the album's value (so new tracks added in this
-    ///     session, and any legacy null tracks, end up with explicit values —
-    ///     consistent with the "no Inherit" UI contract).
-    /// Tracks whose value is non-null and whose album-level value was not
-    ///     changed are left alone, preserving prior track-level overrides.
-    /// </summary>
-    private void PropagateAlbumFieldsToTracks(CanonAlbum album)
-    {
-        var sparsChanged  = !string.Equals(_origSparsCode, album.SparsCode, StringComparison.Ordinal);
-        var stereoChanged = _origIsStereo != album.IsStereo;
-        var perfsChanged  = _origPerformersFingerprint
-                            != FingerprintPerformers(album.Performers);
-
-        foreach (var disc in album.Discs)
-        {
-            foreach (var track in disc.Tracks)
-            {
-                if (sparsChanged || track.SparsCode is null)
-                    track.SparsCode = album.SparsCode;
-
-                if (stereoChanged || track.IsStereo is null)
-                    track.IsStereo = album.IsStereo;
-
-                if (perfsChanged || track.Performers is null)
-                    track.Performers = ClonePerformers(album.Performers);
-            }
-        }
-    }
-
-    /// <summary>JSON-roundtrip clone so each track owns an independent list.</summary>
-    private static List<AlbumPerformer>? ClonePerformers(List<AlbumPerformer>? src)
-    {
-        if (src is null || src.Count == 0) return null;
-        var json = JsonSerializer.Serialize(src);
-        return JsonSerializer.Deserialize<List<AlbumPerformer>>(json);
-    }
-
-    private static string FingerprintPerformers(List<AlbumPerformer>? src) =>
-        src is null || src.Count == 0 ? "" : JsonSerializer.Serialize(src);
+    // Propagation lives in CDArchive.Core.Helpers.AlbumFieldPropagator —
+    // tested directly via AlbumFieldPropagatorTests.
 
     /// <summary>
     /// Applies <paramref name="newValue"/> to all albums via <paramref name="setter"/>
