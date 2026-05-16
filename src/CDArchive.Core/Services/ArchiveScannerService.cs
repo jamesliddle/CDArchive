@@ -122,41 +122,47 @@ public class ArchiveScannerService : IArchiveScannerService
         return disc;
     }
 
-    public async Task<List<ValidationResult>> ValidateArchiveAsync(
+    public Task<List<ValidationResult>> ValidateArchiveAsync(
         IProgress<int>? progress = null, CancellationToken ct = default)
     {
-        var results = new List<ValidationResult>();
-        var archiveRoot = _settings.ArchiveRootPath;
-
-        if (!_fs.DirectoryExists(archiveRoot))
-            return results;
-
-        var albumDirs = _fs.EnumerateDirectories(archiveRoot)
-            .Where(d => !ShouldSkip(_fs.GetFileName(d)))
-            .ToList();
-        int totalAlbums = albumDirs.Count;
-
-        for (int i = 0; i < totalAlbums; i++)
+        // Directory enumeration over a large archive is CPU/IO bound and
+        // would otherwise block the UI thread; Task.Run hops it off-thread
+        // so the caller's await actually yields.
+        return Task.Run(() =>
         {
-            ct.ThrowIfCancellationRequested();
+            var results = new List<ValidationResult>();
+            var archiveRoot = _settings.ArchiveRootPath;
 
-            var albumDir = albumDirs[i];
-            var albumName = _fs.GetFileName(albumDir);
-            var result = new ValidationResult
+            if (!_fs.DirectoryExists(archiveRoot))
+                return results;
+
+            var albumDirs = _fs.EnumerateDirectories(archiveRoot)
+                .Where(d => !ShouldSkip(_fs.GetFileName(d)))
+                .ToList();
+            int totalAlbums = albumDirs.Count;
+
+            for (int i = 0; i < totalAlbums; i++)
             {
-                AlbumPath = albumDir,
-                AlbumName = albumName
-            };
+                ct.ThrowIfCancellationRequested();
 
-            ValidateAlbum(albumDir, result);
+                var albumDir = albumDirs[i];
+                var albumName = _fs.GetFileName(albumDir);
+                var result = new ValidationResult
+                {
+                    AlbumPath = albumDir,
+                    AlbumName = albumName
+                };
 
-            if (result.Issues.Count > 0)
-                results.Add(result);
+                ValidateAlbum(albumDir, result);
 
-            progress?.Report(totalAlbums == 0 ? 100 : (int)((i + 1) * 100.0 / totalAlbums));
-        }
+                if (result.Issues.Count > 0)
+                    results.Add(result);
 
-        return results;
+                progress?.Report(totalAlbums == 0 ? 100 : (int)((i + 1) * 100.0 / totalAlbums));
+            }
+
+            return results;
+        }, ct);
     }
 
     private void ValidateAlbum(string albumDir, ValidationResult result)

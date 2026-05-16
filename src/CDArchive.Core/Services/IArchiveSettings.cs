@@ -13,6 +13,13 @@ public interface IArchiveSettings
     /// </summary>
     PreferredAudioFormat PreferredAudioFormat { get; set; }
 
+    /// <summary>
+    /// Player output volume in [0.0, 1.0]. Persisted across sessions; passed
+    /// through to the audio engine on every Load() so each track inherits the
+    /// last-set level.
+    /// </summary>
+    float PlayerVolume { get; set; }
+
     void Save();
     void Load();
 }

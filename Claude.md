@@ -16,9 +16,9 @@ The application has three major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
-- **PR #7 (`bugfix/import`)** awaiting review — fixes the iTunes-import data-loss bug that wiped the albums table when standalone tracks shared `(disc, track_number)` tuples, refactors `SaveAlbumsAsync` to load-mutate-save, and adds `--restore-albums` to the seeder. The May 14 JSON was the recovery source after the original failure; pre-recovery DB snapshot at `data/ClassicalCanon.db.bak.20260515_pre_restore`. Before merging: smoke-test album editing and retry the 11-track standalone import (Glinka, Copland, etc.) to confirm they land as 11 per-track albums.
-- **`feature/tracklist`** branch exists with no commits — created at the start of the session, work not yet started (the import bug interrupted it).
-- Deferred follow-ups from prior sessions still open: currently-playing-track highlight in lists; stop-after-current toggle; volume control; cleanup of the three pre-existing build warnings (cosmetic); consider refactoring `PropagateAlbumFieldsToTracks` out of `AlbumEditorWindow` into a static helper for testability.
+- **`feature/follow-ups`** branch pending PR — bundles four small deferred items: stop-after-current toggle, volume control with persisted settings, build-warning cleanup, and the `PropagateAlbumFieldsToTracks` extraction into `CDArchive.Core.Helpers.AlbumFieldPropagator` (now unit-tested). The currently-playing-track highlight was tried and rolled back (the user didn't find it helpful) — see the revert commit on the same branch.
+- **`feature/tracklist`** branch exists with no commits — created at the start of the bugfix/import session, work not yet started.
+- **Multi-composer pieces (`L'éventail de Jeanne` etc.)** remains the one open canon-data deferral — see the *Multi-composer pieces have no primary composer field* lesson. Needs a design call on whether "Various" is a sentinel composer or a real first-class entity before implementation.
 
 ---
 
@@ -651,6 +651,12 @@ Two ordering subtleties:
 Locked in by `AlbumSaveInPlaceTests` — five tests covering: row IDs preserved on content-edit, row IDs preserved when adding a track, row IDs preserved when removing a track, constraint violation rolls back without wiping, multi-album batch save only touches the edited album. Empirical: a no-op load-from-JSON-save-to-SQLite round-trip against the full 99-album / 2208-track DB leaves every row ID byte-identical.
 
 **When to extend this pattern**: any other persistence method with the "delete the parent's children, reinsert from input" shape should consider the same refactor. Look for `ToList()` + `Clear()` + repopulation patterns in `SqliteCanonDataService`'s `Replace*` methods; those are candidates.
+
+### `ToggleButton` styles can't `BasedOn` a `Button` style
+
+**Problem**: `ToggleButton` is *not* a `Button` — they share `ButtonBase` as a common ancestor but neither inherits from the other. WPF's `Style.BasedOn` requires the derived style's `TargetType` to be assignable to the base style's `TargetType`, so a `Style TargetType="ToggleButton" BasedOn="{StaticResource TransportButtonStyle}"` (where `TransportButtonStyle` targets `Button`) silently produces a runtime mismatch and the toggle visuals fall back to the WPF default Aero look — no shared template, no shared setters.
+
+**Solution**: write a parallel style with the same setters and a `Trigger Property="IsChecked"` for the active-state visuals. Locked in by `TransportToggleButtonStyle` in `PlayerBar.xaml`, which carries the same transparent / hover / disabled visuals as `TransportButtonStyle` plus a warm-yellow `IsChecked=True` background. The duplication is annoying but unavoidable until the styles are refactored onto a shared `ButtonBase` target (which then needs visual-state setup for both Press / Hover and Check).
 
 ### WPF mutate-then-save handlers: rebuild the tree *before* the save's await
 

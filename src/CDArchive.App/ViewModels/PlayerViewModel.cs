@@ -32,6 +32,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private readonly IAudioPlayerService _player;
     private readonly IArchiveAudioLocator _locator;
+    private readonly IArchiveSettings _settings;
 
     // Playback context: which album we're playing and the flattened
     // (disc-ordered) sequence of its tracks plus our position in it. Empty
@@ -77,6 +78,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isPlaying;
 
+    /// <summary>
+    /// User-controlled sticky toggle. When true, <see cref="OnPlaybackEnded"/>
+    /// suppresses auto-advance — the player stops at the end of the current
+    /// track instead of moving to the next. Stays on until the user toggles
+    /// it off (matches iTunes' "Stop After Current" menu semantics).
+    /// </summary>
+    [ObservableProperty]
+    private bool _stopAfterCurrent;
+
     /// <summary>Total duration of the loaded track, in seconds — drives Slider.Maximum.</summary>
     [ObservableProperty]
     private double _durationSeconds;
@@ -107,10 +117,38 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>True between <see cref="BeginScrub"/> and <see cref="EndScrub"/>; suppresses playback-driven slider updates while the user is dragging.</summary>
     public bool IsScrubbing { get; private set; }
 
-    public PlayerViewModel(IAudioPlayerService player, IArchiveAudioLocator locator)
+    private float _volume;
+    /// <summary>
+    /// Two-way bound to the volume slider. The setter clamps to [0, 1],
+    /// pushes to the audio engine, and persists to <see cref="IArchiveSettings"/>
+    /// so the level survives app restarts.
+    /// </summary>
+    public float Volume
     {
-        _player  = player;
-        _locator = locator;
+        get => _volume;
+        set
+        {
+            var clamped = Math.Clamp(value, 0f, 1f);
+            if (SetProperty(ref _volume, clamped))
+            {
+                _player.Volume = clamped;
+                _settings.PlayerVolume = clamped;
+                _settings.Save();
+            }
+        }
+    }
+
+    public PlayerViewModel(IAudioPlayerService player, IArchiveAudioLocator locator, IArchiveSettings settings)
+    {
+        _player   = player;
+        _locator  = locator;
+        _settings = settings;
+
+        // Restore persisted volume before the user can move the slider; the
+        // engine carries it forward to every track Loaded later.
+        _volume         = Math.Clamp(_settings.PlayerVolume, 0f, 1f);
+        _player.Volume  = _volume;
+
         _player.StateChanged   += OnStateChanged;
         _player.PositionChanged += OnPositionChanged;
         _player.DurationKnown  += OnDurationKnown;
@@ -285,8 +323,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         SliderValue = 0;
         // Auto-advance through the album. Tracks that fail to resolve are
         // skipped silently; on end-of-album the player just stops at the
-        // last successful track's end position.
-        if (_currentAlbum is null) return;
+        // last successful track's end position. StopAfterCurrent (set by
+        // the user via the player-bar toggle) suppresses the auto-advance.
+        if (_currentAlbum is null || StopAfterCurrent) return;
         TryPlayAt(_currentIndex + 1, requireExact: false);
     }
 
