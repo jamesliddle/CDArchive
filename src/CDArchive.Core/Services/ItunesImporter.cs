@@ -56,16 +56,34 @@ public static class ItunesImporter
         int newComposers = 0, newPieces = 0, newSubpieces = 0;
         var newAlbums = new List<CanonAlbum>();
 
-        // Group tracks by album name (iTunes "Album" field).
+        // Group tracks by album name (iTunes "Album" field). Tracks with no
+        // Album are treated as individual one-track albums — lumping them
+        // together as a synthetic "(Unknown album)" produced a single album row
+        // with N tracks that all collided on the UNIQUE(disc, track_number)
+        // constraint when iTunes had given them the same track number (the
+        // common case for standalone downloads, where each track was "#1" of
+        // its own implicit single-track album). The synthetic per-track key
+        // (TrackId-prefixed) gives each albumless track its own bucket;
+        // album.Title gets resolved to the track Name later.
         var byAlbum = tracks
-            .GroupBy(t => t.Album ?? "(Unknown album)", StringComparer.Ordinal)
+            .GroupBy(t => string.IsNullOrWhiteSpace(t.Album)
+                              ? $"__standalone__:{t.TrackId}"
+                              : t.Album!,
+                    StringComparer.Ordinal)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
         foreach (var albumGroup in byAlbum)
         {
+            // Standalone (albumless) bucket: use the track's own Name as the
+            // album title; non-standalone uses the iTunes Album field.
+            var isStandalone = albumGroup.Key.StartsWith("__standalone__:", StringComparison.Ordinal);
+            var albumTitle = isStandalone
+                ? (albumGroup.First().Name ?? "(Untitled)")
+                : albumGroup.Key;
+
             var album = new CanonAlbum
             {
-                Title         = albumGroup.Key,
+                Title         = albumTitle,
                 IsProvisional = true,
             };
 
@@ -112,11 +130,27 @@ public static class ItunesImporter
             {
                 var disc = new AlbumDisc { DiscNumber = discGroup.Key };
 
-                foreach (var track in discGroup.OrderBy(t => t.TrackNumber ?? 0))
+                // Defensive renumber: the album_tracks table has UNIQUE(disc_id,
+                // track_number), so two iTunes tracks sharing a (disc, track#)
+                // tuple would fail the save. The track editor also requires
+                // TrackNumber >= 1 (validates "Track number must be a positive
+                // integer"), so a standalone MP3 with no iTunes track number
+                // would land as 0 and the user would be unable to re-edit it.
+                // If either condition holds — duplicates within the disc OR any
+                // missing / non-positive number — renumber the whole disc
+                // sequentially 1..N, preserving iTunes order.
+                var orderedTracks = discGroup.OrderBy(t => t.TrackNumber ?? 0).ToList();
+                var rawNumbers = orderedTracks.Select(t => t.TrackNumber ?? 0).ToList();
+                var anyNonPositive = rawNumbers.Any(n => n < 1);
+                var distinctCount = rawNumbers.Distinct().Count();
+                var renumber = anyNonPositive || distinctCount != orderedTracks.Count;
+                int seq = 1;
+
+                foreach (var track in orderedTracks)
                 {
                     var albumTrack = new AlbumTrack
                     {
-                        TrackNumber   = track.TrackNumber ?? 0,
+                        TrackNumber   = renumber ? seq++ : (track.TrackNumber ?? 0),
                         Duration      = string.IsNullOrEmpty(track.DurationDisplay) ? null : track.DurationDisplay,
                         IsProvisional = true,
                     };
