@@ -39,13 +39,6 @@ public partial class AlbumEditorWindow : Window
 
     public CanonAlbum? Result { get; private set; }
 
-    /// <summary>
-    /// Player singleton exposed as a window-level property so XAML in the
-    /// Discs &amp; Tracks tab can bind a row-highlight DataTrigger to
-    /// <c>Player.CurrentTrack</c>. Initialised in the ctor.
-    /// </summary>
-    public PlayerViewModel Player { get; }
-
     // ── TrackRow: flat view model for combined disc+track grid ───────────────
 
     private class TrackRow(AlbumDisc disc, AlbumTrack track, CanonAlbum? album = null)
@@ -65,7 +58,6 @@ public partial class AlbumEditorWindow : Window
         _pickLists = pickLists;
         _allPieces = allPieces;
         _isMixed   = false;
-        Player     = App.ServiceProvider.GetRequiredService<PlayerViewModel>();
 
         if (album != null)
         {
@@ -104,7 +96,6 @@ public partial class AlbumEditorWindow : Window
         _allPieces  = allPieces;
         _isMixed    = true;
         _editAlbums = albums;
-        Player      = App.ServiceProvider.GetRequiredService<PlayerViewModel>();
 
         // These aren't used in multi-edit mode but the fields must be initialised
         _album      = new CanonAlbum();

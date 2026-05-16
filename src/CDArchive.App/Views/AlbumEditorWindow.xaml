@@ -1,7 +1,6 @@
 <Window x:Class="CDArchive.App.Views.AlbumEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:conv="clr-namespace:CDArchive.App.Converters"
         Title="New Album"
         Width="860" Height="640"
         MinWidth="680" MinHeight="480"
@@ -10,8 +9,6 @@
         ShowInTaskbar="False">
 
     <Window.Resources>
-        <conv:ReferenceEqualsConverter x:Key="RefEquals" />
-
         <!-- Left-aligned column header (default WPF centers). -->
         <Style x:Key="LeftAlignedHeader" TargetType="GridViewColumnHeader">
             <Setter Property="HorizontalContentAlignment" Value="Left" />
@@ -311,29 +308,6 @@
                               SelectionMode="Extended"
                               SelectionChanged="OnTrackSelectionChanged"
                               MouseDoubleClick="OnTrackDoubleClick">
-                        <!-- Row style: repeats the implicit ListViewItem stretch
-                             setter (overriding the window-level style scoped by
-                             container assignment) and adds a DataTrigger that
-                             highlights the row whose Track equals the player's
-                             CurrentTrack (compared via RefEquals MultiBinding). -->
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Style.Triggers>
-                                    <DataTrigger Value="True">
-                                        <DataTrigger.Binding>
-                                            <MultiBinding Converter="{StaticResource RefEquals}">
-                                                <Binding Path="Track" />
-                                                <Binding Path="Player.CurrentTrack"
-                                                         RelativeSource="{RelativeSource AncestorType=Window}" />
-                                            </MultiBinding>
-                                        </DataTrigger.Binding>
-                                        <Setter Property="Background" Value="#FFF6C8" />
-                                        <Setter Property="FontWeight" Value="Bold" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ListView.ItemContainerStyle>
                         <ListView.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Play this track" Click="OnContextPlayTrack" />

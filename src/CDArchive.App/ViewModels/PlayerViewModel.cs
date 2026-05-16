@@ -74,14 +74,6 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isTrackLoaded;
 
-    /// <summary>
-    /// The track the player currently has loaded (or null when nothing is
-    /// loaded / playback ended). Exposed so track-list UI can highlight the
-    /// row via reference equality (e.g. AlbumEditorWindow's TrackList).
-    /// </summary>
-    [ObservableProperty]
-    private AlbumTrack? _currentTrack;
-
     /// <summary>true when the player is actively playing; drives the play/pause icon.</summary>
     [ObservableProperty]
     private bool _isPlaying;
@@ -252,10 +244,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     {
         // Composer comes from the first PieceRef; uncatalogued tracks have none.
         var firstRef = entry.Track.PieceRefs?.FirstOrDefault();
-        Title        = entry.Track.DisplaySummary;
-        Composer     = firstRef?.Composer;
-        Album        = album.DisplayTitle;
-        CurrentTrack = entry.Track;
+        Title    = entry.Track.DisplaySummary;
+        Composer = firstRef?.Composer;
+        Album    = album.DisplayTitle;
     }
 
     private static List<TrackEntry> BuildSequence(CanonAlbum album)
@@ -332,16 +323,10 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         SliderValue = 0;
         // Auto-advance through the album. Tracks that fail to resolve are
         // skipped silently; on end-of-album the player just stops at the
-        // last successful track's end position. When nothing else plays
-        // (single-track playback, or end-of-album), clear CurrentTrack so
-        // the track-list highlight goes away.
-        if (_currentAlbum is null || StopAfterCurrent)
-        {
-            CurrentTrack = null;
-            return;
-        }
-        var advanced = TryPlayAt(_currentIndex + 1, requireExact: false);
-        if (advanced != PlayRequestResult.Playing) CurrentTrack = null;
+        // last successful track's end position. StopAfterCurrent (set by
+        // the user via the player-bar toggle) suppresses the auto-advance.
+        if (_currentAlbum is null || StopAfterCurrent) return;
+        TryPlayAt(_currentIndex + 1, requireExact: false);
     }
 
     private void UpdateTimeDisplays(double sliderSeconds)
