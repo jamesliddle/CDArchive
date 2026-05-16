@@ -85,6 +85,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isPlaying;
 
+    /// <summary>
+    /// User-controlled sticky toggle. When true, <see cref="OnPlaybackEnded"/>
+    /// suppresses auto-advance — the player stops at the end of the current
+    /// track instead of moving to the next. Stays on until the user toggles
+    /// it off (matches iTunes' "Stop After Current" menu semantics).
+    /// </summary>
+    [ObservableProperty]
+    private bool _stopAfterCurrent;
+
     /// <summary>Total duration of the loaded track, in seconds — drives Slider.Maximum.</summary>
     [ObservableProperty]
     private double _durationSeconds;
@@ -297,7 +306,11 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         // last successful track's end position. When nothing else plays
         // (single-track playback, or end-of-album), clear CurrentTrack so
         // the track-list highlight goes away.
-        if (_currentAlbum is null) { CurrentTrack = null; return; }
+        if (_currentAlbum is null || StopAfterCurrent)
+        {
+            CurrentTrack = null;
+            return;
+        }
         var advanced = TryPlayAt(_currentIndex + 1, requireExact: false);
         if (advanced != PlayRequestResult.Playing) CurrentTrack = null;
     }

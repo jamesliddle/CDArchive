@@ -60,6 +60,46 @@
             </Style.Triggers>
         </Style>
 
+        <!-- ToggleButton variant of TransportButtonStyle — needed because
+             ToggleButton isn't a Button (shared base only), so it can't BaseOn
+             the Button style. Distinguishing visual state: a darker background
+             when IsChecked so the user can see at a glance that the toggle
+             is active. -->
+        <Style x:Key="TransportToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="#333333" />
+            <Setter Property="FontFamily" Value="Segoe UI Symbol" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="BorderElement"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BorderElement" Property="Background" Value="#E5E5E5" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="BorderElement" Property="Background" Value="#FFE08A" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </UserControl.Resources>
 
     <!-- Whole bar greys out (Opacity 0.5) when no track is loaded; transport
@@ -106,6 +146,19 @@
                         ToolTip="Seek forward 10 seconds"
                         IsEnabled="{Binding IsTrackLoaded}"
                         Command="{Binding SeekForwardCommand}" />
+            </StackPanel>
+
+            <!-- Right controls: stop-after-current toggle (more to come). -->
+            <StackPanel Grid.Column="2"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="20,0,0,0">
+                <ToggleButton Style="{StaticResource TransportToggleButtonStyle}"
+                              Content="⏹"
+                              FontSize="18"
+                              ToolTip="Stop after current track (auto-advance off)"
+                              IsEnabled="{Binding IsTrackLoaded}"
+                              IsChecked="{Binding StopAfterCurrent, Mode=TwoWay}" />
             </StackPanel>
 
             <!-- Track info (top) + progress slider with time labels (bottom) -->
