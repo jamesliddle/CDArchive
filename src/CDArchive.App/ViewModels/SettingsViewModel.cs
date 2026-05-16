@@ -17,6 +17,13 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int _mp3Bitrate = 320;
 
+    /// <summary>
+    /// Format the music player prefers when both FLAC and MP3 exist for a
+    /// track. Falls back to the other format if the preferred one is missing.
+    /// </summary>
+    [ObservableProperty]
+    private PreferredAudioFormat _preferredAudioFormat = PreferredAudioFormat.Flac;
+
     [ObservableProperty]
     private string _statusMessage = "";
 
@@ -30,6 +37,7 @@ public partial class SettingsViewModel : ObservableObject
         ArchiveRootPath = _settings.ArchiveRootPath;
         FfmpegPath = _settings.FfmpegPath;
         Mp3Bitrate = _settings.Mp3Bitrate;
+        PreferredAudioFormat = _settings.PreferredAudioFormat;
     }
 
     [RelayCommand]
@@ -40,6 +48,7 @@ public partial class SettingsViewModel : ObservableObject
             _settings.ArchiveRootPath = ArchiveRootPath;
             _settings.FfmpegPath = FfmpegPath;
             _settings.Mp3Bitrate = Mp3Bitrate;
+            _settings.PreferredAudioFormat = PreferredAudioFormat;
             _settings.Save();
             StatusMessage = "Settings saved successfully.";
         }
