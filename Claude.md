@@ -276,6 +276,8 @@ The schema is defined by `CanonDbContext` and the row entities under `src/CDArch
 
 **Multi-owner CHECK constraints.** Several tables have a row that may be owned by one of several principals — for example `piece_catalog_entries` belongs to either a piece or a version, and `piece_tempos` belongs to a piece, version, or another tempo (sub-tempo). These tables carry CHECK constraints requiring exactly one of the owner FKs to be non-null. The save path explicitly `Remove()`s orphaned rows before clearing navigation collections, because EF nulls the FK on orphan and would otherwise create rows that violate the CHECK.
 
+**Album save uses load-mutate-save**, not delete-and-rebuild. `SaveAlbumsAsync` eager-loads each existing album's full graph, matches input to existing rows by natural key at every level (volume Number, disc DiscNumber, track TrackNumber, performer/session/piece-ref Position), and applies the minimal UPDATE / INSERT / DELETE diff in one transactional `SaveChangesAsync`. Row IDs survive content edits; a constraint violation rolls back without touching unrelated rows. See *Lessons Learned: Album save: load-mutate-save, not delete-and-rebuild* for the full rationale and the trap that prompted it.
+
 ### Database lifecycle
 
 1. **Schema creation.** `SqliteCanonDataService.EnsureInitializedAsync()` is called lazily on the first `Load*Async` / `Save*Async`. It creates the schema if absent. **It does not auto-seed.** It then runs `ApplySchemaUpgradesAsync`, which uses `PRAGMA table_info` to detect missing columns and issues idempotent `ALTER TABLE` statements (e.g. the `is_provisional` columns added after the initial schema snapshot). These upgrades are append-only and safe to run on every startup; they let the model evolve without manual EF migrations.
@@ -606,7 +608,37 @@ This collided with an earlier shape of `BuildTrackPieceRef` that walked all the 
 
 **Solution**: `IdentityKey` now folds in `Title|Subtitle` as well, so any album with a non-empty title gets a stable lookup key. The dedup rule on the data-service side (`existingByKey` in `SqliteCanonDataService.SaveAlbumsAsync`) builds the same composite. Locked in by `AlbumIdentityTests.SaveTwice_AfterJsonCloneAndEdit_DoesNotDuplicate`.
 
-**Remaining edge case (deferred)**: if the user *renames* an album in the editor (e.g. changes the Title), the clone's `IdentityKey` differs from the row's, lookup misses, and a duplicate is created. Two ways to fix later: (a) have the editor mutate the original instance in-place (snapshot/restore for Cancel) so CWT identity survives, or (b) expose a CWT-rebind API on the data service that the editor calls after OK. Until then, renames-only edits create duplicates and need manual cleanup.
+**Renames (Title change in the editor)**: With the load-mutate-save album-save path (see *Album save: load-mutate-save, not delete-and-rebuild*) the IdentityKey lookup misses on the renamed clone, the old row is orphan-deleted in the same transaction, and the renamed album inserts fresh. End state is one album, not two. Row IDs do churn on a Title rename — if we ever need rename-stable row IDs (e.g. to keep audit timestamps), the fix is a model-side row-pointer that survives the editor's JSON-clone (snapshot/restore for Cancel, or a CWT-rebind API). Not currently warranted.
+
+### Album save: load-mutate-save, not delete-and-rebuild
+
+**Problem**: The original `SqliteCanonDataService.SaveAlbumsAsync` did a per-album "delete the existing row, reinsert from scratch" in two non-atomic `SaveChangesAsync` calls. Any constraint violation in the second call wiped the albums table, since the first call's deletes were already committed. Observed when an iTunes import of 11 standalone tracks lumped them into one synthetic `"(Unknown album)"` and produced 11 tracks all numbered #1 — violating `UNIQUE(disc_id, track_number)` on the re-insert and leaving the table empty.
+
+Two design issues compounded the failure:
+1. Two separate transactions made the operation non-atomic.
+2. Even after wrapping them in one transaction, every save still threw away and reassigned every album / disc / track / piece-ref / performer row ID. Renaming an album rewrote 2000 rows; reordering one track inside one disc rewrote the entire album.
+
+**Solution**: Load each existing album's full graph via `.Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)` (and similarly for Volumes, Sessions, Performers), match input albums to existing rows by CWT identity or `IdentityKey`, then **merge in place** by natural key at every child level:
+
+| Collection | Natural key (matches the schema's existing UNIQUE/HasIndex column) |
+|---|---|
+| `album.Volumes`    | `Number` |
+| `album.Sessions`   | `Position` |
+| `album.Performers` (album-level, `TrackId IS NULL`) | `Position` |
+| `album.Discs`      | `DiscNumber` |
+| `disc.Tracks`      | `TrackNumber` |
+| `track.PieceRefs`  | `Position` |
+| `track.Performers` | `Position`, scoped to `TrackId = track.Id` |
+
+For each child collection: update matched rows in place (scalar fields + FK navigation rewires), insert new rows for unmatched inputs, `db.X.Remove(...)` the orphans. EF Core's change tracker emits the minimal UPDATE / INSERT / DELETE diff in a single `SaveChangesAsync`, wrapped in a transaction.
+
+Two ordering subtleties:
+- **Volume orphan deletes are deferred** until after `MergeDiscs` has rewired each disc's `Volume` navigation. Discs reference volumes via `OnDelete(DeleteBehavior.Restrict)`, so deleting a volume while discs still reference it fails the FK check.
+- **Session orphan deletes are deferred** for the same reason — `track.Session` is `OnDelete(SetNull)`, so a premature delete would silently null out tracks that should be repointed at a surviving session.
+
+Locked in by `AlbumSaveInPlaceTests` — five tests covering: row IDs preserved on content-edit, row IDs preserved when adding a track, row IDs preserved when removing a track, constraint violation rolls back without wiping, multi-album batch save only touches the edited album. Empirical: a no-op load-from-JSON-save-to-SQLite round-trip against the full 99-album / 2208-track DB leaves every row ID byte-identical.
+
+**When to extend this pattern**: any other persistence method with the "delete the parent's children, reinsert from input" shape should consider the same refactor. Look for `ToList()` + `Clear()` + repopulation patterns in `SqliteCanonDataService`'s `Replace*` methods; those are candidates.
 
 ### WPF mutate-then-save handlers: rebuild the tree *before* the save's await
 

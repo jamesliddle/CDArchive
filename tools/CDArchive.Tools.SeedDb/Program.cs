@@ -35,9 +35,11 @@ internal static class Program
             Console.WriteLine($"Target db:      {dbPath}");
             Console.WriteLine();
 
-            return args.Contains("--export")
-                ? await ExportAsync(dataDir, dbPath).ConfigureAwait(false)
-                : await SeedAsync(dataDir, dbPath).ConfigureAwait(false);
+            if (args.Contains("--export"))
+                return await ExportAsync(dataDir, dbPath).ConfigureAwait(false);
+            if (args.Contains("--restore-albums"))
+                return await RestoreAlbumsAsync(dataDir, dbPath).ConfigureAwait(false);
+            return await SeedAsync(dataDir, dbPath).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -192,6 +194,47 @@ internal static class Program
         Console.WriteLine($"  {json.PiecesFilePath}");
         await json.SaveAlbumsAsync(albums);
         Console.WriteLine($"  {json.AlbumsFilePath}");
+        Console.WriteLine();
+
+        Console.WriteLine("Done.");
+        return 0;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Restore albums: JSON → SQLite (albums table only)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Loads albums from the canonical JSON snapshot and pushes them into the
+    /// existing SQLite database via <see cref="SqliteCanonDataService.SaveAlbumsAsync"/>.
+    /// Composers, pieces, and pick lists are left untouched — this exists to
+    /// recover from an album-save failure that wiped the albums table without
+    /// touching the rest of the canon. Track-piece refs are re-resolved against
+    /// the live piece tree on save.
+    /// </summary>
+    private static async Task<int> RestoreAlbumsAsync(string dataDir, string dbPath)
+    {
+        if (!File.Exists(dbPath))
+        {
+            Console.Error.WriteLine($"Database file not found: {dbPath}");
+            Console.Error.WriteLine("Restore-albums needs an existing DB to write into.");
+            return 1;
+        }
+
+        var options = new DbContextOptionsBuilder<CanonDbContext>()
+            .UseSqlite($"Data Source={dbPath}")
+            .Options;
+        var factory = new SimpleDbContextFactory(options);
+        var json    = new CanonDataService(dataDir);
+        var sqlite  = new SqliteCanonDataService(factory, json);
+
+        Console.WriteLine("Loading albums from JSON…");
+        var albums = await json.LoadAlbumsAsync();
+        Console.WriteLine($"  {albums.Count} albums");
+        Console.WriteLine();
+
+        Console.WriteLine("Writing albums to SQLite…");
+        await sqlite.SaveAlbumsAsync(albums);
         Console.WriteLine();
 
         Console.WriteLine("Done.");

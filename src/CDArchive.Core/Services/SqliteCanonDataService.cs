@@ -1773,15 +1773,31 @@ public class SqliteCanonDataService : ICanonDataService
         var resolver = new PieceReferenceIndex();
         resolver.BuildResolver(currentPieces);
 
-        // Album save = full delete-and-rebuild per album. AlbumRow has no inbound
-        // FKs (everything cascades from album_id), so we can delete the row and
-        // every owned child in one shot, then reinsert from input.
-        var existing = await db.Albums.ToListAsync().ConfigureAwait(false);
+        // Load-mutate-save. The previous design deleted every matched album's
+        // row outright and reinserted it from scratch; one constraint violation
+        // anywhere in the input could (and did) wipe the whole albums table.
+        // We now load the existing album graphs in full, match each input
+        // album to an existing row, and merge in place by natural key at every
+        // level — UPDATE for matched children, INSERT for new, DELETE for
+        // orphans. Row IDs survive unchanged content; a constraint failure
+        // rolls back via the transaction without touching unrelated rows.
+        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
+
+        var existing = await db.Albums
+            .Include(a => a.Volumes)
+            .Include(a => a.Sessions)
+            .Include(a => a.Performers)
+            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
+            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
+            .ToListAsync()
+            .ConfigureAwait(false);
+
         var existingById = existing.ToDictionary(a => a.Id);
         // Mirror CanonAlbum.IdentityKey: composite over (Label, CatalogueNumber,
-        // Title, Subtitle). Albums in the user's collection that lack Label /
-        // CatalogueNumber (e.g. Böhm Beethoven, Bernstein Mahler) still get a
-        // stable key from Title+Subtitle, so save-time dedup catches them.
+        // Title, Subtitle). Albums without Label / CatalogueNumber (Böhm
+        // Beethoven, Bernstein Mahler, …) still get a stable key from
+        // Title+Subtitle so save-time dedup catches them after the editor's
+        // JSON-clone round-trip wipes the CWT identity.
         var existingByKey = new Dictionary<string, AlbumRow>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in existing)
         {
@@ -1789,12 +1805,7 @@ public class SqliteCanonDataService : ICanonDataService
             if (key is not null) existingByKey[key] = a;
         }
 
-        // Track which existing rows the input still wants — these are removed
-        // here only so the second pass can re-insert them fresh. Rows that
-        // *aren't* matched by any input album are orphans dropped by the user;
-        // we delete them here too, so they don't reappear on next load.
-        // (Album children — discs, tracks, performers, sessions, refs — all
-        // cascade from album_id, so the delete is always safe.)
+        var matched = new Dictionary<CanonAlbum, AlbumRow>(ReferenceEqualityComparer.Instance);
         var matchedExistingRowIds = new HashSet<long>();
         foreach (var album in albums)
         {
@@ -1806,30 +1817,503 @@ public class SqliteCanonDataService : ICanonDataService
 
             if (existingRow is not null)
             {
+                matched[album] = existingRow;
                 matchedExistingRowIds.Add(existingRow.Id);
-                db.Albums.Remove(existingRow);
             }
         }
 
+        // Orphan albums (existing rows nothing in the input matched) are deleted.
+        // album_volumes / discs / tracks / performers / sessions all cascade from
+        // album_id, so the delete is safe.
         foreach (var orphan in existing.Where(a => !matchedExistingRowIds.Contains(a.Id)))
             db.Albums.Remove(orphan);
 
-        await db.SaveChangesAsync().ConfigureAwait(false);
-
-        var added = new List<(CanonAlbum, AlbumRow)>(albums.Count);
+        var inserted = new List<(CanonAlbum, AlbumRow)>();
         foreach (var album in albums)
         {
-            var row = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
-            db.Albums.Add(row);
-            added.Add((album, row));
+            if (matched.TryGetValue(album, out var row))
+            {
+                MergeAlbumIntoRow(album, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+            }
+            else
+            {
+                row = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
+                db.Albums.Add(row);
+                inserted.Add((album, row));
+            }
         }
-        await db.SaveChangesAsync().ConfigureAwait(false);
 
-        foreach (var (m, r) in added)
+        await db.SaveChangesAsync().ConfigureAwait(false);
+        await tx.CommitAsync().ConfigureAwait(false);
+
+        foreach (var (m, r) in inserted)
         {
             if (_albumIds.TryGetValue(m, out var h)) h.Id = r.Id;
             else _albumIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
         }
+        // Matched (in-place) rows already carry their stable Id; the CWT mapping
+        // is only set up at Load time, so refresh it for any model that hit the
+        // IdentityKey fallback path.
+        foreach (var (model, row) in matched)
+        {
+            if (_albumIds.TryGetValue(model, out var h)) h.Id = row.Id;
+            else _albumIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Album merge helpers (load-mutate-save path)
+    //
+    // Each helper diffs an input child collection against the rows currently
+    // attached to the parent row (loaded via Include in SaveAlbumsAsync), and
+    // applies the minimal change: update matched rows in place, insert new
+    // ones, db.Remove() orphans. Natural keys (Number, DiscNumber, TrackNumber,
+    // Position) come straight from the schema's existing UNIQUE indexes.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private static void MergeAlbumIntoRow(
+        CanonAlbum album,
+        AlbumRow row,
+        PieceReferenceIndex resolver,
+        Dictionary<CanonPiece, long> rowIdByPieceModel,
+        Dictionary<CanonPieceVersion, long> rowIdByVersionModel,
+        CanonDbContext db)
+    {
+        row.Title           = album.Title;
+        row.Subtitle        = album.Subtitle;
+        row.Label           = album.Label;
+        row.CatalogueNumber = album.CatalogueNumber;
+        row.Barcode         = album.Barcode;
+        row.SparsCode       = album.SparsCode;
+        row.IsStereo        = album.IsStereo;
+        row.Notes           = album.Notes;
+        row.ArchiveFolder   = album.ArchiveFolder;
+        row.IsProvisional   = album.IsProvisional;
+
+        // Volumes and sessions get planned first (returning the row that each
+        // input slot should resolve to) but their orphan deletions are deferred
+        // until after disc/track rewiring, so disc.Volume / track.Session FKs
+        // are pointing at the new survivors by the time the deletes fire. Avoids
+        // FK Restrict failures (volumes) and surprise SetNull side-effects
+        // (sessions).
+        var (volumeMap, orphanVolumes) = PlanVolumes(album.Volumes, row);
+        var (sessionMap, orphanSessions) = PlanSessions(album.Sessions, row);
+
+        MergeAlbumLevelPerformers(album.Performers, row, db);
+
+        MergeDiscs(album.Discs, row, volumeMap, sessionMap,
+                   resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+
+        foreach (var v in orphanVolumes) db.AlbumVolumes.Remove(v);
+        foreach (var s in orphanSessions) db.AlbumSessions.Remove(s);
+    }
+
+    /// <summary>
+    /// Plans the volume merge for an album. Returns (map keyed by Volume Number
+    /// to either the existing row updated in place or a newly attached row,
+    /// list of existing volume rows to delete after disc rewiring).
+    /// </summary>
+    private static (Dictionary<int, AlbumVolumeRow> Map, List<AlbumVolumeRow> Orphans)
+        PlanVolumes(List<AlbumVolume>? input, AlbumRow row)
+    {
+        var existing = row.Volumes.ToList();
+        var existingByNumber = existing.ToDictionary(v => v.Number);
+        var map = new Dictionary<int, AlbumVolumeRow>();
+        var matched = new HashSet<long>();
+
+        if (input is { Count: > 0 })
+        {
+            foreach (var v in input)
+            {
+                if (existingByNumber.TryGetValue(v.Number, out var er))
+                {
+                    er.Title    = v.Title;
+                    er.Subtitle = v.Subtitle;
+                    map[v.Number] = er;
+                    matched.Add(er.Id);
+                }
+                else
+                {
+                    var fresh = new AlbumVolumeRow
+                    {
+                        Number   = v.Number,
+                        Title    = v.Title,
+                        Subtitle = v.Subtitle,
+                    };
+                    row.Volumes.Add(fresh);
+                    map[v.Number] = fresh;
+                }
+            }
+        }
+
+        var orphans = existing.Where(v => v.Id != 0 && !matched.Contains(v.Id)).ToList();
+        return (map, orphans);
+    }
+
+    /// <summary>
+    /// Plans the session merge. Sessions are positional — input index becomes
+    /// the schema's <c>Position</c> column. Returns (map keyed by input index,
+    /// list of existing rows to delete after track rewiring).
+    /// </summary>
+    private static (Dictionary<int, AlbumSessionRow> Map, List<AlbumSessionRow> Orphans)
+        PlanSessions(List<RecordingSession>? input, AlbumRow row)
+    {
+        var existing = row.Sessions.ToList();
+        var existingByPosition = existing.ToDictionary(s => s.Position);
+        var map = new Dictionary<int, AlbumSessionRow>();
+        var matched = new HashSet<long>();
+
+        if (input is { Count: > 0 })
+        {
+            for (int i = 0; i < input.Count; i++)
+            {
+                var s = input[i];
+                if (existingByPosition.TryGetValue(i, out var er))
+                {
+                    er.Dates         = s.Dates;
+                    er.Venue         = s.Venue;
+                    er.City          = s.City;
+                    er.Country       = s.Country;
+                    er.EngineersJson = SerializeStringList(s.Engineers);
+                    er.ProducersJson = SerializeStringList(s.Producers);
+                    map[i] = er;
+                    matched.Add(er.Id);
+                }
+                else
+                {
+                    var fresh = new AlbumSessionRow
+                    {
+                        Position      = i,
+                        Dates         = s.Dates,
+                        Venue         = s.Venue,
+                        City          = s.City,
+                        Country       = s.Country,
+                        EngineersJson = SerializeStringList(s.Engineers),
+                        ProducersJson = SerializeStringList(s.Producers),
+                    };
+                    row.Sessions.Add(fresh);
+                    map[i] = fresh;
+                }
+            }
+        }
+
+        var orphans = existing.Where(s => s.Id != 0 && !matched.Contains(s.Id)).ToList();
+        return (map, orphans);
+    }
+
+    /// <summary>
+    /// Album-level performers are positional and live in <c>row.Performers</c>
+    /// filtered to <c>TrackId IS NULL</c>. Match by Position == input index.
+    /// </summary>
+    private static void MergeAlbumLevelPerformers(
+        List<AlbumPerformer>? input, AlbumRow row, CanonDbContext db)
+    {
+        var existing = row.Performers
+            .Where(p => p.TrackId == null)
+            .OrderBy(p => p.Position)
+            .ToList();
+        var existingByPosition = existing.ToDictionary(p => p.Position);
+        var matched = new HashSet<long>();
+
+        if (input is { Count: > 0 })
+        {
+            for (int i = 0; i < input.Count; i++)
+            {
+                var p = input[i];
+                if (existingByPosition.TryGetValue(i, out var er))
+                {
+                    er.DisplayName = p.Name;
+                    er.Role        = p.Role;
+                    er.Instrument  = p.Instrument;
+                    matched.Add(er.Id);
+                }
+                else
+                {
+                    var fresh = MapPerformerModelToRow(p, i);
+                    fresh.Album = row;
+                    row.Performers.Add(fresh);
+                }
+            }
+        }
+
+        foreach (var orphan in existing)
+            if (orphan.Id != 0 && !matched.Contains(orphan.Id))
+                db.AlbumPerformers.Remove(orphan);
+    }
+
+    /// <summary>
+    /// Discs match by DiscNumber within the album. Each matched disc gets its
+    /// scalar fields updated, its Volume FK rewired through <paramref name="volumeMap"/>,
+    /// and its Tracks merged. Unmatched input discs insert; existing discs with
+    /// no input match delete (cascading tracks / piece-refs / per-track performers).
+    /// </summary>
+    private static void MergeDiscs(
+        List<AlbumDisc> input,
+        AlbumRow row,
+        Dictionary<int, AlbumVolumeRow> volumeMap,
+        Dictionary<int, AlbumSessionRow> sessionMap,
+        PieceReferenceIndex resolver,
+        Dictionary<CanonPiece, long> rowIdByPieceModel,
+        Dictionary<CanonPieceVersion, long> rowIdByVersionModel,
+        CanonDbContext db)
+    {
+        var existing = row.Discs.ToList();
+        var existingByNumber = existing.ToDictionary(d => d.DiscNumber);
+        var matched = new HashSet<long>();
+
+        foreach (var inputDisc in input)
+        {
+            if (existingByNumber.TryGetValue(inputDisc.DiscNumber, out var dr))
+            {
+                dr.Title      = inputDisc.Title;
+                dr.FolderName = inputDisc.FolderName;
+                dr.Volume     = (inputDisc.VolumeNumber is int vn && volumeMap.TryGetValue(vn, out var vRow))
+                                    ? vRow : null;
+                MergeTracks(inputDisc.Tracks, dr, sessionMap,
+                            resolver, rowIdByPieceModel, rowIdByVersionModel, row, db);
+                matched.Add(dr.Id);
+            }
+            else
+            {
+                var fresh = new AlbumDiscRow
+                {
+                    DiscNumber = inputDisc.DiscNumber,
+                    Title      = inputDisc.Title,
+                    FolderName = inputDisc.FolderName,
+                    Volume     = (inputDisc.VolumeNumber is int vn && volumeMap.TryGetValue(vn, out var vRow))
+                                    ? vRow : null,
+                };
+                row.Discs.Add(fresh);
+                // For a brand-new disc all input tracks are also new — the
+                // merge path runs identically against an empty existing set.
+                MergeTracks(inputDisc.Tracks, fresh, sessionMap,
+                            resolver, rowIdByPieceModel, rowIdByVersionModel, row, db);
+            }
+        }
+
+        foreach (var orphan in existing)
+            if (orphan.Id != 0 && !matched.Contains(orphan.Id))
+                db.AlbumDiscs.Remove(orphan);
+    }
+
+    /// <summary>
+    /// Tracks match by TrackNumber within their disc. Mirrors the disc merge:
+    /// scalar fields, Session FK via <paramref name="sessionMap"/>, then
+    /// recurses into per-track piece-refs and per-track performers.
+    /// </summary>
+    private static void MergeTracks(
+        List<AlbumTrack> input,
+        AlbumDiscRow disc,
+        Dictionary<int, AlbumSessionRow> sessionMap,
+        PieceReferenceIndex resolver,
+        Dictionary<CanonPiece, long> rowIdByPieceModel,
+        Dictionary<CanonPieceVersion, long> rowIdByVersionModel,
+        AlbumRow albumRow,
+        CanonDbContext db)
+    {
+        var existing = disc.Tracks.ToList();
+        var existingByNumber = existing.ToDictionary(t => t.TrackNumber);
+        var matched = new HashSet<long>();
+
+        foreach (var inputTrack in input)
+        {
+            if (existingByNumber.TryGetValue(inputTrack.TrackNumber, out var tr))
+            {
+                tr.Duration      = inputTrack.Duration;
+                tr.Description   = inputTrack.Description;
+                tr.SparsCode     = inputTrack.SparsCode;
+                tr.IsStereo      = inputTrack.IsStereo;
+                tr.IsProvisional = inputTrack.IsProvisional;
+                tr.FlacPath      = inputTrack.FlacPath;
+                tr.Mp3Path       = inputTrack.Mp3Path;
+                tr.Session       = (inputTrack.SessionIndex is int si && sessionMap.TryGetValue(si, out var sRow))
+                                       ? sRow : null;
+
+                MergePieceRefs(inputTrack.PieceRefs, tr,
+                               resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+                MergeTrackPerformers(inputTrack.Performers, tr, albumRow, db);
+                matched.Add(tr.Id);
+            }
+            else
+            {
+                var fresh = new AlbumTrackRow
+                {
+                    TrackNumber   = inputTrack.TrackNumber,
+                    Duration      = inputTrack.Duration,
+                    Description   = inputTrack.Description,
+                    SparsCode     = inputTrack.SparsCode,
+                    IsStereo      = inputTrack.IsStereo,
+                    IsProvisional = inputTrack.IsProvisional,
+                    FlacPath      = inputTrack.FlacPath,
+                    Mp3Path       = inputTrack.Mp3Path,
+                    Session       = (inputTrack.SessionIndex is int si && sessionMap.TryGetValue(si, out var sRow))
+                                        ? sRow : null,
+                };
+                disc.Tracks.Add(fresh);
+                MergePieceRefs(inputTrack.PieceRefs, fresh,
+                               resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+                MergeTrackPerformers(inputTrack.Performers, fresh, albumRow, db);
+            }
+        }
+
+        foreach (var orphan in existing)
+            if (orphan.Id != 0 && !matched.Contains(orphan.Id))
+                db.AlbumTracks.Remove(orphan);
+    }
+
+    /// <summary>
+    /// Track-level performers are positional within the track. Live in
+    /// <c>track.Performers</c> with TrackId set; also flat-listed in
+    /// <c>album.Performers</c>.
+    /// </summary>
+    private static void MergeTrackPerformers(
+        List<AlbumPerformer>? input, AlbumTrackRow track, AlbumRow albumRow, CanonDbContext db)
+    {
+        var existing = track.Performers.OrderBy(p => p.Position).ToList();
+        var existingByPosition = existing.ToDictionary(p => p.Position);
+        var matched = new HashSet<long>();
+
+        if (input is { Count: > 0 })
+        {
+            for (int i = 0; i < input.Count; i++)
+            {
+                var p = input[i];
+                if (existingByPosition.TryGetValue(i, out var er))
+                {
+                    er.DisplayName = p.Name;
+                    er.Role        = p.Role;
+                    er.Instrument  = p.Instrument;
+                    matched.Add(er.Id);
+                }
+                else
+                {
+                    var fresh = MapPerformerModelToRow(p, i);
+                    fresh.Track = track;
+                    fresh.Album = albumRow;
+                    track.Performers.Add(fresh);
+                    albumRow.Performers.Add(fresh);
+                }
+            }
+        }
+
+        foreach (var orphan in existing)
+            if (orphan.Id != 0 && !matched.Contains(orphan.Id))
+                db.AlbumPerformers.Remove(orphan);
+    }
+
+    /// <summary>
+    /// Piece-refs are positional within the track. The natural key is
+    /// <c>Position</c>; content is the resolved FK bundle from
+    /// <see cref="ResolvePieceRef"/>. Unresolvable refs are skipped (matches the
+    /// behavior of the original delete-and-rebuild path).
+    /// </summary>
+    private static void MergePieceRefs(
+        List<TrackPieceRef>? input,
+        AlbumTrackRow track,
+        PieceReferenceIndex resolver,
+        Dictionary<CanonPiece, long> rowIdByPieceModel,
+        Dictionary<CanonPieceVersion, long> rowIdByVersionModel,
+        CanonDbContext db)
+    {
+        var existing = track.PieceRefs.OrderBy(r => r.Position).ToList();
+        var existingByPosition = existing.ToDictionary(r => r.Position);
+        var matched = new HashSet<long>();
+
+        int slot = 0;
+        if (input is { Count: > 0 })
+        {
+            foreach (var pieceRef in input)
+            {
+                var resolution = ResolvePieceRef(pieceRef, resolver,
+                                                 rowIdByPieceModel, rowIdByVersionModel);
+                if (resolution is null) continue;
+                var r = resolution.Value;
+
+                if (existingByPosition.TryGetValue(slot, out var er))
+                {
+                    er.PieceId       = r.PieceId;
+                    er.VersionId     = r.VersionId;
+                    er.EndPieceId    = r.EndPieceId;
+                    er.StartMarkerId = r.StartMarkerId;
+                    er.EndMarkerId   = r.EndMarkerId;
+                    er.DisplayLabel  = r.DisplayLabel;
+                    matched.Add(er.Id);
+                }
+                else
+                {
+                    track.PieceRefs.Add(new AlbumTrackPieceRefRow
+                    {
+                        Position      = slot,
+                        PieceId       = r.PieceId,
+                        VersionId     = r.VersionId,
+                        EndPieceId    = r.EndPieceId,
+                        StartMarkerId = r.StartMarkerId,
+                        EndMarkerId   = r.EndMarkerId,
+                        DisplayLabel  = r.DisplayLabel,
+                    });
+                }
+                slot++;
+            }
+        }
+
+        foreach (var orphan in existing)
+            if (orphan.Id != 0 && !matched.Contains(orphan.Id))
+                db.AlbumTrackPieceRefs.Remove(orphan);
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TrackPieceRef"/> against the live piece tree,
+    /// returning the row-id bundle to write into an <see cref="AlbumTrackPieceRefRow"/>.
+    /// Returns null when the ref doesn't resolve (caller skips the row, matching
+    /// the original behavior — unresolved refs are dropped silently at save
+    /// time; the seeder is the path that surfaces them).
+    /// </summary>
+    private readonly record struct PieceRefResolution(
+        long    PieceId,
+        long?   VersionId,
+        long?   EndPieceId,
+        long?   StartMarkerId,
+        long?   EndMarkerId,
+        string? DisplayLabel);
+
+    private static PieceRefResolution? ResolvePieceRef(
+        TrackPieceRef pieceRef,
+        PieceReferenceIndex resolver,
+        Dictionary<CanonPiece, long> rowIdByPieceModel,
+        Dictionary<CanonPieceVersion, long> rowIdByVersionModel)
+    {
+        var resolved = resolver.TryResolve(pieceRef);
+        if (resolved is null) return null;
+        var (piece, version) = resolved.Value;
+        if (!rowIdByPieceModel.TryGetValue(piece, out var pieceRowId)) return null;
+
+        long? versionRowId = null;
+        if (version is not null && rowIdByVersionModel.TryGetValue(version, out var vr))
+            versionRowId = vr;
+
+        long? endPieceRowId = null;
+        if (pieceRef.EndSubpiecePath is { Count: > 0 })
+        {
+            var endProbe = new TrackPieceRef
+            {
+                Composer           = pieceRef.Composer,
+                PieceTitle         = pieceRef.PieceTitle,
+                VersionDescription = pieceRef.VersionDescription,
+                SubpiecePath       = pieceRef.EndSubpiecePath,
+            };
+            var endResolved = resolver.TryResolve(endProbe);
+            if (endResolved is not null &&
+                rowIdByPieceModel.TryGetValue(endResolved.Value.Piece, out var endRowId))
+                endPieceRowId = endRowId;
+        }
+
+        return new PieceRefResolution(
+            pieceRowId,
+            versionRowId,
+            endPieceRowId,
+            pieceRef.StartMarker is { Id: > 0 } sm ? sm.Id : null,
+            pieceRef.EndMarker   is { Id: > 0 } em ? em.Id : null,
+            pieceRef.DisplayLabel);
     }
 
     /// <summary>
