@@ -116,6 +116,8 @@
 
             <ListView.ContextMenu>
                 <ContextMenu Opened="OnAlbumContextMenuOpened">
+                    <MenuItem Header="Play album" Click="OnContextPlayAlbum" />
+                    <Separator />
                     <MenuItem x:Name="CtxApproveAlbum"
                               Header="Approve" Click="OnContextApproveAlbum" />
                     <MenuItem x:Name="CtxRejectAlbum"

@@ -488,6 +488,7 @@ public class CanonDbContext : DbContext
             b.Property(x => x.SparsCode).HasColumnName("spars_code");
             b.Property(x => x.IsStereo).HasColumnName("is_stereo");
             b.Property(x => x.Notes).HasColumnName("notes");
+            b.Property(x => x.ArchiveFolder).HasColumnName("archive_folder");
             // No HasDefaultValue here: with it, EF Core omits the column from the
             // INSERT statement when the CLR value happens to match the configured
             // default, letting the database apply its own (possibly stale) default
@@ -532,6 +533,7 @@ public class CanonDbContext : DbContext
             b.Property(x => x.VolumeId).HasColumnName("volume_id");
             b.Property(x => x.DiscNumber).HasColumnName("disc_number");
             b.Property(x => x.Title).HasColumnName("title");
+            b.Property(x => x.FolderName).HasColumnName("folder_name");
 
             b.HasOne(x => x.Album)
                 .WithMany(a => a.Discs)
@@ -566,6 +568,8 @@ public class CanonDbContext : DbContext
             // earlier migration set DEFAULT 0. Always include the value in the
             // INSERT so the C# property is the single source of truth.
             b.Property(x => x.IsProvisional).HasColumnName("is_provisional");
+            b.Property(x => x.FlacPath).HasColumnName("flac_path");
+            b.Property(x => x.Mp3Path).HasColumnName("mp3_path");
 
             b.HasOne(x => x.Disc)
                 .WithMany(d => d.Tracks)

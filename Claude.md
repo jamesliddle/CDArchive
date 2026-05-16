@@ -4,10 +4,11 @@
 
 CDArchive is a WPF desktop application (.NET 8, C#) for managing a classical music CD library. The owner has 3,000+ physical CDs, rips them to FLAC using Exact Audio Copy, converts to MP3, and imports into iTunes with strict custom metadata formatting. This application centralizes that workflow and maintains a canonical reference database of classical composers and their works.
 
-The application has two major subsystems:
+The application has three major subsystems:
 
 1. **Archive Management** -- CD ripping workflow, folder scaffolding, duplicate detection, FLAC-to-MP3 conversion, archive validation, and iTunes catalogue integration.
-2. **Canon** -- A curated reference database of classical music composers, their works, movements, versions, and related metadata. This is the primary subsystem under active development.
+2. **Canon** -- A curated reference database of classical music composers, their works, movements, versions, and related metadata.
+3. **Music Player** -- iTunes-style persistent transport bar at the bottom of the main window. Resolves an `AlbumTrack` to an on-disk FLAC or MP3 via convention + override, plays it through NAudio, auto-advances through the album.
 
 ---
 
@@ -15,7 +16,7 @@ The application has two major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
-- **(none)** — Sessions-tab Engineers/Producers fix and GridView column alignment polish committed on `bugfix/sessions`. Open follow-up: consider refactoring `PropagateAlbumFieldsToTracks` out of `AlbumEditorWindow` into a static helper so it becomes unit-testable (the WPF-host coupling is the only thing blocking coverage today).
+- **(none)** — Music-player feature complete on `feature/player`; pending PR to `master`. Deferred follow-ups (in priority order): currently-playing-track highlight in lists; stop-after-current toggle; volume control; cleanup of the three pre-existing build warnings (cosmetic). Open follow-up from before: consider refactoring `PropagateAlbumFieldsToTracks` out of `AlbumEditorWindow` into a static helper for testability.
 
 ---
 
@@ -26,6 +27,7 @@ Per-session handoff. Each session updates this when stopping mid-stream so the n
 | UI Framework | WPF (Windows Presentation Foundation) |
 | Architecture | MVVM with CommunityToolkit.Mvvm (`[ObservableProperty]`, `[RelayCommand]`, `AsyncRelayCommand`) |
 | Data Access | EF Core 8 with SQLite; System.Text.Json for serialization |
+| Audio Playback | NAudio 2.2.1 (`MediaFoundationReader` + `WaveOutEvent`); Windows Media Foundation handles MP3 + FLAC decode natively on Win10 1709+ / Win11 |
 | Target Framework | .NET 8.0 (Windows) |
 | Project Format | Modern SDK-style .csproj |
 
@@ -430,6 +432,66 @@ Both single objects `{}` and arrays `[]` are accepted on import.
 
 ---
 
+## Music Player
+
+Persistent transport bar at the bottom of `MainWindow`, iTunes-classic in style: ⏪ / ▶⇄⏸ / ⏩ buttons (10-second seek, not prev/next-track), a progress slider with elapsed/remaining time labels, and a centred "Title — Composer — Album" line. Greyed out (opacity 0.5, controls disabled, slider hidden) when no track is loaded.
+
+### Three-layer architecture
+
+| Layer | Service / class | Responsibility |
+|---|---|---|
+| File resolution | `IArchiveAudioLocator` / `ArchiveAudioLocator` | Maps `(CanonAlbum, AlbumDisc, AlbumTrack)` → absolute file path via override-or-convention. |
+| Audio engine | `IAudioPlayerService` / `NAudioPlayerService` | NAudio 2.2.1 + `MediaFoundationReader` (decodes MP3 and FLAC natively on Win10 1709+ / Win11) + `WaveOutEvent`. Captures `SynchronizationContext.Current` at construction so its events come back on the UI thread. |
+| ViewModel + UI | `PlayerViewModel` (singleton) / `Views/PlayerBar.xaml` | Mirrors player state, holds playback context (album + flattened track sequence + index), drives the bar. |
+
+Locator + audio service registered in `ServiceCollectionExtensions.AddCoreServices()`; VM in `App.OnStartup`. All three are singletons so playback state survives navigation between views.
+
+### Locator resolution order
+
+Per track, returning null when nothing matches:
+
+1. **Per-track override** — `track.FlacPath` / `track.Mp3Path` (absolute paths). Preferred format first, then the other.
+2. **Convention** — `{archiveRoot}/{albumFolder}[/{discFolder}]/{FLAC|MP3}/{NN}*.{flac|mp3}` where `NN` is the zero-padded track number.
+3. Returns null otherwise — UI shows a MessageBox on manual play; auto-advance silently skips.
+
+Where the pieces come from:
+- **Archive root**: `IArchiveSettings.ArchiveRootPath` (defaults to `D:\CD archive`).
+- **Album folder**: `CanonAlbum.ArchiveFolder` if set, else `CanonAlbum.Title`. An absolute path in `ArchiveFolder` is used as-is and bypasses the root.
+- **Disc folder**: `AlbumDisc.FolderName` if set; else `"Disc {DiscNumber}"` when multi-disc; else omitted (single-disc albums put `FLAC/`/`MP3/` directly under the album folder).
+
+The "folder name = album Title" default means most albums need no explicit `ArchiveFolder`. The override field on the album editor only matters when the on-disk folder name diverges from the display title.
+
+### Preferred format
+
+`IArchiveSettings.PreferredAudioFormat` (enum `Flac | Mp3`, default `Flac`). UI: Settings tab → "Player Format". Locator returns the preferred format when present, falls back to the other if it's missing. Change affects newly-loaded tracks only — a currently-playing track keeps its format until it ends.
+
+### Schema additions
+
+Idempotent `ALTER TABLE`s appended to `ApplySchemaUpgradesAsync`:
+
+- `albums.archive_folder TEXT NULL`
+- `album_discs.folder_name TEXT NULL`
+- `album_tracks.flac_path TEXT NULL`
+- `album_tracks.mp3_path TEXT NULL`
+
+Matching nullable C# properties (`ArchiveFolder` / `FolderName` / `FlacPath` / `Mp3Path`) on the JSON models, EF row classes, and Save/Load mappers. Round-trip-safe via the seeder.
+
+### Entry points
+
+- **AlbumsView → right-click album → "Play album"** — starts from track 1, auto-advances across the album.
+- **AlbumEditor track list → right-click track → "Play this track"** (single track, no advance) or **"Play from here"** (this track + rest of album).
+- **Space-bar = play/pause** at the window level, suppressed when a `TextBoxBase` / `ComboBox` / `PasswordBox` has focus.
+
+### Auto-advance
+
+`PlayerViewModel` holds the current album + flat track sequence (ordered by `VolumeNumber` → `DiscNumber` → `TrackNumber`) + current index. On `IAudioPlayerService.PlaybackEnded`, the VM tries the next index; if the locator can't find a file it silently skips forward. End-of-album just stops at the last successful track's end position. `PlaySingleTrack(...)` nulls the playback context after starting, so single-track playback is a one-shot (no advance).
+
+### Per-track file overrides
+
+For tracks that escape the convention (e.g. standalone MP3s in `C:\Users\james\Music\Yourclassical Daily Download saved\…`), set `track.FlacPath` / `track.Mp3Path` to absolute paths. UI lives in the TrackEditor's "Audio file overrides" GroupBox with Browse buttons; the GroupBox is disabled in multi-edit mode (per-track values don't bulk-edit meaningfully).
+
+---
+
 ## Editor Windows
 
 The application has four editor dialog windows, all modal:
@@ -566,6 +628,36 @@ The mechanism: during the save command's async `await`, the UI thread is free to
 
 Locked in by AlbumsView.xaml and AlbumEditorWindow.xaml. The whole stack must be present — partial fixes silently leave alignment broken.
 
+### Capturing SynchronizationContext for non-UI-thread callbacks
+
+**Problem**: NAudio's `WaveOutEvent.PlaybackStopped` fires on a pool thread. A view-model that reacts to such an event by updating `[ObservableProperty]` fields will raise `PropertyChanged` on the wrong thread, which WPF either complains about (cross-thread DependencyObject access) or silently mis-renders.
+
+**Solution**: `NAudioPlayerService` captures `SynchronizationContext.Current` in its constructor. Since the DI graph builds singletons on the UI thread at startup, this is the WPF dispatcher's sync context. All public events are raised via `_sync.Post(...)` so consumers see them on the UI thread regardless of which thread NAudio chose. Tests that have no sync context get inline event raising (the check is `_sync is not null && _sync != SynchronizationContext.Current`). Locked in by `NAudioPlayerService.Raise(...)`.
+
+### Slider scrub coordination: three-handler pattern
+
+**Problem**: A `Slider` two-way bound to playback position fights itself when the user drags the thumb — playback updates keep pushing the value via binding while the user is also dragging, producing jitter and stale seek targets. The naïve "bind Value, seek in setter" loop also re-seeks for every micro-update during normal playback.
+
+**Solution**: Three-handler pattern in the View + an `IsScrubbing` flag on the VM. `Thumb.DragStarted` → `PlayerViewModel.BeginScrub()` sets the flag; the VM's `OnPositionChanged` then skips its slider write so the user's drag isn't fought. `Thumb.DragCompleted` → `EndScrub(slider.Value)` clears the flag and seeks. For a *pure click* on the track (where `IsMoveToPointEnabled="True"` jumps the thumb but `DragStarted` never fires), `PreviewMouseLeftButtonUp` on the slider seeks too — guarded by `if (Vm.IsScrubbing) return;` so it doesn't fire alongside `DragCompleted` during real drags. Locked in by `PlayerBar.xaml.cs`.
+
+### Avoid duplicating existing enum types when adding new services
+
+**Problem**: While adding `IArchiveAudioLocator`, I declared a new `AudioFormat` enum (Flac, Mp3) in `CDArchive.Core.Services`, not realising an identically-named enum already lived in `CDArchive.Core.Models` (used by `ArchiveScannerService`). The Core project compiles in isolation (different namespaces), but the scanner's code referencing `Models.AudioFormat` then collides with the assembly's new `Services.AudioFormat` and fails with `CS0266: Cannot implicitly convert Services.AudioFormat to Models.AudioFormat`.
+
+**Solution**: Before declaring an enum in `Services/` (or anywhere), grep for the type name across `Models/` first. In this case `CDArchive.Core.Models.AudioFormat` had exactly the right values and the locator just imports it.
+
+### Window-level keyboard shortcuts that don't fight text inputs
+
+**Problem**: A naked `Space` key shortcut for play/pause needs to fire everywhere in the app — but pressing space in a TextBox must still insert a space character. A `Window.InputBindings` `KeyBinding` for `Key.Space` would intercept the keystroke before any focused text input got it, breaking every textbox in the app.
+
+**Solution**: Handle `PreviewKeyDown` at the Window level in code-behind, check `e.OriginalSource is TextBoxBase or PasswordBox or ComboBox`, and bail out (no `e.Handled = true`) if so. Otherwise execute the play/pause command and mark handled. Window-level routing means the shortcut works regardless of which view is active. Locked in by `MainWindow_PreviewKeyDown`.
+
+### Worktrees + branch checkout exclusivity
+
+**Problem**: A git branch can only be checked out in one worktree at a time. If a worktree's branch is named `feature/foo`, the main repo cannot also `git checkout feature/foo` — it fails with `fatal: 'feature/foo' is already used by worktree at ...`.
+
+**Solution**: When working in a Claude-style worktree (which often lives under `.claude/worktrees/<id>/`), keep the local branch name worktree-scoped (e.g. `claude/<worktree-id>-foo`) and have it track the shared remote branch via `--set-upstream-to=origin/feature/foo`. The main repo can then claim the public branch name (`git checkout -b feature/foo origin/feature/foo`). Push from the worktree with the explicit refspec `git push origin HEAD:feature/foo` so the local and remote names can stay different.
+
 ---
 
 ## Data Management Guidelines
@@ -682,6 +774,8 @@ Registered in `ServiceCollectionExtensions.AddCoreServices()`:
 | `IDbContextFactory<CanonDbContext>` | Singleton | Connection string derives from `CanonDataService.ComposersFilePath`'s directory. Each Load/Save call opens a fresh short-lived `CanonDbContext` from the factory. |
 | `ICanonDataService` | Singleton | `SqliteCanonDataService` — the runtime data service. Reads/writes only SQLite. |
 | `PieceReferenceIndex` | Singleton | Cross-references albums to pieces; rebuilt on load and album-edit. |
+| `IArchiveAudioLocator` | Singleton | `ArchiveAudioLocator` — resolves an `AlbumTrack` to an audio file via override + convention. |
+| `IAudioPlayerService` | Singleton | `NAudioPlayerService` — NAudio + `MediaFoundationReader` + `WaveOutEvent`. Captures `SynchronizationContext` so events come back on the UI thread. |
 
 Registered in `App.xaml.cs`:
 
@@ -690,6 +784,7 @@ Registered in `App.xaml.cs`:
 | `MainViewModel` | Singleton |
 | `CanonViewModel` | Singleton |
 | `AlbumsViewModel` | Singleton |
+| `PlayerViewModel` | Singleton (survives navigation so playback state persists) |
 | `PickListsViewModel` | Singleton |
 | `ImportExportViewModel`, all other ViewModels | Transient |
 
@@ -733,6 +828,9 @@ Registered in `App.xaml.cs`:
 | `CanonDataService.cs` | JSON read/write utility. Used by the seeder tool and Import/Export VM, not the runtime data path. |
 | `PieceReferenceIndex.cs` | Album ↔ piece cross-reference index. |
 | `ItunesLibraryReference.cs` | iTunes XML library parser |
+| `IArchiveAudioLocator.cs` / `ArchiveAudioLocator.cs` | Music-player file resolution: per-track override → convention → null. Also defines `AudioFileLocation`. |
+| `IAudioPlayerService.cs` / `NAudioPlayerService.cs` | Music-player playback engine (NAudio). Defines `PlayerState`. |
+| `PreferredAudioFormat.cs` | `Flac | Mp3` enum used by `IArchiveSettings` and the locator. |
 
 ### Views & ViewModels (`src/CDArchive.App/`)
 
@@ -744,10 +842,13 @@ Registered in `App.xaml.cs`:
 | `Views/VersionEditorWindow.xaml[.cs]` | Version editor dialog |
 | `Views/ComposerEditorWindow.xaml[.cs]` | Composer editor dialog |
 | `Views/ImportExportView.xaml[.cs]` | Import/Export screen |
-| `ViewModels/MainViewModel.cs` | Shell navigation, `CanonView` visibility |
+| `Views/PlayerBar.xaml[.cs]` | Persistent transport bar docked at bottom of `MainWindow`. Hosts scrub coordination for the progress slider. |
+| `ViewModels/MainViewModel.cs` | Shell navigation, `CanonView` visibility, exposes `PlayerViewModel` for binding |
 | `ViewModels/CanonViewModel.cs` | Composer/piece loading + saving |
 | `ViewModels/AlbumsViewModel.cs` | Album loading + saving |
 | `ViewModels/ImportExportViewModel.cs` | Import/export/restore commands |
+| `ViewModels/PlayerViewModel.cs` | Music-player VM. Holds playback context (album + flat sequence + index) and drives auto-advance. |
+| `MainWindow.xaml.cs` | Window-level `PreviewKeyDown` for Space = play/pause shortcut. |
 
 ### Tooling (`tools/`)
 
@@ -761,3 +862,5 @@ Registered in `App.xaml.cs`:
 |---|---|
 | `SqliteRoundTripTests.cs` | `BeethovenOp2_HasAlbumHits_AfterSqliteRoundTrip` (set + sonata + movement coverage), `SaveOperations_DoNotTouchJsonFiles` (architectural invariant) |
 | `CanonDataServiceTests.cs` | JSON loader sanity checks, dual-marker resolver regression test |
+| `ArchiveAudioLocatorTests.cs` | 11 filesystem-backed tests covering the locator's override → convention → title-fallback resolution. |
+| `NAudioPlayerServiceTests.cs` | 8 smoke tests against synthesised WAV files: initial state, error paths, Duration reporting, Seek clamping, file replacement. Actual audio output not exercised (no device guarantee in CI). |

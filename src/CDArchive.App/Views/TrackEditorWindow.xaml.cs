@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
 using CDArchive.Core.Models;
+using Microsoft.Win32;
 
 namespace CDArchive.App.Views;
 
@@ -133,6 +135,12 @@ public partial class TrackEditorWindow : Window
 
         SetOrMixed(DescriptionBox, "Description",
             tracks.Select(t => t.Description ?? "").Distinct());
+
+        // ── Audio file overrides ──────────────────────────────────────────────
+        // Per-track absolute paths don't bulk-edit meaningfully — disable the
+        // whole group when editing multiple tracks at once.
+        AudioOverridesGroup.IsEnabled = false;
+        AudioOverridesGroup.ToolTip   = "Audio file overrides are per-track and can't be bulk-edited.";
 
         // ── Session combo ─────────────────────────────────────────────────────
         PopulateMultiSessionCombo(hasSharedSessions);
@@ -301,6 +309,8 @@ public partial class TrackEditorWindow : Window
         SparsCodeCombo.SelectValue(TrackSparsCodeBox, track.SparsCode);
         TrackStereoBox.SelectedIndex = track.IsStereo switch { true => 1, false => 2, _ => 0 };
         DescriptionBox.Text      = track.Description ?? "";
+        FlacPathBox.Text         = track.FlacPath    ?? "";
+        Mp3PathBox.Text          = track.Mp3Path     ?? "";
 
         // Session combo
         RebuildSessionCombo(track.SessionIndex);
@@ -379,9 +389,42 @@ public partial class TrackEditorWindow : Window
                             : TrackStereoBox.SelectedIndex == 2 ? false
                             : (bool?)null;
         target.Description  = NullIfEmpty(DescriptionBox.Text);
+        target.FlacPath     = NullIfEmpty(FlacPathBox.Text);
+        target.Mp3Path      = NullIfEmpty(Mp3PathBox.Text);
         target.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
         target.SessionIndex = SessionBox.SelectedIndex < 0 ? null : SessionBox.SelectedIndex;
         target.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
+    }
+
+    // ── File browse handlers for audio overrides ─────────────────────────────
+
+    private void OnBrowseFlacPath(object sender, RoutedEventArgs e) =>
+        BrowseInto(FlacPathBox, "Select FLAC file", "FLAC files (*.flac)|*.flac|All files (*.*)|*.*", "flac");
+
+    private void OnBrowseMp3Path(object sender, RoutedEventArgs e) =>
+        BrowseInto(Mp3PathBox, "Select MP3 file", "MP3 files (*.mp3)|*.mp3|All files (*.*)|*.*", "mp3");
+
+    private static void BrowseInto(TextBox target, string title, string filter, string defaultExt)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = title,
+            Filter = filter,
+            DefaultExt = defaultExt,
+            CheckFileExists = true,
+        };
+        // Pre-seed with the current value's directory if it points somewhere real.
+        var current = target.Text.Trim();
+        if (!string.IsNullOrEmpty(current))
+        {
+            var dir = Path.GetDirectoryName(current);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                dlg.InitialDirectory = dir;
+            if (File.Exists(current))
+                dlg.FileName = current;
+        }
+        if (dlg.ShowDialog() == true)
+            target.Text = dlg.FileName;
     }
 
     // ── Session ───────────────────────────────────────────────────────────────

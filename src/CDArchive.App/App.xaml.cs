@@ -26,6 +26,7 @@ public partial class App : Application
             services.AddSingleton<ItunesImportViewModel>();
             services.AddTransient<ImportExportViewModel>();
             services.AddSingleton<PickListsViewModel>();
+            services.AddSingleton<PlayerViewModel>();
 
             ServiceProvider = services.BuildServiceProvider();
 

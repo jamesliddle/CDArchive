@@ -17,5 +17,11 @@ public class AlbumDiscRow
     public int DiscNumber { get; set; }
     public string? Title { get; set; }
 
+    /// <summary>
+    /// On-disk folder name for this disc, used by IArchiveAudioLocator.
+    /// null = default "Disc {DiscNumber}" (or no disc folder for single-disc albums).
+    /// </summary>
+    public string? FolderName { get; set; }
+
     public List<AlbumTrackRow> Tracks { get; set; } = [];
 }

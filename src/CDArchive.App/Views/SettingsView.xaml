@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:svc="clr-namespace:CDArchive.Core.Services;assembly=CDArchive.Core"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}">
 
@@ -16,6 +17,8 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="15" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="15" />
                 <RowDefinition Height="Auto" />
@@ -84,6 +87,24 @@
                 <sys:Int32>192</sys:Int32>
                 <sys:Int32>256</sys:Int32>
                 <sys:Int32>320</sys:Int32>
+            </ComboBox>
+
+            <!-- Preferred audio format for the music player -->
+            <TextBlock Grid.Row="6" Grid.Column="0"
+                       Text="Player Format"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       VerticalAlignment="Center"
+                       ToolTip="Format the music player prefers when both FLAC and MP3 exist for a track. Falls back to the other format if the preferred one is missing." />
+            <ComboBox Grid.Row="6" Grid.Column="1"
+                      SelectedItem="{Binding PreferredAudioFormat, Mode=TwoWay}"
+                      FontSize="14"
+                      Padding="8,6"
+                      Width="120"
+                      HorizontalAlignment="Left">
+                <svc:PreferredAudioFormat>Flac</svc:PreferredAudioFormat>
+                <svc:PreferredAudioFormat>Mp3</svc:PreferredAudioFormat>
             </ComboBox>
         </Grid>
 

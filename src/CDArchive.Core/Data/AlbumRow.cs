@@ -17,6 +17,13 @@ public class AlbumRow
     public bool? IsStereo { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Folder name (or absolute path) containing this album's audio files,
+    /// consumed by IArchiveAudioLocator. null when the album has no archive
+    /// folder convention and must rely on per-track override paths.
+    /// </summary>
+    public string? ArchiveFolder { get; set; }
+
     /// <summary>True until explicitly approved. Defaults true for new albums.</summary>
     public bool IsProvisional { get; set; } = true;
 

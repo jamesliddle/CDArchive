@@ -33,6 +33,12 @@ public class AlbumTrackRow
     /// <summary>True until explicitly approved. Defaults true for new tracks.</summary>
     public bool IsProvisional { get; set; } = true;
 
+    /// <summary>Absolute path to this track's FLAC file, when set as an override.</summary>
+    public string? FlacPath { get; set; }
+
+    /// <summary>Absolute path to this track's MP3 file, when set as an override.</summary>
+    public string? Mp3Path { get; set; }
+
     public List<AlbumTrackPieceRefRow> PieceRefs { get; set; } = [];
 
     /// <summary>

@@ -1,0 +1,167 @@
+using NAudio.Wave;
+
+namespace CDArchive.Core.Services;
+
+/// <summary>
+/// <see cref="IAudioPlayerService"/> backed by NAudio. Uses
+/// <see cref="MediaFoundationReader"/> for decoding (handles MP3 and FLAC
+/// natively on Windows 10 1709+ and Windows 11) and <see cref="WaveOutEvent"/>
+/// for output.
+///
+/// Threading: NAudio raises <see cref="WaveOutEvent.PlaybackStopped"/> on a
+/// pool thread. We capture <see cref="SynchronizationContext.Current"/> at
+/// construction (the WPF UI thread under normal DI) and Post all public events
+/// through it so consumers see them on the expected thread. Position polling
+/// runs on a <see cref="System.Threading.Timer"/> and uses the same dispatch.
+/// </summary>
+public sealed class NAudioPlayerService : IAudioPlayerService
+{
+    private readonly SynchronizationContext? _sync;
+    private readonly System.Threading.Timer _positionTimer;
+
+    private MediaFoundationReader? _reader;
+    private WaveOutEvent? _output;
+    private bool _stoppedByUser;
+    private bool _disposed;
+
+    public PlayerState State { get; private set; } = PlayerState.Empty;
+    public string? CurrentFilePath { get; private set; }
+
+    public TimeSpan Position => _reader?.CurrentTime ?? TimeSpan.Zero;
+    public TimeSpan Duration => _reader?.TotalTime ?? TimeSpan.Zero;
+
+    public event EventHandler? StateChanged;
+    public event EventHandler? PositionChanged;
+    public event EventHandler? DurationKnown;
+    public event EventHandler? PlaybackEnded;
+
+    public NAudioPlayerService()
+    {
+        _sync = SynchronizationContext.Current;
+        _positionTimer = new System.Threading.Timer(
+            _ => Raise(PositionChanged), state: null,
+            dueTime: Timeout.Infinite, period: Timeout.Infinite);
+    }
+
+    public void Load(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("File path must be non-empty.", nameof(filePath));
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException("Audio file not found.", filePath);
+
+        DisposeStream();
+
+        // MediaFoundationReader throws on unsupported formats; let the caller see it.
+        _reader = new MediaFoundationReader(filePath);
+        _output = new WaveOutEvent();
+        _output.Init(_reader);
+        _output.PlaybackStopped += OnPlaybackStoppedFromNAudio;
+
+        CurrentFilePath = filePath;
+        _stoppedByUser  = false;
+        SetState(PlayerState.Stopped);
+        Raise(DurationKnown);
+    }
+
+    public void Play()
+    {
+        if (_output is null || State == PlayerState.Playing) return;
+        _output.Play();
+        StartPositionTimer();
+        SetState(PlayerState.Playing);
+    }
+
+    public void Pause()
+    {
+        if (_output is null || State != PlayerState.Playing) return;
+        _output.Pause();
+        StopPositionTimer();
+        SetState(PlayerState.Paused);
+    }
+
+    public void Stop()
+    {
+        if (_output is null || State == PlayerState.Empty || State == PlayerState.Stopped) return;
+        _stoppedByUser = true;
+        _output.Stop();
+        StopPositionTimer();
+        Seek(TimeSpan.Zero);
+        SetState(PlayerState.Stopped);
+    }
+
+    public void Seek(TimeSpan position)
+    {
+        if (_reader is null) return;
+        var clamped = position < TimeSpan.Zero ? TimeSpan.Zero
+                    : position > _reader.TotalTime ? _reader.TotalTime
+                    : position;
+        _reader.CurrentTime = clamped;
+        Raise(PositionChanged);
+    }
+
+    private void OnPlaybackStoppedFromNAudio(object? sender, StoppedEventArgs e)
+    {
+        // Fires on a pool thread for both natural-end and user-stop. Distinguish
+        // by the flag set in Stop(); reset it once consumed.
+        bool naturalEnd = !_stoppedByUser;
+        _stoppedByUser = false;
+        StopPositionTimer();
+
+        if (naturalEnd)
+        {
+            // Reset position so the next Play() doesn't start at the end.
+            if (_reader is not null) _reader.CurrentTime = TimeSpan.Zero;
+            SetState(PlayerState.Stopped);
+            Raise(PlaybackEnded);
+        }
+    }
+
+    private void SetState(PlayerState s)
+    {
+        if (State == s) return;
+        State = s;
+        Raise(StateChanged);
+    }
+
+    private void Raise(EventHandler? handler)
+    {
+        if (handler is null) return;
+        if (_sync is not null && _sync != SynchronizationContext.Current)
+            _sync.Post(_ => handler.Invoke(this, EventArgs.Empty), null);
+        else
+            handler.Invoke(this, EventArgs.Empty);
+    }
+
+    private void StartPositionTimer() =>
+        _positionTimer.Change(dueTime: 100, period: 100);
+
+    private void StopPositionTimer() =>
+        _positionTimer.Change(dueTime: Timeout.Infinite, period: Timeout.Infinite);
+
+    private void DisposeStream()
+    {
+        if (_output is not null)
+        {
+            _output.PlaybackStopped -= OnPlaybackStoppedFromNAudio;
+            _output.Dispose();
+            _output = null;
+        }
+        if (_reader is not null)
+        {
+            _reader.Dispose();
+            _reader = null;
+        }
+        CurrentFilePath = null;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        StopPositionTimer();
+        _positionTimer.Dispose();
+        DisposeStream();
+        SetState(PlayerState.Empty);
+    }
+}
