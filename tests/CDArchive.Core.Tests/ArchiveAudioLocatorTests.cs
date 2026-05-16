@@ -205,15 +205,61 @@ public class ArchiveAudioLocatorTests : IDisposable
     }
 
     [Fact]
-    public void NoArchiveFolder_AndNoOverride_ReturnsNull()
+    public void NoArchiveFolder_NoTitle_NoOverride_ReturnsNull()
     {
         var settings = new FakeSettings { ArchiveRootPath = _root };
         var locator  = new ArchiveAudioLocator(settings);
 
-        var album = new CanonAlbum { ArchiveFolder = null };
+        var album = new CanonAlbum { ArchiveFolder = null, Title = null };
         var disc  = new AlbumDisc { DiscNumber = 1 };
         album.Discs.Add(disc);
 
         Assert.Null(locator.Resolve(album, disc, new AlbumTrack { TrackNumber = 1 }));
+    }
+
+    [Fact]
+    public void NoArchiveFolder_FallsBackToAlbumTitle()
+    {
+        // No explicit ArchiveFolder — locator should use the Title as the
+        // folder name, matching the "folder name = album title" convention.
+        Touch("Beethoven Symphonies 1 3 Bernstein", "FLAC", "01 Symphony.flac");
+
+        var settings = new FakeSettings { ArchiveRootPath = _root };
+        var locator  = new ArchiveAudioLocator(settings);
+
+        var album = new CanonAlbum
+        {
+            ArchiveFolder = null,
+            Title         = "Beethoven Symphonies 1 3 Bernstein",
+        };
+        var disc = new AlbumDisc { DiscNumber = 1 };
+        album.Discs.Add(disc);
+
+        var hit = locator.Resolve(album, disc, new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hit);
+        Assert.EndsWith(".flac", hit!.Value.Path);
+    }
+
+    [Fact]
+    public void ArchiveFolder_OverridesTitleWhenSet()
+    {
+        // Title doesn't match the on-disk folder; ArchiveFolder does.
+        // The explicit override wins.
+        Touch("on-disk-name", "FLAC", "01 Track.flac");
+
+        var settings = new FakeSettings { ArchiveRootPath = _root };
+        var locator  = new ArchiveAudioLocator(settings);
+
+        var album = new CanonAlbum
+        {
+            ArchiveFolder = "on-disk-name",
+            Title         = "Display Title That Differs From Folder",
+        };
+        var disc = new AlbumDisc { DiscNumber = 1 };
+        album.Discs.Add(disc);
+
+        var hit = locator.Resolve(album, disc, new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hit);
+        Assert.EndsWith(".flac", hit!.Value.Path);
     }
 }

@@ -113,10 +113,10 @@
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="Archive Folder"
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0"
-                                   ToolTip="Folder containing this album's audio files. A bare name resolves under the configured archive root; an absolute path is used as-is." />
+                                   ToolTip="Folder containing this album's audio files. Leave blank to use the album Title as the folder name (the standard convention). A bare name resolves under the configured archive root; an absolute path is used as-is." />
                         <TextBox Grid.Row="5" Grid.Column="1" x:Name="ArchiveFolderBox"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8"
-                                 ToolTip="e.g. 'Beethoven Symphonies 1 3 Bernstein' (resolves under archive root), or an absolute path like 'D:\Music\Singles\track'." />
+                                 ToolTip="Leave blank to default to the album Title. Override when the on-disk folder name differs (e.g. 'Beethoven Symphonies 1 3 Bernstein' or 'D:\Music\Singles\track')." />
 
                         <!-- SPARS Code -->
                         <TextBlock Grid.Row="6" Grid.Column="0" Text="SPARS Code"

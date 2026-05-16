@@ -105,6 +105,47 @@
                     </Grid>
                 </GroupBox>
 
+                <!-- Per-track audio file overrides — set these only when the
+                     locator's convention (album folder / format subfolder /
+                     track-number prefix) can't find this track's audio. -->
+                <GroupBox x:Name="AudioOverridesGroup"
+                          Header="Audio file overrides" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
+                        <TextBlock Text="Leave blank to use the album / disc / track convention. Set when the file lives somewhere unusual (e.g. a standalone MP3 in your Music folder)."
+                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
+                                   Margin="0,0,0,6" />
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="FLAC file:"
+                                       VerticalAlignment="Center" Margin="0,0,8,4" />
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="FlacPathBox"
+                                     FontSize="13" Padding="4,3" Margin="0,0,6,4"
+                                     ToolTip="Absolute path to this track's FLAC file." />
+                            <Button Grid.Row="0" Grid.Column="2" Content="Browse…"
+                                    Padding="8,3" Margin="0,0,0,4"
+                                    Click="OnBrowseFlacPath" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="MP3 file:"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="Mp3PathBox"
+                                     FontSize="13" Padding="4,3" Margin="0,0,6,0"
+                                     ToolTip="Absolute path to this track's MP3 file." />
+                            <Button Grid.Row="1" Grid.Column="2" Content="Browse…"
+                                    Padding="8,3"
+                                    Click="OnBrowseMp3Path" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- Description -->
                 <GroupBox Header="Description" Margin="0,0,0,10" Padding="8">
                     <StackPanel>

@@ -68,10 +68,16 @@ public sealed class ArchiveAudioLocator : IArchiveAudioLocator
     /// <summary>
     /// Returns the absolute folder for the album, applying the absolute-vs-relative
     /// rule (rooted path → as-is; otherwise → resolved under ArchiveRootPath).
+    /// Falls back to <see cref="CanonAlbum.Title"/> as a relative folder name
+    /// when <see cref="CanonAlbum.ArchiveFolder"/> is null — i.e. the convention
+    /// "the album's archive folder is named the same as its title" is the
+    /// default, and ArchiveFolder is the explicit override.
     /// </summary>
     private string? ResolveAlbumDirectory(CanonAlbum album)
     {
         var folder = album.ArchiveFolder;
+        if (string.IsNullOrWhiteSpace(folder))
+            folder = album.Title;
         if (string.IsNullOrWhiteSpace(folder)) return null;
 
         var resolved = Path.IsPathRooted(folder)
