@@ -16,9 +16,9 @@ The application has three major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
-- **PR #7 (`bugfix/import`)** awaiting review — fixes the iTunes-import data-loss bug that wiped the albums table when standalone tracks shared `(disc, track_number)` tuples, refactors `SaveAlbumsAsync` to load-mutate-save, and adds `--restore-albums` to the seeder. The May 14 JSON was the recovery source after the original failure; pre-recovery DB snapshot at `data/ClassicalCanon.db.bak.20260515_pre_restore`. Before merging: smoke-test album editing and retry the 11-track standalone import (Glinka, Copland, etc.) to confirm they land as 11 per-track albums.
-- **`feature/tracklist`** branch exists with no commits — created at the start of the session, work not yet started (the import bug interrupted it).
-- Deferred follow-ups from prior sessions still open: currently-playing-track highlight in lists; stop-after-current toggle; volume control; cleanup of the three pre-existing build warnings (cosmetic); consider refactoring `PropagateAlbumFieldsToTracks` out of `AlbumEditorWindow` into a static helper for testability.
+- **`feature/follow-ups`** branch pending PR — bundles five small deferred items: currently-playing-track highlight (editor's Discs & Tracks tab), stop-after-current toggle, volume control with persisted settings, build-warning cleanup, and the `PropagateAlbumFieldsToTracks` extraction into `CDArchive.Core.Helpers.AlbumFieldPropagator` (now unit-tested).
+- **`feature/tracklist`** branch exists with no commits — created at the start of the bugfix/import session, work not yet started.
+- **Multi-composer pieces (`L'éventail de Jeanne` etc.)** remains the one open canon-data deferral — see the *Multi-composer pieces have no primary composer field* lesson. Needs a design call on whether "Various" is a sentinel composer or a real first-class entity before implementation.
 
 ---
 
