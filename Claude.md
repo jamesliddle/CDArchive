@@ -16,7 +16,7 @@ The application has three major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
-- **`feature/follow-ups`** branch pending PR — bundles five small deferred items: currently-playing-track highlight (editor's Discs & Tracks tab), stop-after-current toggle, volume control with persisted settings, build-warning cleanup, and the `PropagateAlbumFieldsToTracks` extraction into `CDArchive.Core.Helpers.AlbumFieldPropagator` (now unit-tested).
+- **`feature/follow-ups`** branch pending PR — bundles four small deferred items: stop-after-current toggle, volume control with persisted settings, build-warning cleanup, and the `PropagateAlbumFieldsToTracks` extraction into `CDArchive.Core.Helpers.AlbumFieldPropagator` (now unit-tested). The currently-playing-track highlight was tried and rolled back (the user didn't find it helpful) — see the revert commit on the same branch.
 - **`feature/tracklist`** branch exists with no commits — created at the start of the bugfix/import session, work not yet started.
 - **Multi-composer pieces (`L'éventail de Jeanne` etc.)** remains the one open canon-data deferral — see the *Multi-composer pieces have no primary composer field* lesson. Needs a design call on whether "Various" is a sentinel composer or a real first-class entity before implementation.
 
