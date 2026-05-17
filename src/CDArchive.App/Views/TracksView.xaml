@@ -1,0 +1,224 @@
+<UserControl x:Class="CDArchive.App.Views.TracksView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             mc:Ignorable="d"
+             Loaded="OnLoaded"
+             d:DataContext="{d:DesignInstance Type=vm:TracksViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+
+        <!-- Mirror AlbumsView's header styles so this view feels native. See the
+             *GridView column alignment* lesson in CLAUDE.md: header styles must
+             live at UserControl scope (not in ListView.Resources) so the
+             HeaderContainerStyle StaticResource lookup resolves reliably. -->
+        <Style x:Key="LeftAlignedHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style x:Key="RightAlignedHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <DataTemplate x:Key="RightAlignedHeaderTemplate">
+            <TextBlock Text="{Binding}" TextAlignment="Right" Padding="0,0,8,0" />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+
+        <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Top"
+                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1"
+                Background="White" Padding="0,0,0,10" Margin="0,0,0,10">
+            <DockPanel>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Button Content="New Track" Padding="12,5" FontSize="13"
+                            Margin="0,0,6,0"
+                            ToolTip="Add a loose track (singleton, no album)"
+                            Click="OnNewTrackClick" />
+                    <Button x:Name="EditButton"
+                            Content="Edit" Padding="12,5" FontSize="13"
+                            Margin="0,0,12,0" IsEnabled="False"
+                            ToolTip="Edit the selected track (or bulk-edit the multi-selection)"
+                            Click="OnEditTracksClick" />
+                    <Button Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
+                            ToolTip="Reload all data from the database"
+                            Click="OnRefreshClick" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Filter:" FontSize="13" VerticalAlignment="Center"
+                               Foreground="#555" Margin="0,0,8,0" />
+                    <TextBox x:Name="FilterBox"
+                             Width="280" FontSize="13" Padding="4,4"
+                             VerticalContentAlignment="Center"
+                             TextChanged="OnFilterTextChanged" />
+
+                    <TextBlock Text="Show:" FontSize="13" Foreground="#555"
+                               VerticalAlignment="Center" Margin="16,0,8,0" />
+                    <ComboBox x:Name="ShowCombo" FontSize="12" Height="23" Width="100"
+                              SelectedIndex="0"
+                              SelectionChanged="OnShowFilterChanged">
+                        <ComboBoxItem Content="All" />
+                        <ComboBoxItem Content="Provisional" />
+                        <ComboBoxItem Content="Accepted" />
+                    </ComboBox>
+                </StackPanel>
+
+            </DockPanel>
+        </Border>
+
+        <!-- ── Status bar ──────────────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#F0F4F8" BorderBrush="#D0D8E0" BorderThickness="0,1,0,0"
+                Padding="10,5">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#555" />
+        </Border>
+
+        <!-- ── Tracks list ─────────────────────────────────────────────────── -->
+        <ListView x:Name="TrackList"
+                  FontSize="13"
+                  BorderThickness="0"
+                  Background="White"
+                  ItemsSource="{Binding Rows}"
+                  SelectionMode="Extended"
+                  SelectionChanged="OnTrackSelectionChanged"
+                  MouseDoubleClick="OnTrackDoubleClick"
+                  GridViewColumnHeader.Click="OnColumnHeaderClick"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling">
+
+            <ListView.ContextMenu>
+                <ContextMenu Opened="OnTrackContextMenuOpened">
+                    <MenuItem x:Name="CtxApproveTrack"
+                              Header="Approve" Click="OnContextApproveTrack" />
+                    <MenuItem x:Name="CtxRejectTrack"
+                              Header="Reject"  Click="OnContextRejectTrack" />
+                </ContextMenu>
+            </ListView.ContextMenu>
+
+            <ListView.Resources>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding"   Value="0,3" />
+                    <Setter Property="MinHeight" Value="26" />
+                    <Setter Property="FontSize"  Value="13" />
+                    <!-- Stretch row presenter so column-width-sized cells honour
+                         HorizontalAlignment="Right" — see the *GridView column
+                         alignment* lesson in CLAUDE.md. -->
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="#CCE5FF" />
+                            <Setter Property="Foreground" Value="#000" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="ItemsControl.AlternationIndex" Value="1" />
+                                <Condition Property="IsSelected" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Background" Value="#F8F8F8" />
+                        </MultiTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ListView.Resources>
+
+            <ListView.AlternationCount>2</ListView.AlternationCount>
+
+            <ListView.View>
+                <GridView>
+
+                    <GridViewColumn Header="Album" Width="220"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding AlbumTitle}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding AlbumTitle}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Disc" Width="50"
+                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DiscDisplay}"
+                                           HorizontalAlignment="Right" Margin="0,0,8,0" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Track" Width="50"
+                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding TrackDisplay}"
+                                           HorizontalAlignment="Right" Margin="0,0,8,0" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Piece" Width="520"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Piece}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Piece}" />
+                                    <TextBlock Text=" (provisional)"
+                                               Foreground="#E65100" FontSize="11" FontStyle="Italic"
+                                               Margin="6,0,0,0" VerticalAlignment="Center"
+                                               Visibility="{Binding IsProvisional,
+                                                            Converter={StaticResource BoolToVisConverter}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Time" Width="70"
+                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Duration}"
+                                           HorizontalAlignment="Right" Margin="0,0,8,0" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Composer" Width="200"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Composer}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Composer}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Artist" Width="200"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding PerformerSummary}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding PerformerSummary}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+    </DockPanel>
+</UserControl>

@@ -33,11 +33,12 @@ public class ItunesImporterTests
             Location:     null);
 
     /// <summary>
-    /// Tracks with no Album field each become their own one-track album titled
-    /// after the track Name — not a single synthetic "(Unknown album)".
+    /// Tracks with no Album field become loose tracks (singletons, no album
+    /// wrapping), not synthetic one-track albums. The composer / piece
+    /// resolution path is identical to the album-bound case.
     /// </summary>
     [Fact]
-    public void StandaloneTracks_BecomePerTrackAlbums()
+    public void StandaloneTracks_BecomeLooseTracks()
     {
         var tracks = new[]
         {
@@ -49,21 +50,31 @@ public class ItunesImporterTests
 
         var result = ItunesImporter.Import(tracks, composers, pieces);
 
-        Assert.Equal(2, result.NewAlbums.Count);
-        var titles = result.NewAlbums.Select(a => a.Title).OrderBy(s => s).ToList();
-        Assert.Equal("An Outdoor Overture",                          titles[0]);
-        Assert.Equal("Souvenir d'une nuit d'été à Madrid",            titles[1]);
-        Assert.All(result.NewAlbums, a => Assert.Single(a.Discs[0].Tracks));
+        Assert.Empty(result.NewAlbums);
+        Assert.Equal(2, result.NewLooseTracks.Count);
+
+        // Each loose track has TrackNumber=0 (the loose sentinel), its iTunes
+        // Name parsed into a piece-ref, and its composer registered. Both tracks
+        // had a Composer field, so they're catalogued (PieceRefs set) rather
+        // than uncatalogued (Description set).
+        var glinkaTrack  = Assert.Single(result.NewLooseTracks,
+            t => t.PieceRefs?[0].Composer == "Glinka, Mikhail");
+        var coplandTrack = Assert.Single(result.NewLooseTracks,
+            t => t.PieceRefs?[0].Composer == "Copland, Aaron");
+
+        Assert.Equal(0, glinkaTrack.TrackNumber);
+        Assert.Equal(0, coplandTrack.TrackNumber);
+        Assert.Equal("Souvenir d'une nuit d'été à Madrid", glinkaTrack.PieceRefs![0].PieceTitle);
+        Assert.Equal("An Outdoor Overture",                coplandTrack.PieceRefs![0].PieceTitle);
     }
 
     /// <summary>
-    /// A single standalone track with NO iTunes TrackNumber must still save
-    /// with a positive track number. The track editor validation rejects 0
-    /// with "Track number must be a positive integer", so an albumless MP3
-    /// without a track number would otherwise be locked out of further edits.
+    /// A standalone track with NO iTunes TrackNumber becomes a loose track
+    /// with TrackNumber=0. There's no album-renumber path to worry about
+    /// because loose tracks aren't position-indexed inside a disc.
     /// </summary>
     [Fact]
-    public void StandaloneTrack_WithNullTrackNumber_GetsPositiveNumber()
+    public void StandaloneTrack_WithNullTrackNumber_BecomesLooseWithSentinelZero()
     {
         var tracks = new[]
         {
@@ -72,10 +83,43 @@ public class ItunesImporterTests
 
         var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), new List<CanonPiece>());
 
-        var only = Assert.Single(result.NewAlbums);
-        var disc = Assert.Single(only.Discs);
-        var trk  = Assert.Single(disc.Tracks);
-        Assert.True(trk.TrackNumber >= 1, $"TrackNumber was {trk.TrackNumber}, expected >= 1");
+        Assert.Empty(result.NewAlbums);
+        var loose = Assert.Single(result.NewLooseTracks);
+        Assert.Equal(0, loose.TrackNumber);
+    }
+
+    /// <summary>
+    /// Albumless tracks should pick up their Artist field as track-level
+    /// performers — there's no album-level common-set to dedupe against.
+    /// </summary>
+    [Fact]
+    public void StandaloneTrack_WithArtist_PopulatesTrackLevelPerformers()
+    {
+        var tracks = new[]
+        {
+            new ItunesTrack(
+                TrackId:      1,
+                PersistentId: null,
+                DiscNumber:   null,
+                TrackNumber:  null,
+                Name:         "Standalone",
+                DurationMs:   180_000,
+                Genre:        null,
+                Composer:     "Glinka, Mikhail (1804-1857)",
+                Album:        null,
+                AlbumArtist:  null,
+                Artist:       "Lang Lang, Studio recording",
+                DateAdded:    DateTime.UtcNow,
+                Location:     null),
+        };
+
+        var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), new List<CanonPiece>());
+
+        var loose = Assert.Single(result.NewLooseTracks);
+        Assert.NotNull(loose.Performers);
+        Assert.Equal(2, loose.Performers!.Count);
+        Assert.Equal("Lang Lang",        loose.Performers[0].Name);
+        Assert.Equal("Studio recording", loose.Performers[1].Name);
     }
 
     /// <summary>
@@ -121,5 +165,187 @@ public class ItunesImporterTests
         var disc = Assert.Single(only.Discs);
         Assert.All(disc.Tracks, t => Assert.True(t.TrackNumber >= 1));
         Assert.Equal(disc.Tracks.Count, disc.Tracks.Select(t => t.TrackNumber).Distinct().Count());
+    }
+
+    // ── Contributor credits (composer + completer / arranger / etc.) ──────────
+
+    /// <summary>
+    /// Real-world case: Puccini's Turandot was completed by Franco Alfano. iTunes
+    /// encodes this as <c>"Puccini, Giacomo (1858–1924), compl. Franco Alfano
+    /// (1875–1954)"</c>. The importer must split the field into principal +
+    /// contributor, normalise the contributor name to surname-first, register
+    /// both as CanonComposers, and record the credit on the new piece.
+    /// </summary>
+    [Fact]
+    public void CompoundComposer_PrincipalAndCompleter_CreatesBothAndCreditsPiece()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Turandot - Act 1 - 1. In questa Reggia", album: "Turandot",
+                  trackNumber: 1,
+                  composer: "Puccini, Giacomo (1858–1924), compl. Franco Alfano (1875–1954)"),
+        };
+        var composers = new List<CanonComposer>();
+        var pieces    = new List<CanonPiece>();
+
+        var result = ItunesImporter.Import(tracks, composers, pieces);
+
+        // Two composers were created: Puccini (principal) and Alfano (contributor).
+        Assert.Equal(2, composers.Count);
+        var puccini = composers.Single(c => c.Name == "Puccini, Giacomo");
+        var alfano  = composers.Single(c => c.Name == "Alfano, Franco");
+        Assert.Equal("1858", puccini.BirthDate);
+        Assert.Equal("1924", puccini.DeathDate);
+        Assert.Equal("1875", alfano.BirthDate);
+        Assert.Equal("1954", alfano.DeathDate);
+        Assert.Equal(2, result.NewComposers);
+
+        // The piece carries the principal in Composer; Composers holds the
+        // contributors only (no duplicated principal entry).
+        var piece = Assert.Single(pieces);
+        Assert.Equal("Puccini, Giacomo", piece.Composer);
+        var contrib = Assert.Single(piece.Composers!);
+        Assert.Equal("Alfano, Franco", contrib.Name);
+        Assert.Equal("compl.", contrib.Role);
+    }
+
+    /// <summary>
+    /// Contributor whose iTunes name is already surname-first
+    /// (<c>"Busoni, Ferruccio"</c>) must be preserved verbatim — the heuristic
+    /// surname-flip only fires when there's no comma in the contributor segment.
+    /// </summary>
+    [Fact]
+    public void CompoundComposer_ContributorAlreadySurnameFirst_KeptVerbatim()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Chaconne", album: "Bach Transcriptions",
+                  trackNumber: 1,
+                  composer: "Bach, Johann Sebastian (1685-1750), arr. Busoni, Ferruccio (1866-1924)"),
+        };
+        var composers = new List<CanonComposer>();
+        var pieces    = new List<CanonPiece>();
+
+        ItunesImporter.Import(tracks, composers, pieces);
+
+        Assert.Equal(2, composers.Count);
+        Assert.Contains(composers, c => c.Name == "Bach, Johann Sebastian");
+        Assert.Contains(composers, c => c.Name == "Busoni, Ferruccio");
+
+        var piece = Assert.Single(pieces);
+        var contrib = Assert.Single(piece.Composers!);
+        Assert.Equal("arr.", contrib.Role);
+        Assert.Equal("Busoni, Ferruccio", contrib.Name);
+    }
+
+    /// <summary>
+    /// Real-world case from the user: <c>"Fugue in G, BWV 577 (arr.)"</c> by
+    /// Bach, arranged by Holst. The piece's <see cref="CanonPiece.Composer"/>
+    /// must hold Bach (the principal) and <see cref="CanonPiece.Composers"/>
+    /// must hold only Holst (the contributor) — NOT Bach again, because the
+    /// PieceEditorWindow shows Composers verbatim under "Other Contributors".
+    /// Previously the importer added a no-role principal entry that the
+    /// editor displayed as a duplicate "Bach" contributor next to Holst.
+    /// </summary>
+    [Fact]
+    public void CompoundComposer_PrincipalNotDuplicatedInOtherContributors()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Fugue in G, BWV 577 (arr.)", album: "Holst Transcriptions",
+                  trackNumber: 1,
+                  composer: "Bach, Johann Sebastian (1685-1750), arr. Gustav Holst (1874-1934)"),
+        };
+        var composers = new List<CanonComposer>();
+        var pieces    = new List<CanonPiece>();
+
+        ItunesImporter.Import(tracks, composers, pieces);
+
+        // Both composers registered.
+        Assert.Equal(2, composers.Count);
+        Assert.Contains(composers, c => c.Name == "Bach, Johann Sebastian");
+        Assert.Contains(composers, c => c.Name == "Holst, Gustav");
+
+        var piece = Assert.Single(pieces);
+        Assert.Equal("Bach, Johann Sebastian", piece.Composer);
+
+        // Composers list contains the contributor only — no Bach duplicate.
+        var contributor = Assert.Single(piece.Composers!);
+        Assert.Equal("Holst, Gustav", contributor.Name);
+        Assert.Equal("arr.", contributor.Role);
+        Assert.DoesNotContain(piece.Composers!, c =>
+            string.Equals(c.Name, "Bach, Johann Sebastian", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Existing simple composer fields still parse — no contributors, no
+    /// Composers list on the resulting piece. Regression guard for the
+    /// pre-existing parse path.
+    /// </summary>
+    [Fact]
+    public void SimpleComposer_NoContributors_LeavesPieceComposersListNull()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Symphony", album: "Beethoven 5",
+                  trackNumber: 1, composer: "Beethoven, Ludwig van (1770-1827)"),
+        };
+        var composers = new List<CanonComposer>();
+        var pieces    = new List<CanonPiece>();
+
+        ItunesImporter.Import(tracks, composers, pieces);
+
+        Assert.Single(composers);
+        Assert.Equal("Beethoven, Ludwig van", composers[0].Name);
+
+        var piece = Assert.Single(pieces);
+        Assert.Equal("Beethoven, Ludwig van", piece.Composer);
+        Assert.Null(piece.Composers);
+    }
+
+    /// <summary>
+    /// When a piece already exists in the canon (matched by composer + title),
+    /// the importer must NOT overwrite its <c>Composers</c> list — the user has
+    /// already curated it. Contributor CanonComposers still get added to the
+    /// composers list so they're visible going forward.
+    /// </summary>
+    [Fact]
+    public void CompoundComposer_PieceAlreadyExists_PreservesCuratedCredits()
+    {
+        var existingPiece = new CanonPiece
+        {
+            Composer = "Puccini, Giacomo",
+            Title    = "Turandot",
+            // Imagine the user has already curated a slightly different role
+            // for the contributor (e.g. "compl. (revised)" instead of "compl.").
+            Composers = new List<ComposerCredit>
+            {
+                new() { Name = "Alfano, Franco", Role = "compl. (revised)" },
+            },
+        };
+        var pieces    = new List<CanonPiece> { existingPiece };
+        var composers = new List<CanonComposer>
+        {
+            new() { Name = "Puccini, Giacomo", SortName = "Puccini, Giacomo" },
+        };
+
+        var tracks = new[]
+        {
+            Track(1, "Turandot - Act 1 - 1. In questa Reggia", album: "Turandot",
+                  trackNumber: 1,
+                  composer: "Puccini, Giacomo (1858-1924), compl. Franco Alfano (1875-1954)"),
+        };
+
+        ItunesImporter.Import(tracks, composers, pieces);
+
+        // Alfano was added to the composers list (he wasn't there before),
+        // but Puccini's existing piece keeps its curated credit untouched —
+        // the importer must not churn the user's "compl. (revised)" back to
+        // the default "compl." that ParseComposer would produce.
+        Assert.Contains(composers, c => c.Name == "Alfano, Franco");
+        Assert.Single(pieces);
+        var preserved = Assert.Single(existingPiece.Composers!);
+        Assert.Equal("Alfano, Franco",     preserved.Name);
+        Assert.Equal("compl. (revised)",   preserved.Role);
     }
 }

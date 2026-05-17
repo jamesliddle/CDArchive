@@ -10,6 +10,9 @@
 <DataTemplate DataType="{x:Type vm:AlbumsViewModel}">
             <views:AlbumsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TracksViewModel}">
+            <views:TracksView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ItunesImportViewModel}">
             <views:ItunesImportView />
         </DataTemplate>

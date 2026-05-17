@@ -31,6 +31,12 @@ public partial class TrackEditorWindow : Window
     private readonly IReadOnlyList<AlbumTrack>? _editTracks;    // the tracks being bulk-edited
     private readonly HashSet<string> _mixedFields = [];         // field names whose values differ across tracks
 
+    // ── Loose-track state ─────────────────────────────────────────────────────
+    // True when editing a singleton with no owning album. Hides the track-number /
+    // disc / session UI and edits the supplied AlbumTrack in place.
+    private readonly bool _isLooseTrack;
+    private readonly AlbumTrack? _looseTrack;
+
     // In multi-edit, collection fields start in the "mixed + untouched" state when their
     // values differ across the selected tracks. Any user add/remove/toggle clears this
     // flag, signalling that the new list/state should be applied to every selected track.
@@ -96,6 +102,62 @@ public partial class TrackEditorWindow : Window
         NavigationPanel.Visibility = Visibility.Collapsed;
 
         PopulateMultiFields(sessions != null);
+    }
+
+    // ── Constructor: loose track (no owning album) ────────────────────────────
+
+    /// <summary>
+    /// Loose-track edit constructor. Singletons have no disc, no sessions, and
+    /// no meaningful track number — those UI elements are hidden. Audio-file
+    /// overrides stay visible (and effectively required) since there's no
+    /// album/disc convention to fall back to for file resolution. The supplied
+    /// <paramref name="track"/> is mutated in place on OK.
+    /// </summary>
+    public TrackEditorWindow(
+        AlbumTrack                 track,
+        CanonPickLists             pickLists,
+        IReadOnlyList<CanonPiece>  allPieces)
+    {
+        InitializeComponent();
+
+        _disc         = null;
+        _trackIndex   = -1;
+        _sessions     = [];
+        _pickLists    = pickLists;
+        _allPieces    = allPieces;
+        _isMixed      = false;
+        _isLooseTrack = true;
+        _looseTrack   = track;
+
+        PieceRefList.ItemsSource       = _pieceRefs;
+        TrackPerformerList.ItemsSource = _trackPerformers;
+
+        Title = "Edit Loose Track";
+
+        // Hide UI that has no meaning for a loose track.
+        NavigationPanel.Visibility  = Visibility.Collapsed;
+        TrackNumberLabel.Visibility = Visibility.Collapsed;
+        TrackNumberBox.Visibility   = Visibility.Collapsed;
+        SessionLabel.Visibility     = Visibility.Collapsed;
+        SessionPanel.Visibility     = Visibility.Collapsed;
+
+        LoadLooseTrack();
+    }
+
+    private void LoadLooseTrack()
+    {
+        var t = _looseTrack!;
+        _pieceRefs.Clear();
+        foreach (var r in t.PieceRefs ?? []) _pieceRefs.Add(r);
+        _trackPerformers.Clear();
+        foreach (var p in t.Performers ?? []) _trackPerformers.Add(p);
+
+        DurationBox.Text             = t.Duration    ?? "";
+        SparsCodeCombo.SelectValue(TrackSparsCodeBox, t.SparsCode);
+        TrackStereoBox.SelectedIndex = t.IsStereo switch { true => 1, false => 2, _ => 0 };
+        DescriptionBox.Text          = t.Description ?? "";
+        FlacPathBox.Text             = t.FlacPath    ?? "";
+        Mp3PathBox.Text              = t.Mp3Path     ?? "";
     }
 
     // ── Multi-edit: populate every field with unanimous value or "Mixed" ─────
@@ -454,10 +516,32 @@ public partial class TrackEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        if (_isMixed) { SaveMulti(); return; }
+        if (_isMixed)       { SaveMulti(); return; }
+        if (_isLooseTrack)  { CommitLooseTrack(); DialogResult = true; return; }
 
         if (!CommitCurrentTrack()) return;
         DialogResult = true;
+    }
+
+    /// <summary>
+    /// Writes the UI state to the supplied loose track in place. No validation
+    /// for track number / session — those fields are hidden in loose mode.
+    /// </summary>
+    private void CommitLooseTrack()
+    {
+        var t = _looseTrack!;
+        t.TrackNumber  = 0;             // sentinel: loose track, no disc position
+        t.Duration     = NullIfEmpty(DurationBox.Text);
+        t.SparsCode    = SparsCodeCombo.GetValue(TrackSparsCodeBox);
+        t.IsStereo     = TrackStereoBox.SelectedIndex == 1 ? true
+                       : TrackStereoBox.SelectedIndex == 2 ? false
+                       : (bool?)null;
+        t.Description  = NullIfEmpty(DescriptionBox.Text);
+        t.FlacPath     = NullIfEmpty(FlacPathBox.Text);
+        t.Mp3Path      = NullIfEmpty(Mp3PathBox.Text);
+        t.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
+        t.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
+        t.SessionIndex = null;
     }
 
     /// <summary>

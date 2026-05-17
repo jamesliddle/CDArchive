@@ -117,20 +117,24 @@ public partial class ItunesImportViewModel : ObservableObject
             StatusMessage = $"Importing {selected.Count} track(s)…";
 
             // Load current canon state.
-            var composers = (await _data.LoadComposersAsync()).ToList();
-            var pieces    = (await _data.LoadPiecesAsync()).ToList();
-            var albums    = (await _data.LoadAlbumsAsync()).ToList();
+            var composers   = (await _data.LoadComposersAsync()).ToList();
+            var pieces      = (await _data.LoadPiecesAsync()).ToList();
+            var albums      = (await _data.LoadAlbumsAsync()).ToList();
+            var looseTracks = (await _data.LoadLooseTracksAsync()).ToList();
 
             // Run inference + entity creation (mutates composers + pieces in place).
             var result = ItunesImporter.Import(selected, composers, pieces);
 
-            // Append the new albums and persist everything that changed.
+            // Append the new albums + loose tracks and persist everything that changed.
             foreach (var newAlbum in result.NewAlbums)
                 albums.Add(newAlbum);
+            foreach (var loose in result.NewLooseTracks)
+                looseTracks.Add(loose);
 
             await _data.SaveComposersAsync(composers);
             await _data.SavePiecesAsync(pieces);
             await _data.SaveAlbumsAsync(albums);
+            await _data.SaveLooseTracksAsync(looseTracks);
 
             // Refresh the "already imported" index so the just-imported tracks
             // drop out of the visible list on the next ApplyFilter pass (and
@@ -141,6 +145,7 @@ public partial class ItunesImportViewModel : ObservableObject
             StatusMessage =
                 $"Imported {result.TracksImported} tracks: "
                 + $"{result.NewAlbums.Count} new album(s), "
+                + $"{result.NewLooseTracks.Count} loose track(s), "
                 + $"{result.NewComposers} composer(s), "
                 + $"{result.NewPieces} piece(s), "
                 + $"{result.NewSubpieces} subpiece(s).";

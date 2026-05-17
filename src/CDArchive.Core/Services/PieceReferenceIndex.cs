@@ -61,11 +61,14 @@ public class PieceReferenceIndex
     private IReadOnlyList<CanonPiece> _cachedPieces = Array.Empty<CanonPiece>();
 
     /// <summary>
-    /// Rebuilds all indexes from the current piece and album collections.
-    /// Thread-safe to call from a background load path so long as the caller
-    /// doesn't read the index concurrently.
+    /// Rebuilds all indexes from the current piece, album, and loose-track
+    /// collections. Thread-safe to call from a background load path so long as
+    /// the caller doesn't read the index concurrently.
     /// </summary>
-    public void Rebuild(IEnumerable<CanonPiece> pieces, IEnumerable<CanonAlbum> albums)
+    public void Rebuild(
+        IEnumerable<CanonPiece>  pieces,
+        IEnumerable<CanonAlbum>  albums,
+        IEnumerable<AlbumTrack>? looseTracks = null)
     {
         // Re-claim Current. The constructor sets it, so any code that built a
         // throwaway resolver (e.g. SaveAlbumsAsync, ItunesImporter pre-fix) will
@@ -75,23 +78,38 @@ public class PieceReferenceIndex
         // every other static-accessor consumer immediately see the right index.
         Current = this;
         _cachedPieces = pieces as IReadOnlyList<CanonPiece> ?? pieces.ToList();
-        RebuildInternal(_cachedPieces, albums);
+        RebuildInternal(_cachedPieces, albums, looseTracks ?? Array.Empty<AlbumTrack>());
     }
 
     /// <summary>
     /// Rebuilds the index using the piece list from the last <see cref="Rebuild"/>
-    /// call but with a fresh album set. Use this when only album data has changed
-    /// (e.g. after the Albums screen saves edits) so badge-dictionary keys stay
-    /// reference-equal to the <see cref="CanonPiece"/> instances held by the
-    /// Canon tree view — otherwise the tree's lookups would start returning 0.
+    /// call but with fresh album / loose-track collections. Use this when only
+    /// container data has changed (e.g. after a save) so badge-dictionary keys
+    /// stay reference-equal to the <see cref="CanonPiece"/> instances held by
+    /// the Canon tree view — otherwise the tree's lookups would start returning 0.
     /// </summary>
-    public void RebuildAlbums(IEnumerable<CanonAlbum> albums)
+    public void RebuildContainers(
+        IEnumerable<CanonAlbum>  albums,
+        IEnumerable<AlbumTrack>? looseTracks = null)
     {
         Current = this;   // same Current-reclaim reasoning as Rebuild
-        RebuildInternal(_cachedPieces, albums);
+        RebuildInternal(_cachedPieces, albums, looseTracks ?? Array.Empty<AlbumTrack>());
     }
 
-    private void RebuildInternal(IReadOnlyList<CanonPiece> pieces, IEnumerable<CanonAlbum> albums)
+    /// <summary>
+    /// Legacy overload — kept so callers that only touch albums (the album
+    /// editor save path) don't need to know about loose tracks. Loose-track
+    /// hits from the prior Rebuild are dropped because they're not re-walked
+    /// here; callers that want loose tracks preserved should use
+    /// <see cref="RebuildContainers"/>.
+    /// </summary>
+    public void RebuildAlbums(IEnumerable<CanonAlbum> albums) =>
+        RebuildContainers(albums, Array.Empty<AlbumTrack>());
+
+    private void RebuildInternal(
+        IReadOnlyList<CanonPiece> pieces,
+        IEnumerable<CanonAlbum>   albums,
+        IEnumerable<AlbumTrack>   looseTracks)
     {
         var hitsForPiece    = new Dictionary<CanonPiece, List<PieceAlbumHit>>();
         var hitsForOriginal = new Dictionary<CanonPiece, List<PieceAlbumHit>>();
@@ -125,30 +143,17 @@ public class PieceReferenceIndex
             foreach (var disc in album.Discs)
             {
                 foreach (var track in disc.Tracks)
-                {
-                    // Uncatalogued tracks: fall back to parsing free-text descriptions like
-                    // "Chopin, Frédéric: Scherzo #1 in b, Op. 20 [- movement…]". We synthesise
-                    // a TrackPieceRef on the fly so the hit participates in all the normal
-                    // piece/version/composer buckets.
-                    if ((track.PieceRefs is null || track.PieceRefs.Count == 0)
-                        && !string.IsNullOrWhiteSpace(track.Description))
-                    {
-                        var synth = TryParseDescription(track.Description!, byComposerTitle);
-                        if (synth is not null)
-                        {
-                            AddHitForRef(synth, album, disc, track, byComposerTitle,
-                                         hitsForPiece, hitsForOriginal, hitsForVersion, hitsForComposer);
-                        }
-                        continue;
-                    }
-
-                    if (track.PieceRefs is null) continue;
-                    foreach (var pr in track.PieceRefs)
-                        AddHitForRef(pr, album, disc, track, byComposerTitle,
-                                     hitsForPiece, hitsForOriginal, hitsForVersion, hitsForComposer);
-                }
+                    IndexTrack(track, album, disc, byComposerTitle,
+                               hitsForPiece, hitsForOriginal, hitsForVersion, hitsForComposer);
             }
         }
+
+        // Loose tracks: same indexing, but with album/disc null. AddHitForRef
+        // and IndexTrack are agnostic to the container — they take whatever
+        // album/disc the caller supplies (or null) and stamp it onto the hit.
+        foreach (var track in looseTracks)
+            IndexTrack(track, album: null, disc: null, byComposerTitle,
+                       hitsForPiece, hitsForOriginal, hitsForVersion, hitsForComposer);
 
         // Set-level aggregation: a set's own badge should only reflect albums
         // that contain every member of the set — an "Op. 31" album that has
@@ -186,12 +191,15 @@ public class PieceReferenceIndex
             return;
 
         // Intersect album sets across members: an album must reference every
-        // member to qualify.
+        // member to qualify. Loose-track hits are skipped — a loose track is
+        // one track and can't satisfy "contains every member of a set" (unless
+        // the set has exactly one member, in which case the math still works
+        // via the album-only path).
         HashSet<CanonAlbum>? fullSetAlbums = null;
         foreach (var member in p.Subpieces)
         {
             var memberAlbums = hitsForPiece.TryGetValue(member, out var h)
-                ? h.Select(x => x.Album).ToHashSet()
+                ? h.Where(x => x.Album is not null).Select(x => x.Album!).ToHashSet()
                 : new HashSet<CanonAlbum>();
             if (fullSetAlbums is null) fullSetAlbums = memberAlbums;
             else fullSetAlbums.IntersectWith(memberAlbums);
@@ -213,7 +221,7 @@ public class PieceReferenceIndex
         {
             if (!hitsForPiece.TryGetValue(member, out var h)) continue;
             foreach (var hit in h)
-                if (fullSetAlbums.Contains(hit.Album))
+                if (hit.Album is not null && fullSetAlbums.Contains(hit.Album))
                     setHits.Add(hit);
         }
 
@@ -226,19 +234,32 @@ public class PieceReferenceIndex
 
     // ── Public count/hit accessors ────────────────────────────────────────────
 
-    // Badges show album counts, not track counts — a sonata with 4 movements on
-    // 9 albums is "9", not 36. Use HitsFor… if you need the full raw hit list.
-    public int CountForPiece(CanonPiece piece)      => DistinctAlbumCount(HitsForPiece(piece));
-    public int CountForOriginal(CanonPiece piece)   => DistinctAlbumCount(HitsForOriginal(piece));
-    public int CountForVersion(CanonPieceVersion v) => DistinctAlbumCount(HitsForVersion(v));
-    public int CountForComposer(string name)        => DistinctAlbumCount(HitsForComposer(name));
+    // Badges show distinct-container counts, not raw-track counts — a sonata
+    // with 4 movements on 9 albums is "9", not 36. A loose track is its own
+    // container, so two loose tracks of the same piece count as 2. Use
+    // HitsFor… if you need the full raw hit list.
+    public int CountForPiece(CanonPiece piece)      => DistinctContainerCount(HitsForPiece(piece));
+    public int CountForOriginal(CanonPiece piece)   => DistinctContainerCount(HitsForOriginal(piece));
+    public int CountForVersion(CanonPieceVersion v) => DistinctContainerCount(HitsForVersion(v));
+    public int CountForComposer(string name)        => DistinctContainerCount(HitsForComposer(name));
 
-    private static int DistinctAlbumCount(IReadOnlyList<PieceAlbumHit> hits)
+    /// <summary>
+    /// Counts distinct containers: albums dedupe by <see cref="CanonAlbum"/>
+    /// identity (multiple tracks on the same album count once), and loose
+    /// tracks dedupe by <see cref="AlbumTrack"/> identity (each loose track
+    /// counts once even if it has multiple piece-refs to the same piece).
+    /// </summary>
+    private static int DistinctContainerCount(IReadOnlyList<PieceAlbumHit> hits)
     {
         if (hits.Count == 0) return 0;
-        var seen = new HashSet<CanonAlbum>();
-        foreach (var h in hits) seen.Add(h.Album);
-        return seen.Count;
+        var albums = new HashSet<CanonAlbum>();
+        var looseTracks = new HashSet<AlbumTrack>();
+        foreach (var h in hits)
+        {
+            if (h.Album is not null) albums.Add(h.Album);
+            else                     looseTracks.Add(h.Track);
+        }
+        return albums.Count + looseTracks.Count;
     }
 
     public IReadOnlyList<PieceAlbumHit> HitsForPiece(CanonPiece piece)
@@ -256,7 +277,7 @@ public class PieceReferenceIndex
     /// Used for the "contributed role group" badge (e.g. "Libretto: Barber").
     /// </summary>
     public int CountForPieces(IEnumerable<CanonPiece> pieces)
-        => DistinctAlbumCount(HitsForPieces(pieces));
+        => DistinctContainerCount(HitsForPieces(pieces));
 
     public IReadOnlyList<PieceAlbumHit> HitsForPieces(IEnumerable<CanonPiece> pieces)
         => pieces.SelectMany(p => _hitsForPiece.TryGetValue(p, out var l)
@@ -323,8 +344,42 @@ public class PieceReferenceIndex
     /// on the hit for display purposes only.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Walks one track's piece-refs (or its parsed Description for uncatalogued
+    /// tracks) and credits each hit. <paramref name="album"/> and
+    /// <paramref name="disc"/> are null when <paramref name="track"/> is a loose
+    /// track — they get stamped onto the <see cref="PieceAlbumHit"/> as-is.
+    /// </summary>
+    private static void IndexTrack(
+        AlbumTrack track,
+        CanonAlbum? album,
+        AlbumDisc?  disc,
+        Dictionary<string, Dictionary<string, IndexEntry>> byComposerTitle,
+        Dictionary<CanonPiece, List<PieceAlbumHit>> hitsForPiece,
+        Dictionary<CanonPiece, List<PieceAlbumHit>> hitsForOriginal,
+        Dictionary<CanonPieceVersion, List<PieceAlbumHit>> hitsForVersion,
+        Dictionary<string, List<PieceAlbumHit>> hitsForComposer)
+    {
+        if ((track.PieceRefs is null || track.PieceRefs.Count == 0)
+            && !string.IsNullOrWhiteSpace(track.Description))
+        {
+            var synth = TryParseDescription(track.Description!, byComposerTitle);
+            if (synth is not null)
+            {
+                AddHitForRef(synth, album, disc, track, byComposerTitle,
+                             hitsForPiece, hitsForOriginal, hitsForVersion, hitsForComposer);
+            }
+            return;
+        }
+
+        if (track.PieceRefs is null) return;
+        foreach (var pr in track.PieceRefs)
+            AddHitForRef(pr, album, disc, track, byComposerTitle,
+                         hitsForPiece, hitsForOriginal, hitsForVersion, hitsForComposer);
+    }
+
     private static void AddHitForRef(
-        TrackPieceRef pr, CanonAlbum album, AlbumDisc disc, AlbumTrack track,
+        TrackPieceRef pr, CanonAlbum? album, AlbumDisc? disc, AlbumTrack track,
         Dictionary<string, Dictionary<string, IndexEntry>> byComposerTitle,
         Dictionary<CanonPiece, List<PieceAlbumHit>> hitsForPiece,
         Dictionary<CanonPiece, List<PieceAlbumHit>> hitsForOriginal,

@@ -129,11 +129,13 @@ public partial class CanonViewModel : ObservableObject
 
             StatusMessage = $"Loaded {Composers.Count} composers and {Pieces.Count} pieces.";
 
-            // Rebuild cross-reference index (pieces × albums) so hit-count badges populate.
+            // Rebuild cross-reference index (pieces × albums + loose tracks) so
+            // badge counts include both kinds of container.
             try
             {
-                var albums = await _canonDataService.LoadAlbumsAsync();
-                _refIndex.Rebuild(Pieces, albums);
+                var albums      = await _canonDataService.LoadAlbumsAsync();
+                var looseTracks = await _canonDataService.LoadLooseTracksAsync();
+                _refIndex.Rebuild(Pieces, albums, looseTracks);
             }
             catch { /* non-fatal */ }
         }
@@ -178,8 +180,9 @@ public partial class CanonViewModel : ObservableObject
             StatusMessage = $"Saved {Pieces.Count} pieces.";
             try
             {
-                var albums = await _canonDataService.LoadAlbumsAsync();
-                _refIndex.Rebuild(Pieces, albums);
+                var albums      = await _canonDataService.LoadAlbumsAsync();
+                var looseTracks = await _canonDataService.LoadLooseTracksAsync();
+                _refIndex.Rebuild(Pieces, albums, looseTracks);
             }
             catch { /* non-fatal */ }
         }
@@ -278,20 +281,63 @@ public partial class CanonViewModel : ObservableObject
         StatusMessage = $"Approved {SelectedComposer.Name}.";
     }
 
-    [RelayCommand]
-    private async Task RejectComposerAsync()
+    /// <summary>
+    /// Runs the FK-aware reject cascade for <paramref name="composer"/>: deletes
+    /// every piece they own, strips album track refs to those pieces, scrubs
+    /// contributor credits naming them, then deletes the composer row. Mutates
+    /// the observable collections to reflect the result and returns the counts.
+    /// <para>
+    /// Does NOT show any dialog — callers are responsible for confirmation and
+    /// for surfacing any thrown exception (which leaves the DB in a possibly
+    /// partial state; a refresh resyncs). The reason the cascade lives here
+    /// rather than inside a RelayCommand is that the only invocation site is
+    /// the context-menu handler in <c>CanonView.xaml.cs</c>, which needs to
+    /// show its own confirmation dialog and read back the result.
+    /// </para>
+    /// </summary>
+    public async Task<CanonRejectCascade.RejectResult> RejectComposerWithCascadeAsync(CanonComposer composer)
     {
-        if (SelectedComposer == null) return;
-        var name = SelectedComposer.Name;
-        var confirm = MessageBox.Show(
-            $"Delete provisional composer '{name}' and all associated data?",
-            "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.OK) return;
-        Composers.Remove(SelectedComposer);
-        SelectedComposer = null;
-        await _canonDataService.SaveComposersAsync(Composers.ToList());
-        ApplyComposerFilter();
-        StatusMessage = $"Rejected and deleted {name}.";
+        var composersList = Composers.ToList();
+        var piecesList    = Pieces.ToList();
+
+        var piecesToDelete = piecesList
+            .Where(p => string.Equals(p.Composer, composer.Name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        try
+        {
+            IsLoading = true;
+            StatusMessage = $"Deleting {composer.Name}…";
+
+            var result = await CanonRejectCascade
+                .RejectComposerAsync(_canonDataService, composersList, piecesList, composer);
+
+            // Reflect the helper's mutations back into the observable collections.
+            Composers.Remove(composer);
+            if (ReferenceEquals(SelectedComposer, composer)) SelectedComposer = null;
+            foreach (var p in piecesToDelete)
+            {
+                Pieces.Remove(p);
+                if (ReferenceEquals(SelectedPiece, p)) SelectedPiece = null;
+            }
+
+            // Container counts are stale; rebuild against the freshly-saved data.
+            try
+            {
+                var freshAlbums      = await _canonDataService.LoadAlbumsAsync();
+                var freshLooseTracks = await _canonDataService.LoadLooseTracksAsync();
+                _refIndex.Rebuild(Pieces.ToList(), freshAlbums, freshLooseTracks);
+            }
+            catch { /* non-fatal */ }
+
+            ApplyComposerFilter();
+            ApplyPiecesFilter();
+            return result;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     // ── Approval / rejection — Pieces ─────────────────────────────────────────
@@ -306,20 +352,44 @@ public partial class CanonViewModel : ObservableObject
         StatusMessage = $"Approved {SelectedPiece.DisplayTitle}.";
     }
 
-    [RelayCommand]
-    private async Task RejectPieceAsync()
+    /// <summary>
+    /// Runs the FK-aware reject cascade for <paramref name="piece"/>: strips
+    /// every album track ref pointing at it and deletes the piece row. Mirrors
+    /// <see cref="RejectComposerWithCascadeAsync"/> — caller handles confirmation
+    /// and error surfacing.
+    /// </summary>
+    public async Task<CanonRejectCascade.RejectResult> RejectPieceWithCascadeAsync(CanonPiece piece)
     {
-        if (SelectedPiece == null) return;
-        var title = SelectedPiece.DisplayTitle;
-        var confirm = MessageBox.Show(
-            $"Delete provisional piece '{title}'?",
-            "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.OK) return;
-        Pieces.Remove(SelectedPiece);
-        SelectedPiece = null;
-        await _canonDataService.SavePiecesAsync(Pieces.ToList());
-        ApplyPiecesFilter();
-        StatusMessage = $"Rejected and deleted {title}.";
+        try
+        {
+            IsLoading = true;
+            StatusMessage = $"Deleting {piece.DisplayTitle}…";
+
+            var piecesList = Pieces.ToList();
+            var result = await CanonRejectCascade
+                .RejectPieceAsync(_canonDataService, piecesList, piece);
+
+            Pieces.Remove(piece);
+            if (ReferenceEquals(SelectedPiece, piece)) SelectedPiece = null;
+
+            try
+            {
+                var freshAlbums      = await _canonDataService.LoadAlbumsAsync();
+                var freshLooseTracks = await _canonDataService.LoadLooseTracksAsync();
+                _refIndex.Rebuild(Pieces.ToList(), freshAlbums, freshLooseTracks);
+            }
+            catch { /* non-fatal */ }
+
+            ApplyPiecesFilter();
+            return result;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
+    // Reject is handled via Reject*WithCascadeAsync above, invoked from the
+    // CanonView context menu. The cascade itself lives in
+    // CDArchive.Core.Services.CanonRejectCascade so it's unit-testable.
 }

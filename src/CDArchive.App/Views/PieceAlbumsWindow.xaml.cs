@@ -47,15 +47,20 @@ public partial class PieceAlbumsWindow : Window
         public PieceAlbumHit Hit { get; }
         public Row(PieceAlbumHit h) { Hit = h; }
 
-        public string AlbumTitle      => Hit.Album.DisplayTitle;
-        public string LabelCatalogue  =>
+        public string AlbumTitle =>
+            Hit.Album?.DisplayTitle ?? "(loose track)";
+        public string LabelCatalogue =>
+            Hit.Album is null ? "" :
             string.IsNullOrWhiteSpace(Hit.Album.Label)
                 ? (Hit.Album.CatalogueNumber ?? "")
                 : $"{Hit.Album.Label} {Hit.Album.CatalogueNumber}".TrimEnd();
-        public string DiscLabel       => Hit.Disc.VolumeNumber.HasValue
-            ? $"V{Hit.Disc.VolumeNumber} D{Hit.Disc.DiscNumber}"
-            : $"Disc {Hit.Disc.DiscNumber}";
-        public int    TrackNumber     => Hit.Track.TrackNumber;
-        public string RefSummary      => Hit.Ref.DisplaySummary;
+        public string DiscLabel =>
+            Hit.Disc is null              ? "" :
+            Hit.Disc.VolumeNumber.HasValue
+                ? $"V{Hit.Disc.VolumeNumber} D{Hit.Disc.DiscNumber}"
+                : $"Disc {Hit.Disc.DiscNumber}";
+        public string TrackNumber =>
+            Hit.Album is null ? "" : Hit.Track.TrackNumber.ToString();
+        public string RefSummary => Hit.Ref.DisplaySummary;
     }
 }

@@ -23,6 +23,7 @@ public partial class App : Application
             services.AddTransient<SettingsViewModel>();
             services.AddSingleton<CanonViewModel>();
             services.AddSingleton<AlbumsViewModel>();
+            services.AddSingleton<TracksViewModel>();
             services.AddSingleton<ItunesImportViewModel>();
             services.AddTransient<ImportExportViewModel>();
             services.AddSingleton<PickListsViewModel>();

@@ -52,7 +52,16 @@ public partial class AlbumsViewModel : ObservableObject
             // list here would create new CanonPiece instances, invalidating the
             // reference-identity dictionary keys the Canon tree holds (badges
             // would all read 0 until the next Canon reload).
-            try { _refIndex.RebuildAlbums(_allAlbums); } catch { /* non-fatal */ }
+            try
+            {
+                // Load loose tracks alongside albums so badge counts include both
+                // kinds of container. RebuildContainers reuses the cached piece
+                // list from the last full Rebuild (CanonViewModel.LoadDataAsync),
+                // so badge dictionary keys stay reference-equal.
+                var looseTracks = await _svc.LoadLooseTracksAsync();
+                _refIndex.RebuildContainers(_allAlbums, looseTracks);
+            }
+            catch { /* non-fatal */ }
         }
         catch (Exception ex)
         {

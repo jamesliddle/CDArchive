@@ -17,6 +17,7 @@ public static class ItunesImporter
 {
     public record ImportResult(
         IReadOnlyList<CanonAlbum> NewAlbums,
+        IReadOnlyList<AlbumTrack> NewLooseTracks,
         int NewComposers,
         int NewPieces,
         int NewSubpieces,
@@ -26,7 +27,13 @@ public static class ItunesImporter
     /// Imports <paramref name="tracks"/> into the canon model. Mutates
     /// <paramref name="composers"/> and <paramref name="pieces"/> by appending
     /// new entries (and extending existing pieces' Subpiece trees). Returns the
-    /// new albums plus counts of what was added.
+    /// new albums, new loose tracks (singletons with no <c>Album</c> field),
+    /// plus counts of what was added.
+    /// <para>
+    /// Tracks with an empty <see cref="ItunesTrack.Album"/> become loose tracks
+    /// instead of single-track synthetic albums. The piece-ref / composer
+    /// resolution is identical to the album-bound path.
+    /// </para>
     /// </summary>
     public static ImportResult Import(
         IReadOnlyList<ItunesTrack> tracks,
@@ -54,32 +61,45 @@ public static class ItunesImporter
             new CaseInsensitivePairComparer());
 
         int newComposers = 0, newPieces = 0, newSubpieces = 0;
-        var newAlbums = new List<CanonAlbum>();
+        var newAlbums      = new List<CanonAlbum>();
+        var newLooseTracks = new List<AlbumTrack>();
 
-        // Group tracks by album name (iTunes "Album" field). Tracks with no
-        // Album are treated as individual one-track albums — lumping them
-        // together as a synthetic "(Unknown album)" produced a single album row
-        // with N tracks that all collided on the UNIQUE(disc, track_number)
-        // constraint when iTunes had given them the same track number (the
-        // common case for standalone downloads, where each track was "#1" of
-        // its own implicit single-track album). The synthetic per-track key
-        // (TrackId-prefixed) gives each albumless track its own bucket;
-        // album.Title gets resolved to the track Name later.
-        var byAlbum = tracks
-            .GroupBy(t => string.IsNullOrWhiteSpace(t.Album)
-                              ? $"__standalone__:{t.TrackId}"
-                              : t.Album!,
-                    StringComparer.Ordinal)
+        // Partition by whether iTunes gave the track an Album. Albumless rows
+        // become loose tracks (no synthetic wrapping); the rest are grouped by
+        // iTunes Album for the album-build path below.
+        var (looseInputs, albumInputs) = PartitionByAlbum(tracks);
+
+        // ── Loose tracks (albumless iTunes rows) ──────────────────────────────
+        foreach (var t in looseInputs)
+        {
+            var loose = new AlbumTrack
+            {
+                TrackNumber   = 0,           // sentinel for "loose"
+                Duration      = string.IsNullOrEmpty(t.DurationDisplay) ? null : t.DurationDisplay,
+                IsProvisional = true,
+            };
+
+            // Performers come straight from the track's own Artist field —
+            // there's no album-level common-set deduplication to do.
+            var performers = ParsePerformers(t.Artist);
+            if (performers.Count > 0)
+                loose.Performers = performers.Select(name => new AlbumPerformer { Name = name }).ToList();
+
+            PopulatePieceRefs(t, loose, composers, composerByName, pieces,
+                              resolver, newlyCreatedTopPieces,
+                              ref newComposers, ref newPieces, ref newSubpieces);
+
+            newLooseTracks.Add(loose);
+        }
+
+        // ── Album-bound tracks ────────────────────────────────────────────────
+        var byAlbum = albumInputs
+            .GroupBy(t => t.Album!, StringComparer.Ordinal)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
         foreach (var albumGroup in byAlbum)
         {
-            // Standalone (albumless) bucket: use the track's own Name as the
-            // album title; non-standalone uses the iTunes Album field.
-            var isStandalone = albumGroup.Key.StartsWith("__standalone__:", StringComparison.Ordinal);
-            var albumTitle = isStandalone
-                ? (albumGroup.First().Name ?? "(Untitled)")
-                : albumGroup.Key;
+            var albumTitle = albumGroup.Key;
 
             var album = new CanonAlbum
             {
@@ -171,46 +191,9 @@ public static class ItunesImporter
                         }
                     }
 
-                    var parsedComposer = ItunesImportInference.ParseComposer(track.Composer);
-                    if (parsedComposer is null)
-                    {
-                        // No composer field — leave the track uncatalogued, fall back to its raw name.
-                        albumTrack.Description = track.Name;
-                        disc.Tracks.Add(albumTrack);
-                        continue;
-                    }
-
-                    var composer = GetOrCreateComposer(parsedComposer, composers, composerByName, ref newComposers);
-                    var parsedName = ItunesImportInference.ParseTrackName(track.Name);
-                    var topPiece = ResolveOrCreateTopPiece(composer, parsedName.PieceTitle,
-                                                           resolver, pieces, newlyCreatedTopPieces, ref newPieces);
-
-                    if (parsedName.SubpieceRefs.Count == 0)
-                    {
-                        // Whole-piece reference.
-                        albumTrack.PieceRefs =
-                        [
-                            new TrackPieceRef
-                            {
-                                Composer   = composer.Name,
-                                PieceTitle = topPiece.Title ?? parsedName.PieceTitle,
-                            }
-                        ];
-                    }
-                    else
-                    {
-                        albumTrack.PieceRefs = new List<TrackPieceRef>(parsedName.SubpieceRefs.Count);
-                        foreach (var subRef in parsedName.SubpieceRefs)
-                        {
-                            EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, ref newSubpieces);
-                            albumTrack.PieceRefs.Add(new TrackPieceRef
-                            {
-                                Composer     = composer.Name,
-                                PieceTitle   = topPiece.Title ?? parsedName.PieceTitle,
-                                SubpiecePath = subRef.Path.ToList(),
-                            });
-                        }
-                    }
+                    PopulatePieceRefs(track, albumTrack, composers, composerByName, pieces,
+                                      resolver, newlyCreatedTopPieces,
+                                      ref newComposers, ref newPieces, ref newSubpieces);
 
                     disc.Tracks.Add(albumTrack);
                 }
@@ -221,7 +204,106 @@ public static class ItunesImporter
             newAlbums.Add(album);
         }
 
-        return new ImportResult(newAlbums, newComposers, newPieces, newSubpieces, tracks.Count);
+        return new ImportResult(newAlbums, newLooseTracks,
+                                newComposers, newPieces, newSubpieces, tracks.Count);
+    }
+
+    /// <summary>
+    /// Splits the incoming iTunes rows into albumless (loose-track candidates)
+    /// and album-bound (regular album-build path). Loose tracks are returned in
+    /// iTunes insertion order; album-bound preserves the original sequence too,
+    /// then the caller's <c>GroupBy(Album)</c> regroups them.
+    /// </summary>
+    private static (List<ItunesTrack> Loose, List<ItunesTrack> AlbumBound) PartitionByAlbum(
+        IReadOnlyList<ItunesTrack> tracks)
+    {
+        var loose      = new List<ItunesTrack>();
+        var albumBound = new List<ItunesTrack>();
+        foreach (var t in tracks)
+        {
+            if (string.IsNullOrWhiteSpace(t.Album)) loose.Add(t);
+            else                                    albumBound.Add(t);
+        }
+        return (loose, albumBound);
+    }
+
+    /// <summary>
+    /// Shared piece-ref / composer resolution for one input iTunes row. Mutates
+    /// <paramref name="target"/> in place: sets <see cref="AlbumTrack.PieceRefs"/>
+    /// when the row has a composer, otherwise sets <see cref="AlbumTrack.Description"/>
+    /// to the raw iTunes Name. Also appends to <paramref name="composers"/> /
+    /// <paramref name="pieces"/> as needed and bumps the <c>new*</c> counters.
+    /// </summary>
+    private static void PopulatePieceRefs(
+        ItunesTrack source,
+        AlbumTrack  target,
+        IList<CanonComposer> composers,
+        Dictionary<string, CanonComposer> composerByName,
+        IList<CanonPiece> pieces,
+        PieceReferenceIndex resolver,
+        Dictionary<(string, string), CanonPiece> newlyCreatedTopPieces,
+        ref int newComposers,
+        ref int newPieces,
+        ref int newSubpieces)
+    {
+        var parsedComposer = ItunesImportInference.ParseComposer(source.Composer);
+        if (parsedComposer is null)
+        {
+            // No composer field — leave the track uncatalogued, fall back to its raw name.
+            target.Description = source.Name;
+            return;
+        }
+
+        var composer = GetOrCreateComposer(parsedComposer, composers, composerByName, ref newComposers);
+
+        // Ensure each contributor (e.g. "compl. Franco Alfano") has a
+        // CanonComposer entry — their works often live in the canon too.
+        // Keep the resolved instances so the piece's Composers list can
+        // be populated below with the canonical names.
+        List<(CanonComposer Composer, string Role)>? contributorComposers = null;
+        if (parsedComposer.Contributors is { Count: > 0 } contribs)
+        {
+            contributorComposers = new List<(CanonComposer, string)>(contribs.Count);
+            foreach (var c in contribs)
+            {
+                var contribParsed = new ItunesImportInference.ParsedComposer(
+                    c.Name, c.BirthYear, c.DeathYear);
+                var contribComposer = GetOrCreateComposer(
+                    contribParsed, composers, composerByName, ref newComposers);
+                contributorComposers.Add((contribComposer, c.Role));
+            }
+        }
+
+        var parsedName = ItunesImportInference.ParseTrackName(source.Name);
+        var topPiece = ResolveOrCreateTopPiece(composer, parsedName.PieceTitle,
+                                               resolver, pieces, newlyCreatedTopPieces,
+                                               contributorComposers, ref newPieces);
+
+        if (parsedName.SubpieceRefs.Count == 0)
+        {
+            target.PieceRefs =
+            [
+                new TrackPieceRef
+                {
+                    Composer   = composer.Name,
+                    PieceTitle = topPiece.Title ?? parsedName.PieceTitle,
+                }
+            ];
+        }
+        else
+        {
+            target.PieceRefs = new List<TrackPieceRef>(parsedName.SubpieceRefs.Count);
+            foreach (var subRef in parsedName.SubpieceRefs)
+            {
+                EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, ref newSubpieces);
+                target.PieceRefs.Add(new TrackPieceRef
+                {
+                    Composer     = composer.Name,
+                    PieceTitle   = topPiece.Title ?? parsedName.PieceTitle,
+                    SubpiecePath = subRef.Path.ToList(),
+                });
+            }
+        }
     }
 
     /// <summary>
@@ -284,6 +366,7 @@ public static class ItunesImporter
         PieceReferenceIndex resolver,
         IList<CanonPiece> pieces,
         Dictionary<(string, string), CanonPiece> newlyCreated,
+        IReadOnlyList<(CanonComposer Composer, string Role)>? contributors,
         ref int newCount)
     {
         var key = (composer.Name, title);
@@ -299,6 +382,10 @@ public static class ItunesImporter
             // The resolver returns the leaf piece for the probe. A no-subpath
             // probe resolves to a top-level piece (or a set member registered
             // as one) — exactly what we want here.
+            //
+            // Don't overwrite an existing piece's Composers list. The user has
+            // already curated it; an iTunes-derived credit list shouldn't churn
+            // already-approved metadata.
             return resolved.Value.Piece;
         }
 
@@ -308,6 +395,20 @@ public static class ItunesImporter
             Title         = title,
             IsProvisional = true,
         };
+
+        // Populate the Composers list with the contributors only. The principal
+        // lives in Composer; Composers is the additional-contributors list per
+        // the (de-facto) contract every consumer enforces — HasDirectContribution
+        // and AddRolesFrom both filter out no-role entries, so a principal entry
+        // would be dead weight that the PieceEditorWindow displays under "Other
+        // Contributors" and confuses the user.
+        if (contributors is { Count: > 0 })
+        {
+            fresh.Composers = contributors
+                .Select(c => new ComposerCredit { Name = c.Composer.Name, Role = c.Role })
+                .ToList();
+        }
+
         pieces.Add(fresh);
         newlyCreated[key] = fresh;
         newCount++;

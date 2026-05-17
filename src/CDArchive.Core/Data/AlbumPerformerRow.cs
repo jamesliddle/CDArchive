@@ -15,10 +15,16 @@ public class AlbumPerformerRow
 {
     public long Id { get; set; }
 
-    public long AlbumId { get; set; }
-    public AlbumRow Album { get; set; } = null!;
+    /// <summary>
+    /// Owning album. Null when this is a loose-track-only credit (loose tracks
+    /// don't belong to any album). At least one of <see cref="AlbumId"/> /
+    /// <see cref="TrackId"/> is required, enforced by the
+    /// <c>ck_album_performers_has_owner</c> CHECK constraint.
+    /// </summary>
+    public long? AlbumId { get; set; }
+    public AlbumRow? Album { get; set; }
 
-    /// <summary>NULL = album-level credit. Set = per-track override.</summary>
+    /// <summary>NULL = album-level credit. Set = per-track override (album-bound or loose).</summary>
     public long? TrackId { get; set; }
     public AlbumTrackRow? Track { get; set; }
 

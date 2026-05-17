@@ -15,8 +15,18 @@ public class CanonPiece
     public string? Composer { get; set; }
 
     /// <summary>
-    /// All credited composers, including the principal (no role) and contributors (with role).
-    /// When null the piece has a single composer given by <see cref="Composer"/>.
+    /// Additional contributors beyond the principal — arrangers, completers,
+    /// orchestrators, etc. Each entry carries a non-null <see cref="ComposerCredit.Role"/>.
+    /// The principal composer lives in <see cref="Composer"/> and is NOT
+    /// duplicated here. <c>null</c> when the piece has only its principal
+    /// composer.
+    /// <para>
+    /// Every consumer (the contribution-tree filter, role aggregation,
+    /// PieceEditorWindow's "Other Contributors" list) treats this as the
+    /// contributors-only list. No-role entries are dead weight: consumers
+    /// silently skip them, and the editor would otherwise display them under
+    /// "Other Contributors" alongside the principal.
+    /// </para>
     /// </summary>
     [JsonPropertyName("composers")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -31,6 +31,7 @@ public class ArchiveAudioLocatorTests : IDisposable
         public string FfmpegPath { get; set; } = "ffmpeg";
         public int Mp3Bitrate { get; set; } = 320;
         public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
+        public float PlayerVolume { get; set; } = 1.0f;
         public void Save() { }
         public void Load() { }
     }

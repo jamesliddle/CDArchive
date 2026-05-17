@@ -9,9 +9,18 @@ public class AlbumTrackRow
 {
     public long Id { get; set; }
 
-    public long DiscId { get; set; }
-    public AlbumDiscRow Disc { get; set; } = null!;
+    /// <summary>
+    /// Owning disc. Null for loose tracks — singletons that don't belong to any
+    /// album. The corresponding column was made nullable by the migration that
+    /// introduced loose tracks; existing album-bound rows keep their disc_id.
+    /// </summary>
+    public long? DiscId { get; set; }
+    public AlbumDiscRow? Disc { get; set; }
 
+    /// <summary>
+    /// Position within the disc (1-based). Meaningful only for album-bound
+    /// tracks; loose tracks store 0 here and the UI displays empty.
+    /// </summary>
     public int TrackNumber { get; set; }
 
     /// <summary>Track duration in "m:ss" or "h:mm:ss" format.</summary>
