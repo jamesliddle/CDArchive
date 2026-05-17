@@ -8,6 +8,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SettingsViewModel _settingsViewModel;
     private readonly CanonViewModel _canonViewModel;
     private readonly AlbumsViewModel _albumsViewModel;
+    private readonly TracksViewModel _tracksViewModel;
     private readonly ItunesImportViewModel _itunesImportViewModel;
     private readonly ImportExportViewModel _importExportViewModel;
     private readonly PickListsViewModel _pickListsViewModel;
@@ -29,6 +30,7 @@ public partial class MainViewModel : ObservableObject
         SettingsViewModel settingsViewModel,
         CanonViewModel canonViewModel,
         AlbumsViewModel albumsViewModel,
+        TracksViewModel tracksViewModel,
         ItunesImportViewModel itunesImportViewModel,
         ImportExportViewModel importExportViewModel,
         PickListsViewModel pickListsViewModel,
@@ -37,6 +39,7 @@ public partial class MainViewModel : ObservableObject
         _settingsViewModel = settingsViewModel;
         _canonViewModel = canonViewModel;
         _albumsViewModel = albumsViewModel;
+        _tracksViewModel = tracksViewModel;
         _itunesImportViewModel = itunesImportViewModel;
         _importExportViewModel = importExportViewModel;
         _pickListsViewModel = pickListsViewModel;
@@ -69,6 +72,15 @@ public partial class MainViewModel : ObservableObject
         CurrentView = _albumsViewModel;
         CurrentViewTitle = "Albums";
         _ = _albumsViewModel.LoadDataCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private void NavigateToTracks()
+    {
+        IsCanonViewActive = false;
+        CurrentView = _tracksViewModel;
+        CurrentViewTitle = "Tracks";
+        _ = _tracksViewModel.LoadDataCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]

@@ -16,9 +16,9 @@ The application has three major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
-- **`feature/follow-ups`** branch pending PR — bundles four small deferred items: stop-after-current toggle, volume control with persisted settings, build-warning cleanup, and the `PropagateAlbumFieldsToTracks` extraction into `CDArchive.Core.Helpers.AlbumFieldPropagator` (now unit-tested). The currently-playing-track highlight was tried and rolled back (the user didn't find it helpful) — see the revert commit on the same branch.
-- **`feature/tracklist`** branch exists with no commits — created at the start of the bugfix/import session, work not yet started.
-- **Multi-composer pieces (`L'éventail de Jeanne` etc.)** remains the one open canon-data deferral — see the *Multi-composer pieces have no primary composer field* lesson. Needs a design call on whether "Various" is a sentinel composer or a real first-class entity before implementation.
+- **`feature/tracklist`** branch landed the Tracks list and the loose-tracks subsystem. See `## Tracks list and loose tracks` below for the model. **Action item for the user:** run `dotnet run --project tools/CDArchive.Tools.SeedDb -- --promote-loose-tracks` (dry-run) then `--apply` to convert existing synthetic single-track wrapper albums in the local DB. Real albums with Label / Catalogue / ArchiveFolder / Sessions / track-level Performer overrides are auto-skipped.
+- **Stashed work — `stash@{0}: WIP: markers refactor + Various composer`** is preserved on disk. Contains in-progress JSON edits that introduce a unified `markers` array on pieces (replacing per-piece `tempos` / `first_line` shape) and a `(Various)` sentinel composer for collaborative works like `L'éventail de Jeanne`. Independent of the tracklist work; revisit when ready to address multi-composer pieces.
+- **Multi-composer pieces (`L'éventail de Jeanne` etc.)** remains the one open canon-data deferral — see the *Multi-composer pieces have no primary composer field* lesson. The stashed work above sketches a `(Various)` sentinel composer; needs a design call before implementation.
 
 ---
 
@@ -506,6 +506,65 @@ For tracks that escape the convention (e.g. standalone MP3s in `C:\Users\james\M
 
 ---
 
+## Tracks list and loose tracks
+
+Cross-album Tracks view (`TracksView` + `TracksViewModel`) shows every track in the catalogue as flat rows. Loose tracks — singletons that don't belong to any album — coexist with album-bound tracks in the same UI.
+
+### Loose-track data model
+
+A loose track is an `AlbumTrack` instance stored in the same `album_tracks` table as an album-bound track, but with `disc_id = NULL` and `track_number = 0` as sentinels. There is no separate "loose_tracks" table; the existing schema accommodates both shapes via nullable FKs.
+
+| Column | Album-bound | Loose |
+|---|---|---|
+| `disc_id` | set (FK to `album_discs.id`) | **NULL** |
+| `track_number` | position within disc (≥1, unique per disc) | **0** (sentinel, no position) |
+| `session_id` | optional FK into the parent album's sessions | always NULL (no album sessions) |
+| `flac_path` / `mp3_path` | optional override on the convention | typically required (no archive-folder convention to fall back to) |
+
+Loose-track piece-refs and performers reuse the existing `album_track_piece_refs` and `album_performers` tables. For performers specifically: `album_performers.album_id` was migrated to nullable so a loose-track-only credit can anchor on `track_id` alone (album_id NULL). A new `ck_album_performers_has_owner` CHECK constraint guarantees every performer row points at at least one of album/track — no floating credits.
+
+The full schema migration (album_tracks.disc_id + album_performers.album_id from NOT NULL to nullable) runs idempotently on every startup via `EnsureColumnNullableAsync` → `RecreateXxxAsync` helpers in `SqliteCanonDataService.ApplySchemaUpgradesAsync`. The recreate helpers follow SQLite's recommended dance: `PRAGMA foreign_keys=OFF` → transactional `CREATE … _new` → explicit-column `INSERT SELECT` → `DROP` → `RENAME` → recreate indexes → `PRAGMA foreign_key_check` as a sanity gate → `COMMIT` → `PRAGMA foreign_keys=ON`. Once a column is already nullable the helper no-ops.
+
+### Storage shape
+
+- DB: same `album_tracks` table; `disc_id IS NULL` filters loose tracks.
+- JSON: a new top-level file `data/Classical Canon loose tracks.json` (array of `AlbumTrack`). The data-directory resolver still finds the data dir via `composers.json` or `ClassicalCanon.db`; the new file is independent.
+- API: `ICanonDataService.LoadLooseTracksAsync` / `SaveLooseTracksAsync` + `LooseTracksFilePath`. Identity tracked via `_looseTrackIds` `ConditionalWeakTable` mirroring the album-side `_albumIds`.
+
+### PieceReferenceIndex
+
+`PieceAlbumHit.Album` and `.Disc` are nullable — null means the hit comes from a loose track. `PieceReferenceIndex.Rebuild` and the new `RebuildContainers` accept an optional `looseTracks` enumerable. The badge count uses `DistinctContainerCount`: an album is one container regardless of how many of its tracks reference the piece; each loose track is its own container. Set aggregation (`form: "set"`) ignores loose-track hits — a single track can't satisfy "every member of a set".
+
+### Tracks list UI
+
+- **Columns**: Album, Disc, Track, Piece (with provisional badge), Time, Composer, Artist. Disc/Track empty for loose tracks; Disc also empty for single-disc albums (the consolidation rule lives in `AlbumTrackRow.DiscDisplay`). The Piece column shows the resolved top-level piece's `DisplayTitle` (with catalogue / nickname) joined to the subpiece path with `" › "`, e.g. `Piano Sonata #17 in d, Op. 31 #2 "Tempest" › 2. Adagio`. Precomputed at row-build time via `TracksViewModel.FormatPiece`.
+- **Sort**: every column is sortable; default Album→Disc→Track. After a sort, the first-selected row scrolls to the top of the viewport (anchor behaviour).
+- **Filter / Show**: text filter searches Piece / Composer / Album / Artist / Description; "Show: All / Provisional / Accepted" filters by `IsProvisional`.
+- **Double-click dispatch**: album-bound row → parent album editor (with the JSON-clone swap); loose row → loose-mode track editor.
+- **Toolbar buttons**: "New Track" (creates a fresh loose track via loose-mode `TrackEditorWindow`) and "Edit" (single album-bound → album-track editor; single loose → loose-mode editor; multi → bulk editor with `sessions: null` when the selection mixes albums or includes loose).
+- **Context menu**: Approve and Reject. Approve is enabled when at least one selected row is still provisional; Reject is always enabled (with a confirmation dialog that breaks out album-bound vs loose counts). Both run through `TracksViewModel.ApproveRowsAsync` / `RejectRowsAsync`, which call `TrackCascade` for the in-memory mutation and then save only the affected stores.
+
+### TrackEditorWindow loose mode
+
+A third constructor `TrackEditorWindow(AlbumTrack, CanonPickLists, IReadOnlyList<CanonPiece>)` opens loose mode. The window hides `NavigationPanel` (no prev/next within a disc), `TrackNumberLabel` / `TrackNumberBox` (no disc position), and `SessionLabel` / `SessionPanel` (no album sessions). The audio-overrides group stays visible — for a loose track those paths are typically required since there's no album-folder convention. Commit writes back to the supplied instance in place with `TrackNumber = 0` and `SessionIndex = null`.
+
+### iTunes import
+
+`ItunesImporter.Import` partitions input rows via `PartitionByAlbum` and produces loose tracks for albumless rows instead of synthetic single-track albums. The per-track piece-ref / composer resolution moved into a shared `PopulatePieceRefs` helper that both paths call. `ImportResult` now carries `NewLooseTracks` alongside `NewAlbums`; the view-model saves both.
+
+### Migration tool
+
+`tools/CDArchive.Tools.SeedDb -- --promote-loose-tracks` (defaults to dry-run; add `--apply` to commit) scans for synthetic wrapper albums and promotes them. Heuristic in `SqliteCanonDataService.ClassifyForPromotion`: 1 disc, 1 track, no Volumes, no Sessions, no Label / CatalogueNumber / Barcode / ArchiveFolder, no track-level Performers. For each match: re-anchor album-level performers onto the track, inherit album-level SparsCode/IsStereo when the track's are null, set the track's `disc_id=NULL, track_number=0, session_id=NULL`, then delete the disc and album rows. All in one transaction.
+
+### Cascade helpers (Core)
+
+Two pure-Core helpers live next to `SqliteCanonDataService` so the cascades are unit-testable without WPF:
+
+- **`CanonRejectCascade`** — `RejectComposerAsync` / `RejectPieceAsync`. Strips refs from both albums and loose tracks (FK chain: composer ← pieces ← album_track_piece_refs is OnDelete:Restrict at every step), then saves in dependency order. Used by `CanonViewModel.Reject*WithCascadeAsync`.
+- **`TrackCascade`** — `Approve(tracks)` clears `IsProvisional`; `Reject(entries, looseTracks)` removes each `(track, disc?)` entry from its owner (disc's Tracks for album-bound, loose list for loose). Used by `TracksViewModel.ApproveRowsAsync` / `RejectRowsAsync`.
+
+---
+
 ## Editor Windows
 
 The application has four editor dialog windows, all modal:
@@ -708,6 +767,24 @@ Locked in by AlbumsView.xaml and AlbumEditorWindow.xaml. The whole stack must be
 
 **Solution**: When working in a Claude-style worktree (which often lives under `.claude/worktrees/<id>/`), keep the local branch name worktree-scoped (e.g. `claude/<worktree-id>-foo`) and have it track the shared remote branch via `--set-upstream-to=origin/feature/foo`. The main repo can then claim the public branch name (`git checkout -b feature/foo origin/feature/foo`). Push from the worktree with the explicit refspec `git push origin HEAD:feature/foo` so the local and remote names can stay different.
 
+### Find the actual UI click handler before "fixing" a VM RelayCommand
+
+**Problem**: I wrote a cascade-aware `RejectComposerCommand` on `CanonViewModel`, added unit tests, all green — but the user reported the bug was still present. The XAML's context-menu MenuItem bound to `Click="OnContextReject"` in `CanonView.xaml.cs`, an event handler that did its own simpler reject logic. The RelayCommand was never invoked by the UI. Worse, the code-behind overwrote the VM's "failed to save" StatusMessage with a hardcoded success message after the swallowed save exception — the user saw a green-light status while nothing was deleted in the DB.
+
+**Solution**: For any user-triggered bug, search the `Views/*.xaml` files for the user-visible label text first ("Reject", "Approve", "Delete") and trace from there. If the XAML uses `Click="OnFoo"` (code-behind event handler) rather than `Command="{Binding FooCommand}"` (RelayCommand), the VM command is dead from the UI's perspective — fix the code-behind, or have it delegate to a VM method. Don't trust the parallel naming. Status messages should be written by the code path that knows the actual outcome (the save site), not overwritten by a downstream handler that assumes success.
+
+### SQLite column nullability changes: recreate the table, transactionally
+
+**Problem**: `ALTER TABLE … ALTER COLUMN` isn't supported in SQLite. Making `album_tracks.disc_id` nullable (so loose tracks can have a null disc) required the recommended copy-rename dance, which isn't naturally "append-only" the way `EnsureColumnAsync` is. A halfway-failed migration could leave a half-renamed table and orphaned children.
+
+**Solution**: `EnsureColumnNullableAsync(table, column, recreate)` checks `PRAGMA table_info.notnull` and no-ops when the column is already nullable; otherwise calls a per-table `recreate` delegate that runs the standard recipe: `PRAGMA foreign_keys=OFF` → BEGIN TX → `CREATE TABLE foo_new (…nullable…)` with explicit FKs, CHECKs, defaults → `INSERT INTO foo_new (…) SELECT (…) FROM foo` with explicit column lists (no `SELECT *` so a stale column order can't silently misalign) → `DROP TABLE foo` → `ALTER TABLE foo_new RENAME TO foo` → recreate every index with its EF-conventional name → `PRAGMA foreign_key_check` as a sanity gate inside the txn → COMMIT → `PRAGMA foreign_keys=ON`. The integrity check catches orphan FKs that the FK-off period would otherwise hide. Already applied for `album_tracks.disc_id` and `album_performers.album_id`; the same pattern fits any future nullability flip.
+
+### Polymorphic-owner CHECK constraint (`album_id IS NOT NULL OR track_id IS NOT NULL`)
+
+**Problem**: `album_performers` now anchors on either album-level (`track_id IS NULL`), track-level on an album-bound track (both set), or track-level on a loose track (`album_id IS NULL, track_id` set). With both columns nullable, a buggy caller could insert a credit with both NULL — a row that doesn't belong to anything.
+
+**Solution**: The `ck_album_performers_has_owner` CHECK constraint (`album_id IS NOT NULL OR track_id IS NOT NULL`) rejects floating credits at the DB level. Same idea as the existing `ck_piece_composer_credits_exactly_one_owner` / `ck_piece_catalog_entries_exactly_one_owner` patterns — when one of several FKs may be set, the schema enforces "at least one" (or "exactly one") as a CHECK.
+
 ---
 
 ## Data Management Guidelines
@@ -876,11 +953,13 @@ Registered in `App.xaml.cs`:
 | `ICanonDataService.cs` | Runtime data service contract |
 | `SqliteCanonDataService.cs` | Runtime implementation. Reads/writes SQLite only. |
 | `CanonDataService.cs` | JSON read/write utility. Used by the seeder tool and Import/Export VM, not the runtime data path. |
-| `PieceReferenceIndex.cs` | Album ↔ piece cross-reference index. |
+| `PieceReferenceIndex.cs` | Album ↔ piece cross-reference index. Accepts loose tracks in `Rebuild` / `RebuildContainers`. |
 | `ItunesLibraryReference.cs` | iTunes XML library parser |
 | `IArchiveAudioLocator.cs` / `ArchiveAudioLocator.cs` | Music-player file resolution: per-track override → convention → null. Also defines `AudioFileLocation`. |
 | `IAudioPlayerService.cs` / `NAudioPlayerService.cs` | Music-player playback engine (NAudio). Defines `PlayerState`. |
 | `PreferredAudioFormat.cs` | `Flac | Mp3` enum used by `IArchiveSettings` and the locator. |
+| `CanonRejectCascade.cs` | Static helpers for cascading reject of composers and pieces (strips refs from albums and loose tracks; deletes pieces and the composer in FK-dependency order). |
+| `TrackCascade.cs` | Static helpers for approve / reject of individual tracks. Loose-aware. |
 
 ### Views & ViewModels (`src/CDArchive.App/`)
 
@@ -893,9 +972,13 @@ Registered in `App.xaml.cs`:
 | `Views/ComposerEditorWindow.xaml[.cs]` | Composer editor dialog |
 | `Views/ImportExportView.xaml[.cs]` | Import/Export screen |
 | `Views/PlayerBar.xaml[.cs]` | Persistent transport bar docked at bottom of `MainWindow`. Hosts scrub coordination for the progress slider. |
+| `Views/TracksView.xaml[.cs]` | Cross-album Tracks list. Sortable columns, scroll-to-selection anchor, Approve/Reject context menu, New Track button, double-click dispatch (album-bound → album editor; loose → loose-mode track editor). |
+| `Views/TrackEditorWindow.xaml[.cs]` | Track editor dialog. Three constructors: single album-bound, bulk-edit, loose-mode. |
 | `ViewModels/MainViewModel.cs` | Shell navigation, `CanonView` visibility, exposes `PlayerViewModel` for binding |
-| `ViewModels/CanonViewModel.cs` | Composer/piece loading + saving |
+| `ViewModels/CanonViewModel.cs` | Composer/piece loading + saving. `Reject*WithCascadeAsync` wrap `CanonRejectCascade`. |
 | `ViewModels/AlbumsViewModel.cs` | Album loading + saving |
+| `ViewModels/TracksViewModel.cs` | Cross-album Tracks VM. Owns loose tracks alongside album-bound; flattens both into rows; exposes `ApproveRowsAsync` / `RejectRowsAsync`. |
+| `ViewModels/AlbumTrackRow.cs` | Row projection used by the Tracks list. Nullable `Album` / `Disc` for loose tracks; `DiscDisplay` / `TrackDisplay` collapse for loose and single-disc cases. |
 | `ViewModels/ImportExportViewModel.cs` | Import/export/restore commands |
 | `ViewModels/PlayerViewModel.cs` | Music-player VM. Holds playback context (album + flat sequence + index) and drives auto-advance. |
 | `MainWindow.xaml.cs` | Window-level `PreviewKeyDown` for Space = play/pause shortcut. |
@@ -904,7 +987,7 @@ Registered in `App.xaml.cs`:
 
 | Path | Purpose |
 |---|---|
-| `CDArchive.Tools.SeedDb/Program.cs` | CLI entry point. Default mode seeds JSON → SQLite; `--export` writes SQLite → JSON; `--restore-albums` rewrites just the albums table from JSON. |
+| `CDArchive.Tools.SeedDb/Program.cs` | CLI entry point. Default mode seeds JSON → SQLite; `--export` writes SQLite → JSON; `--restore-albums` rewrites just the albums table from JSON; `--promote-loose-tracks` [`--apply`] migrates synthetic single-track wrapper albums to loose tracks (heuristic-driven, dry-run by default). |
 
 ### Tests (`tests/CDArchive.Core.Tests/`)
 
@@ -914,3 +997,10 @@ Registered in `App.xaml.cs`:
 | `CanonDataServiceTests.cs` | JSON loader sanity checks, dual-marker resolver regression test |
 | `ArchiveAudioLocatorTests.cs` | 11 filesystem-backed tests covering the locator's override → convention → title-fallback resolution. |
 | `NAudioPlayerServiceTests.cs` | 8 smoke tests against synthesised WAV files: initial state, error paths, Duration reporting, Seek clamping, file replacement. Actual audio output not exercised (no device guarantee in CI). |
+| `AlbumTracksNullableDiscIdMigrationTests.cs` | 3 tests: fresh-DB schema nullability, legacy-NOT-NULL → nullable migration with row preservation, idempotency. |
+| `LooseTrackRoundTripTests.cs` | 4 tests: performer-table nullable-album_id migration with CHECK, loose-track scalar+ref+performer round-trip, orphan-delete, album/loose coexistence. |
+| `PieceReferenceIndexLooseTracksTests.cs` | 5 tests covering loose-track indexing and the distinct-container badge count. |
+| `CanonRejectCascadeTests.cs` | Composer/piece reject cascade including loose-track ref stripping. |
+| `TrackCascadeTests.cs` | Approve / Reject pure logic + integration round-trip through SQLite. |
+| `SingletonAlbumPromotionTests.cs` | 13 tests for the wrapper-album → loose-track migration: heuristic per disqualifier, dry-run vs apply, performer re-anchoring, inherited SparsCode/IsStereo, mixed batch. |
+| `ItunesImporterTests.cs` | Album path + loose-track path: albumless rows become loose tracks (TrackNumber=0), Artist field → track performers, composite composer parsing (`compl.` / `arr.`). |

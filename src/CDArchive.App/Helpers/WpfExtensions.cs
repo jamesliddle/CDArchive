@@ -20,4 +20,23 @@ public static class WpfExtensions
         }
         return null;
     }
+
+    /// <summary>
+    /// Breadth-first visual-tree search for the first descendant of <paramref name="obj"/>
+    /// (excluding itself) that is (or inherits from) <typeparamref name="T"/>. Returns
+    /// null if no match is found.
+    /// </summary>
+    public static T? FindVisualChild<T>(this DependencyObject obj)
+        where T : DependencyObject
+    {
+        var count = VisualTreeHelper.GetChildrenCount(obj);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(obj, i);
+            if (child is T t) return t;
+            var deeper = FindVisualChild<T>(child);
+            if (deeper != null) return deeper;
+        }
+        return null;
+    }
 }

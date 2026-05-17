@@ -651,6 +651,13 @@ public class CanonDbContext : DbContext
                 t.HasCheckConstraint(
                     "ck_album_performers_has_identity",
                     "(person_id IS NOT NULL) OR (ensemble_id IS NOT NULL) OR (display_name IS NOT NULL)");
+                // Loose-track performers anchor on track_id only (album_id null);
+                // album-level credits anchor on album_id only (track_id null);
+                // album-bound track overrides anchor on both. Any row with both
+                // null would be unowned and is rejected.
+                t.HasCheckConstraint(
+                    "ck_album_performers_has_owner",
+                    "(album_id IS NOT NULL) OR (track_id IS NOT NULL)");
             });
 
             b.HasKey(x => x.Id);

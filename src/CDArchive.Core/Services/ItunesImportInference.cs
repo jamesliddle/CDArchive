@@ -17,25 +17,106 @@ public static class ItunesImportInference
         @"^\s*(?<name>.+?)\s*\((?<birth>\d{3,4})\s*[–\-]\s*(?<death>\d{3,4})?\s*\)\s*$",
         RegexOptions.Compiled);
 
-    public record ParsedComposer(string Name, int? BirthYear, int? DeathYear);
+    /// <summary>
+    /// Boundary marker between principal and contributor credits in an iTunes
+    /// composer field, e.g. <c>", compl. Franco Alfano (1875–1954)"</c>. The
+    /// supported role abbreviations match the examples documented on
+    /// <see cref="ComposerCredit.Role"/>: arranger / orchestrator / transcriber /
+    /// completer / editor / reviser.
+    /// </summary>
+    private static readonly Regex CreditBoundaryRegex = new(
+        @",\s*(?<role>compl|arr|orch|transcr|ed|rev)\.\s+",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    public record ParsedContributorCredit(string Name, int? BirthYear, int? DeathYear, string Role);
+
+    public record ParsedComposer(
+        string Name,
+        int? BirthYear,
+        int? DeathYear,
+        IReadOnlyList<ParsedContributorCredit>? Contributors = null);
 
     /// <summary>
     /// Parses an iTunes composer field. Returns null when the field is null/empty.
     /// Falls back to the raw value (with no dates) when the dates pattern doesn't match.
+    /// <para>
+    /// Recognises compound credits of the form
+    /// <c>"Principal (YYYY–YYYY), ROLE. Contributor (YYYY–YYYY)"</c>, where
+    /// <c>ROLE</c> is one of the abbreviations in <see cref="CreditBoundaryRegex"/>.
+    /// Each contributor's name is normalised to the canon's surname-first form
+    /// when the iTunes field gave it as given-name-first (e.g.
+    /// <c>"Franco Alfano"</c> → <c>"Alfano, Franco"</c>); already-surname-first
+    /// names like <c>"Busoni, Ferruccio"</c> are left untouched.
+    /// </para>
     /// </summary>
     public static ParsedComposer? ParseComposer(string? composerField)
     {
         if (string.IsNullOrWhiteSpace(composerField)) return null;
         var trimmed = composerField.Trim();
-        var match = ComposerWithDatesRegex.Match(trimmed);
+
+        var boundaries = CreditBoundaryRegex.Matches(trimmed);
+        if (boundaries.Count == 0)
+            return ParsePrincipalSegment(trimmed);
+
+        // Principal: everything up to the first boundary.
+        var principalText = trimmed.Substring(0, boundaries[0].Index).Trim();
+        var principal = ParsePrincipalSegment(principalText);
+        if (principal is null) return null;
+
+        var contributors = new List<ParsedContributorCredit>();
+        for (int i = 0; i < boundaries.Count; i++)
+        {
+            var role  = boundaries[i].Groups["role"].Value.ToLowerInvariant() + ".";
+            var start = boundaries[i].Index + boundaries[i].Length;
+            var end   = (i + 1 < boundaries.Count) ? boundaries[i + 1].Index : trimmed.Length;
+            var text  = trimmed.Substring(start, end - start).Trim();
+            if (text.Length == 0) continue;
+
+            var parsed = ParsePrincipalSegment(text);
+            if (parsed is null) continue;
+
+            var normalized = NormalizeContributorName(parsed.Name);
+            contributors.Add(new ParsedContributorCredit(
+                normalized, parsed.BirthYear, parsed.DeathYear, role));
+        }
+
+        return principal with
+        {
+            Contributors = contributors.Count > 0 ? contributors : null,
+        };
+    }
+
+    private static ParsedComposer? ParsePrincipalSegment(string text)
+    {
+        if (text.Length == 0) return null;
+        var match = ComposerWithDatesRegex.Match(text);
         if (match.Success)
         {
             var name  = match.Groups["name"].Value.Trim();
             int? birth = int.TryParse(match.Groups["birth"].Value, out var b) ? b : null;
-            int? death = match.Groups["death"].Success && int.TryParse(match.Groups["death"].Value, out var d) ? d : null;
+            int? death = match.Groups["death"].Success &&
+                         int.TryParse(match.Groups["death"].Value, out var d) ? d : null;
             return new ParsedComposer(name, birth, death);
         }
-        return new ParsedComposer(trimmed, null, null);
+        return new ParsedComposer(text, null, null);
+    }
+
+    /// <summary>
+    /// Flips a contributor name to surname-first when iTunes gave it as
+    /// given-name-first. A comma in the name is treated as "already
+    /// surname-first" and left alone. The heuristic — take the last
+    /// whitespace-separated token as the surname — is wrong for compound
+    /// surnames like "van Beethoven" or "De Sabata"; the user can edit the
+    /// CanonComposer after import in those cases.
+    /// </summary>
+    private static string NormalizeContributorName(string name)
+    {
+        if (name.Contains(',')) return name;
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2) return name;
+        var surname = parts[^1];
+        var given   = string.Join(' ', parts.Take(parts.Length - 1));
+        return $"{surname}, {given}";
     }
 
     // ── Track Name parsing ───────────────────────────────────────────────────

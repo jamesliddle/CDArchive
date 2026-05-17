@@ -52,6 +52,7 @@ public class SqliteCanonDataService : ICanonDataService
     private readonly ConditionalWeakTable<CanonPiece, IdHandle>        _pieceIds    = new();
     private readonly ConditionalWeakTable<CanonPieceVersion, IdHandle> _versionIds  = new();
     private readonly ConditionalWeakTable<CanonAlbum, IdHandle>        _albumIds    = new();
+    private readonly ConditionalWeakTable<AlbumTrack, IdHandle>        _looseTrackIds = new();
 
     private static readonly JsonSerializerOptions ReadOptions = new()
     {
@@ -71,9 +72,10 @@ public class SqliteCanonDataService : ICanonDataService
         _jsonService = jsonService;
     }
 
-    public string ComposersFilePath => _jsonService.ComposersFilePath;
-    public string PiecesFilePath    => _jsonService.PiecesFilePath;
-    public string AlbumsFilePath    => _jsonService.AlbumsFilePath;
+    public string ComposersFilePath    => _jsonService.ComposersFilePath;
+    public string PiecesFilePath       => _jsonService.PiecesFilePath;
+    public string AlbumsFilePath       => _jsonService.AlbumsFilePath;
+    public string LooseTracksFilePath  => _jsonService.LooseTracksFilePath;
     public string PickListsFilePath => _jsonService.PickListsFilePath;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -149,6 +151,23 @@ public class SqliteCanonDataService : ICanonDataService
             .ConfigureAwait(false);
         await EnsureColumnAsync(db, "album_tracks", "mp3_path", "TEXT NULL")
             .ConfigureAwait(false);
+
+        // Loose tracks (singletons that don't belong to any album) live in the
+        // same album_tracks table but with disc_id NULL. The original schema
+        // had disc_id NOT NULL — recreate the table on first upgrade so the
+        // column accepts null. Safe to run on every startup; the helper checks
+        // the current nullability and no-ops once it's already nullable.
+        await EnsureColumnNullableAsync(db, "album_tracks", "disc_id",
+            recreate: RecreateAlbumTracksWithNullableDiscIdAsync)
+            .ConfigureAwait(false);
+
+        // Performers on a loose track have no owning album, so album_id needs
+        // to be nullable. The migration also adds a CHECK constraint guaranteeing
+        // every performer row anchors on at least one of album_id / track_id —
+        // catches buggy callers that would otherwise create floating credits.
+        await EnsureColumnNullableAsync(db, "album_performers", "album_id",
+            recreate: RecreateAlbumPerformersWithNullableAlbumIdAsync)
+            .ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(
@@ -179,6 +198,225 @@ public class SqliteCanonDataService : ICanonDataService
         await using var alter = conn.CreateCommand();
         alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {columnDef}";
         await alter.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Idempotently makes <paramref name="column"/> nullable on <paramref name="table"/>.
+    /// SQLite cannot alter a column's nullability in place, so the migration runs
+    /// <paramref name="recreate"/> — which is expected to perform the standard
+    /// CREATE-COPY-DROP-RENAME dance inside a transaction with foreign keys off.
+    /// No-ops when <c>PRAGMA table_info</c> reports the column is already nullable.
+    /// </summary>
+    private static async Task EnsureColumnNullableAsync(
+        CanonDbContext db, string table, string column,
+        Func<System.Data.Common.DbConnection, Task> recreate)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        bool alreadyNullable = false;
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"PRAGMA table_info({table})";
+            await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
+            {
+                // PRAGMA table_info columns: cid, name, type, notnull, dflt_value, pk
+                if (!string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                // notnull = 0 means the column is nullable.
+                alreadyNullable = reader.GetInt32(3) == 0;
+                break;
+            }
+        }
+
+        if (alreadyNullable) return;
+        await recreate(conn).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Recreates <c>album_tracks</c> with a nullable <c>disc_id</c> column,
+    /// preserving every existing row and its id. Implements SQLite's
+    /// recommended schema-change recipe:
+    /// <list type="number">
+    ///   <item><c>PRAGMA foreign_keys=OFF</c> so dropping the old table doesn't
+    ///     cascade through child tables (refs / performers).</item>
+    ///   <item>Transaction. CREATE TABLE <c>album_tracks_new</c> with the new
+    ///     definition (only <c>disc_id</c> changes nullability).</item>
+    ///   <item>Copy every row, columns enumerated explicitly so the order is
+    ///     pinned regardless of how columns happen to live in the old table.</item>
+    ///   <item>DROP the old table; RENAME the new one into its place.</item>
+    ///   <item>Recreate the <c>(disc_id, track_number)</c> unique index that
+    ///     EF Core declared on the entity.</item>
+    ///   <item><c>PRAGMA foreign_key_check</c> as a sanity gate before commit;
+    ///     any orphaned child row would surface here.</item>
+    ///   <item>COMMIT, then turn FKs back on.</item>
+    /// </list>
+    /// </summary>
+    private static async Task RecreateAlbumTracksWithNullableDiscIdAsync(
+        System.Data.Common.DbConnection conn)
+    {
+        // FK enforcement off for the duration of the swap. SQLite docs require
+        // this to be set OUTSIDE the transaction — it's not transactional, and
+        // toggling it inside has no effect.
+        await ExecAsync(conn, "PRAGMA foreign_keys=OFF");
+        await using (var tx = await conn.BeginTransactionAsync().ConfigureAwait(false))
+        {
+            // New table: disc_id nullable, everything else identical.
+            await ExecAsync(conn, """
+                CREATE TABLE album_tracks_new (
+                    id             INTEGER NOT NULL CONSTRAINT PK_album_tracks PRIMARY KEY AUTOINCREMENT,
+                    disc_id        INTEGER     NULL,
+                    track_number   INTEGER NOT NULL,
+                    duration       TEXT        NULL,
+                    description    TEXT        NULL,
+                    session_id     INTEGER     NULL,
+                    spars_code     TEXT        NULL,
+                    is_stereo      INTEGER     NULL,
+                    is_provisional INTEGER NOT NULL DEFAULT 1,
+                    flac_path      TEXT        NULL,
+                    mp3_path       TEXT        NULL,
+                    CONSTRAINT FK_album_tracks_album_discs_disc_id
+                        FOREIGN KEY (disc_id)    REFERENCES album_discs    (id) ON DELETE CASCADE,
+                    CONSTRAINT FK_album_tracks_album_sessions_session_id
+                        FOREIGN KEY (session_id) REFERENCES album_sessions (id) ON DELETE SET NULL
+                )
+                """, tx);
+
+            // Copy rows. Explicit column list so a stale column ordering in the
+            // old table doesn't silently misalign.
+            await ExecAsync(conn, """
+                INSERT INTO album_tracks_new
+                    (id, disc_id, track_number, duration, description, session_id,
+                     spars_code, is_stereo, is_provisional, flac_path, mp3_path)
+                SELECT
+                     id, disc_id, track_number, duration, description, session_id,
+                     spars_code, is_stereo, is_provisional, flac_path, mp3_path
+                FROM album_tracks
+                """, tx);
+
+            await ExecAsync(conn, "DROP TABLE album_tracks", tx);
+            await ExecAsync(conn, "ALTER TABLE album_tracks_new RENAME TO album_tracks", tx);
+
+            // EF named its unique index IX_album_tracks_DiscId_TrackNumber. Keep
+            // the name so future migrations can reference it without surprise.
+            await ExecAsync(conn,
+                "CREATE UNIQUE INDEX IX_album_tracks_DiscId_TrackNumber " +
+                "ON album_tracks (disc_id, track_number)", tx);
+
+            // Last-chance sanity gate inside the txn — any child row whose FK no
+            // longer points at a valid parent would surface here. With FKs off
+            // during the swap, the integrity check has to be explicit.
+            await using (var check = conn.CreateCommand())
+            {
+                check.Transaction = tx;
+                check.CommandText = "PRAGMA foreign_key_check";
+                await using var reader = await check.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await reader.ReadAsync().ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "Foreign-key check failed after recreating album_tracks. " +
+                        "Migration aborted; the transaction will roll back.");
+                }
+            }
+
+            await tx.CommitAsync().ConfigureAwait(false);
+        }
+        await ExecAsync(conn, "PRAGMA foreign_keys=ON");
+    }
+
+    private static async Task ExecAsync(
+        System.Data.Common.DbConnection conn, string sql,
+        System.Data.Common.DbTransaction? tx = null)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        if (tx != null) cmd.Transaction = tx;
+        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Recreates <c>album_performers</c> with a nullable <c>album_id</c> column,
+    /// plus a new CHECK constraint that guarantees every row anchors on at least
+    /// one of <c>album_id</c>/<c>track_id</c>. Loose-track performers anchor on
+    /// track_id; existing album-level / album-bound-track-level performers
+    /// continue to anchor on album_id (with track_id null or set). Same recipe
+    /// as the album_tracks migration.
+    /// </summary>
+    private static async Task RecreateAlbumPerformersWithNullableAlbumIdAsync(
+        System.Data.Common.DbConnection conn)
+    {
+        await ExecAsync(conn, "PRAGMA foreign_keys=OFF");
+        await using (var tx = await conn.BeginTransactionAsync().ConfigureAwait(false))
+        {
+            await ExecAsync(conn, """
+                CREATE TABLE album_performers_new (
+                    id           INTEGER NOT NULL CONSTRAINT PK_album_performers PRIMARY KEY AUTOINCREMENT,
+                    album_id     INTEGER     NULL,
+                    track_id     INTEGER     NULL,
+                    position     INTEGER NOT NULL,
+                    person_id    INTEGER     NULL,
+                    ensemble_id  INTEGER     NULL,
+                    display_name TEXT        NULL,
+                    role         TEXT        NULL,
+                    instrument   TEXT        NULL,
+                    CONSTRAINT ck_album_performers_person_xor_ensemble
+                        CHECK ((person_id IS NULL) OR (ensemble_id IS NULL)),
+                    CONSTRAINT ck_album_performers_has_identity
+                        CHECK ((person_id IS NOT NULL) OR (ensemble_id IS NOT NULL) OR (display_name IS NOT NULL)),
+                    CONSTRAINT ck_album_performers_has_owner
+                        CHECK ((album_id IS NOT NULL) OR (track_id IS NOT NULL)),
+                    CONSTRAINT FK_album_performers_albums_album_id
+                        FOREIGN KEY (album_id)    REFERENCES albums       (id) ON DELETE CASCADE,
+                    CONSTRAINT FK_album_performers_album_tracks_track_id
+                        FOREIGN KEY (track_id)    REFERENCES album_tracks (id) ON DELETE CASCADE,
+                    CONSTRAINT FK_album_performers_people_person_id
+                        FOREIGN KEY (person_id)   REFERENCES people       (id) ON DELETE RESTRICT,
+                    CONSTRAINT FK_album_performers_ensembles_ensemble_id
+                        FOREIGN KEY (ensemble_id) REFERENCES ensembles    (id) ON DELETE RESTRICT
+                )
+                """, tx);
+
+            await ExecAsync(conn, """
+                INSERT INTO album_performers_new
+                    (id, album_id, track_id, position, person_id, ensemble_id, display_name, role, instrument)
+                SELECT
+                     id, album_id, track_id, position, person_id, ensemble_id, display_name, role, instrument
+                FROM album_performers
+                """, tx);
+
+            await ExecAsync(conn, "DROP TABLE album_performers", tx);
+            await ExecAsync(conn, "ALTER TABLE album_performers_new RENAME TO album_performers", tx);
+
+            // Indexes EF declared on the entity. Recreating with the same names
+            // keeps any future migrations easy to reason about.
+            await ExecAsync(conn,
+                "CREATE INDEX IX_album_performers_AlbumId_TrackId_Position " +
+                "ON album_performers (album_id, track_id, position)", tx);
+            await ExecAsync(conn,
+                "CREATE INDEX IX_album_performers_PersonId " +
+                "ON album_performers (person_id)", tx);
+            await ExecAsync(conn,
+                "CREATE INDEX IX_album_performers_EnsembleId " +
+                "ON album_performers (ensemble_id)", tx);
+
+            await using (var check = conn.CreateCommand())
+            {
+                check.Transaction = tx;
+                check.CommandText = "PRAGMA foreign_key_check";
+                await using var reader = await check.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await reader.ReadAsync().ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "Foreign-key check failed after recreating album_performers. " +
+                        "Migration aborted; the transaction will roll back.");
+                }
+            }
+
+            await tx.CommitAsync().ConfigureAwait(false);
+        }
+        await ExecAsync(conn, "PRAGMA foreign_keys=ON");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1862,6 +2100,333 @@ public class SqliteCanonDataService : ICanonDataService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Loose tracks (no album)
+    //
+    // Live in the same album_tracks table with disc_id NULL. Identity is
+    // tracked via the _looseTrackIds CWT; there's no natural-key fallback so
+    // a JSON-cloned loose track will insert fresh on save. The Tracks view
+    // doesn't JSON-clone tracks for editing, so this is fine in practice.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public async Task<List<AlbumTrack>> LoadLooseTracksAsync()
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+        // Piece-ref reconstruction needs the same maps the album load builds.
+        var (_, pieceModelByRowId, versionModelByRowId, pieceRowById, versionRowById) =
+            await LoadAllPiecesInternalAsync(db).ConfigureAwait(false);
+        var composerNameById = await db.Composers.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.Name)
+            .ConfigureAwait(false);
+        var markerRowById = await db.PieceMarkers.AsNoTracking()
+            .ToDictionaryAsync(m => m.Id)
+            .ConfigureAwait(false);
+
+        var rows = await db.AlbumTracks
+            .AsNoTracking()
+            .Where(t => t.DiscId == null)
+            .Include(t => t.PieceRefs)
+            .Include(t => t.Performers)
+            .OrderBy(t => t.Id)
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        var result = new List<AlbumTrack>(rows.Count);
+        foreach (var tr in rows)
+        {
+            var track = new AlbumTrack
+            {
+                // TrackNumber is meaningless for loose tracks; the row stores 0.
+                // Keep the field zero on the model so callers can rely on the
+                // "TrackNumber > 0 ⇒ album-bound" invariant.
+                TrackNumber   = tr.TrackNumber,
+                Duration      = tr.Duration,
+                Description   = tr.Description,
+                SparsCode     = tr.SparsCode,
+                IsStereo      = tr.IsStereo,
+                IsProvisional = tr.IsProvisional,
+                FlacPath      = tr.FlacPath,
+                Mp3Path       = tr.Mp3Path,
+                // SessionIndex doesn't apply — loose tracks have no album sessions.
+                SessionIndex  = null,
+            };
+
+            if (tr.Performers.Count > 0)
+                track.Performers = tr.Performers
+                    .OrderBy(p => p.Position)
+                    .Select(MapPerformerRow)
+                    .ToList();
+
+            if (tr.PieceRefs.Count > 0)
+            {
+                var refs = new List<TrackPieceRef>(tr.PieceRefs.Count);
+                foreach (var pr in tr.PieceRefs.OrderBy(r => r.Position))
+                {
+                    var refModel = BuildTrackPieceRef(pr,
+                        pieceRowById, versionRowById,
+                        pieceModelByRowId, versionModelByRowId,
+                        composerNameById, markerRowById);
+                    if (refModel is not null) refs.Add(refModel);
+                }
+                if (refs.Count > 0) track.PieceRefs = refs;
+            }
+
+            _looseTrackIds.AddOrUpdate(track, new IdHandle { Id = tr.Id });
+            result.Add(track);
+        }
+        return result;
+    }
+
+    public async Task SaveLooseTracksAsync(List<AlbumTrack> tracks)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+        // Resolver setup — same shape as SaveAlbumsAsync.
+        var (currentPieces, pieceModelByRowId, versionModelByRowId, _, _) =
+            await LoadAllPiecesInternalAsync(db).ConfigureAwait(false);
+        var rowIdByPieceModel = new Dictionary<CanonPiece, long>(ReferenceEqualityComparer.Instance);
+        foreach (var (id, m) in pieceModelByRowId) rowIdByPieceModel[m] = id;
+        var rowIdByVersionModel = new Dictionary<CanonPieceVersion, long>(ReferenceEqualityComparer.Instance);
+        foreach (var (id, m) in versionModelByRowId) rowIdByVersionModel[m] = id;
+        var resolver = new PieceReferenceIndex();
+        resolver.BuildResolver(currentPieces);
+
+        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
+
+        var existing = await db.AlbumTracks
+            .Where(t => t.DiscId == null)
+            .Include(t => t.PieceRefs)
+            .Include(t => t.Performers)
+            .ToListAsync()
+            .ConfigureAwait(false);
+        var existingById = existing.ToDictionary(r => r.Id);
+
+        var matched = new Dictionary<AlbumTrack, AlbumTrackRow>(ReferenceEqualityComparer.Instance);
+        var matchedExistingRowIds = new HashSet<long>();
+        foreach (var track in tracks)
+        {
+            if (_looseTrackIds.TryGetValue(track, out var handle) &&
+                existingById.TryGetValue(handle.Id, out var row))
+            {
+                matched[track] = row;
+                matchedExistingRowIds.Add(row.Id);
+            }
+        }
+
+        // Orphans: existing loose-track rows the input no longer references.
+        // album_track_piece_refs and album_performers cascade from album_tracks.id.
+        foreach (var orphan in existing.Where(r => !matchedExistingRowIds.Contains(r.Id)))
+            db.AlbumTracks.Remove(orphan);
+
+        var inserted = new List<(AlbumTrack model, AlbumTrackRow row)>();
+        foreach (var track in tracks)
+        {
+            AlbumTrackRow row;
+            if (matched.TryGetValue(track, out var existingRow))
+            {
+                row = existingRow;
+                ApplyLooseTrackFields(row, track);
+                MergePieceRefs(track.PieceRefs, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+                MergeTrackPerformers(track.Performers, row, albumRow: null, db);
+            }
+            else
+            {
+                row = new AlbumTrackRow { DiscId = null };
+                ApplyLooseTrackFields(row, track);
+                db.AlbumTracks.Add(row);
+                inserted.Add((track, row));
+            }
+        }
+
+        // First pass: persist inserts so the new rows have row ids before we
+        // attach piece-refs / performers (those FKs need a real track_id).
+        await db.SaveChangesAsync().ConfigureAwait(false);
+
+        foreach (var (model, row) in inserted)
+        {
+            MergePieceRefs(model.PieceRefs, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+            MergeTrackPerformers(model.Performers, row, albumRow: null, db);
+        }
+
+        await db.SaveChangesAsync().ConfigureAwait(false);
+        await tx.CommitAsync().ConfigureAwait(false);
+
+        foreach (var (model, row) in matched.Select(kv => (kv.Key, kv.Value)).Concat(inserted))
+        {
+            if (_looseTrackIds.TryGetValue(model, out var h)) h.Id = row.Id;
+            else _looseTrackIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
+        }
+    }
+
+    private static void ApplyLooseTrackFields(AlbumTrackRow row, AlbumTrack model)
+    {
+        // DiscId stays null — that's what marks the row as loose.
+        row.TrackNumber   = model.TrackNumber;  // typically 0; meaningless without a disc
+        row.Duration      = model.Duration;
+        row.Description   = model.Description;
+        row.SparsCode     = model.SparsCode;
+        row.IsStereo      = model.IsStereo;
+        row.IsProvisional = model.IsProvisional;
+        row.FlacPath      = model.FlacPath;
+        row.Mp3Path       = model.Mp3Path;
+        // SessionId stays null — loose tracks have no album sessions.
+        row.SessionId     = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Singleton-album promotion (one-shot migration of synthetic single-track
+    // albums to loose tracks, run from the seeder CLI's --promote-loose-tracks
+    // flag). Identifies wrapper albums via the heuristic in the docstring on
+    // PromoteSingletonAlbumsToLooseTracksAsync; the actual mutation is done as
+    // raw SQL in one transaction to avoid EF's orphan-tracking maze when a
+    // cascade-deleted parent's child needs to survive.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// One row in the result of <see cref="PromoteSingletonAlbumsToLooseTracksAsync"/>:
+    /// an album that didn't match the heuristic, paired with the reason.
+    /// </summary>
+    public record SingletonPromoteSkipped(long AlbumId, string? Title, string Reason);
+
+    public record SingletonPromoteResult(
+        int AlbumsScanned,
+        int AlbumsPromoted,
+        IReadOnlyList<SingletonPromoteSkipped> Skipped);
+
+    /// <summary>
+    /// Migrates synthetic single-track wrapper albums to loose tracks. An album
+    /// qualifies when all of these hold:
+    /// <list type="bullet">
+    ///   <item>exactly 1 disc containing exactly 1 track</item>
+    ///   <item>no Volumes, no Sessions</item>
+    ///   <item>no Label, no CatalogueNumber, no Barcode, no ArchiveFolder</item>
+    ///   <item>the track itself has no track-level Performers (those would
+    ///         suggest a manual override on a curated album)</item>
+    /// </list>
+    /// <para>For each qualifying album:</para>
+    /// <list type="number">
+    ///   <item>Re-anchor any album-level Performers to the track
+    ///         (<c>album_id=NULL, track_id=&lt;track_id&gt;</c>) so they survive
+    ///         the album delete.</item>
+    ///   <item>Inherit album-level <c>SparsCode</c> / <c>IsStereo</c> into the
+    ///         track when the track's own value is null.</item>
+    ///   <item>Set the track's <c>disc_id=NULL</c>, <c>track_number=0</c>,
+    ///         <c>session_id=NULL</c> — the loose-track shape.</item>
+    ///   <item>Delete the disc and album rows.</item>
+    /// </list>
+    /// All mutation runs in one transaction. Set <paramref name="dryRun"/> to
+    /// true to scan + report without changing anything.
+    /// </summary>
+    public async Task<SingletonPromoteResult> PromoteSingletonAlbumsToLooseTracksAsync(bool dryRun)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+        var rows = await db.Albums
+            .Include(a => a.Volumes)
+            .Include(a => a.Sessions)
+            .Include(a => a.Performers)
+            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        var skipped    = new List<SingletonPromoteSkipped>();
+        var candidates = new List<(AlbumRow Album, AlbumDiscRow Disc, AlbumTrackRow Track)>();
+
+        foreach (var album in rows)
+        {
+            var reason = ClassifyForPromotion(album);
+            if (reason is not null)
+            {
+                skipped.Add(new SingletonPromoteSkipped(album.Id, album.Title, reason));
+                continue;
+            }
+            var disc  = album.Discs[0];
+            var track = disc.Tracks[0];
+            candidates.Add((album, disc, track));
+        }
+
+        if (dryRun || candidates.Count == 0)
+            return new SingletonPromoteResult(rows.Count, candidates.Count, skipped);
+
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        await using var tx = await conn.BeginTransactionAsync().ConfigureAwait(false);
+        foreach (var (album, disc, track) in candidates)
+        {
+            // 1. Re-anchor album-level performers (those rows have track_id NULL)
+            //    onto the track so they survive the album delete's cascade.
+            await ExecParamAsync(conn, tx,
+                "UPDATE album_performers SET album_id = NULL, track_id = @trackId " +
+                "WHERE album_id = @albumId AND track_id IS NULL",
+                ("@trackId", track.Id), ("@albumId", album.Id));
+
+            // 2. Inherit SparsCode / IsStereo from the album when the track's
+            //    are null — those were album-level on the synthetic wrapper and
+            //    have nowhere else to live once the album is gone.
+            var newSpars  = track.SparsCode ?? album.SparsCode;
+            var newStereo = track.IsStereo  ?? album.IsStereo;
+
+            // 3. Detach the track: disc_id null (loose), track_number 0 (loose
+            //    sentinel), session_id null (no album sessions anymore).
+            await ExecParamAsync(conn, tx,
+                "UPDATE album_tracks SET disc_id = NULL, track_number = 0, session_id = NULL, " +
+                "spars_code = @spars, is_stereo = @stereo WHERE id = @trackId",
+                ("@spars",   (object?)newSpars ?? DBNull.Value),
+                ("@stereo",  newStereo.HasValue ? (object)(newStereo.Value ? 1 : 0) : DBNull.Value),
+                ("@trackId", track.Id));
+
+            // 4. Delete the disc and album. Cascade-deletes any remaining
+            //    volumes / sessions / track-level-only performers; performers
+            //    we re-anchored in step 1 are no longer FK-linked to the album.
+            await ExecParamAsync(conn, tx,
+                "DELETE FROM album_discs WHERE id = @discId", ("@discId", disc.Id));
+            await ExecParamAsync(conn, tx,
+                "DELETE FROM albums WHERE id = @albumId", ("@albumId", album.Id));
+        }
+        await tx.CommitAsync().ConfigureAwait(false);
+
+        return new SingletonPromoteResult(rows.Count, candidates.Count, skipped);
+    }
+
+    private static string? ClassifyForPromotion(AlbumRow album)
+    {
+        if (album.Discs.Count != 1)                                        return $"has {album.Discs.Count} disc(s)";
+        if (album.Discs[0].Tracks.Count != 1)                              return $"disc has {album.Discs[0].Tracks.Count} track(s)";
+        if (album.Volumes.Count > 0)                                       return "has volumes";
+        if (album.Sessions.Count > 0)                                      return "has sessions";
+        if (!string.IsNullOrWhiteSpace(album.Label))                       return $"has Label='{album.Label}'";
+        if (!string.IsNullOrWhiteSpace(album.CatalogueNumber))             return $"has CatalogueNumber='{album.CatalogueNumber}'";
+        if (!string.IsNullOrWhiteSpace(album.Barcode))                     return "has Barcode";
+        if (!string.IsNullOrWhiteSpace(album.ArchiveFolder))               return "has ArchiveFolder";
+        if (album.Discs[0].Tracks[0].Performers.Count > 0)                 return "track has track-level Performers (manual override?)";
+        return null;
+    }
+
+    private static async Task ExecParamAsync(
+        System.Data.Common.DbConnection conn,
+        System.Data.Common.DbTransaction tx,
+        string sql,
+        params (string Name, object Value)[] parameters)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.Transaction = tx;
+        foreach (var (name, value) in parameters)
+        {
+            var p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.Value = value;
+            cmd.Parameters.Add(p);
+        }
+        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Album merge helpers (load-mutate-save path)
     //
     // Each helper diffs an input child collection against the rows currently
@@ -2163,11 +2728,14 @@ public class SqliteCanonDataService : ICanonDataService
 
     /// <summary>
     /// Track-level performers are positional within the track. Live in
-    /// <c>track.Performers</c> with TrackId set; also flat-listed in
-    /// <c>album.Performers</c>.
+    /// <c>track.Performers</c> with TrackId set; album-bound tracks also get
+    /// flat-listed in <c>album.Performers</c>. Pass <paramref name="albumRow"/>
+    /// as null for loose tracks — the credit anchors on the track only, with
+    /// <c>album_id NULL</c> (the <c>ck_album_performers_has_owner</c> CHECK
+    /// constraint is satisfied because track_id is set).
     /// </summary>
     private static void MergeTrackPerformers(
-        List<AlbumPerformer>? input, AlbumTrackRow track, AlbumRow albumRow, CanonDbContext db)
+        List<AlbumPerformer>? input, AlbumTrackRow track, AlbumRow? albumRow, CanonDbContext db)
     {
         var existing = track.Performers.OrderBy(p => p.Position).ToList();
         var existingByPosition = existing.ToDictionary(p => p.Position);
@@ -2189,9 +2757,12 @@ public class SqliteCanonDataService : ICanonDataService
                 {
                     var fresh = MapPerformerModelToRow(p, i);
                     fresh.Track = track;
-                    fresh.Album = albumRow;
                     track.Performers.Add(fresh);
-                    albumRow.Performers.Add(fresh);
+                    if (albumRow is not null)
+                    {
+                        fresh.Album = albumRow;
+                        albumRow.Performers.Add(fresh);
+                    }
                 }
             }
         }

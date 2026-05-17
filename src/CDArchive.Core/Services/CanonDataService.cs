@@ -60,10 +60,11 @@ public class CanonDataService : ICanonDataService
         _dataDirectory = dataDirectory;
     }
 
-    public string ComposersFilePath => Path.Combine(_dataDirectory, "Classical Canon composers.json");
-    public string PiecesFilePath    => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
-    public string AlbumsFilePath    => Path.Combine(_dataDirectory, "Classical Canon albums.json");
-    public string PickListsFilePath => Path.Combine(_dataDirectory, "Classical Canon pick lists.json");
+    public string ComposersFilePath    => Path.Combine(_dataDirectory, "Classical Canon composers.json");
+    public string PiecesFilePath       => Path.Combine(_dataDirectory, "Classical Canon pieces.json");
+    public string AlbumsFilePath       => Path.Combine(_dataDirectory, "Classical Canon albums.json");
+    public string PickListsFilePath    => Path.Combine(_dataDirectory, "Classical Canon pick lists.json");
+    public string LooseTracksFilePath  => Path.Combine(_dataDirectory, "Classical Canon loose tracks.json");
 
     public async Task<List<CanonComposer>> LoadComposersAsync()
     {
@@ -235,6 +236,30 @@ public class CanonDataService : ICanonDataService
             .ToList();
         var json = JsonSerializer.Serialize(sorted, WriteOptions);
         await File.WriteAllTextAsync(AlbumsFilePath, json);
+    }
+
+    public async Task<List<AlbumTrack>> LoadLooseTracksAsync()
+    {
+        if (!File.Exists(LooseTracksFilePath))
+            return [];
+
+        var json = await File.ReadAllTextAsync(LooseTracksFilePath);
+        return JsonSerializer.Deserialize<List<AlbumTrack>>(json, ReadOptions) ?? [];
+    }
+
+    public async Task SaveLooseTracksAsync(List<AlbumTrack> tracks)
+    {
+        // Sort by description for a stable on-disk order — loose tracks have no
+        // natural numeric ordering. Tracks with no description fall back to the
+        // first piece-ref's display summary so re-imports don't churn the diff.
+        var sorted = tracks
+            .OrderBy(t => t.Description ?? FirstRefSummary(t), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var json = JsonSerializer.Serialize(sorted, WriteOptions);
+        await File.WriteAllTextAsync(LooseTracksFilePath, json);
+
+        static string FirstRefSummary(AlbumTrack t) =>
+            t.PieceRefs is { Count: > 0 } refs ? refs[0].DisplaySummary : "";
     }
 
     public async Task<CanonPickLists> LoadPickListsAsync()

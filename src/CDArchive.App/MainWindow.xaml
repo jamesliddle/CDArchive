@@ -77,6 +77,10 @@
                                  Command="{Binding NavigateToAlbumsCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Content="Tracks"
+                                 Command="{Binding NavigateToTracksCommand}" />
+
+                    <RadioButton Style="{StaticResource NavButtonStyle}"
                                  Content="iTunes Library"
                                  Command="{Binding NavigateToItunesImportCommand}" />
 

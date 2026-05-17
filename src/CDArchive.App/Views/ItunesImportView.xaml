@@ -72,7 +72,8 @@
                   GridLinesVisibility="Horizontal"
                   HorizontalGridLinesBrush="#EEEEEE"
                   AlternatingRowBackground="#FAFAFA"
-                  FontSize="12">
+                  FontSize="12"
+                  Sorting="OnGridSorting">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Disc"     Binding="{Binding DiscNumber}"      Width="50"  />
                 <DataGridTextColumn Header="Track"    Binding="{Binding TrackNumber}"     Width="60"  />

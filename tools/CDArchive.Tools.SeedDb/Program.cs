@@ -15,10 +15,18 @@ namespace CDArchive.Tools.SeedDb;
 /// JSON after a fresh checkout, or when the JSON files have been deleted /
 /// gotten out of sync with the DB.</para>
 ///
+/// <para><c>--promote-loose-tracks</c> [<c>--apply</c>] — scans for synthetic
+/// single-track wrapper albums (created by the pre-loose-tracks iTunes import)
+/// and promotes them to loose tracks. Defaults to dry-run; <c>--apply</c>
+/// commits the changes in one transaction. Re-run <c>--export</c> afterward
+/// to refresh the JSON snapshots.</para>
+///
 /// Run from the repo root:
 /// <code>
-///   dotnet run --project tools/CDArchive.Tools.SeedDb            # seed
-///   dotnet run --project tools/CDArchive.Tools.SeedDb -- --export # export
+///   dotnet run --project tools/CDArchive.Tools.SeedDb                                # seed
+///   dotnet run --project tools/CDArchive.Tools.SeedDb -- --export                    # export
+///   dotnet run --project tools/CDArchive.Tools.SeedDb -- --promote-loose-tracks      # dry run
+///   dotnet run --project tools/CDArchive.Tools.SeedDb -- --promote-loose-tracks --apply
 /// </code>
 /// </summary>
 internal static class Program
@@ -39,6 +47,9 @@ internal static class Program
                 return await ExportAsync(dataDir, dbPath).ConfigureAwait(false);
             if (args.Contains("--restore-albums"))
                 return await RestoreAlbumsAsync(dataDir, dbPath).ConfigureAwait(false);
+            if (args.Contains("--promote-loose-tracks"))
+                return await PromoteLooseTracksAsync(dataDir, dbPath, apply: args.Contains("--apply"))
+                    .ConfigureAwait(false);
             return await SeedAsync(dataDir, dbPath).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -238,6 +249,74 @@ internal static class Program
         Console.WriteLine();
 
         Console.WriteLine("Done.");
+        return 0;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Promote singleton albums to loose tracks
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Scans the album catalogue for synthetic single-track wrapper albums
+    /// produced by the pre-loose-tracks iTunes import path, and (optionally)
+    /// promotes them to loose tracks. Defaults to dry-run; pass <c>--apply</c>
+    /// to actually mutate the DB.
+    /// </summary>
+    private static async Task<int> PromoteLooseTracksAsync(string dataDir, string dbPath, bool apply)
+    {
+        if (!File.Exists(dbPath))
+        {
+            Console.Error.WriteLine($"Database file not found: {dbPath}");
+            return 1;
+        }
+
+        var options = new DbContextOptionsBuilder<CanonDbContext>()
+            .UseSqlite($"Data Source={dbPath}")
+            .Options;
+        var factory = new SimpleDbContextFactory(options);
+        var json    = new CanonDataService(dataDir);
+        var sqlite  = new SqliteCanonDataService(factory, json);
+
+        Console.WriteLine(apply
+            ? "Scanning albums and promoting matches to loose tracks…"
+            : "Scanning albums for loose-track candidates (DRY RUN — no changes written)…");
+
+        var result = await sqlite.PromoteSingletonAlbumsToLooseTracksAsync(dryRun: !apply);
+
+        Console.WriteLine();
+        Console.WriteLine($"  {result.AlbumsScanned} albums scanned");
+        Console.WriteLine($"  {result.AlbumsPromoted} {(apply ? "promoted to loose tracks" : "match the heuristic")}");
+        Console.WriteLine($"  {result.Skipped.Count} skipped (didn't match the heuristic)");
+        Console.WriteLine();
+
+        if (result.Skipped.Count > 0 && result.Skipped.Count <= 100)
+        {
+            Console.WriteLine("── Skipped albums and reasons ──────────────────────────");
+            foreach (var s in result.Skipped.OrderBy(s => s.Reason).ThenBy(s => s.Title))
+                Console.WriteLine($"  • [{s.Reason}]  {s.Title ?? "(untitled)"}");
+            Console.WriteLine();
+        }
+        else if (result.Skipped.Count > 100)
+        {
+            Console.WriteLine($"── Skipped albums by reason (top 10 of {result.Skipped.Count}) ─");
+            foreach (var g in result.Skipped
+                                  .GroupBy(s => s.Reason)
+                                  .OrderByDescending(g => g.Count())
+                                  .Take(10))
+                Console.WriteLine($"  {g.Count(),6}  {g.Key}");
+            Console.WriteLine();
+        }
+
+        if (!apply)
+        {
+            Console.WriteLine("Re-run with --apply to commit the changes.");
+            Console.WriteLine("Recommended: back up data/ClassicalCanon.db first.");
+        }
+        else
+        {
+            Console.WriteLine("Done. Re-run --export to refresh the JSON snapshots.");
+        }
+
         return 0;
     }
 

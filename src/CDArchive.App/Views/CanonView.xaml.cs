@@ -840,9 +840,11 @@ public partial class CanonView : UserControl
             case ComposerTreeNode node:
             {
                 var name = node.Composer.Name;
-                // Pieces the composer owns get rejected too. SaveComposersAsync has
-                // an OnDelete: Restrict FK from pieces.composer_id, so the composer
-                // row can only be deleted after every piece it owns is gone.
+                // Album track refs pointing at any of these pieces (and contributor
+                // credits naming the composer on surviving pieces) have to go along
+                // with the composer — FK pieces.composer_id and
+                // piece_composer_credits.composer_id are both OnDelete: Restrict.
+                // The full cascade lives in CanonViewModel.RejectComposerWithCascadeAsync.
                 var ownedPieces = vm.Pieces
                     .Where(p => string.Equals(p.Composer, name,
                                               StringComparison.OrdinalIgnoreCase))
@@ -859,18 +861,29 @@ public partial class CanonView : UserControl
                     "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
                 if (confirm != MessageBoxResult.OK) return;
 
-                foreach (var p in ownedPieces) vm.Pieces.Remove(p);
-                vm.Composers.Remove(node.Composer);
-                _suppressAutoRefresh = true;
-                if (ownedPieces.Count > 0)
-                    await vm.SavePiecesCommand.ExecuteAsync(null);     // pieces first (FK)
-                _suppressAutoRefresh = true;
-                await vm.SaveComposersCommand.ExecuteAsync(null);
-                UpdatePieceCounts(vm);
-                ApplySortedFilter(vm);
-                vm.StatusMessage = ownedPieces.Count > 0
-                    ? $"Rejected and deleted {name} and {ownedPieces.Count} piece(s)."
-                    : $"Rejected and deleted {name}.";
+                try
+                {
+                    _suppressAutoRefresh = true;
+                    var result = await vm.RejectComposerWithCascadeAsync(node.Composer);
+                    UpdatePieceCounts(vm);
+                    ApplySortedFilter(vm);
+
+                    var headline = result.PiecesDeleted > 0
+                        ? $"Rejected and deleted {name} and {result.PiecesDeleted} piece(s)"
+                        : $"Rejected and deleted {name}";
+                    var extras = new List<string>();
+                    if (result.RefsStripped    > 0) extras.Add($"{result.RefsStripped} album track ref(s)");
+                    if (result.CreditsStripped > 0) extras.Add($"{result.CreditsStripped} contributor credit(s)");
+                    vm.StatusMessage = extras.Count > 0
+                        ? $"{headline} (also removed {string.Join(", ", extras)})."
+                        : $"{headline}.";
+                }
+                catch (Exception ex)
+                {
+                    vm.StatusMessage = $"Could not delete {name}: {ex.Message}";
+                    MessageBox.Show(vm.StatusMessage, "Reject Composer",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
                 break;
             }
             case CanonPiece piece:
@@ -880,12 +893,24 @@ public partial class CanonView : UserControl
                     $"Delete provisional piece '{title}'?",
                     "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
                 if (confirm != MessageBoxResult.OK) return;
-                vm.Pieces.Remove(piece);
-                _suppressAutoRefresh = true;
-                await vm.SavePiecesCommand.ExecuteAsync(null);
-                UpdatePieceCounts(vm);
-                ApplySortedFilter(vm);
-                vm.StatusMessage = $"Rejected and deleted {title}.";
+
+                try
+                {
+                    _suppressAutoRefresh = true;
+                    var result = await vm.RejectPieceWithCascadeAsync(piece);
+                    UpdatePieceCounts(vm);
+                    ApplySortedFilter(vm);
+
+                    vm.StatusMessage = result.RefsStripped > 0
+                        ? $"Rejected and deleted {title} (also removed {result.RefsStripped} album track ref(s))."
+                        : $"Rejected and deleted {title}.";
+                }
+                catch (Exception ex)
+                {
+                    vm.StatusMessage = $"Could not delete {title}: {ex.Message}";
+                    MessageBox.Show(vm.StatusMessage, "Reject Piece",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
                 break;
             }
         }
