@@ -16,9 +16,41 @@ The application has three major subsystems:
 
 Per-session handoff. Each session updates this when stopping mid-stream so the next session reads it cold and is up to speed. Empty = no pending state.
 
+- **`rework/logging`** branch retired C4 (structured logging). Serilog wired with a daily rolling file sink at `%LocalAppData%\CDArchive\logs\`, `SqliteCanonDataService` instrumented with start + elapsed-ms entries for each `SaveXxxAsync`. **Action item for the user:** smoke-test by running the app, hitting Save on any subsystem, and confirming `cdarchive-YYYYMMDD.log` shows the entry. Next priority per the refreshed Top-5 in `Rework.md` is C3 (bare-catch sites), now unblocked.
 - **`feature/tracklist`** branch landed the Tracks list and the loose-tracks subsystem. See `## Tracks list and loose tracks` below for the model. **Action item for the user:** run `dotnet run --project tools/CDArchive.Tools.SeedDb -- --promote-loose-tracks` (dry-run) then `--apply` to convert existing synthetic single-track wrapper albums in the local DB. Real albums with Label / Catalogue / ArchiveFolder / Sessions / track-level Performer overrides are auto-skipped.
 - **Stashed work — `stash@{0}: WIP: markers refactor + Various composer`** is preserved on disk. Contains in-progress JSON edits that introduce a unified `markers` array on pieces (replacing per-piece `tempos` / `first_line` shape) and a `(Various)` sentinel composer for collaborative works like `L'éventail de Jeanne`. Independent of the tracklist work; revisit when ready to address multi-composer pieces.
 - **Multi-composer pieces (`L'éventail de Jeanne` etc.)** remains the one open canon-data deferral — see the *Multi-composer pieces have no primary composer field* lesson. The stashed work above sketches a `(Various)` sentinel composer; needs a design call before implementation.
+
+---
+
+## Active rework backlog — see `Rework.md`
+
+`Rework.md` at the repo root is the master technical backlog. 244 findings across Critical / High / Medium / Low / Nit, each with a file:line reference, why it matters, and a suggested fix. It also defines the working-through protocol in its own `## Working through this document` section.
+
+**When asked to "address findings", "work the rework backlog", "tackle next priorities" or similar:**
+
+1. **Open `Rework.md` first.** Read its `## Working through this document` and `## Top 5 priorities (start here)` sections. They are the source of truth for the protocol — don't try to reconstruct it from memory.
+
+2. **Pick the next finding(s).** In order:
+   - If the Top-5 list still has open items, work from there first.
+   - Otherwise: Critical → High → Medium → Low → Nit, numeric within each priority.
+   - **Bundle related findings.** Many entries cross-reference each other (e.g. C3 + C9 are both "bare catch blocks"; H35 + L29 + N29 are all "no shared resource dictionary"). Read cross-references and address the natural batch in one session — retire them together.
+
+3. **Address each finding.** Apply the suggested fix as a starting point, not a prescription. Implementation often surfaces constraints the review didn't see; if so, document them in the retirement note or as a fresh finding.
+
+4. **Add a regression test where feasible.** H40 in `Rework.md` flags that no Critical/High has a test today; landing tests alongside fixes prevents future drift. VM-layer fixes likely need H39 done first (create a `CDArchive.App.Tests` project).
+
+5. **Verify.** Build + tests pass (`dotnet build` then `dotnet test`); for behavioural fixes (e.g. C13 atomic write, C8 ffmpeg arg escaping), exercise manually too.
+
+6. **Retire the finding(s).** Move each entry from its severity section to the `✅ Retired` section at the bottom of `Rework.md`. Append a single line: `[YYYY-MM-DD] <short-commit-sha> — <one-line description of fix>`. Update the summary table counts at the top of the file (decrement the severity counter, decrement the total).
+
+7. **Re-evaluate the Top-5 list.** If a Top-5 item retired, promote the next-most-impactful Critical/High item into the list. If none left in those severities, demote the section to "Top 5 priorities" → "Top 3 priorities" etc.
+
+8. **Cross-link Lessons Learned here in `CLAUDE.md`** if the fix surfaced a non-obvious trap. Use the same Problem → Solution → Corollary pattern as the existing entries. The intent is that the *next* contributor doesn't re-discover what was just learned.
+
+**Deferring instead of retiring**: if a finding is intentionally not being addressed in this pass (architectural cost too high, blocks on a prior finding, requires a feature decision the user isn't ready to make), move it to the `🟡 Deferred` section at the bottom of `Rework.md` with a one-line reason. Don't delete; the rationale matters when revisiting.
+
+**Session etiquette**: at the start of each "address findings" session, do a quick read of the most-recent retirements in `Rework.md` to understand what's already been changed (mtime + git log will show this if the file's grown). At the end of each session, leave `Rework.md`'s summary table accurate and the Top-5 list refreshed — that's what the next session reads first.
 
 ---
 
@@ -784,6 +816,22 @@ Locked in by AlbumsView.xaml and AlbumEditorWindow.xaml. The whole stack must be
 **Problem**: `album_performers` now anchors on either album-level (`track_id IS NULL`), track-level on an album-bound track (both set), or track-level on a loose track (`album_id IS NULL, track_id` set). With both columns nullable, a buggy caller could insert a credit with both NULL — a row that doesn't belong to anything.
 
 **Solution**: The `ck_album_performers_has_owner` CHECK constraint (`album_id IS NOT NULL OR track_id IS NOT NULL`) rejects floating credits at the DB level. Same idea as the existing `ck_piece_composer_credits_exactly_one_owner` / `ck_piece_catalog_entries_exactly_one_owner` patterns — when one of several FKs may be set, the schema enforces "at least one" (or "exactly one") as a CHECK.
+
+### `AddCoreServices` must call `AddLogging()`, not `TryAdd(NullLogger<T>)`
+
+**Problem**: The first cut of `AddCoreServices` wired up `services.TryAdd(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(NullLogger<>)))` so that tests / hosts that forgot to call `AddLogging` would still resolve `ILogger<T>`. The App project then called `services.AddLogging(b => b.AddSerilog(Log.Logger))` after `AddCoreServices()` — and Serilog never received any log events. Resolving `ILogger<SqliteCanonDataService>` still returned `NullLogger<T>`.
+
+Reason: `AddLogging` internally uses `TryAdd` for both `ILoggerFactory` and `ILogger<>`. Once `AddCoreServices` had pre-registered `NullLogger<T>`, the host's later `AddLogging` call no-op'd those descriptors. The Serilog provider was added (as an `ILoggerProvider` via `TryAddEnumerable`, which does append), but it was attached to a `LoggerFactory` that nothing resolved through — `ILogger<T>` resolution short-circuited to the pre-registered `NullLogger<T>`. Caught by `LoggingPlumbingTests.AddCoreServices_HonoursHostLoggingProvider_WhenAddLoggingIsCalledAfter`.
+
+**Solution**: `AddCoreServices` calls `services.AddLogging()` — the canonical pipeline. Hosts that want providers call `AddLogging(b => b.AddSerilog(...))` afterwards; `ILoggerProvider` is registered via `TryAddEnumerable`, which appends, so Serilog joins any other providers on the same factory. Tests that skip the second call still get a working `ILogger<T>` that emits nothing (no providers attached) — equivalent to `NullLogger` in behaviour but resolved through the real pipeline.
+
+**Corollary**: When extending a DI surface that downstream consumers will layer onto via `AddXxx` helpers, prefer calling the canonical `AddXxx` yourself rather than reaching for `TryAdd(SomeNullImpl)`. The `TryAdd` semantics ("only if not registered") interact badly with framework `AddXxx` calls, which themselves use `TryAdd` and won't override your stub.
+
+### Where the logs live
+
+Application logs roll daily to `%LocalAppData%\CDArchive\logs\cdarchive-YYYYMMDD.log` (14 files retained, shared-write so a tail or second process can read concurrently). Serilog is configured in `App.OnStartup` *before* the ServiceProvider is built so startup failures land in the file. Unhandled `DispatcherUnhandledException` and `AppDomain.UnhandledException` both go through `Log.Fatal` + `CloseAndFlush` so a crash flushes its diagnostic before exit. The Debug sink mirrors output into the VS / Rider Output window during dev.
+
+`SqliteCanonDataService` emits Information-level start + elapsed-ms entries for each `SaveXxxAsync`. When investigating a save bug, that log line tells you *which* subsystem was saved, *when*, and how long it took — useful when the user reports "saving felt slow" or "I edited an album but nothing changed".
 
 ---
 

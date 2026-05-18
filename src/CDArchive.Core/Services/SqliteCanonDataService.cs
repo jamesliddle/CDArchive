@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -5,6 +6,8 @@ using System.Text.Json.Serialization;
 using CDArchive.Core.Data;
 using CDArchive.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.Core.Services;
 
@@ -43,6 +46,7 @@ public class SqliteCanonDataService : ICanonDataService
 {
     private readonly IDbContextFactory<CanonDbContext> _dbFactory;
     private readonly CanonDataService _jsonService;
+    private readonly ILogger<SqliteCanonDataService> _logger;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
@@ -66,10 +70,14 @@ public class SqliteCanonDataService : ICanonDataService
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    public SqliteCanonDataService(IDbContextFactory<CanonDbContext> dbFactory, CanonDataService jsonService)
+    public SqliteCanonDataService(
+        IDbContextFactory<CanonDbContext> dbFactory,
+        CanonDataService jsonService,
+        ILogger<SqliteCanonDataService>? logger = null)
     {
         _dbFactory   = dbFactory;
         _jsonService = jsonService;
+        _logger      = logger ?? NullLogger<SqliteCanonDataService>.Instance;
     }
 
     public string ComposersFilePath    => _jsonService.ComposersFilePath;
@@ -470,6 +478,8 @@ public class SqliteCanonDataService : ICanonDataService
 
     public async Task SaveComposersAsync(List<CanonComposer> composers)
     {
+        var __sw = Stopwatch.StartNew();
+        _logger.LogInformation("SaveComposers starting ({Count} input)", composers.Count);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
@@ -560,6 +570,8 @@ public class SqliteCanonDataService : ICanonDataService
             if (_composerIds.TryGetValue(model, out var h)) h.Id = row.Id;
             else _composerIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
         }
+
+        _logger.LogInformation("SaveComposers completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -609,6 +621,12 @@ public class SqliteCanonDataService : ICanonDataService
 
     public async Task SavePickListsAsync(CanonPickLists pickLists)
     {
+        var __sw = Stopwatch.StartNew();
+        var __inputCount = pickLists.Forms.Count + pickLists.Categories.Count
+            + pickLists.CatalogPrefixes.Count + pickLists.KeyTonalities.Count
+            + pickLists.VoiceTypes.Count + pickLists.Instruments.Count
+            + (pickLists.Ensembles?.Count ?? 0);
+        _logger.LogInformation("SavePickLists starting ({Count} input values)", __inputCount);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
@@ -649,6 +667,8 @@ public class SqliteCanonDataService : ICanonDataService
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
+
+        _logger.LogInformation("SavePickLists completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     private static void AddStringList(CanonDbContext db, string listName, IList<string> values)
@@ -973,6 +993,8 @@ public class SqliteCanonDataService : ICanonDataService
 
     public async Task SavePiecesAsync(List<CanonPiece> pieces)
     {
+        var __sw = Stopwatch.StartNew();
+        _logger.LogInformation("SavePieces starting ({Count} input)", pieces.Count);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
@@ -1135,6 +1157,8 @@ public class SqliteCanonDataService : ICanonDataService
             if (_versionIds.TryGetValue(m, out var h)) h.Id = r.Id;
             else _versionIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
         }
+
+        _logger.LogInformation("SavePieces completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     /// <summary>
@@ -1997,6 +2021,8 @@ public class SqliteCanonDataService : ICanonDataService
 
     public async Task SaveAlbumsAsync(List<CanonAlbum> albums)
     {
+        var __sw = Stopwatch.StartNew();
+        _logger.LogInformation("SaveAlbums starting ({Count} input)", albums.Count);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
@@ -2097,6 +2123,8 @@ public class SqliteCanonDataService : ICanonDataService
             if (_albumIds.TryGetValue(model, out var h)) h.Id = row.Id;
             else _albumIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
         }
+
+        _logger.LogInformation("SaveAlbums completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -2180,6 +2208,8 @@ public class SqliteCanonDataService : ICanonDataService
 
     public async Task SaveLooseTracksAsync(List<AlbumTrack> tracks)
     {
+        var __sw = Stopwatch.StartNew();
+        _logger.LogInformation("SaveLooseTracks starting ({Count} input)", tracks.Count);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
@@ -2258,6 +2288,8 @@ public class SqliteCanonDataService : ICanonDataService
             if (_looseTrackIds.TryGetValue(model, out var h)) h.Id = row.Id;
             else _looseTrackIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
         }
+
+        _logger.LogInformation("SaveLooseTracks completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     private static void ApplyLooseTrackFields(AlbumTrackRow row, AlbumTrack model)

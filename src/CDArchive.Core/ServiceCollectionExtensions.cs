@@ -9,6 +9,14 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
+        // Make ILogger<T> + ILoggerFactory resolvable for every consumer.
+        // A host that wants real log output (the App project does, via Serilog)
+        // then calls services.AddLogging(b => b.AddSerilog(...)) — the resulting
+        // ILoggerProvider is appended to the same LoggerFactory registered here.
+        // Tests that don't call AddLogging again still get a working pipeline
+        // with no providers attached, which is effectively a no-op.
+        services.AddLogging();
+
         services.AddSingleton<IArchiveSettings, ArchiveSettings>();
         services.AddSingleton<IArchiveAudioLocator, ArchiveAudioLocator>();
         services.AddSingleton<IAudioPlayerService, NAudioPlayerService>();
