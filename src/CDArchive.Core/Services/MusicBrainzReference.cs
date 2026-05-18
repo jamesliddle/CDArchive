@@ -3,6 +3,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Web;
 using CDArchive.Core.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.Core.Services;
 
@@ -16,6 +18,7 @@ public class MusicBrainzReference : ICatalogueReference
     public string SourceName => "MusicBrainz";
 
     private readonly HttpClient _http;
+    private readonly ILogger<MusicBrainzReference> _logger;
     private DateTime _lastRequest = DateTime.MinValue;
     private static readonly TimeSpan RateLimit = TimeSpan.FromMilliseconds(1100);
 
@@ -24,9 +27,12 @@ public class MusicBrainzReference : ICatalogueReference
         PropertyNameCaseInsensitive = true
     };
 
-    public MusicBrainzReference(HttpClient? httpClient = null)
+    public MusicBrainzReference(
+        HttpClient? httpClient = null,
+        ILogger<MusicBrainzReference>? logger = null)
     {
-        _http = httpClient ?? CreateDefaultClient();
+        _http   = httpClient ?? CreateDefaultClient();
+        _logger = logger ?? NullLogger<MusicBrainzReference>.Instance;
     }
 
     public async Task<ComposerInfo?> LookupComposerAsync(string lastName, string? firstName = null)
@@ -116,13 +122,44 @@ public class MusicBrainzReference : ICatalogueReference
         {
             var response = await _http.GetAsync(url);
             if (!response.IsSuccessStatusCode)
+            {
+                var status = (int)response.StatusCode;
+                if (status == 404)
+                {
+                    _logger.LogInformation("MusicBrainz {Url} returned 404 (no match)", url);
+                }
+                else if (status >= 500)
+                {
+                    // 503 in particular is what MusicBrainz returns when we've
+                    // violated the 1-req/sec policy. C10 covers the thread-safe
+                    // rate-limit gate that prevents this; logging here makes it
+                    // diagnosable in the meantime.
+                    _logger.LogWarning("MusicBrainz {Url} returned {Status} (server error / rate-limit)", url, status);
+                }
+                else
+                {
+                    _logger.LogWarning("MusicBrainz {Url} returned {Status}", url, status);
+                }
                 return null;
+            }
 
             var json = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<T>(json, JsonOptions);
         }
-        catch
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "MusicBrainz request to {Url} failed (network error)", url);
+            return null;
+        }
+        catch (TaskCanceledException ex)
+        {
+            // HttpClient.Timeout fires as TaskCanceledException.
+            _logger.LogWarning(ex, "MusicBrainz request to {Url} timed out", url);
+            return null;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "MusicBrainz response from {Url} failed to parse as {Type}", url, typeof(T).Name);
             return null;
         }
     }

@@ -3,6 +3,8 @@ using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.App.ViewModels;
 
@@ -18,6 +20,7 @@ public partial class TracksViewModel : ObservableObject
     private readonly AlbumsViewModel _albumsVm;
     private readonly ICanonDataService _svc;
     private readonly PieceReferenceIndex _refIndex;
+    private readonly ILogger<TracksViewModel> _logger;
 
     // Loose tracks (singletons with no owning album). Loaded alongside albums
     // and folded into the row list. Persisted separately via SaveLooseTracksAsync.
@@ -37,11 +40,16 @@ public partial class TracksViewModel : ObservableObject
     public string SortColumn    { get; set; } = "AlbumTitle";
     public bool   SortAscending { get; set; } = true;
 
-    public TracksViewModel(AlbumsViewModel albumsVm, ICanonDataService svc, PieceReferenceIndex refIndex)
+    public TracksViewModel(
+        AlbumsViewModel albumsVm,
+        ICanonDataService svc,
+        PieceReferenceIndex refIndex,
+        ILogger<TracksViewModel>? logger = null)
     {
         _albumsVm = albumsVm;
         _svc      = svc;
         _refIndex = refIndex;
+        _logger   = logger ?? NullLogger<TracksViewModel>.Instance;
     }
 
     /// <summary>Public read-only access to the loose-track list (for tests and the view).</summary>
@@ -151,7 +159,10 @@ public partial class TracksViewModel : ObservableObject
             var freshAlbums = await _svc.LoadAlbumsAsync();
             _refIndex.RebuildContainers(freshAlbums, _looseTracks);
         }
-        catch { /* non-fatal */ }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "PieceReferenceIndex container rebuild failed after Tracks save; badge counts may be stale");
+        }
     }
 
     /// <summary>
@@ -161,8 +172,14 @@ public partial class TracksViewModel : ObservableObject
     public async Task SaveLooseTracksAsync()
     {
         await _svc.SaveLooseTracksAsync(_looseTracks);
-        try { _refIndex.RebuildContainers(_albumsVm.AllAlbums, _looseTracks); }
-        catch { /* non-fatal */ }
+        try
+        {
+            _refIndex.RebuildContainers(_albumsVm.AllAlbums, _looseTracks);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "PieceReferenceIndex container rebuild failed after loose-track save; badge counts may be stale");
+        }
     }
 
     /// <summary>

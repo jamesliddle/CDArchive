@@ -5,6 +5,8 @@ using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.App.ViewModels;
 
@@ -12,6 +14,7 @@ public partial class AlbumsViewModel : ObservableObject
 {
     private readonly ICanonDataService _svc;
     private readonly PieceReferenceIndex _refIndex;
+    private readonly ILogger<AlbumsViewModel> _logger;
 
     // Full unfiltered list; Albums is the sorted+filtered view.
     private List<CanonAlbum> _allAlbums = [];
@@ -27,10 +30,14 @@ public partial class AlbumsViewModel : ObservableObject
     public string SortColumn    { get; set; } = "DisplayTitle";
     public bool   SortAscending { get; set; } = true;
 
-    public AlbumsViewModel(ICanonDataService svc, PieceReferenceIndex refIndex)
+    public AlbumsViewModel(
+        ICanonDataService svc,
+        PieceReferenceIndex refIndex,
+        ILogger<AlbumsViewModel>? logger = null)
     {
         _svc = svc;
         _refIndex = refIndex;
+        _logger = logger ?? NullLogger<AlbumsViewModel>.Instance;
     }
 
     // ── Data access ──────────────────────────────────────────────────────────
@@ -61,7 +68,10 @@ public partial class AlbumsViewModel : ObservableObject
                 var looseTracks = await _svc.LoadLooseTracksAsync();
                 _refIndex.RebuildContainers(_allAlbums, looseTracks);
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PieceReferenceIndex container rebuild failed after LoadAlbums; badge counts may be stale");
+            }
         }
         catch (Exception ex)
         {
@@ -78,7 +88,14 @@ public partial class AlbumsViewModel : ObservableObject
         await _svc.SaveAlbumsAsync(_allAlbums);
         // Track → piece links may have changed; rebuild the cross-reference index
         // using the cached piece instances (see comment in LoadDataAsync).
-        try { _refIndex.RebuildAlbums(_allAlbums); } catch { /* non-fatal */ }
+        try
+        {
+            _refIndex.RebuildAlbums(_allAlbums);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "PieceReferenceIndex album rebuild failed after SaveAlbums; badge counts may be stale");
+        }
     }
 
     // ── Filtering ────────────────────────────────────────────────────────────
