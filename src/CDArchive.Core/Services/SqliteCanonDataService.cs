@@ -483,6 +483,23 @@ public class SqliteCanonDataService : ICanonDataService
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
+        var apply = await SaveComposersCoreAsync(db, composers).ConfigureAwait(false);
+        apply();
+
+        _logger.LogInformation("SaveComposers completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// The transactional body of <see cref="SaveComposersAsync"/>. Takes an
+    /// already-open <see cref="CanonDbContext"/> (and the caller's outer
+    /// transaction, if any), runs the upsert + orphan-delete passes inside it,
+    /// and returns the CWT-id-update closure to apply after the caller commits.
+    /// Used both by the public single-subsystem method and by
+    /// <see cref="SaveBatchAsync"/> where multiple Save*Core calls share one
+    /// transaction.
+    /// </summary>
+    private async Task<Action> SaveComposersCoreAsync(CanonDbContext db, List<CanonComposer> composers)
+    {
         var existing = await db.Composers
             .Include(c => c.Aliases)
             .Include(c => c.CatalogPrefixes)
@@ -565,13 +582,16 @@ public class SqliteCanonDataService : ICanonDataService
             }
         }
 
-        foreach (var (model, row) in matched)
+        // CWT updates run after the caller commits, so a rolled-back batch
+        // doesn't leave stale row ids on the in-memory models.
+        return () =>
         {
-            if (_composerIds.TryGetValue(model, out var h)) h.Id = row.Id;
-            else _composerIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
-        }
-
-        _logger.LogInformation("SaveComposers completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+            foreach (var (model, row) in matched)
+            {
+                if (_composerIds.TryGetValue(model, out var h)) h.Id = row.Id;
+                else _composerIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
+            }
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -998,6 +1018,19 @@ public class SqliteCanonDataService : ICanonDataService
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
+        var apply = await SavePiecesCoreAsync(db, pieces).ConfigureAwait(false);
+        apply();
+
+        _logger.LogInformation("SavePieces completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// Transactional body of <see cref="SavePiecesAsync"/> — see the docstring
+    /// on <see cref="SaveComposersCoreAsync"/> for the contract. Used by the
+    /// public method and by <see cref="SaveBatchAsync"/>.
+    /// </summary>
+    private async Task<Action> SavePiecesCoreAsync(CanonDbContext db, List<CanonPiece> pieces)
+    {
         // Resolve composer name → id for every input piece. Composers are
         // expected to exist already (saved separately). Also pull each composer's
         // ordered CatalogPrefixes preference so we can normalize CatalogInfo
@@ -1146,19 +1179,21 @@ public class SqliteCanonDataService : ICanonDataService
             // is GC-aware) — no explicit removal required here.
         }
 
-        // Update CWT for every piece / version we touched.
-        foreach (var (m, r) in matched)
+        // Update CWT for every piece / version we touched — deferred until the
+        // caller commits so a rolled-back batch doesn't leave stale row ids.
+        return () =>
         {
-            if (_pieceIds.TryGetValue(m, out var h)) h.Id = r.Id;
-            else _pieceIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
-        }
-        foreach (var (m, r) in matchedVersions)
-        {
-            if (_versionIds.TryGetValue(m, out var h)) h.Id = r.Id;
-            else _versionIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
-        }
-
-        _logger.LogInformation("SavePieces completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+            foreach (var (m, r) in matched)
+            {
+                if (_pieceIds.TryGetValue(m, out var h)) h.Id = r.Id;
+                else _pieceIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
+            }
+            foreach (var (m, r) in matchedVersions)
+            {
+                if (_versionIds.TryGetValue(m, out var h)) h.Id = r.Id;
+                else _versionIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
+            }
+        };
     }
 
     /// <summary>
@@ -2025,7 +2060,24 @@ public class SqliteCanonDataService : ICanonDataService
         _logger.LogInformation("SaveAlbums starting ({Count} input)", albums.Count);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
 
+        var apply = await SaveAlbumsCoreAsync(db, albums).ConfigureAwait(false);
+
+        await tx.CommitAsync().ConfigureAwait(false);
+        apply();
+
+        _logger.LogInformation("SaveAlbums completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// Transactional body of <see cref="SaveAlbumsAsync"/>. The caller owns the
+    /// <see cref="CanonDbContext"/> and the transaction — this helper performs
+    /// the load-mutate-save merge and a single <c>SaveChangesAsync</c>, but
+    /// does not commit. See <see cref="SaveComposersCoreAsync"/> for the contract.
+    /// </summary>
+    private async Task<Action> SaveAlbumsCoreAsync(CanonDbContext db, List<CanonAlbum> albums)
+    {
         // Resolve track-piece refs against the live piece tree.
         var (currentPieces, pieceModelByRowId, versionModelByRowId, _, _) =
             await LoadAllPiecesInternalAsync(db).ConfigureAwait(false);
@@ -2044,8 +2096,7 @@ public class SqliteCanonDataService : ICanonDataService
         // album to an existing row, and merge in place by natural key at every
         // level — UPDATE for matched children, INSERT for new, DELETE for
         // orphans. Row IDs survive unchanged content; a constraint failure
-        // rolls back via the transaction without touching unrelated rows.
-        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
+        // rolls back via the caller's transaction without touching unrelated rows.
 
         var existing = await db.Albums
             .Include(a => a.Volumes)
@@ -2108,23 +2159,23 @@ public class SqliteCanonDataService : ICanonDataService
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
-        await tx.CommitAsync().ConfigureAwait(false);
 
-        foreach (var (m, r) in inserted)
+        return () =>
         {
-            if (_albumIds.TryGetValue(m, out var h)) h.Id = r.Id;
-            else _albumIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
-        }
-        // Matched (in-place) rows already carry their stable Id; the CWT mapping
-        // is only set up at Load time, so refresh it for any model that hit the
-        // IdentityKey fallback path.
-        foreach (var (model, row) in matched)
-        {
-            if (_albumIds.TryGetValue(model, out var h)) h.Id = row.Id;
-            else _albumIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
-        }
-
-        _logger.LogInformation("SaveAlbums completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+            foreach (var (m, r) in inserted)
+            {
+                if (_albumIds.TryGetValue(m, out var h)) h.Id = r.Id;
+                else _albumIds.AddOrUpdate(m, new IdHandle { Id = r.Id });
+            }
+            // Matched (in-place) rows already carry their stable Id; the CWT mapping
+            // is only set up at Load time, so refresh it for any model that hit the
+            // IdentityKey fallback path.
+            foreach (var (model, row) in matched)
+            {
+                if (_albumIds.TryGetValue(model, out var h)) h.Id = row.Id;
+                else _albumIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
+            }
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -2212,7 +2263,25 @@ public class SqliteCanonDataService : ICanonDataService
         _logger.LogInformation("SaveLooseTracks starting ({Count} input)", tracks.Count);
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
 
+        var apply = await SaveLooseTracksCoreAsync(db, tracks).ConfigureAwait(false);
+
+        await tx.CommitAsync().ConfigureAwait(false);
+        apply();
+
+        _logger.LogInformation("SaveLooseTracks completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// Transactional body of <see cref="SaveLooseTracksAsync"/>. Caller owns
+    /// the <see cref="CanonDbContext"/> and transaction. The two-stage save
+    /// inside (inserts first to materialize row ids, then piece-refs/performers)
+    /// is fine because both stages share the caller's transaction. See
+    /// <see cref="SaveComposersCoreAsync"/> for the contract.
+    /// </summary>
+    private async Task<Action> SaveLooseTracksCoreAsync(CanonDbContext db, List<AlbumTrack> tracks)
+    {
         // Resolver setup — same shape as SaveAlbumsAsync.
         var (currentPieces, pieceModelByRowId, versionModelByRowId, _, _) =
             await LoadAllPiecesInternalAsync(db).ConfigureAwait(false);
@@ -2222,8 +2291,6 @@ public class SqliteCanonDataService : ICanonDataService
         foreach (var (id, m) in versionModelByRowId) rowIdByVersionModel[m] = id;
         var resolver = new PieceReferenceIndex();
         resolver.BuildResolver(currentPieces);
-
-        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
 
         var existing = await db.AlbumTracks
             .Where(t => t.DiscId == null)
@@ -2281,15 +2348,63 @@ public class SqliteCanonDataService : ICanonDataService
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
+
+        return () =>
+        {
+            foreach (var (model, row) in matched.Select(kv => (kv.Key, kv.Value)).Concat(inserted))
+            {
+                if (_looseTrackIds.TryGetValue(model, out var h)) h.Id = row.Id;
+                else _looseTrackIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
+            }
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Atomic batch save
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task SaveBatchAsync(
+        List<CanonComposer>? composers = null,
+        List<CanonPiece>? pieces = null,
+        List<CanonAlbum>? albums = null,
+        List<AlbumTrack>? looseTracks = null)
+    {
+        if (composers is null && pieces is null && albums is null && looseTracks is null)
+            return;
+
+        var __sw = Stopwatch.StartNew();
+        _logger.LogInformation(
+            "SaveBatch starting (composers={Composers}, pieces={Pieces}, albums={Albums}, looseTracks={LooseTracks})",
+            composers?.Count, pieces?.Count, albums?.Count, looseTracks?.Count);
+
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
+
+        // Run each subsystem's core helper inside the shared transaction. Order
+        // matters: pieces.composer_id FK requires composers to exist, and
+        // album/loose-track piece refs need the piece tree current. The Core
+        // helpers stage writes via SaveChangesAsync — none commit until the
+        // single tx.CommitAsync below, so any failure rolls every subsystem
+        // back. CWT id updates are queued as post-commit actions so a
+        // rolled-back batch doesn't leave the in-memory models pointing at
+        // ghost row ids.
+        var post = new List<Action>(4);
+        if (composers is not null)
+            post.Add(await SaveComposersCoreAsync(db, composers).ConfigureAwait(false));
+        if (pieces is not null)
+            post.Add(await SavePiecesCoreAsync(db, pieces).ConfigureAwait(false));
+        if (albums is not null)
+            post.Add(await SaveAlbumsCoreAsync(db, albums).ConfigureAwait(false));
+        if (looseTracks is not null)
+            post.Add(await SaveLooseTracksCoreAsync(db, looseTracks).ConfigureAwait(false));
+
         await tx.CommitAsync().ConfigureAwait(false);
 
-        foreach (var (model, row) in matched.Select(kv => (kv.Key, kv.Value)).Concat(inserted))
-        {
-            if (_looseTrackIds.TryGetValue(model, out var h)) h.Id = row.Id;
-            else _looseTrackIds.AddOrUpdate(model, new IdHandle { Id = row.Id });
-        }
+        foreach (var apply in post) apply();
 
-        _logger.LogInformation("SaveLooseTracks completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+        _logger.LogInformation("SaveBatch completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     private static void ApplyLooseTrackFields(AlbumTrackRow row, AlbumTrack model)

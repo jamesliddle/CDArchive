@@ -285,4 +285,25 @@ public class CanonDataService : ICanonDataService
         await File.WriteAllTextAsync(PickListsFilePath, json);
     }
 
+    /// <summary>
+    /// JSON-side batch save: writes each non-null subsystem to its file in
+    /// sequence. Unlike the SQLite implementation this is best-effort — there
+    /// is no cross-file atomicity primitive on a regular filesystem — but the
+    /// JSON service is only used for explicit user-driven export, not for
+    /// runtime persistence, so cross-save atomicity isn't load-bearing here.
+    /// The contract on <see cref="ICanonDataService.SaveBatchAsync"/> is
+    /// satisfied behaviourally by the SQLite implementation; this stub keeps
+    /// the interface uniform.
+    /// </summary>
+    public async Task SaveBatchAsync(
+        List<CanonComposer>? composers = null,
+        List<CanonPiece>? pieces = null,
+        List<CanonAlbum>? albums = null,
+        List<AlbumTrack>? looseTracks = null)
+    {
+        if (composers   is not null) await SaveComposersAsync(composers).ConfigureAwait(false);
+        if (pieces      is not null) await SavePiecesAsync(pieces).ConfigureAwait(false);
+        if (albums      is not null) await SaveAlbumsAsync(albums).ConfigureAwait(false);
+        if (looseTracks is not null) await SaveLooseTracksAsync(looseTracks).ConfigureAwait(false);
+    }
 }
