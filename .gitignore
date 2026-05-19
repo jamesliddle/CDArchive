@@ -26,3 +26,30 @@ Thumbs.db
 
 # Test results
 TestResults/
+
+# MSBuild diagnostic logs (msbuild -bl / binlog viewer output)
+*.binlog
+
+# WPF tooling spits out *_wpftmp.csproj files during XAML compilation —
+# they're scratch projects, never source.
+*_wpftmp.csproj
+
+# Python bytecode cache (a couple of helper scripts live under scripts/)
+__pycache__/
+
+# Claude Code's local-session metadata; never source.
+.claude/
+
+# CDArchive runtime data — JSON snapshots are tracked (textual source of
+# truth, regenerable from the seeder), the SQLite DB and its sidecars are
+# not (binary, regenerable from the JSON via `dotnet run --project
+# tools/CDArchive.Tools.SeedDb`). Backup variants in any flavour the
+# seeder / pre-migration scripts produce (`.bak`, `.bak.<timestamp>`,
+# `.bak-<timestamp>`, `.bak,pre-foo`, etc.) are likewise transient.
+data/*.db*
+*.bak*
+
+# scripts/_work/ holds intermediate state dumped by the helper scripts
+# during a one-off migration run (text/json scratch). The scripts that
+# produce them are tracked under scripts/; the outputs are transient.
+scripts/_work/
