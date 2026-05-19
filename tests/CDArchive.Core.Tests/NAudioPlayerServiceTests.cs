@@ -1,4 +1,6 @@
+using CDArchive.Core;
 using CDArchive.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
 using NAudio.Wave;
 
 namespace CDArchive.Core.Tests;
@@ -120,6 +122,25 @@ public class NAudioPlayerServiceTests : IDisposable
         svc.Load(path);
         svc.Pause();
         Assert.Equal(PlayerState.Stopped, svc.State);
+    }
+
+    [Fact]
+    public void DisposingServiceProvider_DisposesSingletonPlayer()
+    {
+        // Locks in the contract App.OnExit relies on: disposing the DI container
+        // must cascade Dispose() to NAudioPlayerService (which owns a Timer,
+        // MediaFoundationReader, and WaveOutEvent — leaks the audio device on
+        // crash exit if missed). See Rework.md C1.
+        var services = new ServiceCollection();
+        services.AddCoreServices();
+        var provider = services.BuildServiceProvider();
+
+        var player = (NAudioPlayerService)provider.GetRequiredService<IAudioPlayerService>();
+        Assert.False(player.IsDisposed);
+
+        provider.Dispose();
+
+        Assert.True(player.IsDisposed);
     }
 
     [Fact]

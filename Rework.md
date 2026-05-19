@@ -17,12 +17,12 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 ## Top 5 priorities (start here)
 
 1. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
-2. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
-3. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
-4. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
-5. **Stop tests from mutating the LIVE production data directory.** `SaveOperations_DoNotTouchJsonFiles` and `Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent` run against the real `data/` — a crash mid-test can leave the user's DB partially written or `Classical Canon composers.json` renamed and unrestored. Spin up a temp dir per test (the pattern `AlbumSaveInPlaceTests` uses) or gate behind a CI-off `[Trait("Category","LiveData")]`. (C15)
+2. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
+3. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
+4. **Stop tests from mutating the LIVE production data directory.** `SaveOperations_DoNotTouchJsonFiles` and `Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent` run against the real `data/` — a crash mid-test can leave the user's DB partially written or `Classical Canon composers.json` renamed and unrestored. Spin up a temp dir per test (the pattern `AlbumSaveInPlaceTests` uses) or gate behind a CI-off `[Trait("Category","LiveData")]`. (C15)
+5. **Trim `SaveAlbumsAsync`'s full-graph load.** Loads every album's full graph on every save (`.Include(...).ThenInclude(...)` over Volumes, Sessions, Performers, Discs→Tracks→PieceRefs/Performers) just to save one edited album. Bearable at 99 albums; multi-second hang at the 3,000-CD target. Load only matched albums by ID + check orphans via a lightweight `SELECT Id FROM albums`. Combined with `AsSplitQuery()` (M15) should reduce save latency 10× at scale. (C11)
 
-Honourable mention: **trim `SaveAlbumsAsync`'s full-graph load** (C11) — critical before the catalogue grows past ~500 albums.
+Honourable mention: **clean up `.gitignore`** (C7) — mechanical, repo-hygiene win.
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -59,19 +59,16 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 9 |
+| 🔴 Critical | 8 |
 | 🟠 High | 45 |
 | 🟡 Medium | 88 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **236** |
+| **Total** | **235** |
 
 ---
 
 ## 🔴 Critical
-
-### C1. ServiceProvider is never disposed → NAudio + settings leak on exit
-[App.xaml.cs:32-48](src/CDArchive.App/App.xaml.cs:32) builds a `ServiceProvider` into a static field and never disposes it. Singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `System.Threading.Timer`) never get `Dispose()` called. On normal exit this is "mostly fine" because process teardown reclaims handles, but during a crash you can leak the audio device. Wire `Application.Exit` to `ServiceProvider.Dispose()`.
 
 ### C2. Singleton `NAudioPlayerService` captures `SynchronizationContext` in its constructor
 [NAudioPlayerService.cs:54-60](src/CDArchive.Core/Services/NAudioPlayerService.cs:54) — `_sync = SynchronizationContext.Current` runs whenever the DI container first resolves the singleton. Today that's `App.OnStartup` on the UI thread, correct by accident. If anyone ever pre-resolves the service from a background thread (a startup hook, a background warm-up, a future test/headless mode) the captured context becomes null/wrong and every event fires off the UI thread, corrupting WPF bindings silently. Pass a captured `Dispatcher` or `SynchronizationContext` explicitly, or capture lazily on the first event registration from the UI thread.
@@ -1185,6 +1182,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C13. `CataloguingService.WriteFileTag` rewrites the audio file in place — non-atomic
 [2026-05-18] `rework/tag-writes` — Introduced a `TryAtomicWrite(path, mutate)` primitive on `CataloguingService`: `File.Copy(path, tmp)` to a sibling temp file in the same directory (same volume → atomic `File.Move`), invoke the mutation delegate against the temp file, then `File.Move(tmp, path, overwrite: true)`. On any failure (copy, mutation, move) the temp file is best-effort deleted and the original is left bit-identical. `WriteFileTag` is now a thin wrapper that hands the TagLib mutation to `TryAtomicWrite`. A process kill at any point during the write — power loss, OS kill, AV quarantine — leaves the source audio untouched. Locked in by `CataloguingServiceTagWriteTests` (7 tests covering happy path, mutation-throws-preserves-original byte equality, source-missing, no-directory-component, no leaked temp files in any failure path, and the file-list expansion for MP3-only vs MP3+FLAC-sibling vs empty-FLAC-folder shapes). `InternalsVisibleTo("CDArchive.Core.Tests")` added so tests can exercise the primitive without going through TagLib.
+
+### C1. `ServiceProvider` is never disposed → NAudio + settings leak on exit
+[2026-05-19] `rework/dispose-service-provider` — `App.OnExit` now disposes the `ServiceProvider` before `Log.CloseAndFlush`. Singletons that implement `IDisposable` (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `System.Threading.Timer`) get their `Dispose()` called via the DI container's standard cascade. Disposal is wrapped in try/catch so a buggy `Dispose` on one singleton can't block the others or skip the log flush. `NAudioPlayerService.IsDisposed` is exposed as an internal property (the field already existed) so the regression test can assert the cascade fires. Locked in by `NAudioPlayerServiceTests.DisposingServiceProvider_DisposesSingletonPlayer` — builds the same `AddCoreServices()` graph App.OnStartup uses, resolves `IAudioPlayerService`, disposes the provider, and asserts `IsDisposed` flips. Test project gains a `Microsoft.Extensions.DependencyInjection` package reference for the concrete `ServiceCollection` + `BuildServiceProvider`.
 
 ### C8 + H15 + H16. `FfmpegConversionService` hardened: argument escaping, source/ffmpeg checks, process timeout, partial-output cleanup, path-segment replacement
 [2026-05-19] `rework/ffmpeg-args` — Single `Arguments` string replaced with `ProcessStartInfo.ArgumentList.Add(...)` so per-argument escaping handles quotes/backslashes/spaces in source and target paths (C8). `ConvertFileAsync` now short-circuits to Failed when the source file is missing (no spurious ffmpeg invocation), catches `Win32Exception` on `Process.Start` to produce a friendly "Could not launch ffmpeg" message when the configured `FfmpegPath` is bogus, enforces a 10-minute per-file timeout via a linked `CancellationTokenSource` (kills the ffmpeg tree on expiry), and `File.Delete`s the partial `.mp3` on every failure path so a re-run doesn't see the stub as "already done" (H15). Path derivation moved to a new `DeriveMp3Path` helper that only renames the immediate parent dir when it's `FLAC`/`flac` — never a global string `.Replace("\\FLAC\\", "\\MP3\\")` — so archive roots or filenames containing "FLAC" (e.g. `D:\FLAC\Music\…`) survive intact (H16). `InternalsVisibleTo("CDArchive.Core.Tests")` added so the pure helper can be tested directly. Locked in by 8 new tests in `FfmpegConversionServiceTests`: 5 covering segment-aware path derivation across edge cases (FLAC root segment, filename containing FLAC, case-insensitive match, no FLAC segment at all), 3 covering the process-invocation error branches (missing source, missing ffmpeg with partial-output cleanup, album-path job derivation).

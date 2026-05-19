@@ -79,6 +79,16 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Information("Application exiting with code {ExitCode}", e.ApplicationExitCode);
+
+        try
+        {
+            ServiceProvider?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ServiceProvider disposal threw");
+        }
+
         Log.CloseAndFlush();
         base.OnExit(e);
     }

@@ -24,6 +24,8 @@ public sealed class NAudioPlayerService : IAudioPlayerService
     private bool _stoppedByUser;
     private bool _disposed;
 
+    internal bool IsDisposed => _disposed;
+
     public PlayerState State { get; private set; } = PlayerState.Empty;
     public string? CurrentFilePath { get; private set; }
 
