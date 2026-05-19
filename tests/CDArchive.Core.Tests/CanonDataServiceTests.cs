@@ -49,30 +49,90 @@ public class CanonDataServiceTests
     /// string from <c>ComposersFilePath</c>). After the SQLite migration, the
     /// resolver also accepts <c>ClassicalCanon.db</c> as a marker, so the data
     /// directory remains discoverable when the JSON files have been deleted.
+    ///
+    /// <para>
+    /// Previously this test mutated the production <c>data/</c> directory by
+    /// renaming the user's <c>Classical Canon composers.json</c> aside via
+    /// <see cref="File.Move(string, string)"/>; a test crash between the Move
+    /// and the restore in the finally block left the user's data directory
+    /// broken. The resolver walk lives in <see cref="CanonDataService.FindRepoDataDirectory(string)"/>
+    /// now, so this test exercises it against a temp-dir fixture and never
+    /// touches the real <c>data/</c>.
+    /// </para>
     /// </summary>
     [Fact]
-    public void Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent()
+    public void FindRepoDataDirectory_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent()
     {
-        var dataDir       = FindDataDirectory();
-        var composersJson = Path.Combine(dataDir, "Classical Canon composers.json");
-        var dbFile        = Path.Combine(dataDir, "ClassicalCanon.db");
+        // Build a fake repo tree in temp: <root>/sub/<assemblyDir>, <root>/data/.
+        // The data dir contains only ClassicalCanon.db — no composers JSON — so
+        // a successful lookup proves the dual-marker resolution works on the
+        // DB-only path.
+        var root = Path.Combine(Path.GetTempPath(), $"cdarchive-resolver-{Guid.NewGuid():N}");
+        var startFrom = Path.Combine(root, "sub", "deeper");
+        var expectedDataDir = Path.Combine(root, "data");
+        Directory.CreateDirectory(startFrom);
+        Directory.CreateDirectory(expectedDataDir);
+        File.WriteAllText(Path.Combine(expectedDataDir, "ClassicalCanon.db"), "");
 
-        // The marker only kicks in if the DB file exists. If a clean checkout
-        // hasn't been seeded yet, skip — the resolver still falls back to JSON.
-        if (!File.Exists(dbFile)) return;
-
-        var bak = composersJson + ".test-resolver-bak";
-        File.Move(composersJson, bak);
         try
         {
-            var svc          = new CanonDataService();
-            var resolvedDir  = Path.GetDirectoryName(svc.ComposersFilePath);
-            Assert.Equal(dataDir, resolvedDir);
+            var resolved = CanonDataService.FindRepoDataDirectory(startFrom);
+            Assert.Equal(expectedDataDir, resolved);
         }
         finally
         {
-            // Restore aggressively so a test failure can't corrupt the data dir.
-            if (File.Exists(bak)) File.Move(bak, composersJson, overwrite: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Companion to the above — the same resolver should also accept the JSON
+    /// marker, so an unseeded checkout (no DB file yet) still finds the data
+    /// directory. Pre-SQLite-migration behaviour preserved.
+    /// </summary>
+    [Fact]
+    public void FindRepoDataDirectory_ResolvesViaJsonMarker_WhenDatabaseAbsent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"cdarchive-resolver-{Guid.NewGuid():N}");
+        var startFrom = Path.Combine(root, "sub", "deeper");
+        var expectedDataDir = Path.Combine(root, "data");
+        Directory.CreateDirectory(startFrom);
+        Directory.CreateDirectory(expectedDataDir);
+        File.WriteAllText(Path.Combine(expectedDataDir, "Classical Canon composers.json"), "[]");
+
+        try
+        {
+            var resolved = CanonDataService.FindRepoDataDirectory(startFrom);
+            Assert.Equal(expectedDataDir, resolved);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Direct-subdirectory shortcut: when <c>startFrom/data</c> exists the
+    /// resolver returns it without walking up, even when it has no markers.
+    /// Matches the original ctor's "assemblyDir has a data folder right next
+    /// to it" fast path used in deployed builds.
+    /// </summary>
+    [Fact]
+    public void FindRepoDataDirectory_PrefersDirectChildDataFolder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"cdarchive-resolver-{Guid.NewGuid():N}");
+        var startFrom = Path.Combine(root, "deploy");
+        var directData = Path.Combine(startFrom, "data");
+        Directory.CreateDirectory(directData);
+
+        try
+        {
+            var resolved = CanonDataService.FindRepoDataDirectory(startFrom);
+            Assert.Equal(directData, resolved);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
         }
     }
 
