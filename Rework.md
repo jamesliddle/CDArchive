@@ -16,11 +16,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 ## Top 5 priorities (start here)
 
-1. **Fix `FfmpegConversionService`.** Argument escaping (command injection), source-file existence check, process timeout, partial-output cleanup, path-replacement robustness. (C8, H15, H16)
-2. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
-3. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
-4. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
-5. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
+1. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
+2. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
+3. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
+4. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
+5. **Stop tests from mutating the LIVE production data directory.** `SaveOperations_DoNotTouchJsonFiles` and `Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent` run against the real `data/` — a crash mid-test can leave the user's DB partially written or `Classical Canon composers.json` renamed and unrestored. Spin up a temp dir per test (the pattern `AlbumSaveInPlaceTests` uses) or gate behind a CI-off `[Trait("Category","LiveData")]`. (C15)
 
 Honourable mention: **trim `SaveAlbumsAsync`'s full-graph load** (C11) — critical before the catalogue grows past ~500 albums.
 
@@ -59,12 +59,12 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 10 |
-| 🟠 High | 47 |
+| 🔴 Critical | 9 |
+| 🟠 High | 45 |
 | 🟡 Medium | 88 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **239** |
+| **Total** | **236** |
 
 ---
 
@@ -89,13 +89,6 @@ Each individual save is transactional, but the sequence isn't. Either wrap in a 
 
 ### C7. `.gitignore` is missing the daily mess; DB file is committable
 The repo currently has 20+ `.bak` files, `msbuild.binlog`, `__pycache__/`, `data/*.db`, `data/*.json.bak.*`, and `_wpftmp.csproj` artifacts in `git status`. `.gitignore` covers `bin/`, `obj/`, `.vs/`, `.idea/`, but not the rest. The DB file itself probably shouldn't be in git (binary, regenerable from JSON via seeder); the JSON snapshots probably should be (textual source). Add `*.bak`, `*.binlog`, `*_wpftmp.csproj`, `__pycache__/`, `data/*.db*`, `data/*.bak.*` to `.gitignore`; keep one explicit seed file if you want a starting state in-tree.
-
-### C8. `FfmpegConversionService` — command-injection-prone argument string
-[FfmpegConversionService.cs:104](src/CDArchive.Core/Services/FfmpegConversionService.cs:104):
-```csharp
-Arguments = $"-i \"{flacPath}\" -ab {_settings.Mp3Bitrate}k -map_metadata 0 -id3v2_version 3 \"{mp3Path}\""
-```
-A file path containing `"` breaks out of the quoted argument. The catalogue includes filenames with arbitrary punctuation (composer names, work titles). `_settings.FfmpegPath` is user-configurable, increasing the surface. Use `ProcessStartInfo.ArgumentList.Add(...)` (.NET 8 has it), which escapes per-argument and removes the issue entirely.
 
 ### C10. `MusicBrainzReference` rate-limit gate is not thread-safe
 [MusicBrainzReference.cs:107-113](src/CDArchive.Core/Services/MusicBrainzReference.cs:107) — singleton lifetime, but two concurrent callers can both read `_lastRequest`, both see "1100ms elapsed", both fire — violating the 1-per-second MusicBrainz policy. MB responds with 503 and may temporarily IP-ban repeated violators. Add a `SemaphoreSlim(1,1)` around the read-update-await sequence (or use a token-bucket). Also: use `Stopwatch`/`Environment.TickCount64`, not `DateTime.UtcNow` — the latter jumps on NTP sync.
@@ -197,22 +190,6 @@ All own: details/list population, save logic with validation, field propagation,
 
 ### H14. `PieceEditorWindow.xaml.cs` is 1,114 lines and uses manual field copying between piece/version
 [PieceEditorWindow.xaml.cs:145-181](src/CDArchive.App/Views/PieceEditorWindow.xaml.cs:145) — `VersionToPiece` and `CopyPieceToVersion` manually shuttle ~20 properties between `CanonPiece` and `CanonPieceVersion`. New field added to the model needs adding to both. Either share a base abstract class with `[ObservableProperty]`s, or generate the shuttle with a source generator. At minimum, add a reflection-based test asserting every shared property name flows both ways.
-
-### H15. `FfmpegConversionService` has no source-file existence check, no process timeout, no partial-output cleanup
-[FfmpegConversionService.cs:99-148](src/CDArchive.Core/Services/FfmpegConversionService.cs:99):
-- Doesn't check `File.Exists(flacPath)` before invoking — user sees raw ffmpeg error.
-- No `Process.WaitForExitAsync(timeout)` — hung ffmpeg waits forever.
-- On failure, the partial `.mp3` is not deleted. Next run sees it as "completed" and skips.
-- No verification ffmpeg.exe exists on PATH — fresh install crashes with `Win32Exception`.
-
-### H16. `FfmpegConversionService` path-replacement is fragile
-[FfmpegConversionService.cs:30-33](src/CDArchive.Core/Services/FfmpegConversionService.cs:30):
-```csharp
-var mp3Path = track.FullPath
-    .Replace(Path.DirectorySeparatorChar + "FLAC" + Path.DirectorySeparatorChar, ...)
-    .Replace("/FLAC/", "/MP3/");
-```
-Replaces every `\FLAC\` segment in the path. A root like `D:\FLAC Archive\` gets mangled. Walk the path components instead, replacing only the segment matching the locator's convention.
 
 ### H17. `SimpleDbContextFactory` boilerplate is duplicated
 - [tools/CDArchive.Tools.SeedDb/Program.cs:323](tools/CDArchive.Tools.SeedDb/Program.cs:323)
@@ -1208,6 +1185,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C13. `CataloguingService.WriteFileTag` rewrites the audio file in place — non-atomic
 [2026-05-18] `rework/tag-writes` — Introduced a `TryAtomicWrite(path, mutate)` primitive on `CataloguingService`: `File.Copy(path, tmp)` to a sibling temp file in the same directory (same volume → atomic `File.Move`), invoke the mutation delegate against the temp file, then `File.Move(tmp, path, overwrite: true)`. On any failure (copy, mutation, move) the temp file is best-effort deleted and the original is left bit-identical. `WriteFileTag` is now a thin wrapper that hands the TagLib mutation to `TryAtomicWrite`. A process kill at any point during the write — power loss, OS kill, AV quarantine — leaves the source audio untouched. Locked in by `CataloguingServiceTagWriteTests` (7 tests covering happy path, mutation-throws-preserves-original byte equality, source-missing, no-directory-component, no leaked temp files in any failure path, and the file-list expansion for MP3-only vs MP3+FLAC-sibling vs empty-FLAC-folder shapes). `InternalsVisibleTo("CDArchive.Core.Tests")` added so tests can exercise the primitive without going through TagLib.
+
+### C8 + H15 + H16. `FfmpegConversionService` hardened: argument escaping, source/ffmpeg checks, process timeout, partial-output cleanup, path-segment replacement
+[2026-05-19] `rework/ffmpeg-args` — Single `Arguments` string replaced with `ProcessStartInfo.ArgumentList.Add(...)` so per-argument escaping handles quotes/backslashes/spaces in source and target paths (C8). `ConvertFileAsync` now short-circuits to Failed when the source file is missing (no spurious ffmpeg invocation), catches `Win32Exception` on `Process.Start` to produce a friendly "Could not launch ffmpeg" message when the configured `FfmpegPath` is bogus, enforces a 10-minute per-file timeout via a linked `CancellationTokenSource` (kills the ffmpeg tree on expiry), and `File.Delete`s the partial `.mp3` on every failure path so a re-run doesn't see the stub as "already done" (H15). Path derivation moved to a new `DeriveMp3Path` helper that only renames the immediate parent dir when it's `FLAC`/`flac` — never a global string `.Replace("\\FLAC\\", "\\MP3\\")` — so archive roots or filenames containing "FLAC" (e.g. `D:\FLAC\Music\…`) survive intact (H16). `InternalsVisibleTo("CDArchive.Core.Tests")` added so the pure helper can be tested directly. Locked in by 8 new tests in `FfmpegConversionServiceTests`: 5 covering segment-aware path derivation across edge cases (FLAC root segment, filename containing FLAC, case-insensitive match, no FLAC segment at all), 3 covering the process-invocation error branches (missing source, missing ffmpeg with partial-output cleanup, album-path job derivation).
 
 ---
 
