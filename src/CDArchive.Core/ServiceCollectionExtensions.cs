@@ -28,6 +28,19 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IConversionStatusService, ConversionStatusService>();
         services.AddSingleton<LocalCatalogueReference>();
         services.AddSingleton<ItunesLibraryReference>();
+        // MusicBrainzReference is a singleton (it owns the per-process rate-limit
+        // gate state — semaphore + monotonic clock — that the C10 fix relies on
+        // to serialise callers). Because the typed-client lifetime would be
+        // transient, we register a named HttpClient via IHttpClientFactory and
+        // the singleton calls factory.CreateClient(HttpClientName) per request
+        // — that's the MS-recommended pattern for "long-lived consumer of an
+        // HttpClient with handler rotation". User-Agent is set on the named
+        // client so every request to MB carries a real version + contact URL.
+        services.AddHttpClient(MusicBrainzReference.HttpClientName, client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(MusicBrainzReference.BuildUserAgent());
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        });
         services.AddSingleton<MusicBrainzReference>();
         services.AddSingleton<CompositeCatalogueReference>();
         services.AddTransient<ICataloguingService, CataloguingService>();
