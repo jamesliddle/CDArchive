@@ -43,26 +43,55 @@ public class CataloguingService : ICataloguingService
         return entries;
     }
 
-    public Task<int> WriteTagsAsync(IEnumerable<CatalogueEntry> entries)
+    public Task<IReadOnlyList<WriteResult>> WriteTagsAsync(IEnumerable<CatalogueEntry> entries)
     {
-        return Task.Run(() =>
+        return Task.Run<IReadOnlyList<WriteResult>>(() =>
         {
-            int count = 0;
+            var results = new List<WriteResult>();
             foreach (var entry in entries)
             {
-                WriteFileTag(entry.FilePath, entry);
-                count++;
-
-                // Also write to the corresponding FLAC file if it exists
-                var flacPath = GetSiblingFormatPath(entry.FilePath, "MP3", "FLAC", ".flac");
-                if (flacPath != null)
+                foreach (var path in EnumerateWriteTargets(entry.FilePath))
                 {
-                    WriteFileTag(flacPath, entry);
-                    count++;
+                    var result = WriteFileTag(path, entry);
+                    results.Add(result);
+                    if (!result.Success)
+                    {
+                        // Per C12: each per-file failure stays a per-file
+                        // failure — the loop keeps going so a corrupt MP3
+                        // in the middle of a 49-track batch doesn't strand
+                        // the remaining 48 files.
+                        _logger.LogWarning(
+                            "Tag write failed for {Path}: {Reason}",
+                            path, result.ErrorMessage ?? "(no message)");
+                    }
                 }
             }
-            return count;
+
+            var successes = results.Count(r => r.Success);
+            var failures  = results.Count - successes;
+            if (failures == 0)
+                _logger.LogInformation("Tag write batch: {Success} file(s) written", successes);
+            else
+                _logger.LogWarning("Tag write batch: {Success} succeeded, {Failed} failed", successes, failures);
+
+            return results;
         });
+    }
+
+    /// <summary>
+    /// Yields the actual file paths that <see cref="WriteTagsAsync"/> will
+    /// touch for a single <see cref="CatalogueEntry"/>: the MP3 itself, plus
+    /// the sibling FLAC at the conventional location if one exists. Exposed
+    /// as <c>internal</c> so the unit tests can exercise the file-list
+    /// expansion without going through TagLib.
+    /// </summary>
+    internal IEnumerable<string> EnumerateWriteTargets(string mp3Path)
+    {
+        yield return mp3Path;
+
+        var flacPath = GetSiblingFormatPath(mp3Path, "MP3", "FLAC", ".flac");
+        if (flacPath != null)
+            yield return flacPath;
     }
 
     /// <summary>
@@ -281,32 +310,107 @@ public class CataloguingService : ICataloguingService
         return File.Exists(candidate) ? candidate : null;
     }
 
-    private static void WriteFileTag(string filePath, CatalogueEntry entry)
+    /// <summary>
+    /// Writes <paramref name="entry"/>'s metadata to <paramref name="filePath"/>'s
+    /// audio tags atomically. Returns a per-file <see cref="WriteResult"/>;
+    /// never throws.
+    /// </summary>
+    /// <remarks>
+    /// Per C13: <c>TagLib.File.Save()</c> rewrites the underlying audio file
+    /// in place. A process kill between the truncate and the complete write
+    /// leaves the file corrupt — for a FLAC rip of a CD the user no longer
+    /// owns, that's unrecoverable. We avoid the window by writing to a
+    /// sibling temp file in the same directory (same volume → <see cref="File.Move"/>
+    /// is atomic) and only then replacing the original.
+    /// </remarks>
+    private WriteResult WriteFileTag(string filePath, CatalogueEntry entry)
     {
-        using var file = TagLib.File.Create(filePath);
-        var tag = file.Tag;
+        return TryAtomicWrite(filePath, tempPath =>
+        {
+            using var file = TagLib.File.Create(tempPath);
+            var tag = file.Tag;
 
-        tag.Title = entry.Name;
-        tag.Performers = [entry.Artist];
-        tag.Album = entry.Album;
-        tag.Composers = [entry.Composer];
-        tag.Genres = string.IsNullOrEmpty(entry.Genre) ? [] : [entry.Genre];
-        tag.Track = (uint)entry.TrackNumber;
-        tag.TrackCount = (uint)entry.TrackCount;
-        tag.Year = entry.Year.HasValue ? (uint)entry.Year.Value : 0;
+            tag.Title = entry.Name;
+            tag.Performers = [entry.Artist];
+            tag.Album = entry.Album;
+            tag.Composers = [entry.Composer];
+            tag.Genres = string.IsNullOrEmpty(entry.Genre) ? [] : [entry.Genre];
+            tag.Track = (uint)entry.TrackNumber;
+            tag.TrackCount = (uint)entry.TrackCount;
+            tag.Year = entry.Year.HasValue ? (uint)entry.Year.Value : 0;
 
-        tag.Disc = entry.DiscNumber.HasValue ? (uint)entry.DiscNumber.Value : 0;
-        tag.DiscCount = entry.DiscCount.HasValue ? (uint)entry.DiscCount.Value : 0;
+            tag.Disc = entry.DiscNumber.HasValue ? (uint)entry.DiscNumber.Value : 0;
+            tag.DiscCount = entry.DiscCount.HasValue ? (uint)entry.DiscCount.Value : 0;
 
-        if (!string.IsNullOrEmpty(entry.SortName))
-            tag.TitleSort = entry.SortName;
-        if (!string.IsNullOrEmpty(entry.SortAlbum))
-            tag.AlbumSort = entry.SortAlbum;
-        if (!string.IsNullOrEmpty(entry.SortArtist))
-            tag.PerformersSort = [entry.SortArtist];
-        if (!string.IsNullOrEmpty(entry.SortComposer))
-            tag.ComposersSort = [entry.SortComposer];
+            if (!string.IsNullOrEmpty(entry.SortName))
+                tag.TitleSort = entry.SortName;
+            if (!string.IsNullOrEmpty(entry.SortAlbum))
+                tag.AlbumSort = entry.SortAlbum;
+            if (!string.IsNullOrEmpty(entry.SortArtist))
+                tag.PerformersSort = [entry.SortArtist];
+            if (!string.IsNullOrEmpty(entry.SortComposer))
+                tag.ComposersSort = [entry.SortComposer];
 
-        file.Save();
+            file.Save();
+        });
+    }
+
+    /// <summary>
+    /// Atomic file-mutation primitive: copy <paramref name="path"/> to a
+    /// sibling temp file, hand the temp file to <paramref name="mutate"/>,
+    /// then atomically replace the original with the mutated copy. On any
+    /// failure the temp file is best-effort deleted and the original is
+    /// left untouched.
+    /// </summary>
+    /// <remarks>
+    /// Internal so the unit tests can exercise the primitive directly with
+    /// a non-TagLib mutation — the atomic-rename behaviour is the
+    /// data-safety contract that matters; the specific tag library used
+    /// to mutate the temp file isn't.
+    ///
+    /// The temp file lives in the same directory as the target (not %TEMP%)
+    /// so it lands on the same volume; <see cref="File.Move(string, string, bool)"/>
+    /// is then an atomic directory-entry rename on NTFS / ext4 / APFS.
+    /// </remarks>
+    internal WriteResult TryAtomicWrite(string path, Action<string> mutate)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(dir))
+            // No directory component — can't create a same-volume sibling.
+            // Probably a malformed path; treat as failure.
+            return new WriteResult(path, Success: false,
+                ErrorMessage: "Cannot atomic-write a file with no directory component.");
+
+        // Random-suffix temp name avoids collisions when two parallel batches
+        // happen to target the same file (rare but possible).
+        var tempPath = Path.Combine(dir,
+            Path.GetFileName(path) + ".tmp-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+
+        try
+        {
+            File.Copy(path, tempPath, overwrite: false);
+            mutate(tempPath);
+            File.Move(tempPath, path, overwrite: true);
+            return new WriteResult(path, Success: true, ErrorMessage: null);
+        }
+        catch (Exception ex)
+        {
+            // Best-effort cleanup. If this also fails (rare: AV mid-quarantine),
+            // we leak a temp file but the original is intact — the right
+            // trade. Don't let the cleanup error mask the original failure.
+            try
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogWarning(cleanupEx,
+                    "Failed to clean up temp file {TempPath} after a failed atomic write",
+                    tempPath);
+            }
+
+            return new WriteResult(path, Success: false, ErrorMessage: ex.Message);
+        }
     }
 }
