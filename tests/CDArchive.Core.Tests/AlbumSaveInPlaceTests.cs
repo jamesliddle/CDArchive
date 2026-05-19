@@ -70,7 +70,9 @@ public class AlbumSaveInPlaceTests
         await using var db = await factory.CreateDbContextAsync();
         return await db.AlbumTracks
             .Include(t => t.Disc)
-            .ToDictionaryAsync(t => (t.Disc.DiscNumber, t.TrackNumber), t => t.Id);
+            // .Disc is guaranteed populated by the Include above; null-forgiving
+            // silences CS8602 (the compiler can't see EF's load guarantee).
+            .ToDictionaryAsync(t => (t.Disc!.DiscNumber, t.TrackNumber), t => t.Id);
     }
 
     /// <summary>
@@ -82,11 +84,13 @@ public class AlbumSaveInPlaceTests
     {
         await using var db = await factory.CreateDbContextAsync();
         var rows = await db.AlbumTracks
-            .Include(t => t.Disc).ThenInclude(d => d.Album)
+            // d!.Album silences the ThenInclude-lambda CS8602; the projection
+            // below uses Disc!.Album! for the same reason.
+            .Include(t => t.Disc).ThenInclude(d => d!.Album)
             .Select(t => new
             {
-                AlbumKey = (t.Disc.Album.Label ?? "") + "|" + (t.Disc.Album.CatalogueNumber ?? "")
-                                                     + "|" + (t.Disc.Album.Title ?? ""),
+                AlbumKey = (t.Disc!.Album!.Label ?? "") + "|" + (t.Disc.Album.CatalogueNumber ?? "")
+                                                       + "|" + (t.Disc.Album.Title ?? ""),
                 t.Disc.DiscNumber,
                 t.TrackNumber,
                 t.Id,
