@@ -1,6 +1,7 @@
 using CDArchive.Core.Data;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace CDArchive.Core.Tests;
@@ -154,42 +155,81 @@ public class SqliteRoundTripTests
     /// of any <c>Save*Async</c> call, since that's exactly the dual-write
     /// pattern that allowed JSON ↔ SQLite divergence to corrupt movement-level
     /// album refs in earlier revisions.
+    ///
+    /// <para>
+    /// Previously this test ran every <c>Save*Async</c> against the production
+    /// <c>data/ClassicalCanon.db</c>; a crash mid-test could leave the user's
+    /// DB partially written, and parallel xUnit runs hit SQLite file-lock
+    /// contention. The invariant under test is about Save *behaviour*, not
+    /// about a specific data shape, so we now run it against a fresh
+    /// temp-dir fixture: empty schema-initialised DB plus placeholder JSON
+    /// files we control. The mtime check still proves the architectural
+    /// guarantee — saves don't touch JSON — without risking production data.
+    /// </para>
     /// </summary>
     [Fact]
     public async Task SaveOperations_DoNotTouchJsonFiles()
     {
-        var dataDir = FindDataDirectory();
-        var svc     = CreateService(dataDir);
-
-        var jsonPaths = new[]
+        var dataDir = Path.Combine(Path.GetTempPath(), $"cdarchive-savecheck-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dataDir);
+        try
         {
-            Path.Combine(dataDir, "Classical Canon composers.json"),
-            Path.Combine(dataDir, "Classical Canon pieces.json"),
-            Path.Combine(dataDir, "Classical Canon albums.json"),
-            Path.Combine(dataDir, "Classical Canon pick lists.json"),
-        };
+            // Drop placeholder JSON files alongside the DB — the test only
+            // cares about their mtimes staying stable across the SQLite saves,
+            // not their content. Any non-empty string works.
+            var jsonPaths = new[]
+            {
+                Path.Combine(dataDir, "Classical Canon composers.json"),
+                Path.Combine(dataDir, "Classical Canon pieces.json"),
+                Path.Combine(dataDir, "Classical Canon albums.json"),
+                Path.Combine(dataDir, "Classical Canon pick lists.json"),
+            };
+            foreach (var p in jsonPaths) File.WriteAllText(p, "[]");
 
-        // Skip cleanly if the JSON files don't exist — the invariant is
-        // vacuously true and the rest of the suite covers that path.
-        if (!jsonPaths.All(File.Exists)) return;
+            var svc = CreateService(dataDir);
 
-        var before = jsonPaths.ToDictionary(p => p, p => File.GetLastWriteTimeUtc(p));
+            // Touch each subsystem once so SQLite's schema gets created and
+            // the load-mutate-save merge has something to chew on. Using
+            // SaveBatchAsync to land everything in one atomic write keeps
+            // the fixture small.
+            await svc.SaveBatchAsync(
+                composers:   new List<CanonComposer>  { new() { Name = "Test, Composer", SortName = "Test, Composer" } },
+                pieces:      new List<CanonPiece>     { new() { Composer = "Test, Composer", Title = "Test Piece" } },
+                albums:      new List<CanonAlbum>(),
+                looseTracks: new List<AlbumTrack>(),
+                pickLists:   new CanonPickLists());
 
-        // Round-trip every subsystem: load + save. With write-through removed,
-        // none of these should leave a fingerprint on disk outside SQLite.
-        var composers = await svc.LoadComposersAsync();
-        await svc.SaveComposersAsync(composers);
-        var pieces = await svc.LoadPiecesAsync();
-        await svc.SavePiecesAsync(pieces);
-        var pickLists = await svc.LoadPickListsAsync();
-        await svc.SavePickListsAsync(pickLists);
-        var albums = await svc.LoadAlbumsAsync();
-        await svc.SaveAlbumsAsync(albums);
+            // Re-stamp the JSONs to a known mtime so the comparison below is
+            // not vulnerable to filesystem mtime granularity (e.g. FAT32's 2s).
+            var stamp = DateTime.UtcNow.AddMinutes(-5);
+            foreach (var p in jsonPaths) File.SetLastWriteTimeUtc(p, stamp);
+            var before = jsonPaths.ToDictionary(p => p, p => File.GetLastWriteTimeUtc(p));
 
-        foreach (var p in jsonPaths)
+            // Round-trip every subsystem: load + save. With write-through
+            // removed, none of these should leave a fingerprint outside SQLite.
+            var composers = await svc.LoadComposersAsync();
+            await svc.SaveComposersAsync(composers);
+            var pieces = await svc.LoadPiecesAsync();
+            await svc.SavePiecesAsync(pieces);
+            var pickLists = await svc.LoadPickListsAsync();
+            await svc.SavePickListsAsync(pickLists);
+            var albums = await svc.LoadAlbumsAsync();
+            await svc.SaveAlbumsAsync(albums);
+
+            foreach (var p in jsonPaths)
+            {
+                var afterMtime = File.GetLastWriteTimeUtc(p);
+                Assert.Equal(before[p], afterMtime);
+            }
+        }
+        finally
         {
-            var afterMtime = File.GetLastWriteTimeUtc(p);
-            Assert.Equal(before[p], afterMtime);
+            // Microsoft.Data.Sqlite pools connections — clear the pool before
+            // trying to delete the temp directory or Windows refuses the
+            // recursive delete with "file in use".
+            SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dataDir, recursive: true); }
+            catch (IOException) { /* best-effort cleanup; temp dir is harmless if it lingers */ }
         }
     }
 

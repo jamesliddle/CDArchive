@@ -27,37 +27,46 @@ public class CanonDataService : ICanonDataService
 
     public CanonDataService()
     {
-        // Default to the data/ folder relative to the assembly location,
-        // but fall back to the repo data/ folder for development.
         var assemblyDir = Path.GetDirectoryName(typeof(CanonDataService).Assembly.Location) ?? ".";
-        var dataDir = Path.Combine(assemblyDir, "data");
-        if (!Directory.Exists(dataDir))
-        {
-            // Walk up to find the repo root's data/ folder. We accept either the
-            // canonical composers JSON OR the SQLite database file as the marker
-            // — the SQLite migration made either one a sufficient indicator that
-            // we've found the canon data directory, so the resolver no longer
-            // depends on the JSON file surviving.
-            var dir = new DirectoryInfo(assemblyDir);
-            while (dir != null)
-            {
-                var candidate = Path.Combine(dir.FullName, "data");
-                if (Directory.Exists(candidate) &&
-                    (File.Exists(Path.Combine(candidate, "Classical Canon composers.json")) ||
-                     File.Exists(Path.Combine(candidate, "ClassicalCanon.db"))))
-                {
-                    dataDir = candidate;
-                    break;
-                }
-                dir = dir.Parent;
-            }
-        }
-        _dataDirectory = dataDir;
+        _dataDirectory = FindRepoDataDirectory(assemblyDir);
     }
 
     public CanonDataService(string dataDirectory)
     {
         _dataDirectory = dataDirectory;
+    }
+
+    /// <summary>
+    /// Locates the repo's <c>data/</c> folder starting from <paramref name="startFrom"/>.
+    /// First checks a direct <c>data/</c> subdirectory; if that doesn't exist,
+    /// walks up the directory tree looking for a sibling <c>data/</c> that
+    /// contains either of the dual canon-data markers — <c>Classical Canon
+    /// composers.json</c> or <c>ClassicalCanon.db</c> — so the resolver still
+    /// works after the JSON files have been deleted post-migration (or the
+    /// other way around). Falls back to <c>&lt;startFrom&gt;/data</c> when
+    /// nothing matches, which preserves the original ctor behaviour on a
+    /// clean checkout. Internal so tests can drive the walk against a temp
+    /// dir without touching the production <c>data/</c> directory.
+    /// </summary>
+    internal static string FindRepoDataDirectory(string startFrom)
+    {
+        var dataDir = Path.Combine(startFrom, "data");
+        if (Directory.Exists(dataDir))
+            return dataDir;
+
+        var dir = new DirectoryInfo(startFrom);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "data");
+            if (Directory.Exists(candidate) &&
+                (File.Exists(Path.Combine(candidate, "Classical Canon composers.json")) ||
+                 File.Exists(Path.Combine(candidate, "ClassicalCanon.db"))))
+            {
+                return candidate;
+            }
+            dir = dir.Parent;
+        }
+        return dataDir;
     }
 
     public string ComposersFilePath    => Path.Combine(_dataDirectory, "Classical Canon composers.json");
