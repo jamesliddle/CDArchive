@@ -193,8 +193,11 @@ public partial class PickListsViewModel : ObservableObject
     {
         try
         {
-            // Propagate renames to all in-memory pieces
-            ApplyRenames();
+            // Propagate renames to all in-memory pieces. Returns the number of
+            // piece-level fields actually mutated; when > 0 the pieces save
+            // must run alongside the pick-lists save in the same transaction
+            // so a failure either lands both or neither — see Rework C14.
+            var renamedCount = ApplyRenames();
 
             var pl = new CanonPickLists
             {
@@ -210,7 +213,10 @@ public partial class PickListsViewModel : ObservableObject
                 Labels          = _labels.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
             };
 
-            await _svc.SavePickListsAsync(pl);
+            await _svc.SaveBatchAsync(
+                pickLists: pl,
+                pieces:    renamedCount > 0 ? _canonVm.Pieces.ToList() : null);
+
             _canonVm.PickLists = pl;           // Refresh the shared in-memory copy
 
             _formRenames.Clear();
@@ -218,7 +224,9 @@ public partial class PickListsViewModel : ObservableObject
             _catalogRenames.Clear();
             _keyRenames.Clear();
 
-            StatusMessage = "Pick lists saved.";
+            StatusMessage = renamedCount > 0
+                ? $"Pick lists saved. Renamed {renamedCount} piece field(s)."
+                : "Pick lists saved.";
         }
         catch (Exception ex)
         {
@@ -315,18 +323,26 @@ public partial class PickListsViewModel : ObservableObject
 
     // ── Rename propagation ────────────────────────────────────────────────────
 
-    private void ApplyRenames()
+    /// <summary>
+    /// Walks every piece (and subpieces) and applies the pending Form /
+    /// Category / Catalogue / Key renames. Returns the number of piece-level
+    /// field replacements made — the caller decides whether to bundle a
+    /// pieces save into the same transactional batch as the pick-lists save.
+    /// Previously this method fire-and-forgot a pieces save itself (retired
+    /// Rework C14): failures vanished silently, the status message lied, and
+    /// the in-flight save could race a Canon reload.
+    /// </summary>
+    private int ApplyRenames()
     {
         if (_formRenames.Count == 0 && _categoryRenames.Count == 0 &&
             _catalogRenames.Count == 0 && _keyRenames.Count == 0)
-            return;
+            return 0;
 
         var count = 0;
         foreach (var piece in _canonVm.Pieces)
             count += ApplyRenamesToPiece(piece);
 
-        if (count > 0)
-            _ = _svc.SavePiecesAsync(_canonVm.Pieces.ToList());
+        return count;
     }
 
     private int ApplyRenamesToPiece(CanonPiece piece)

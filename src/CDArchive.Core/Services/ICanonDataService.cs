@@ -29,18 +29,22 @@ public interface ICanonDataService
     Task SavePickListsAsync(CanonPickLists pickLists);
 
     /// <summary>
-    /// Save any subset of the four cross-referenced subsystems atomically. All
+    /// Save any subset of the five cross-referenced subsystems atomically. All
     /// non-null inputs persist inside a single <see cref="CanonDbContext"/> +
     /// <c>BeginTransactionAsync</c>, so a failure on any one rolls every
     /// preceding write back. Use this for any flow that would otherwise chain
-    /// two or more <c>Save*Async</c> calls (e.g. iTunes import, Tracks save) —
-    /// the chained form leaves the canon partially written on mid-sequence
-    /// failure. Order applied: composers → pieces → albums → loose tracks
-    /// (data-dependency order; piece refs need composers and pieces).
+    /// two or more <c>Save*Async</c> calls (e.g. iTunes import, Tracks save,
+    /// pick-list rename propagation) — the chained form leaves the canon
+    /// partially written on mid-sequence failure. Order applied: pick lists →
+    /// composers → pieces → albums → loose tracks (data-dependency order;
+    /// piece refs need composers and pieces; pick lists are FK-independent but
+    /// run first so a piece save that depends on a freshly-renamed value sees
+    /// it).
     /// </summary>
     Task SaveBatchAsync(
         List<CanonComposer>? composers = null,
         List<CanonPiece>? pieces = null,
         List<CanonAlbum>? albums = null,
-        List<AlbumTrack>? looseTracks = null);
+        List<AlbumTrack>? looseTracks = null,
+        CanonPickLists? pickLists = null);
 }
