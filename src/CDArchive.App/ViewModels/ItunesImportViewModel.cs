@@ -131,10 +131,12 @@ public partial class ItunesImportViewModel : ObservableObject
             foreach (var loose in result.NewLooseTracks)
                 looseTracks.Add(loose);
 
-            await _data.SaveComposersAsync(composers);
-            await _data.SavePiecesAsync(pieces);
-            await _data.SaveAlbumsAsync(albums);
-            await _data.SaveLooseTracksAsync(looseTracks);
+            // One transaction across all four subsystems. The previous 4-call
+            // chain could leave the canon half-written: composers + pieces
+            // persisted, then a constraint failure on albums would leave
+            // orphan composers/pieces visible while the UI reported "Import
+            // failed". SaveBatchAsync rolls everything back on any failure.
+            await _data.SaveBatchAsync(composers, pieces, albums, looseTracks);
 
             // Refresh the "already imported" index so the just-imported tracks
             // drop out of the visible list on the next ApplyFilter pass (and

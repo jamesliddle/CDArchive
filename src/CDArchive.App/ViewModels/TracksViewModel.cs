@@ -145,19 +145,23 @@ public partial class TracksViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Persists albums via the shared VM (which rebuilds the ref index) AND
-    /// saves loose tracks via the data service. Callers that only changed one
-    /// can call the targeted methods below.
+    /// Persists albums + loose tracks atomically (single transaction via
+    /// <see cref="ICanonDataService.SaveBatchAsync"/>) and then rebuilds the
+    /// PieceReferenceIndex. Was previously two separate awaited saves with no
+    /// shared transaction — a mid-sequence failure on the loose-track write
+    /// would leave the album changes committed while loose tracks reverted to
+    /// disk. Callers that only changed one can still use the targeted methods
+    /// below.
     /// </summary>
     public async Task SaveAsync()
     {
-        await _albumsVm.SaveAsync();
-        await _svc.SaveLooseTracksAsync(_looseTracks);
-        // Re-rebuild the index so any loose-track ref changes are reflected.
+        await _svc.SaveBatchAsync(albums: _albumsVm.AllAlbums, looseTracks: _looseTracks);
+        // Re-rebuild the index so any track-piece ref or loose-track changes
+        // are reflected. RebuildContainers uses the in-memory album list so a
+        // failed save above would skip this branch anyway.
         try
         {
-            var freshAlbums = await _svc.LoadAlbumsAsync();
-            _refIndex.RebuildContainers(freshAlbums, _looseTracks);
+            _refIndex.RebuildContainers(_albumsVm.AllAlbums, _looseTracks);
         }
         catch (Exception ex)
         {
