@@ -16,10 +16,10 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 ## Top 5 priorities (start here)
 
-1. **Make tag writes safe.** `CataloguingService.WriteFileTag` rewrites the user's actual audio file in place with no error handling and no atomic-rename — a single failure mid-batch leaves silent partial state; a crash mid-write corrupts the file. Wrap each write in try/catch, log failures, continue the batch, return a per-file result. (C12, C13)
-2. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
-3. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
-4. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
+1. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
+2. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
+3. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
+4. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
 5. **Stop tests from mutating the LIVE production data directory.** `SaveOperations_DoNotTouchJsonFiles` and `Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent` run against the real `data/` — a crash mid-test can leave the user's DB partially written or `Classical Canon composers.json` renamed and unrestored. Spin up a temp dir per test (the pattern `AlbumSaveInPlaceTests` uses) or gate behind a CI-off `[Trait("Category","LiveData")]`. (C15)
 
 Honourable mention: **trim `SaveAlbumsAsync`'s full-graph load** (C11) — critical before the catalogue grows past ~500 albums.
@@ -59,12 +59,12 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 11 |
+| 🔴 Critical | 9 |
 | 🟠 High | 45 |
 | 🟡 Medium | 88 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **238** |
+| **Total** | **236** |
 
 ---
 
@@ -95,26 +95,6 @@ The repo currently has 20+ `.bak` files, `msbuild.binlog`, `__pycache__/`, `data
 
 ### C11. `SaveAlbumsAsync` loads the entire `albums` graph on every single album save
 [SqliteCanonDataService.cs:2024-2031](src/CDArchive.Core/Services/SqliteCanonDataService.cs:2024) eager-loads every album's full graph (`.Include(...).ThenInclude(...)` over Volumes, Sessions, Performers, Discs→Tracks→PieceRefs/Performers) just to save one edited album. With 99 albums and ~2,200 tracks today the cost is bearable; at the target of 3,000+ CDs (≈50k tracks) this is a multi-second hang and a sizeable RAM spike per Save click. Load only matched albums by ID (or by IdentityKey via WHERE), and check orphans via a lightweight `SELECT Id FROM albums`. Combined with `AsSplitQuery()` (M15), should reduce save latency by 10× at scale.
-
-### C12. `CataloguingService.WriteTagsAsync` has no per-file error handling
-[CataloguingService.cs:40-60](src/CDArchive.Core/Services/CataloguingService.cs:40):
-```csharp
-foreach (var entry in entries)
-{
-    WriteFileTag(entry.FilePath, entry);  // throws on any TagLib error
-    count++;
-    var flacPath = GetSiblingFormatPath(entry.FilePath, "MP3", "FLAC", ".flac");
-    if (flacPath != null)
-        WriteFileTag(flacPath, entry);    // throws on any TagLib error
-    ...
-}
-```
-`WriteFileTag` (line 272) has no try/catch. If TagLib throws on any file mid-batch (locked file, file in use by iTunes, corrupt MP3, read-only attribute, network drop on a UNC path), the loop aborts. The user sees an exception but has no record of which files were written before the failure and which weren't. Subsequent batches re-write the already-written ones (idempotent but wastes time) and may fail again on the same culprit. Wrap each write in try/catch, log per-file outcome, continue the batch, return a `List<WriteResult>` with success/failure per file.
-
-### C13. `CataloguingService.WriteFileTag` rewrites the audio file in place — non-atomic
-[CataloguingService.cs:272-299](src/CDArchive.Core/Services/CataloguingService.cs:272) — `TagLib.File.Create(path).Save()` truncates and rewrites the audio file. A process kill (power loss, OS kill, user closes the laptop, antivirus quarantine mid-write) between the truncate and the complete-write leaves the file corrupt — for a FLAC rip of a CD the user no longer owns, this is unrecoverable data loss of the actual audio, not just metadata. TagLib does buffer in memory, but the underlying write isn't atomic.
-
-Fix: write to a temp file in the same directory (so it lands on the same volume → atomic `File.Move`), verify the write, then `File.Move(tmp, real, overwrite: true)`. Optional but valuable: keep a `.bak` of the previous file's bytes for one batch in case the user wants undo.
 
 ### C14. `PickListsViewModel.ApplyRenames` fires `SavePiecesAsync` as discarded Task
 [PickListsViewModel.cs:328-330](src/CDArchive.App/ViewModels/PickListsViewModel.cs:328):
@@ -1199,6 +1179,12 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C9. `MusicBrainzReference.RateLimitedGetAsync` swallows every exception
 [2026-05-18] `rework/barecatch` — Replaced the bare catch with three typed catches: `HttpRequestException` (network), `TaskCanceledException` (timeout), and `JsonException` (parse) — each logs Warning with the URL. Non-success HTTP responses now log too: 404 at Information ("no match" is legitimate), 5xx at Warning (special-cased because 503 is what MusicBrainz returns when the 1-req/sec policy is violated — relevant until C10 lands the thread-safe gate), other 4xx at Warning with the status code. Caller behaviour unchanged (still returns `null` for every failure mode), so no behavioural regression — only diagnostics added. Any *other* exception now propagates instead of being silently swallowed: that surface area was always a bug-hiding catch-all and the AppDomain handler will log fatals.
+
+### C12. `CataloguingService.WriteTagsAsync` has no per-file error handling
+[2026-05-18] `rework/tag-writes` — `WriteTagsAsync` now returns `Task<IReadOnlyList<WriteResult>>` (one result per file actually attempted: each MP3 plus each matched FLAC sibling) instead of an opaque `int` count. Each per-file failure is captured in the result list and logged as Warning with the file path; the batch never aborts on a single bad file. The single caller (`CatalogueViewModel.WriteTagsAsync`) shows `N succeeded; M failed (see log)` when failures occur. The fan-out logic (one entry → MP3 + optional FLAC sibling) moved into `EnumerateWriteTargets` so it's directly unit-testable. `WriteResult` is a new immutable record in `Core.Models`.
+
+### C13. `CataloguingService.WriteFileTag` rewrites the audio file in place — non-atomic
+[2026-05-18] `rework/tag-writes` — Introduced a `TryAtomicWrite(path, mutate)` primitive on `CataloguingService`: `File.Copy(path, tmp)` to a sibling temp file in the same directory (same volume → atomic `File.Move`), invoke the mutation delegate against the temp file, then `File.Move(tmp, path, overwrite: true)`. On any failure (copy, mutation, move) the temp file is best-effort deleted and the original is left bit-identical. `WriteFileTag` is now a thin wrapper that hands the TagLib mutation to `TryAtomicWrite`. A process kill at any point during the write — power loss, OS kill, AV quarantine — leaves the source audio untouched. Locked in by `CataloguingServiceTagWriteTests` (7 tests covering happy path, mutation-throws-preserves-original byte equality, source-missing, no-directory-component, no leaked temp files in any failure path, and the file-list expansion for MP3-only vs MP3+FLAC-sibling vs empty-FLAC-folder shapes). `InternalsVisibleTo("CDArchive.Core.Tests")` added so tests can exercise the primitive without going through TagLib.
 
 ### C8 + H15 + H16. `FfmpegConversionService` hardened: argument escaping, source/ffmpeg checks, process timeout, partial-output cleanup, path-segment replacement
 [2026-05-19] `rework/ffmpeg-args` — Single `Arguments` string replaced with `ProcessStartInfo.ArgumentList.Add(...)` so per-argument escaping handles quotes/backslashes/spaces in source and target paths (C8). `ConvertFileAsync` now short-circuits to Failed when the source file is missing (no spurious ffmpeg invocation), catches `Win32Exception` on `Process.Start` to produce a friendly "Could not launch ffmpeg" message when the configured `FfmpegPath` is bogus, enforces a 10-minute per-file timeout via a linked `CancellationTokenSource` (kills the ffmpeg tree on expiry), and `File.Delete`s the partial `.mp3` on every failure path so a re-run doesn't see the stub as "already done" (H15). Path derivation moved to a new `DeriveMp3Path` helper that only renames the immediate parent dir when it's `FLAC`/`flac` — never a global string `.Replace("\\FLAC\\", "\\MP3\\")` — so archive roots or filenames containing "FLAC" (e.g. `D:\FLAC\Music\…`) survive intact (H16). `InternalsVisibleTo("CDArchive.Core.Tests")` added so the pure helper can be tested directly. Locked in by 8 new tests in `FfmpegConversionServiceTests`: 5 covering segment-aware path derivation across edge cases (FLAC root segment, filename containing FLAC, case-insensitive match, no FLAC segment at all), 3 covering the process-invocation error branches (missing source, missing ffmpeg with partial-output cleanup, album-path job derivation).
