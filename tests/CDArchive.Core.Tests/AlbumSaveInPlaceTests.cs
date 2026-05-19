@@ -305,4 +305,134 @@ public class AlbumSaveInPlaceTests
             if (File.Exists(dbPath)) File.Delete(dbPath);
         }
     }
+
+    /// <summary>
+    /// Orphan-album delete must cascade to every child table (volumes, discs,
+    /// tracks, piece refs, performers, sessions). C11's refactor stopped
+    /// loading the orphan's full graph and now relies on SQLite's FK-Cascade
+    /// configuration to clean up the children. This test seeds 3 albums with
+    /// children populated across every cascade-FK table, then saves a list
+    /// containing only one of them, and asserts that the other two are
+    /// completely gone — no orphaned children left behind.
+    /// </summary>
+    [Fact]
+    public async Task OrphanAlbumDelete_CascadesToEveryChildTable()
+    {
+        var dbPath = "";
+        try
+        {
+            var svc = NewService(out dbPath, out var factory);
+            await SeedComposerAndPieceAsync(svc);
+
+            // Three albums, each with a Session (so the album_sessions cascade
+            // is exercised), an album-level Performer, two discs (volumes hung
+            // off the album), tracks with track-level Performers and PieceRefs.
+            var albums = new[]
+            {
+                BuildOrphanFixtureAlbum("Album A", "L", "A"),
+                BuildOrphanFixtureAlbum("Album B", "L", "B"),
+                BuildOrphanFixtureAlbum("Album C", "L", "C"),
+            };
+            await svc.SaveAlbumsAsync(albums.ToList());
+
+            // Snapshot row counts across every cascade-FK table.
+            int countBefore;
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                Assert.Equal(3, await db.Albums.CountAsync());
+                Assert.True(await db.AlbumVolumes.AnyAsync());
+                Assert.True(await db.AlbumDiscs.CountAsync() >= 3);
+                Assert.True(await db.AlbumTracks.CountAsync() >= 3);
+                Assert.True(await db.AlbumPerformers.AnyAsync());
+                Assert.True(await db.AlbumSessions.AnyAsync());
+                Assert.True(await db.AlbumTrackPieceRefs.AnyAsync());
+                countBefore = await db.Albums.CountAsync();
+            }
+            Assert.Equal(3, countBefore);
+
+            // Reload (refreshes the CWT identity map), drop B and C from the
+            // save list. Only A remains; B and C are orphans → cascade-delete.
+            var reloaded = await svc.LoadAlbumsAsync();
+            var keep = reloaded.Single(x => x.CatalogueNumber == "A");
+            await svc.SaveAlbumsAsync(new List<CanonAlbum> { keep });
+
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                Assert.Equal(1, await db.Albums.CountAsync());
+
+                // Every child row of the orphaned albums must be gone — the
+                // FK cascade is what's being tested. Any leftover row here
+                // would mean the stub-attach Remove failed to reach the child.
+                var aId = (await db.Albums.SingleAsync()).Id;
+                Assert.True(await db.AlbumVolumes.AllAsync(v => v.AlbumId == aId));
+                Assert.True(await db.AlbumDiscs.AllAsync(d => d.AlbumId == aId));
+                Assert.True(await db.AlbumSessions.AllAsync(s => s.AlbumId == aId));
+                Assert.True(await db.AlbumPerformers.AllAsync(p => p.AlbumId == null || p.AlbumId == aId));
+
+                // Tracks live under disc; check via the disc join. AlbumTracks
+                // for orphan albums should all be gone (no rows for discs that
+                // no longer exist).
+                var aDiscIds = await db.AlbumDiscs.Where(d => d.AlbumId == aId).Select(d => d.Id).ToListAsync();
+                Assert.True(await db.AlbumTracks.AllAsync(t => t.DiscId == null || aDiscIds.Contains(t.DiscId!.Value)));
+
+                // Track piece refs hang off track; same check via the track-id set.
+                var aTrackIds = await db.AlbumTracks.Where(t => t.DiscId != null && aDiscIds.Contains(t.DiscId!.Value))
+                    .Select(t => t.Id).ToListAsync();
+                Assert.True(await db.AlbumTrackPieceRefs.AllAsync(r => aTrackIds.Contains(r.TrackId)));
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    /// <summary>
+    /// Builds an album fixture that exercises every cascade-FK from the album
+    /// row: volume, disc, track, album-level performer, session, and a piece
+    /// ref hanging off the track. The composer/piece seeded by
+    /// <see cref="SeedComposerAndPieceAsync"/> is the target of the piece ref.
+    /// </summary>
+    private static CanonAlbum BuildOrphanFixtureAlbum(string title, string label, string cat) => new()
+    {
+        Title           = title,
+        Label           = label,
+        CatalogueNumber = cat,
+        Volumes         = new List<AlbumVolume>
+        {
+            new() { Number = 1, Title = "Vol I" },
+        },
+        Sessions        = new List<RecordingSession>
+        {
+            new() { Dates = "1962-03-01", Venue = "Musikverein", City = "Vienna" },
+        },
+        Performers      = new List<AlbumPerformer>
+        {
+            new() { Name = "Test, Performer" },
+        },
+        Discs           = new List<AlbumDisc>
+        {
+            new()
+            {
+                DiscNumber = 1,
+                Tracks = new List<AlbumTrack>
+                {
+                    new()
+                    {
+                        TrackNumber = 1,
+                        Description = "Movement I",
+                        Performers  = new List<AlbumPerformer>
+                        {
+                            new() { Name = "Track Soloist" },
+                        },
+                        PieceRefs   = new List<TrackPieceRef>
+                        {
+                            new() { Composer = "Beethoven, Ludwig van", PieceTitle = "Symphony No. 9" },
+                        },
+                    },
+                },
+            },
+        },
+    };
 }
