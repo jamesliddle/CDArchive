@@ -202,4 +202,107 @@ public class SaveBatchAtomicityTests
         Assert.Empty(await svc.LoadAlbumsAsync());
         Assert.Empty(await svc.LoadLooseTracksAsync());
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Pick lists in SaveBatchAsync — retires Rework C14: PickListsViewModel
+    // used to fire-and-forget the pieces save after applying renames. Now the
+    // pick-lists + pieces saves go through SaveBatchAsync so either both land
+    // or both roll back.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SaveBatchAsync_PickListsOnly_PersistsValues()
+    {
+        var svc = NewService(out _);
+
+        var pl = new CanonPickLists
+        {
+            Forms        = new List<string> { "Symphony", "Sonata" },
+            Categories   = new List<string> { "Orchestra", "Piano" },
+        };
+
+        await svc.SaveBatchAsync(pickLists: pl);
+
+        var loaded = await svc.LoadPickListsAsync();
+        // SavePickListsCoreAsync sorts the input in-place; assert the sorted
+        // shape so we exercise the same serialise → deserialise pipeline the
+        // app uses.
+        Assert.Equal(new[] { "Sonata", "Symphony" }, loaded.Forms);
+        Assert.Equal(new[] { "Orchestra", "Piano" }, loaded.Categories);
+    }
+
+    [Fact]
+    public async Task SaveBatchAsync_PickListsAndPieces_BothLand()
+    {
+        var svc = NewService(out _);
+
+        // Seed a composer + a piece whose Form is the pre-rename value.
+        await svc.SaveBatchAsync(
+            composers: new List<CanonComposer> { Composer("Beethoven, Ludwig van") });
+        await svc.SaveBatchAsync(
+            pieces: new List<CanonPiece>
+            {
+                new() { Composer = "Beethoven, Ludwig van", Title = "Sonata Op. 27 #2", Form = "Concertino" },
+            });
+
+        // Simulate the PickListsViewModel rename flow: rename the pick-list
+        // value and update every affected piece, then SaveBatchAsync(pl,
+        // pieces).
+        var renamedPieces = (await svc.LoadPiecesAsync())
+            .Select(p => { p.Form = "Concertino for Orchestra"; return p; })
+            .ToList();
+        var pl = new CanonPickLists
+        {
+            Forms = new List<string> { "Concertino for Orchestra" },
+        };
+
+        await svc.SaveBatchAsync(pickLists: pl, pieces: renamedPieces);
+
+        var loadedPieces = await svc.LoadPiecesAsync();
+        Assert.Single(loadedPieces);
+        Assert.Equal("Concertino for Orchestra", loadedPieces[0].Form);
+        var loadedPl = await svc.LoadPickListsAsync();
+        Assert.Equal(new[] { "Concertino for Orchestra" }, loadedPl.Forms);
+    }
+
+    [Fact]
+    public async Task SaveBatchAsync_DownstreamFailure_RollsBackPickListsToo()
+    {
+        // The "fire-and-forget" bug being retired here (Rework C14): a pieces
+        // save chained after a pick-lists save could fail silently, leaving
+        // the pick list with the new name and the pieces still referencing
+        // the old one. With the atomic batch, any downstream subsystem
+        // failure rolls the staged pick-list change back too.
+        //
+        // We force the failure on the albums layer (duplicate track numbers
+        // on the same disc — guaranteed UNIQUE index violation in
+        // SaveAlbumsCoreAsync) because SavePiecesCoreAsync silently skips
+        // pieces whose composer doesn't exist instead of throwing. Either
+        // failure shape exercises the same transaction-rollback path.
+        var svc = NewService(out _);
+
+        await svc.SaveBatchAsync(
+            pickLists: new CanonPickLists
+            {
+                Forms = new List<string> { "Symphony" },
+            });
+
+        var newPl = new CanonPickLists
+        {
+            Forms = new List<string> { "Symphony for Orchestra" },   // the "renamed" value
+        };
+        var doomedAlbums = new List<CanonAlbum>
+        {
+            AlbumWithDuplicateTrackNumbers("Doomed album"),
+        };
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            svc.SaveBatchAsync(pickLists: newPl, albums: doomedAlbums));
+
+        // Pick list still contains the pre-rename value — proves the rollback
+        // covered the pick-list staging, not just the albums save.
+        var loadedPl = await svc.LoadPickListsAsync();
+        Assert.Equal(new[] { "Symphony" }, loadedPl.Forms);
+        Assert.Empty(await svc.LoadAlbumsAsync());
+    }
 }

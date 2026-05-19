@@ -299,8 +299,10 @@ public class CanonDataService : ICanonDataService
         List<CanonComposer>? composers = null,
         List<CanonPiece>? pieces = null,
         List<CanonAlbum>? albums = null,
-        List<AlbumTrack>? looseTracks = null)
+        List<AlbumTrack>? looseTracks = null,
+        CanonPickLists? pickLists = null)
     {
+        if (pickLists   is not null) await SavePickListsAsync(pickLists).ConfigureAwait(false);
         if (composers   is not null) await SaveComposersAsync(composers).ConfigureAwait(false);
         if (pieces      is not null) await SavePiecesAsync(pieces).ConfigureAwait(false);
         if (albums      is not null) await SaveAlbumsAsync(albums).ConfigureAwait(false);

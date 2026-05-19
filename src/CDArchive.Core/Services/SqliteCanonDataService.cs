@@ -650,6 +650,21 @@ public class SqliteCanonDataService : ICanonDataService
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
 
+        await SavePickListsCoreAsync(db, pickLists).ConfigureAwait(false);
+        await db.SaveChangesAsync().ConfigureAwait(false);
+
+        _logger.LogInformation("SavePickLists completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// Transactional body of <see cref="SavePickListsAsync"/> — see the
+    /// docstring on <see cref="SaveComposersCoreAsync"/> for the contract.
+    /// Stages the pick-list delete-and-reinsert into the supplied context
+    /// without calling <c>SaveChangesAsync</c>; the caller flushes. Used by the
+    /// public method and by <see cref="SaveBatchAsync"/>.
+    /// </summary>
+    private async Task SavePickListsCoreAsync(CanonDbContext db, CanonPickLists pickLists)
+    {
         // Sort each list before saving (matches the JSON service's behaviour).
         pickLists.Forms.Sort(StringComparer.OrdinalIgnoreCase);
         pickLists.Categories.Sort(StringComparer.OrdinalIgnoreCase);
@@ -685,10 +700,6 @@ public class SqliteCanonDataService : ICanonDataService
                 });
             }
         }
-
-        await db.SaveChangesAsync().ConfigureAwait(false);
-
-        _logger.LogInformation("SavePickLists completed in {ElapsedMs} ms", __sw.ElapsedMilliseconds);
     }
 
     private static void AddStringList(CanonDbContext db, string listName, IList<string> values)
@@ -2368,15 +2379,17 @@ public class SqliteCanonDataService : ICanonDataService
         List<CanonComposer>? composers = null,
         List<CanonPiece>? pieces = null,
         List<CanonAlbum>? albums = null,
-        List<AlbumTrack>? looseTracks = null)
+        List<AlbumTrack>? looseTracks = null,
+        CanonPickLists? pickLists = null)
     {
-        if (composers is null && pieces is null && albums is null && looseTracks is null)
+        if (composers is null && pieces is null && albums is null
+            && looseTracks is null && pickLists is null)
             return;
 
         var __sw = Stopwatch.StartNew();
         _logger.LogInformation(
-            "SaveBatch starting (composers={Composers}, pieces={Pieces}, albums={Albums}, looseTracks={LooseTracks})",
-            composers?.Count, pieces?.Count, albums?.Count, looseTracks?.Count);
+            "SaveBatch starting (composers={Composers}, pieces={Pieces}, albums={Albums}, looseTracks={LooseTracks}, pickLists={PickLists})",
+            composers?.Count, pieces?.Count, albums?.Count, looseTracks?.Count, pickLists is not null);
 
         await EnsureInitializedAsync().ConfigureAwait(false);
         await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
@@ -2384,13 +2397,17 @@ public class SqliteCanonDataService : ICanonDataService
 
         // Run each subsystem's core helper inside the shared transaction. Order
         // matters: pieces.composer_id FK requires composers to exist, and
-        // album/loose-track piece refs need the piece tree current. The Core
-        // helpers stage writes via SaveChangesAsync — none commit until the
-        // single tx.CommitAsync below, so any failure rolls every subsystem
-        // back. CWT id updates are queued as post-commit actions so a
-        // rolled-back batch doesn't leave the in-memory models pointing at
-        // ghost row ids.
-        var post = new List<Action>(4);
+        // album/loose-track piece refs need the piece tree current. Pick lists
+        // are FK-independent but run first so that a piece save in the same
+        // batch sees a freshly-renamed value already persisted (matches the
+        // pick-list rename propagation flow). The Core helpers stage writes
+        // via SaveChangesAsync — none commit until the single tx.CommitAsync
+        // below, so any failure rolls every subsystem back. CWT id updates are
+        // queued as post-commit actions so a rolled-back batch doesn't leave
+        // the in-memory models pointing at ghost row ids.
+        var post = new List<Action>(5);
+        if (pickLists is not null)
+            await SavePickListsCoreAsync(db, pickLists).ConfigureAwait(false);
         if (composers is not null)
             post.Add(await SaveComposersCoreAsync(db, composers).ConfigureAwait(false));
         if (pieces is not null)
@@ -2399,6 +2416,13 @@ public class SqliteCanonDataService : ICanonDataService
             post.Add(await SaveAlbumsCoreAsync(db, albums).ConfigureAwait(false));
         if (looseTracks is not null)
             post.Add(await SaveLooseTracksCoreAsync(db, looseTracks).ConfigureAwait(false));
+
+        // Pick-list rows are staged but the SaveChangesAsync that flushes them
+        // only happens implicitly via the Core helpers above. If pick lists
+        // were the only subsystem in this batch, the Core helpers haven't run
+        // — flush explicitly so the staged rows reach the transaction.
+        if (pickLists is not null && post.Count == 0)
+            await db.SaveChangesAsync().ConfigureAwait(false);
 
         await tx.CommitAsync().ConfigureAwait(false);
 
