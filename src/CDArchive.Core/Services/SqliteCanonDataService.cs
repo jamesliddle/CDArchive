@@ -1749,6 +1749,12 @@ public class SqliteCanonDataService : ICanonDataService
             .Include(a => a.Performers)
             .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
             .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
+            // AsSplitQuery breaks the otherwise-Cartesian load into one SELECT
+            // per Include path. Without it, EF would issue a single query with
+            // multiple LEFT JOINs and produce row counts that explode multiplicatively
+            // (e.g. 99 albums × 22 tracks × 3 performers × 5 piece-refs).
+            // See Rework M15.
+            .AsSplitQuery()
             .OrderBy(a => a.Label).ThenBy(a => a.CatalogueNumber).ThenBy(a => a.Title)
             .ToListAsync()
             .ConfigureAwait(false);
@@ -2103,69 +2109,104 @@ public class SqliteCanonDataService : ICanonDataService
         // Load-mutate-save. The previous design deleted every matched album's
         // row outright and reinserted it from scratch; one constraint violation
         // anywhere in the input could (and did) wipe the whole albums table.
-        // We now load the existing album graphs in full, match each input
-        // album to an existing row, and merge in place by natural key at every
-        // level — UPDATE for matched children, INSERT for new, DELETE for
-        // orphans. Row IDs survive unchanged content; a constraint failure
-        // rolls back via the caller's transaction without touching unrelated rows.
+        // We now resolve each input album to its target row via a cheap
+        // identity-only projection, load the FULL graph for matched rows only,
+        // merge in place by natural key at every level (UPDATE for matched
+        // children, INSERT for new, DELETE for orphans), and rely on SQLite's
+        // album→child Cascade FKs to take down orphans without loading them.
+        // Row IDs survive unchanged content; a constraint failure rolls back
+        // via the caller's transaction without touching unrelated rows.
 
-        var existing = await db.Albums
-            .Include(a => a.Volumes)
-            .Include(a => a.Sessions)
-            .Include(a => a.Performers)
-            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
-            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
+        // Step 1 — cheap projection. ~5 columns × all-album rows; the heavy
+        // child-collection load comes later and only for matched rows.
+        var existingMeta = await db.Albums.AsNoTracking()
+            .Select(a => new { a.Id, a.Label, a.CatalogueNumber, a.Title, a.Subtitle })
             .ToListAsync()
             .ConfigureAwait(false);
 
-        var existingById = existing.ToDictionary(a => a.Id);
         // Mirror CanonAlbum.IdentityKey: composite over (Label, CatalogueNumber,
         // Title, Subtitle). Albums without Label / CatalogueNumber (Böhm
         // Beethoven, Bernstein Mahler, …) still get a stable key from
         // Title+Subtitle so save-time dedup catches them after the editor's
         // JSON-clone round-trip wipes the CWT identity.
-        var existingByKey = new Dictionary<string, AlbumRow>(StringComparer.OrdinalIgnoreCase);
-        foreach (var a in existing)
+        var existingByKey = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in existingMeta)
         {
-            var key = BuildAlbumIdentityKey(a.Label, a.CatalogueNumber, a.Title, a.Subtitle);
-            if (key is not null) existingByKey[key] = a;
+            var key = BuildAlbumIdentityKey(m.Label, m.CatalogueNumber, m.Title, m.Subtitle);
+            if (key is not null) existingByKey[key] = m.Id;
         }
+        var allExistingIds = existingMeta.Select(m => m.Id).ToHashSet();
 
-        var matched = new Dictionary<CanonAlbum, AlbumRow>(ReferenceEqualityComparer.Instance);
+        // Step 2 — resolve each input album to a target row id, via CWT
+        // identity or the IdentityKey fallback. Albums with no match are
+        // inserts.
+        var matchedRowIdByModel = new Dictionary<CanonAlbum, long>(ReferenceEqualityComparer.Instance);
         var matchedExistingRowIds = new HashSet<long>();
         foreach (var album in albums)
         {
-            AlbumRow? existingRow = null;
-            if (_albumIds.TryGetValue(album, out var handle) && existingById.TryGetValue(handle.Id, out var hr))
-                existingRow = hr;
-            else if (album.IdentityKey is { } key && existingByKey.TryGetValue(key, out var kr))
-                existingRow = kr;
+            long? rowId = null;
+            if (_albumIds.TryGetValue(album, out var handle) && allExistingIds.Contains(handle.Id))
+                rowId = handle.Id;
+            else if (album.IdentityKey is { } key && existingByKey.TryGetValue(key, out var keyMatchId))
+                rowId = keyMatchId;
 
-            if (existingRow is not null)
+            if (rowId is not null)
             {
-                matched[album] = existingRow;
-                matchedExistingRowIds.Add(existingRow.Id);
+                matchedRowIdByModel[album] = rowId.Value;
+                matchedExistingRowIds.Add(rowId.Value);
             }
         }
 
-        // Orphan albums (existing rows nothing in the input matched) are deleted.
-        // album_volumes / discs / tracks / performers / sessions all cascade from
-        // album_id, so the delete is safe.
-        foreach (var orphan in existing.Where(a => !matchedExistingRowIds.Contains(a.Id)))
-            db.Albums.Remove(orphan);
+        // Step 3 — narrow Include load. Only matched rows need their full
+        // graph (we're about to mutate them in place). AsSplitQuery defeats
+        // the Cartesian explosion the multiple ThenIncludes would otherwise
+        // produce in a single SQL query — at 3,000+ CDs the unified-query
+        // approach is the multi-second hang C11 was about.
+        var matchedRows = new Dictionary<long, AlbumRow>(matchedExistingRowIds.Count);
+        if (matchedExistingRowIds.Count > 0)
+        {
+            var loaded = await db.Albums
+                .Where(a => matchedExistingRowIds.Contains(a.Id))
+                .Include(a => a.Volumes)
+                .Include(a => a.Sessions)
+                .Include(a => a.Performers)
+                .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
+                .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
+                .AsSplitQuery()
+                .ToListAsync()
+                .ConfigureAwait(false);
+            foreach (var r in loaded) matchedRows[r.Id] = r;
+        }
+
+        // Step 4 — orphan deletes. With every album→child FK declared
+        // OnDelete:Cascade (volumes, discs, tracks→piece-refs/performers,
+        // album-level performers, sessions), a stub-attach + Remove on the
+        // album row is sufficient: SQLite's FK cascade handles every
+        // descendant without us loading any of it. EF doesn't need the
+        // children in its change tracker because the database does the work.
+        foreach (var orphanId in allExistingIds)
+        {
+            if (matchedExistingRowIds.Contains(orphanId)) continue;
+            var stub = new AlbumRow { Id = orphanId };
+            db.Albums.Attach(stub);
+            db.Albums.Remove(stub);
+        }
 
         var inserted = new List<(CanonAlbum, AlbumRow)>();
+        var matched = new Dictionary<CanonAlbum, AlbumRow>(ReferenceEqualityComparer.Instance);
         foreach (var album in albums)
         {
-            if (matched.TryGetValue(album, out var row))
+            if (matchedRowIdByModel.TryGetValue(album, out var rowId) &&
+                matchedRows.TryGetValue(rowId, out var row))
             {
                 MergeAlbumIntoRow(album, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+                matched[album] = row;
             }
             else
             {
-                row = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
-                db.Albums.Add(row);
-                inserted.Add((album, row));
+                var newRow = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
+                db.Albums.Add(newRow);
+                inserted.Add((album, newRow));
             }
         }
 

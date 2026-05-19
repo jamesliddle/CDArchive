@@ -16,11 +16,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 ## Top 5 priorities (start here)
 
-1. **Trim `SaveAlbumsAsync`'s full-graph load.** Loads every album's full graph on every save (`.Include(...).ThenInclude(...)` over Volumes, Sessions, Performers, Discs→Tracks→PieceRefs/Performers) just to save one edited album. Bearable at 99 albums; multi-second hang at the 3,000-CD target. Load only matched albums by ID + check orphans via a lightweight `SELECT Id FROM albums`. Combined with `AsSplitQuery()` (M15) should reduce save latency 10× at scale. (C11)
-2. **Defer `NAudioPlayerService`'s `SynchronizationContext` capture.** Ctor-time capture is correct by accident — it works only because the DI container builds singletons on the UI thread today. A future background-thread resolve (startup warm-up, headless mode, test harness) silently breaks WPF binding marshalling. Pass a captured dispatcher explicitly or capture lazily on the first event registration. (C2)
-3. **Make the migration table-recreate self-healing across crashes.** The `album_tracks_new` recreate dance commits in a transaction, but `PRAGMA foreign_keys=OFF` runs *outside* it and never gets restored if the helper no-ops on the next start. A commit-then-rename crash also leaves a stale `*_new` table forever. Add a startup pass that drops any orphan `*_new` tables and a `PRAGMA foreign_keys=ON` in the no-op branch. (C6)
-4. **Harden `ArchiveSettings` I/O.** Synchronous JSON read in the ctor blocks DI container build, `File.WriteAllText` is non-atomic (crash mid-write loses the user's archive root + ffmpeg path), and the catch only handles `JsonException`. Write via `.tmp` + `File.Move(tmp, real, overwrite: true)`, move the load out of ctor into `InitializeAsync`, widen the catch. (H4)
-5. **Fix `PieceReferenceIndex.Current` static singleton + throwaway-resolver races.** `Current` is reassigned in every `Rebuild` / `RebuildContainers` / `BuildResolver` call, including throwaways constructed for resolution-only inside `SaveAlbumsAsync` and `SaveLooseTracksAsync`. `BuildResolver` doesn't reclaim `Current`, so a throwaway leaves it pointing at an empty-hits index — badges flicker to zero mid-save and recover on the next reload. Either separate the ctor for throwaway use (`internal PieceReferenceIndex(bool registerAsCurrent)`) or kill the static accessor entirely and pass the index through DI / a `MarkupExtension`. (H7)
+1. **Defer `NAudioPlayerService`'s `SynchronizationContext` capture.** Ctor-time capture is correct by accident — it works only because the DI container builds singletons on the UI thread today. A future background-thread resolve (startup warm-up, headless mode, test harness) silently breaks WPF binding marshalling. Pass a captured dispatcher explicitly or capture lazily on the first event registration. (C2)
+2. **Make the migration table-recreate self-healing across crashes.** The `album_tracks_new` recreate dance commits in a transaction, but `PRAGMA foreign_keys=OFF` runs *outside* it and never gets restored if the helper no-ops on the next start. A commit-then-rename crash also leaves a stale `*_new` table forever. Add a startup pass that drops any orphan `*_new` tables and a `PRAGMA foreign_keys=ON` in the no-op branch. (C6)
+3. **Harden `ArchiveSettings` I/O.** Synchronous JSON read in the ctor blocks DI container build, `File.WriteAllText` is non-atomic (crash mid-write loses the user's archive root + ffmpeg path), and the catch only handles `JsonException`. Write via `.tmp` + `File.Move(tmp, real, overwrite: true)`, move the load out of ctor into `InitializeAsync`, widen the catch. (H4)
+4. **Fix `PieceReferenceIndex.Current` static singleton + throwaway-resolver races.** `Current` is reassigned in every `Rebuild` / `RebuildContainers` / `BuildResolver` call, including throwaways constructed for resolution-only inside `SaveAlbumsAsync` and `SaveLooseTracksAsync`. `BuildResolver` doesn't reclaim `Current`, so a throwaway leaves it pointing at an empty-hits index — badges flicker to zero mid-save and recover on the next reload. Either separate the ctor for throwaway use (`internal PieceReferenceIndex(bool registerAsCurrent)`) or kill the static accessor entirely and pass the index through DI / a `MarkupExtension`. (H7)
+5. **Cache the parsed iTunes library.** `ItunesLibraryReference.LoadAllTracksAsync` re-parses the full iTunes Music Library XML (potentially hundreds of MB) on every call — the lazy `_cache` field is only used by the lookup methods, not by the bulk-tracks loader. Every time the iTunes Import view loads, the full parse runs again. Cache the parsed track list alongside `_cache` (or fold them into one Lazy), with an explicit "Refresh from iTunes" command for the case where the user wants to invalidate. (H5)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -57,12 +57,12 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 3 |
+| 🔴 Critical | 2 |
 | 🟠 High | 45 |
-| 🟡 Medium | 85 |
+| 🟡 Medium | 84 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **227** |
+| **Total** | **225** |
 
 ---
 
@@ -73,9 +73,6 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 ### C6. Migration table-recreate has no cleanup or crash recovery
 [SqliteCanonDataService.cs:257-327](src/CDArchive.Core/Services/SqliteCanonDataService.cs:257) — the `album_tracks_new` recreate dance is wrapped in a transaction (good), but `PRAGMA foreign_keys=OFF` runs *outside* the transaction. If the helper no-ops next startup (column already nullable), nothing turns FKs back on. Also if the transaction commits but `RENAME` partially happened (extremely rare on disk-full), a stale `*_new` table could linger forever. Add: a) cleanup of `*_new` tables at startup, b) `PRAGMA foreign_keys=ON` in the no-op branch.
-
-### C11. `SaveAlbumsAsync` loads the entire `albums` graph on every single album save
-[SqliteCanonDataService.cs:2024-2031](src/CDArchive.Core/Services/SqliteCanonDataService.cs:2024) eager-loads every album's full graph (`.Include(...).ThenInclude(...)` over Volumes, Sessions, Performers, Discs→Tracks→PieceRefs/Performers) just to save one edited album. With 99 albums and ~2,200 tracks today the cost is bearable; at the target of 3,000+ CDs (≈50k tracks) this is a multi-second hang and a sizeable RAM spike per Save click. Load only matched albums by ID (or by IdentityKey via WHERE), and check orphans via a lightweight `SELECT Id FROM albums`. Combined with `AsSplitQuery()` (M15), should reduce save latency by 10× at scale.
 
 ---
 
@@ -462,9 +459,6 @@ Git status shows `Classical Canon albums.json.bak.20260422_160109`, `ClassicalCa
 
 ### M14. `CanonDataService` singleton freezes the data dir at construction time
 Not disposable today, but the path resolver runs once. A user changing archive location mid-session would not be reflected.
-
-### M15. EF Core `.Include` chains aren't `.AsSplitQuery()`
-For album loads with `.Include(...).ThenInclude(...).ThenInclude(...)`, the Cartesian explosion can be significant. EF Core 8 has `AsSplitQuery()` to issue separate SELECTs. Measure for the full-catalogue load.
 
 ### M19. `FfmpegConversionService.ConvertAlbumAsync` uses fixed concurrency formula
 [FfmpegConversionService.cs:46](src/CDArchive.Core/Services/FfmpegConversionService.cs:46) — `Math.Max(1, Math.Min(Environment.ProcessorCount / 2, 4))`. Reasonable default, but ffmpeg is I/O-bound for FLAC→MP3. Move to a setting.
@@ -1148,6 +1142,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C14. `PickListsViewModel.ApplyRenames` fires `SavePiecesAsync` as discarded Task
 [2026-05-19] `rework/picklists-rename-save` — Extended `ICanonDataService.SaveBatchAsync` with an optional `CanonPickLists? pickLists` parameter; extracted `SqliteCanonDataService.SavePickListsCoreAsync` (stages the delete-and-reinsert without flushing) and wired it into the shared transaction in `SaveBatchAsync` ahead of the composers→pieces→albums→loose-tracks chain. Pick-list rows are FK-independent so order doesn't matter on the SQLite side; running first means a piece save in the same batch sees a freshly-renamed value already staged. `PickListsViewModel.ApplyRenames` no longer fire-and-forgets a pieces save — it now returns the rename count and the caller (`SaveAsync`) decides whether to bundle `pieces: _canonVm.Pieces.ToList()` into the same `SaveBatchAsync` call. A piece-side failure now rolls the pick-list change back too; success now waits for both to land before flipping `StatusMessage` to a truthful `"Pick lists saved. Renamed N piece field(s)."`. The `CanonDataService` JSON implementation forwards the new parameter to its sequential `SavePickListsAsync` (best-effort, matching the existing batch stub). Locked in by 3 new tests in `SaveBatchAtomicityTests`: pick-lists-only persists, pick-lists + pieces both land, downstream-failure rolls back the staged pick list too.
+
+### C11 + M15. `SaveAlbumsAsync` loads the entire `albums` graph on every save / album `.Include` chains aren't `.AsSplitQuery()`
+[2026-05-19] `rework/album-save-narrow-load` — Two refactors bundled. (1) `SaveAlbumsCoreAsync` now resolves input album→row identity via a cheap projection (`SELECT Id, Label, CatalogueNumber, Title, Subtitle`) instead of eager-loading the full graph. Only matched rows get loaded in full (via a narrow `Where(a => matchedIds.Contains(a.Id))` + the original Includes), and orphan deletes use stub-attach + `Remove` — relying on the schema's `OnDelete:Cascade` FKs from album to volumes/discs/tracks/piece-refs/performers/sessions to take the children down without an explicit load. At the 3,000-CD target, "edit one album" no longer touches the other 2,999 album graphs at all. For the current "save all albums" flow (`AlbumsViewModel.SaveAsync` passes `_allAlbums`) the narrow load lands on every row — so the win there comes from (2). (2) Added `.AsSplitQuery()` to both `LoadAlbumsAsync` and the narrow-load query in `SaveAlbumsCoreAsync`. The 5-Include shape (Volumes, Sessions, Performers, Discs→Tracks→PieceRefs, Discs→Tracks→Performers) was producing a single SQL query with multiple LEFT JOINs and a Cartesian-multiplied row count; AsSplitQuery breaks it into one SELECT per Include path. Locked in by `AlbumSaveInPlaceTests.OrphanAlbumDelete_CascadesToEveryChildTable` — a 3-album fixture exercising every cascade-FK (volume, disc, track, performer, session, piece ref), then saving a 1-album list and asserting every orphan's children are gone via the schema cascade rather than EF's loaded-children cascade. All 429 tests pass.
 
 ### C7. `.gitignore` is missing the daily mess; DB file is committable
 [2026-05-19] `rework/gitignore-cleanup` — Added six ignore patterns: `*.binlog`, `*_wpftmp.csproj`, `__pycache__/`, `.claude/`, `data/*.db*`, `*.bak*`. The single `*.bak*` glob covers every backup-flavour the seeder + pre-migration scripts have produced over time: plain `.bak`, dotted-timestamp `.bak.20260422_160109`, dashed-timestamp `.bak-20260424-170547`, comma-quirk `.bak,pre-loose-tracks`. `data/*.db*` covers the live SQLite DB, its `-wal` / `-shm` sidecars, and every `.db.bak.*` variant. JSON snapshots stay tracked (`data/Classical Canon *.json` — textual source of truth, diffable, regenerable from the DB via the seeder's `--export`). Drops the `git status` noise from 32 untracked entries to 12; the remaining 12 are ad-hoc helper scripts and personal/scratch files (`global.json`, `MusicBrainz evaluation.MD`, the `scripts/*.py` extractors) that the user can add explicitly if wanted. No code touched; all 428 tests still pass.
