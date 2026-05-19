@@ -225,9 +225,13 @@ public partial class CatalogueViewModel : ObservableObject
             IsLoading = true;
             StatusMessage = "Writing tags...";
 
-            var count = await _cataloguingService.WriteTagsAsync(Entries);
+            var results   = await _cataloguingService.WriteTagsAsync(Entries);
+            var succeeded = results.Count(r => r.Success);
+            var failed    = results.Count - succeeded;
 
-            StatusMessage = $"Tags written to {count} file(s).";
+            StatusMessage = failed == 0
+                ? $"Tags written to {succeeded} file(s)."
+                : $"Tags written to {succeeded} file(s); {failed} failed (see log for details).";
         }
         catch (Exception ex)
         {
