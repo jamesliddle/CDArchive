@@ -9,10 +9,23 @@ namespace CDArchive.Core.Services;
 /// for output.
 ///
 /// Threading: NAudio raises <see cref="WaveOutEvent.PlaybackStopped"/> on a
-/// pool thread. We capture <see cref="SynchronizationContext.Current"/> at
-/// construction (the WPF UI thread under normal DI) and Post all public events
-/// through it so consumers see them on the expected thread. Position polling
-/// runs on a <see cref="System.Threading.Timer"/> and uses the same dispatch.
+/// pool thread. The constructor takes an explicit <see cref="SynchronizationContext"/>
+/// (the WPF dispatcher's, supplied by DI from <c>App.OnStartup</c> where the
+/// UI thread is guaranteed); all public events are Posted through it so
+/// consumers see them on the expected thread. Position polling runs on a
+/// <see cref="System.Threading.Timer"/> and uses the same dispatch.
+///
+/// The earlier design captured <c>SynchronizationContext.Current</c> in the
+/// ctor body — that worked only because the DI container happens to build
+/// singletons on the UI thread today. A future background-thread resolve
+/// (startup warm-up, headless mode, a test harness) would silently capture
+/// null or a worker-thread context and break WPF binding marshalling. Making
+/// the capture explicit at the App layer pins the dependency where the
+/// UI-thread invariant is enforceable. See Rework C2.
+///
+/// Passing <c>null</c> (or omitting the parameter) means "raise events on
+/// whatever thread NAudio gives us" — the test-mode behaviour used by
+/// fixtures with no dispatcher.
 /// </summary>
 public sealed class NAudioPlayerService : IAudioPlayerService
 {
@@ -53,9 +66,17 @@ public sealed class NAudioPlayerService : IAudioPlayerService
     public event EventHandler? DurationKnown;
     public event EventHandler? PlaybackEnded;
 
-    public NAudioPlayerService()
+    /// <summary>
+    /// Constructs the player with an explicit <see cref="SynchronizationContext"/>
+    /// (typically the WPF dispatcher's). When non-null and distinct from the
+    /// caller's current context, all public events are Posted through it so
+    /// consumers receive them on the captured thread. Pass <c>null</c> (or
+    /// omit) to raise events inline on whatever thread NAudio uses — the
+    /// test-mode behaviour.
+    /// </summary>
+    public NAudioPlayerService(SynchronizationContext? sync = null)
     {
-        _sync = SynchronizationContext.Current;
+        _sync = sync;
         _positionTimer = new System.Threading.Timer(
             _ => Raise(PositionChanged), state: null,
             dueTime: Timeout.Infinite, period: Timeout.Infinite);

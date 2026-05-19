@@ -19,7 +19,15 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IArchiveSettings, ArchiveSettings>();
         services.AddSingleton<IArchiveAudioLocator, ArchiveAudioLocator>();
-        services.AddSingleton<IAudioPlayerService, NAudioPlayerService>();
+        // NAudio raises PlaybackStopped on a pool thread; the player marshals
+        // its public events through a captured SynchronizationContext so WPF
+        // consumers see them on the UI thread. The App is responsible for
+        // registering the SynchronizationContext at OnStartup time, where the
+        // UI thread is guaranteed (see Rework C2). Tests that build the DI
+        // graph without registering one get a null and the player raises
+        // events inline — that matches the pre-fix test behaviour.
+        services.AddSingleton<IAudioPlayerService>(sp =>
+            new NAudioPlayerService(sp.GetService<SynchronizationContext>()));
         services.AddTransient<IFileSystemService, FileSystemService>();
         services.AddTransient<IAlbumScaffoldingService, AlbumScaffoldingService>();
         services.AddTransient<IDuplicateDetectionService, DuplicateDetectionService>();

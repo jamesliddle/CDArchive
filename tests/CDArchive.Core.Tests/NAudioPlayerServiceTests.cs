@@ -158,4 +158,56 @@ public class NAudioPlayerServiceTests : IDisposable
         Assert.Equal(b, svc.CurrentFilePath);
         Assert.InRange(svc.Duration.TotalSeconds, 1.9, 2.2);
     }
+
+    /// <summary>
+    /// Rework C2 regression: when an explicit <see cref="SynchronizationContext"/>
+    /// is supplied and an event is raised from a thread whose own current
+    /// context differs (e.g. a thread-pool worker with no sync context), the
+    /// event must be Posted through the captured context rather than fired
+    /// inline. The pre-fix ctor captured <c>SynchronizationContext.Current</c>
+    /// at construction time, which silently broke if the DI container ever
+    /// resolved the singleton from a background thread.
+    /// </summary>
+    [Fact]
+    public async Task EventsRaisedFromWorkerThread_AreMarshalledThroughCapturedSyncContext()
+    {
+        var path = Path.Combine(_tempDir, "silence.wav");
+        WriteSilentWav(path, seconds: 1.0);
+
+        var captured = new RecordingSyncContext();
+        using var svc = new NAudioPlayerService(captured);
+        var handlerInvocations = 0;
+        svc.DurationKnown += (_, _) => Interlocked.Increment(ref handlerInvocations);
+
+        // Run Load on a thread-pool worker. Worker threads have no
+        // SynchronizationContext.Current, so Raise() takes the Post branch
+        // (sync is non-null AND different from current). The captured context
+        // records the Post but does NOT invoke the delegate, so the
+        // DurationKnown handler does not fire inline.
+        await Task.Run(() =>
+        {
+            Assert.Null(SynchronizationContext.Current);
+            svc.Load(path);
+        });
+
+        Assert.True(captured.Posts.Count > 0,
+            "Expected DurationKnown to be Posted through the captured sync context, " +
+            "not fired inline on the worker thread.");
+        Assert.Equal(0, handlerInvocations);
+    }
+
+    /// <summary>
+    /// Records <see cref="Post"/> callbacks without invoking them, so the test
+    /// can assert which events would have been marshalled through the
+    /// captured context vs raised inline.
+    /// </summary>
+    private sealed class RecordingSyncContext : SynchronizationContext
+    {
+        public List<SendOrPostCallback> Posts { get; } = new();
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            Posts.Add(d);
+            // Do not invoke d — recording only.
+        }
+    }
 }
