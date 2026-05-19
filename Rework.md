@@ -16,11 +16,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 ## Top 5 priorities (start here)
 
-1. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
-2. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
-3. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
-4. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
-5. **Stop tests from mutating the LIVE production data directory.** `SaveOperations_DoNotTouchJsonFiles` and `Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent` run against the real `data/` — a crash mid-test can leave the user's DB partially written or `Classical Canon composers.json` renamed and unrestored. Spin up a temp dir per test (the pattern `AlbumSaveInPlaceTests` uses) or gate behind a CI-off `[Trait("Category","LiveData")]`. (C15)
+1. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
+2. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
+3. **Fix `PickListsViewModel.ApplyRenames` fire-and-forget save.** Discards the `SavePiecesAsync` Task after a Form / Category / Catalogue / Key rename; failures vanish, status lies, and races with the next Canon load. Either `await` it (and surface C5's atomicity question) or queue + serialize through the VM. (C14)
+4. **Stop tests from mutating the LIVE production data directory.** `SaveOperations_DoNotTouchJsonFiles` and `Constructor_ResolvesViaDatabaseMarker_WhenComposersJsonAbsent` run against the real `data/` — a crash mid-test can leave the user's DB partially written or `Classical Canon composers.json` renamed and unrestored. Spin up a temp dir per test (the pattern `AlbumSaveInPlaceTests` uses) or gate behind a CI-off `[Trait("Category","LiveData")]`. (C15)
+5. **Clean up `.gitignore` so the working tree stops being noisy.** Today's `git status` shows 20+ uncommitted `.bak` files, `msbuild.binlog`, `__pycache__/`, `data/*.db`, `data/*.json.bak.*`, `_wpftmp.csproj` artifacts. The DB file itself probably shouldn't be in git (binary, regenerable from JSON via the seeder); the JSON snapshots probably should. Add `*.bak*`, `*.binlog`, `*_wpftmp.csproj`, `__pycache__/`, `data/*.db*`, `data/*.bak.*` to `.gitignore`. (C7)
 
 Honourable mention: **trim `SaveAlbumsAsync`'s full-graph load** (C11) — critical before the catalogue grows past ~500 albums.
 
@@ -59,12 +59,12 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 9 |
+| 🔴 Critical | 8 |
 | 🟠 High | 45 |
-| 🟡 Medium | 88 |
+| 🟡 Medium | 85 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **236** |
+| **Total** | **232** |
 
 ---
 
@@ -89,9 +89,6 @@ Each individual save is transactional, but the sequence isn't. Either wrap in a 
 
 ### C7. `.gitignore` is missing the daily mess; DB file is committable
 The repo currently has 20+ `.bak` files, `msbuild.binlog`, `__pycache__/`, `data/*.db`, `data/*.json.bak.*`, and `_wpftmp.csproj` artifacts in `git status`. `.gitignore` covers `bin/`, `obj/`, `.vs/`, `.idea/`, but not the rest. The DB file itself probably shouldn't be in git (binary, regenerable from JSON via seeder); the JSON snapshots probably should be (textual source). Add `*.bak`, `*.binlog`, `*_wpftmp.csproj`, `__pycache__/`, `data/*.db*`, `data/*.bak.*` to `.gitignore`; keep one explicit seed file if you want a starting state in-tree.
-
-### C10. `MusicBrainzReference` rate-limit gate is not thread-safe
-[MusicBrainzReference.cs:107-113](src/CDArchive.Core/Services/MusicBrainzReference.cs:107) — singleton lifetime, but two concurrent callers can both read `_lastRequest`, both see "1100ms elapsed", both fire — violating the 1-per-second MusicBrainz policy. MB responds with 503 and may temporarily IP-ban repeated violators. Add a `SemaphoreSlim(1,1)` around the read-update-await sequence (or use a token-bucket). Also: use `Stopwatch`/`Environment.TickCount64`, not `DateTime.UtcNow` — the latter jumps on NTP sync.
 
 ### C11. `SaveAlbumsAsync` loads the entire `albums` graph on every single album save
 [SqliteCanonDataService.cs:2024-2031](src/CDArchive.Core/Services/SqliteCanonDataService.cs:2024) eager-loads every album's full graph (`.Include(...).ThenInclude(...)` over Volumes, Sessions, Performers, Discs→Tracks→PieceRefs/Performers) just to save one edited album. With 99 albums and ~2,200 tracks today the cost is bearable; at the target of 3,000+ CDs (≈50k tracks) this is a multi-second hang and a sizeable RAM spike per Save click. Load only matched albums by ID (or by IdentityKey via WHERE), and check orphans via a lightweight `SELECT Id FROM albums`. Combined with `AsSplitQuery()` (M15), should reduce save latency by 10× at scale.
@@ -505,15 +502,6 @@ Not disposable today, but the path resolver runs once. A user changing archive l
 
 ### M15. EF Core `.Include` chains aren't `.AsSplitQuery()`
 For album loads with `.Include(...).ThenInclude(...).ThenInclude(...)`, the Cartesian explosion can be significant. EF Core 8 has `AsSplitQuery()` to issue separate SELECTs. Measure for the full-catalogue load.
-
-### M16. `MusicBrainzReference` HttpClient is constructed per-instance, not via `IHttpClientFactory`
-[MusicBrainzReference.cs:139-145](src/CDArchive.Core/Services/MusicBrainzReference.cs:139) — singleton lifetime saves the socket-exhaustion problem, but the modern .NET pattern is `IHttpClientFactory` for handler rotation, DNS-change handling, Polly integration. Migrate when adding retries.
-
-### M17. `MusicBrainzReference` User-Agent is hardcoded `CDArchive/1.0`
-[MusicBrainzReference.cs:142](src/CDArchive.Core/Services/MusicBrainzReference.cs:142) — MusicBrainz documents that they want a real version + contact URL and reserves the right to ban stale-looking defaults. Pipe in real version when assembly versioning exists.
-
-### M18. `MusicBrainzReference.RateLimitedGetAsync` has no retry on transient failure
-A single 503 (rate-limit response) drops a result. MB routinely returns 503 under load. A `Polly`-style exponential-backoff retry with 1-2 attempts would auto-recover.
 
 ### M19. `FfmpegConversionService.ConvertAlbumAsync` uses fixed concurrency formula
 [FfmpegConversionService.cs:46](src/CDArchive.Core/Services/FfmpegConversionService.cs:46) — `Math.Max(1, Math.Min(Environment.ProcessorCount / 2, 4))`. Reasonable default, but ffmpeg is I/O-bound for FLAC→MP3. Move to a setting.
@@ -1188,6 +1176,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C8 + H15 + H16. `FfmpegConversionService` hardened: argument escaping, source/ffmpeg checks, process timeout, partial-output cleanup, path-segment replacement
 [2026-05-19] `rework/ffmpeg-args` — Single `Arguments` string replaced with `ProcessStartInfo.ArgumentList.Add(...)` so per-argument escaping handles quotes/backslashes/spaces in source and target paths (C8). `ConvertFileAsync` now short-circuits to Failed when the source file is missing (no spurious ffmpeg invocation), catches `Win32Exception` on `Process.Start` to produce a friendly "Could not launch ffmpeg" message when the configured `FfmpegPath` is bogus, enforces a 10-minute per-file timeout via a linked `CancellationTokenSource` (kills the ffmpeg tree on expiry), and `File.Delete`s the partial `.mp3` on every failure path so a re-run doesn't see the stub as "already done" (H15). Path derivation moved to a new `DeriveMp3Path` helper that only renames the immediate parent dir when it's `FLAC`/`flac` — never a global string `.Replace("\\FLAC\\", "\\MP3\\")` — so archive roots or filenames containing "FLAC" (e.g. `D:\FLAC\Music\…`) survive intact (H16). `InternalsVisibleTo("CDArchive.Core.Tests")` added so the pure helper can be tested directly. Locked in by 8 new tests in `FfmpegConversionServiceTests`: 5 covering segment-aware path derivation across edge cases (FLAC root segment, filename containing FLAC, case-insensitive match, no FLAC segment at all), 3 covering the process-invocation error branches (missing source, missing ffmpeg with partial-output cleanup, album-path job derivation).
+
+### C10 + M16 + M17 + M18. `MusicBrainzReference` hardened: thread-safe rate-limit gate, `IHttpClientFactory`, real User-Agent, retry-on-transient
+[2026-05-19] `rework/musicbrainz-ratelimit` — Replaced the `DateTime.UtcNow`-based gate with a `SemaphoreSlim(1,1)` + `Stopwatch` (monotonic, immune to NTP skew). Concurrent callers now queue on the semaphore; each one observes the actual elapsed-tick deficit before firing, so the 1.1-second policy is honoured even under burst (C10). Service now consumes `IHttpClientFactory` and calls `factory.CreateClient(HttpClientName)` per request — the MS-recommended pattern for a singleton consumer with handler rotation. DI registers a named client via `services.AddHttpClient(MusicBrainzReference.HttpClientName, ...)` (M16). User-Agent is built from `AssemblyInformationalVersionAttribute` / `Assembly.GetName().Version`, paired with the real `https://github.com/jamesliddle/CDArchive` contact URL — drops the literal `CDArchive/1.0` placeholder MB threatens to ban (M17). Retry policy: hand-rolled 3-attempt loop with 500ms / 1000ms backoff for 429, 5xx, and `HttpRequestException`; 404 / other 4xx / parse failures return null without retry; cancellation propagates as `OperationCanceledException` (M18). Each retry re-enters the gate so backoff can't bypass the policy. New `Microsoft.Extensions.Http` dependency. Locked in by 11 new tests in `MusicBrainzReferenceTests` covering: gate behaviour (first call immediate, concurrent serialisation), retry behaviour (503-then-200, persistent 503 exhaust, network exception retry, 429 retry), non-retry paths (404, 400, malformed JSON), cancellation, and User-Agent composition. Tests inject a `ScriptedHandler` + `FakeDelayer` so timing is deterministic.
 
 ---
 
