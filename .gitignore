@@ -48,3 +48,8 @@ __pycache__/
 # `.bak-<timestamp>`, `.bak,pre-foo`, etc.) are likewise transient.
 data/*.db*
 *.bak*
+
+# scripts/_work/ holds intermediate state dumped by the helper scripts
+# during a one-off migration run (text/json scratch). The scripts that
+# produce them are tracked under scripts/; the outputs are transient.
+scripts/_work/
