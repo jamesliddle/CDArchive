@@ -16,11 +16,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 ## Top 5 priorities (start here)
 
-1. **Replace every bare `catch { /* non-fatal */ }` block.** At minimum log + status-bar message. Now unblocked — Serilog is wired. (C3, C9)
-2. **Make tag writes safe.** `CataloguingService.WriteFileTag` rewrites the user's actual audio file in place with no error handling and no atomic-rename — a single failure mid-batch leaves silent partial state; a crash mid-write corrupts the file. Wrap each write in try/catch, log failures, continue the batch, return a per-file result. (C12, C13)
-3. **Fix `FfmpegConversionService`.** Argument escaping (command injection), source-file existence check, process timeout, partial-output cleanup, path-replacement robustness. (C8, H15, H16)
-4. **Harden `MusicBrainzReference`.** Thread-safe rate-limit gate, real exception handling, `IHttpClientFactory`, retry on 503. (C10, C9, M16, M17, M18)
-5. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
+1. **Make tag writes safe.** `CataloguingService.WriteFileTag` rewrites the user's actual audio file in place with no error handling and no atomic-rename — a single failure mid-batch leaves silent partial state; a crash mid-write corrupts the file. Wrap each write in try/catch, log failures, continue the batch, return a per-file result. (C12, C13)
+2. **Fix `FfmpegConversionService`.** Argument escaping (command injection), source-file existence check, process timeout, partial-output cleanup, path-replacement robustness. (C8, H15, H16)
+3. **Harden `MusicBrainzReference` rate-limit gate.** Thread-safe via `SemaphoreSlim(1,1)`, `Stopwatch` instead of `DateTime.UtcNow`, `IHttpClientFactory`, retry on 503. C9 is retired (the exception-handling half); this is the remaining policy/concurrency half. (C10, M16, M17, M18)
+4. **Dispose the `ServiceProvider` on exit.** Today singletons (notably `NAudioPlayerService`, which holds `MediaFoundationReader` + `WaveOutEvent` + a `Timer`) never get `Dispose()` called — at-risk during crash exit. Cheap, mechanical fix; clears the deck for C2's lazy sync-context capture. (C1)
+5. **Cross-save atomicity.** `ItunesImportViewModel.ImportAsync` chains 4 separate `SaveXxxAsync` calls; mid-sequence failure leaves the canon partially written with no rollback. Either thread a shared `DbContext`/transaction or surface the limitation. (C5)
 
 Honourable mention: **trim `SaveAlbumsAsync`'s full-graph load** (C11) — critical before the catalogue grows past ~500 albums.
 
@@ -59,12 +59,12 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 14 |
+| 🔴 Critical | 12 |
 | 🟠 High | 47 |
 | 🟡 Medium | 88 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **243** |
+| **Total** | **241** |
 
 ---
 
@@ -75,15 +75,6 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 ### C2. Singleton `NAudioPlayerService` captures `SynchronizationContext` in its constructor
 [NAudioPlayerService.cs:54-60](src/CDArchive.Core/Services/NAudioPlayerService.cs:54) — `_sync = SynchronizationContext.Current` runs whenever the DI container first resolves the singleton. Today that's `App.OnStartup` on the UI thread, correct by accident. If anyone ever pre-resolves the service from a background thread (a startup hook, a background warm-up, a future test/headless mode) the captured context becomes null/wrong and every event fires off the UI thread, corrupting WPF bindings silently. Pass a captured `Dispatcher` or `SynchronizationContext` explicitly, or capture lazily on the first event registration from the UI thread.
-
-### C3. Bare `catch` blocks across VMs and services
-At least nine sites swallow every exception including `OutOfMemoryException`, real bugs, and disk errors:
-- [CanonViewModel.cs:140](src/CDArchive.App/ViewModels/CanonViewModel.cs:140), [:187](src/CDArchive.App/ViewModels/CanonViewModel.cs:187), [:331](src/CDArchive.App/ViewModels/CanonViewModel.cs:331), [:381](src/CDArchive.App/ViewModels/CanonViewModel.cs:381)
-- [AlbumsViewModel.cs:64](src/CDArchive.App/ViewModels/AlbumsViewModel.cs:64), [:81](src/CDArchive.App/ViewModels/AlbumsViewModel.cs:81)
-- [TracksViewModel.cs:154](src/CDArchive.App/ViewModels/TracksViewModel.cs:154), [:165](src/CDArchive.App/ViewModels/TracksViewModel.cs:165)
-- [CataloguingService.cs:241-244](src/CDArchive.Core/Services/CataloguingService.cs:241) — `ReadFileTag` silently falls back to the filename when TagLib throws. User can't distinguish "tag was blank" from "tag was unreadable" — they might then *overwrite* the unreadable file's tags with the filename-derived garbage.
-
-The comment in VM cases says "non-fatal" but you don't know that — if `LoadAlbumsAsync` throws because the DB schema is corrupt, the user sees the prior status message and assumes everything is fine. Replace with `catch (Exception ex) { _logger.LogWarning(ex, ...); StatusMessage = ...; }`, or scope the catch to specific expected exceptions.
 
 ### C5. Cross-save sequences are not atomic
 Several VMs chain multiple `Save*Async` calls with no shared transaction:
@@ -105,16 +96,6 @@ The repo currently has 20+ `.bak` files, `msbuild.binlog`, `__pycache__/`, `data
 Arguments = $"-i \"{flacPath}\" -ab {_settings.Mp3Bitrate}k -map_metadata 0 -id3v2_version 3 \"{mp3Path}\""
 ```
 A file path containing `"` breaks out of the quoted argument. The catalogue includes filenames with arbitrary punctuation (composer names, work titles). `_settings.FfmpegPath` is user-configurable, increasing the surface. Use `ProcessStartInfo.ArgumentList.Add(...)` (.NET 8 has it), which escapes per-argument and removes the issue entirely.
-
-### C9. `MusicBrainzReference.RateLimitedGetAsync` swallows every exception
-[MusicBrainzReference.cs:124-127](src/CDArchive.Core/Services/MusicBrainzReference.cs:124):
-```csharp
-catch
-{
-    return null;
-}
-```
-A bare catch — returns null for network errors, 5xx, JSON parse failures, *and* legitimate 404s. The caller cannot distinguish "no result" from "MusicBrainz is down" from "we just got banned for rate-limit violation". Distinguish at minimum 4xx vs 5xx vs network vs parse, and log them.
 
 ### C10. `MusicBrainzReference` rate-limit gate is not thread-safe
 [MusicBrainzReference.cs:107-113](src/CDArchive.Core/Services/MusicBrainzReference.cs:107) — singleton lifetime, but two concurrent callers can both read `_lastRequest`, both see "1100ms elapsed", both fire — violating the 1-per-second MusicBrainz policy. MB responds with 503 and may temporarily IP-ban repeated violators. Add a `SemaphoreSlim(1,1)` around the read-update-await sequence (or use a token-bucket). Also: use `Stopwatch`/`Environment.TickCount64`, not `DateTime.UtcNow` — the latter jumps on NTP sync.
@@ -1235,6 +1216,12 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C4. No logging anywhere
 [2026-05-18] `rework/logging` — Serilog wired through `Microsoft.Extensions.Logging`. App configures rolling daily file sink at `%LocalAppData%\CDArchive\logs\cdarchive-YYYYMMDD.log` (14-day retention, shared write) plus a Debug-window sink for dev. Unhandled dispatcher + AppDomain exceptions and the startup-error catch all route through `Log.Fatal` + `CloseAndFlush`. `ServiceCollectionExtensions.AddCoreServices` calls `AddLogging()` so `ILogger<T>` is resolvable for every service even when no host providers are wired (tests stay quiet). `SqliteCanonDataService` takes `ILogger<SqliteCanonDataService>` (optional, defaults to `NullLogger<T>` for direct test construction) and logs start + elapsed-ms for each of the five `SaveXxxAsync` entry points. Plumbing locked in by `LoggingPlumbingTests` (3 tests).
+
+### C3. Bare `catch` blocks across VMs and services
+[2026-05-18] `rework/barecatch` — All 8 VM-level bare catches (`CanonViewModel` ×4, `AlbumsViewModel` ×2, `TracksViewModel` ×2) replaced with `catch (Exception ex) { _logger.LogWarning(ex, "..."); }`. The catches were all wrapping `PieceReferenceIndex.Rebuild*` calls; each gets a context-specific log message describing which save/load it followed. `CanonViewModel` also surfaces the failure to the user via an appended `" (badge counts may be stale)"` on `StatusMessage`. `CataloguingService.ReadFileTag` (was `static`; promoted to instance) now logs the TagLib failure with the file path before falling back to the filename — the log line is important because the caller may go on to *overwrite* the unreadable file's tags with the filename-derived data. All three VMs and `CataloguingService` take an optional `ILogger<T>` constructor parameter with a `NullLogger<T>` fallback so existing direct-construction tests keep working.
+
+### C9. `MusicBrainzReference.RateLimitedGetAsync` swallows every exception
+[2026-05-18] `rework/barecatch` — Replaced the bare catch with three typed catches: `HttpRequestException` (network), `TaskCanceledException` (timeout), and `JsonException` (parse) — each logs Warning with the URL. Non-success HTTP responses now log too: 404 at Information ("no match" is legitimate), 5xx at Warning (special-cased because 503 is what MusicBrainz returns when the 1-req/sec policy is violated — relevant until C10 lands the thread-safe gate), other 4xx at Warning with the status code. Caller behaviour unchanged (still returns `null` for every failure mode), so no behavioural regression — only diagnostics added. Any *other* exception now propagates instead of being silently swallowed: that surface area was always a bug-hiding catch-all and the AppDomain handler will log fatals.
 
 ---
 

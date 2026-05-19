@@ -1,14 +1,20 @@
 using CDArchive.Core.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.Core.Services;
 
 public class CataloguingService : ICataloguingService
 {
     private readonly CompositeCatalogueReference _reference;
+    private readonly ILogger<CataloguingService> _logger;
 
-    public CataloguingService(CompositeCatalogueReference reference)
+    public CataloguingService(
+        CompositeCatalogueReference reference,
+        ILogger<CataloguingService>? logger = null)
     {
         _reference = reference;
+        _logger    = logger ?? NullLogger<CataloguingService>.Instance;
     }
 
     public async Task<List<CatalogueEntry>> ReadAlbumTagsAsync(string albumPath)
@@ -210,7 +216,7 @@ public class CataloguingService : ICataloguingService
         return dir.Name;
     }
 
-    private static CatalogueEntry ReadFileTag(string filePath, string albumName, int trackNumber, int trackCount)
+    private CatalogueEntry ReadFileTag(string filePath, string albumName, int trackNumber, int trackCount)
     {
         var entry = new CatalogueEntry
         {
@@ -238,8 +244,14 @@ public class CataloguingService : ICataloguingService
             entry.SortArtist = tag.PerformersSort?.FirstOrDefault() ?? "";
             entry.SortComposer = tag.ComposersSort?.FirstOrDefault() ?? "";
         }
-        catch
+        catch (Exception ex)
         {
+            // TagLib failure: corrupt file, locked, unsupported format, IO error.
+            // Falling back to the filename keeps the batch moving (the caller may
+            // overwrite this entry's tags via WriteTagsAsync, so the log line is
+            // important: it warns the user that we couldn't *read* the original
+            // tags and they're about to be replaced by filename-derived data).
+            _logger.LogWarning(ex, "Failed to read tags from {FilePath}; falling back to filename", filePath);
             entry.Name = Path.GetFileNameWithoutExtension(filePath);
         }
 

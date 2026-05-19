@@ -4,6 +4,8 @@ using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.App.ViewModels;
 
@@ -14,6 +16,7 @@ public partial class CanonViewModel : ObservableObject
 {
     private readonly ICanonDataService _canonDataService;
     private readonly PieceReferenceIndex _refIndex;
+    private readonly ILogger<CanonViewModel> _logger;
 
     // --- Composers ---
 
@@ -65,10 +68,14 @@ public partial class CanonViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
-    public CanonViewModel(ICanonDataService canonDataService, PieceReferenceIndex refIndex)
+    public CanonViewModel(
+        ICanonDataService canonDataService,
+        PieceReferenceIndex refIndex,
+        ILogger<CanonViewModel>? logger = null)
     {
         _canonDataService = canonDataService;
         _refIndex = refIndex;
+        _logger = logger ?? NullLogger<CanonViewModel>.Instance;
     }
 
     partial void OnComposerFilterChanged(string value) => ApplyComposerFilter();
@@ -130,14 +137,19 @@ public partial class CanonViewModel : ObservableObject
             StatusMessage = $"Loaded {Composers.Count} composers and {Pieces.Count} pieces.";
 
             // Rebuild cross-reference index (pieces × albums + loose tracks) so
-            // badge counts include both kinds of container.
+            // badge counts include both kinds of container. Non-fatal: data is
+            // already loaded; failure here just means stale badge counts.
             try
             {
                 var albums      = await _canonDataService.LoadAlbumsAsync();
                 var looseTracks = await _canonDataService.LoadLooseTracksAsync();
                 _refIndex.Rebuild(Pieces, albums, looseTracks);
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PieceReferenceIndex rebuild failed after LoadData; album/loose-track badge counts may be stale");
+                StatusMessage += " (badge counts may be stale)";
+            }
         }
         catch (Exception ex)
         {
@@ -184,7 +196,11 @@ public partial class CanonViewModel : ObservableObject
                 var looseTracks = await _canonDataService.LoadLooseTracksAsync();
                 _refIndex.Rebuild(Pieces, albums, looseTracks);
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PieceReferenceIndex rebuild failed after SavePieces; badge counts may be stale");
+                StatusMessage += " (badge counts may be stale)";
+            }
         }
         catch (Exception ex)
         {
@@ -328,7 +344,10 @@ public partial class CanonViewModel : ObservableObject
                 var freshLooseTracks = await _canonDataService.LoadLooseTracksAsync();
                 _refIndex.Rebuild(Pieces.ToList(), freshAlbums, freshLooseTracks);
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PieceReferenceIndex rebuild failed after composer reject cascade; badge counts may be stale");
+            }
 
             ApplyComposerFilter();
             ApplyPiecesFilter();
@@ -378,7 +397,10 @@ public partial class CanonViewModel : ObservableObject
                 var freshLooseTracks = await _canonDataService.LoadLooseTracksAsync();
                 _refIndex.Rebuild(Pieces.ToList(), freshAlbums, freshLooseTracks);
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PieceReferenceIndex rebuild failed after piece reject cascade; badge counts may be stale");
+            }
 
             ApplyPiecesFilter();
             return result;
