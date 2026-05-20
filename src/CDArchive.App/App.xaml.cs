@@ -35,6 +35,20 @@ public partial class App : Application
 
             var services = new ServiceCollection();
 
+            // Capture the UI dispatcher's SynchronizationContext now, on the
+            // thread that owns it. NAudioPlayerService pulls this through DI
+            // (see AddCoreServices) to marshal NAudio's pool-thread events
+            // back to WPF consumers. Doing the capture here — at OnStartup,
+            // which the WPF runtime guarantees runs on the UI thread — keeps
+            // the dependency explicit and immune to "what if a future caller
+            // resolves the audio service from a background thread" (Rework C2).
+            var uiSyncContext = SynchronizationContext.Current
+                ?? throw new InvalidOperationException(
+                    "App.OnStartup must run on a thread with a SynchronizationContext " +
+                    "(typically the WPF DispatcherSynchronizationContext). The audio " +
+                    "player relies on this for cross-thread event marshalling.");
+            services.AddSingleton<SynchronizationContext>(uiSyncContext);
+
             services.AddCoreServices();
             services.AddLogging(b =>
             {
