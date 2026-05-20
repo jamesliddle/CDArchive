@@ -1,16 +1,50 @@
+using System.Text.Json;
 using CDArchive.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CDArchive.Core.Services;
 
+/// <summary>
+/// Snapshot of every tag field the cataloguing pipeline might overwrite.
+/// Persisted next to an audio file as <c>&lt;file&gt;.tagbackup.json</c>
+/// the first time <see cref="CataloguingService.WriteFileTag"/> writes
+/// new values, so the user has an undo path after a bad MusicBrainz match
+/// or misparsed work title. See Rework H27.
+/// </summary>
+public sealed class TagSnapshot
+{
+    public string? Title          { get; set; }
+    public string[]? Performers   { get; set; }
+    public string? Album          { get; set; }
+    public string[]? Composers    { get; set; }
+    public string[]? Genres       { get; set; }
+    public uint Track             { get; set; }
+    public uint TrackCount        { get; set; }
+    public uint Year              { get; set; }
+    public uint Disc              { get; set; }
+    public uint DiscCount         { get; set; }
+    public string? TitleSort      { get; set; }
+    public string? AlbumSort      { get; set; }
+    public string[]? PerformersSort { get; set; }
+    public string[]? ComposersSort  { get; set; }
+}
+
 public class CataloguingService : ICataloguingService
 {
-    private readonly CompositeCatalogueReference _reference;
+    private readonly ICatalogueReference _reference;
     private readonly ILogger<CataloguingService> _logger;
 
+    /// <summary>
+    /// Production DI binds <paramref name="reference"/> to the
+    /// <see cref="CompositeCatalogueReference"/> singleton. The interface
+    /// type (vs the concrete) is the testable seam — Rework H26 needed a
+    /// fake reference that returns different <see cref="ComposerInfo"/> for
+    /// same-surname / different-firstName lookups; with the concrete type
+    /// the test had to construct three real reference services.
+    /// </summary>
     public CataloguingService(
-        CompositeCatalogueReference reference,
+        ICatalogueReference reference,
         ILogger<CataloguingService>? logger = null)
     {
         _reference = reference;
@@ -20,25 +54,52 @@ public class CataloguingService : ICataloguingService
     public async Task<List<CatalogueEntry>> ReadAlbumTagsAsync(string albumPath)
     {
         var entries = new List<CatalogueEntry>();
-        var mp3Folder = FindMp3Folder(albumPath);
-        if (mp3Folder == null)
+        // Rework H25: pre-fix FindMp3Folder returned the FIRST matching disc
+        // folder only — multi-disc albums catalogued through this pipeline
+        // silently skipped discs 2..N. Walk every disc, keeping the
+        // disc-number information so the per-track DiscNumber / DiscCount
+        // can be re-applied after FormatEntriesAsync's unconditional clear.
+        var mp3Folders = FindMp3Folders(albumPath).ToList();
+        if (mp3Folders.Count == 0)
             return entries;
 
-        var mp3Files = Directory.GetFiles(mp3Folder, "*.mp3")
-            .OrderBy(f => f)
-            .ToArray();
-
         var albumName = DeriveAlbumName(albumPath);
-        int trackCount = mp3Files.Length;
 
-        for (int i = 0; i < mp3Files.Length; i++)
+        // Track which entries belong to which disc so we can re-apply
+        // folder-derived disc info after FormatEntriesAsync clears the
+        // tag-derived values it considers unreliable.
+        var entryDiscInfo = new List<(CatalogueEntry Entry, int? Disc, int? DiscCount)>();
+        var totalDiscs = mp3Folders.Count(f => f.DiscNumber.HasValue);
+
+        foreach (var (mp3Folder, discNumber) in mp3Folders)
         {
-            var entry = ReadFileTag(mp3Files[i], albumName, i + 1, trackCount);
-            entries.Add(entry);
+            var mp3Files = Directory.GetFiles(mp3Folder, "*.mp3")
+                .OrderBy(f => f)
+                .ToArray();
+
+            // Per-disc track numbering: each disc starts at track 1, with
+            // trackCount equal to that disc's file count.
+            int trackCount = mp3Files.Length;
+            for (int i = 0; i < mp3Files.Length; i++)
+            {
+                var entry = ReadFileTag(mp3Files[i], albumName, i + 1, trackCount);
+                entries.Add(entry);
+                entryDiscInfo.Add((entry, discNumber, discNumber.HasValue ? totalDiscs : null));
+            }
         }
 
-        // Parse and format using references
+        // Parse and format using references.
         await FormatEntriesAsync(entries, albumName);
+
+        // Re-apply folder-derived disc info. FormatEntriesAsync clears
+        // DiscNumber / DiscCount unconditionally because raw classical CD
+        // tags are unreliable, but the disc-folder structure isn't —
+        // "Disc 2" on disk means disc 2 regardless of what the tag claims.
+        foreach (var (entry, disc, count) in entryDiscInfo)
+        {
+            entry.DiscNumber = disc;
+            entry.DiscCount  = count;
+        }
 
         return entries;
     }
@@ -110,8 +171,15 @@ public class CataloguingService : ICataloguingService
             .GroupBy(p => NormalizeWorkKey(p.Parsed.RawWork!))
             .ToList();
 
-        // Step 3: Look up composers and build formatted entries
-        var composerCache = new Dictionary<string, ComposerInfo?>(StringComparer.OrdinalIgnoreCase);
+        // Step 3: Look up composers and build formatted entries.
+        // Rework H26: cache key is the (lastName, firstName) pair, not
+        // lastName alone — classical music has plenty of shared-surname
+        // composers (Bach family, Strauss family, Couperin family,
+        // Scarlatti family) and the pre-fix lastName-only cache wrote the
+        // first-encountered composer's birth/death years onto every track
+        // that shared the surname. The lookup itself has always passed
+        // both names; only the cache was wrong.
+        var composerCache = new Dictionary<(string Last, string First), ComposerInfo?>();
 
         foreach (var (entry, tag) in parsed)
         {
@@ -122,16 +190,19 @@ public class CataloguingService : ICataloguingService
                 (composerLast, composerFirst) = TagParser.ParseComposerName(tag.RawComposer);
             }
 
-            // Look up composer (cached per last name)
-            if (!string.IsNullOrEmpty(composerLast) && !composerCache.ContainsKey(composerLast))
+            // Cache key — lowercased for case-insensitive equality. Tuple
+            // value-equality is fine for a `Dictionary<(string, string), ...>`.
+            var cacheKey = (composerLast.ToLowerInvariant(), composerFirst.ToLowerInvariant());
+
+            if (!string.IsNullOrEmpty(composerLast) && !composerCache.ContainsKey(cacheKey))
             {
-                composerCache[composerLast] = await _reference.LookupComposerAsync(
+                composerCache[cacheKey] = await _reference.LookupComposerAsync(
                     composerLast,
                     string.IsNullOrEmpty(composerFirst) ? null : composerFirst);
             }
 
             var composerInfo = !string.IsNullOrEmpty(composerLast)
-                ? composerCache.GetValueOrDefault(composerLast)
+                ? composerCache.GetValueOrDefault(cacheKey)
                 : null;
 
             // Format composer field
@@ -216,23 +287,53 @@ public class CataloguingService : ICataloguingService
         return rawWork.Trim().ToLowerInvariant();
     }
 
-    private static string? FindMp3Folder(string albumPath)
+    /// <summary>
+    /// Yields every MP3 folder under <paramref name="albumPath"/> that
+    /// holds tracks for the album, along with the disc number when one
+    /// can be inferred from the folder name (<c>Disc 1</c>, <c>Disc 2</c>,
+    /// …). Three layouts supported:
+    /// <list type="bullet">
+    ///   <item>Single-disc with <c>&lt;album&gt;/MP3/</c> — yields one
+    ///     entry with disc number null.</item>
+    ///   <item>Multi-disc with <c>&lt;album&gt;/Disc N/MP3/</c> — yields one
+    ///     entry per disc, with disc number 1..N.</item>
+    ///   <item>Flat layout (MP3 files directly under <paramref name="albumPath"/>)
+    ///     — yields one entry with disc number null.</item>
+    /// </list>
+    /// Pre-fix this returned only the first match in any layout — multi-disc
+    /// catalogue runs silently skipped discs 2..N (Rework H25). Internal so
+    /// the unit tests can exercise the walk against a fixture filesystem.
+    /// </summary>
+    internal static IEnumerable<(string Folder, int? DiscNumber)> FindMp3Folders(string albumPath)
     {
         var directMp3 = Path.Combine(albumPath, "MP3");
         if (Directory.Exists(directMp3))
-            return directMp3;
+        {
+            yield return (directMp3, null);
+            yield break;
+        }
 
+        // Walk every "Disc *" sibling. The OrderBy is on the full path
+        // string — for "Disc 1", "Disc 2", … alphabetical sort matches
+        // numerical sort. (For "Disc 10" mixed with "Disc 9" we'd want a
+        // numerical sort instead; deferred until a real ≥10-disc box-set
+        // shows up. Worth flagging in a future Nit-finding.)
+        int discIdx = 1;
+        bool anyDiscFolderHadMp3 = false;
         foreach (var disc in Directory.GetDirectories(albumPath, "Disc *").OrderBy(d => d))
         {
             var mp3InDisc = Path.Combine(disc, "MP3");
             if (Directory.Exists(mp3InDisc))
-                return mp3InDisc;
+            {
+                yield return (mp3InDisc, discIdx);
+                anyDiscFolderHadMp3 = true;
+            }
+            discIdx++;
         }
+        if (anyDiscFolderHadMp3) yield break;
 
         if (Directory.GetFiles(albumPath, "*.mp3").Length > 0)
-            return albumPath;
-
-        return null;
+            yield return (albumPath, null);
     }
 
     private static string DeriveAlbumName(string albumPath)
@@ -325,6 +426,15 @@ public class CataloguingService : ICataloguingService
     /// </remarks>
     private WriteResult WriteFileTag(string filePath, CatalogueEntry entry)
     {
+        // Rework H27: snapshot the existing tag values to a sidecar JSON
+        // before the first write. Subsequent writes don't re-snapshot —
+        // the truly-original values must survive multiple pipeline runs
+        // (e.g. user formats, decides they don't like the result, formats
+        // again with different settings). RestoreFromBackup gives the
+        // user an undo path. Failures snapshotting don't block the write;
+        // logged at warning.
+        TrySnapshotOriginalTags(filePath);
+
         return TryAtomicWrite(filePath, tempPath =>
         {
             using var file = TagLib.File.Create(tempPath);
@@ -412,5 +522,125 @@ public class CataloguingService : ICataloguingService
 
             return new WriteResult(path, Success: false, ErrorMessage: ex.Message);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tag-backup sidecar (Rework H27)
+    //
+    // Before WriteFileTag mutates an audio file's tags, we snapshot the
+    // pre-write values to a JSON sidecar at "<file>.tagbackup.json". The
+    // snapshot is preserved across pipeline runs — only the FIRST write
+    // for a given file creates the sidecar — so the user always has a
+    // path back to the truly-original tag values regardless of how many
+    // formatting iterations they tried in between.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    internal static string GetTagBackupPath(string filePath) => filePath + ".tagbackup.json";
+
+    private static readonly JsonSerializerOptions TagSnapshotJsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
+    /// <summary>
+    /// Reads the current tag values from <paramref name="filePath"/> and
+    /// writes them to <c><paramref name="filePath"/>.tagbackup.json</c> —
+    /// unless a sidecar already exists, in which case this is a no-op
+    /// (the prior sidecar holds older / more original values).
+    /// Failures here are warnings, not errors: the write proceeds without
+    /// a backup rather than blocking the user's edit.
+    /// </summary>
+    private void TrySnapshotOriginalTags(string filePath)
+    {
+        var backupPath = GetTagBackupPath(filePath);
+        if (File.Exists(backupPath)) return;
+
+        try
+        {
+            using var file = TagLib.File.Create(filePath);
+            var tag = file.Tag;
+            var snapshot = new TagSnapshot
+            {
+                Title          = tag.Title,
+                Performers     = tag.Performers,
+                Album          = tag.Album,
+                Composers      = tag.Composers,
+                Genres         = tag.Genres,
+                Track          = tag.Track,
+                TrackCount     = tag.TrackCount,
+                Year           = tag.Year,
+                Disc           = tag.Disc,
+                DiscCount      = tag.DiscCount,
+                TitleSort      = tag.TitleSort,
+                AlbumSort      = tag.AlbumSort,
+                PerformersSort = tag.PerformersSort,
+                ComposersSort  = tag.ComposersSort,
+            };
+
+            var json = JsonSerializer.Serialize(snapshot, TagSnapshotJsonOptions);
+            File.WriteAllText(backupPath, json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to snapshot original tags for {FilePath} to {BackupPath}; the write will proceed without an undo backup.",
+                filePath, backupPath);
+        }
+    }
+
+    /// <summary>
+    /// Restores tag values from <c><paramref name="filePath"/>.tagbackup.json</c>
+    /// back to the audio file's tags. The sidecar is left in place so the
+    /// user can restore again if they re-run the pipeline. Returns a
+    /// per-file <see cref="WriteResult"/>; never throws. Failure modes:
+    /// missing sidecar, malformed JSON, the audio file no longer existing,
+    /// or any TagLib write failure. The restore goes through the same
+    /// <see cref="TryAtomicWrite"/> primitive as <see cref="WriteFileTag"/>
+    /// so the source audio is bit-identical on any failure.
+    /// </summary>
+    public WriteResult RestoreFromBackup(string filePath)
+    {
+        var backupPath = GetTagBackupPath(filePath);
+        if (!File.Exists(backupPath))
+            return new WriteResult(filePath, Success: false,
+                ErrorMessage: $"No tag backup found at {backupPath}.");
+
+        TagSnapshot? snapshot;
+        try
+        {
+            snapshot = JsonSerializer.Deserialize<TagSnapshot>(File.ReadAllText(backupPath));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Tag backup at {BackupPath} could not be deserialised; restore aborted.",
+                backupPath);
+            return new WriteResult(filePath, Success: false,
+                ErrorMessage: $"Tag backup at {backupPath} is corrupt: {ex.Message}");
+        }
+        if (snapshot is null)
+            return new WriteResult(filePath, Success: false,
+                ErrorMessage: $"Tag backup at {backupPath} deserialised to null.");
+
+        return TryAtomicWrite(filePath, tempPath =>
+        {
+            using var file = TagLib.File.Create(tempPath);
+            var tag = file.Tag;
+            tag.Title          = snapshot.Title;
+            tag.Performers     = snapshot.Performers ?? Array.Empty<string>();
+            tag.Album          = snapshot.Album;
+            tag.Composers      = snapshot.Composers ?? Array.Empty<string>();
+            tag.Genres         = snapshot.Genres ?? Array.Empty<string>();
+            tag.Track          = snapshot.Track;
+            tag.TrackCount     = snapshot.TrackCount;
+            tag.Year           = snapshot.Year;
+            tag.Disc           = snapshot.Disc;
+            tag.DiscCount      = snapshot.DiscCount;
+            tag.TitleSort      = snapshot.TitleSort;
+            tag.AlbumSort      = snapshot.AlbumSort;
+            tag.PerformersSort = snapshot.PerformersSort ?? Array.Empty<string>();
+            tag.ComposersSort  = snapshot.ComposersSort ?? Array.Empty<string>();
+            file.Save();
+        });
     }
 }
