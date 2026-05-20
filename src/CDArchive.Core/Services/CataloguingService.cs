@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -313,14 +314,15 @@ public class CataloguingService : ICataloguingService
             yield break;
         }
 
-        // Walk every "Disc *" sibling. The OrderBy is on the full path
-        // string — for "Disc 1", "Disc 2", … alphabetical sort matches
-        // numerical sort. (For "Disc 10" mixed with "Disc 9" we'd want a
-        // numerical sort instead; deferred until a real ≥10-disc box-set
-        // shows up. Worth flagging in a future Nit-finding.)
+        // Walk every "Disc *" sibling in numeric disc-number order via the
+        // DiscFolderOrdering helper — lexicographic sort would land
+        // "Disc 10" between "Disc 1" and "Disc 2" and the discIdx counter
+        // below would then label them with the wrong disc number. Same
+        // helper used by ArchiveScannerService.ScanArchiveAsync. (Rework H29.)
         int discIdx = 1;
         bool anyDiscFolderHadMp3 = false;
-        foreach (var disc in Directory.GetDirectories(albumPath, "Disc *").OrderBy(d => d))
+        foreach (var disc in DiscFolderOrdering.OrderByDiscNumber(
+                     Directory.GetDirectories(albumPath, "Disc *")))
         {
             var mp3InDisc = Path.Combine(disc, "MP3");
             if (Directory.Exists(mp3InDisc))
