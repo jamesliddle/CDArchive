@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -6,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using Microsoft.Win32;
 
@@ -43,6 +45,20 @@ public partial class TrackEditorWindow : Window
     private bool _pieceRefsUntouched;
     private bool _performersUntouched;
 
+    // Position of the SessionBox Mixed-sentinel item (the "Mixed" indicator
+    // in multi-edit with mixed values, or the "(multiple albums — cannot edit)"
+    // indicator when sessions aren't shared). -1 when no such sentinel is
+    // present. Passed into SessionIndexMapping.ResolveSelection so SaveMulti
+    // can skip writes when the user left the sentinel selected.
+    private int _sessionMixedSentinelIndex = -1;
+
+    // Rework H22 — snapshots taken in the ctor so OnClosing can roll back
+    // disc/session mutations when the user clicks Cancel or close-X. JSON
+    // deep-clones (matches the AlbumEditorWindow pattern); null means the
+    // mode doesn't mutate that container so no snapshot was needed.
+    private readonly List<AlbumTrack>?      _tracksSnapshotForRollback;
+    private readonly List<RecordingSession>? _sessionsSnapshotForRollback;
+
     // True while adding new tracks (Next stays enabled, OK adds to disc)
     private bool IsAddingNew => !_isMixed && _disc != null && _trackIndex >= _disc.Tracks.Count;
 
@@ -64,8 +80,20 @@ public partial class TrackEditorWindow : Window
         _allPieces = allPieces;
         _isMixed   = false;
 
+        // Rework H22 — snapshot the disc's track list and the session list
+        // before any edits land. Prev/Next commits in single-edit mode mutate
+        // _disc.Tracks directly via CommitCurrentTrack, and OnAddSession
+        // appends to _sessions directly; without these snapshots, clicking
+        // Cancel after navigating away from a track (or adding a new session)
+        // would leave the mutations in place. OnClosing rolls back from these
+        // snapshots when DialogResult != true.
+        _tracksSnapshotForRollback   = DeepClone(disc.Tracks);
+        _sessionsSnapshotForRollback = DeepClone(sessions);
+
         PieceRefList.ItemsSource       = _pieceRefs;
         TrackPerformerList.ItemsSource = _trackPerformers;
+
+        Closing += TrackEditorWindow_Closing;
 
         LoadTrack();
     }
@@ -93,8 +121,17 @@ public partial class TrackEditorWindow : Window
         _isMixed    = true;
         _editTracks = tracks;
 
+        // Rework H22 — snapshot the (possibly caller-owned) session list so
+        // OnAddSession appends here can be rolled back on Cancel. Tracks are
+        // only written on OK via SaveMulti, so no per-track snapshot is
+        // needed in multi-edit mode.
+        if (sessions != null)
+            _sessionsSnapshotForRollback = DeepClone(sessions);
+
         PieceRefList.ItemsSource       = _pieceRefs;
         TrackPerformerList.ItemsSource = _trackPerformers;
+
+        Closing += TrackEditorWindow_Closing;
 
         Title = $"Edit {tracks.Count} Tracks";
 
@@ -260,7 +297,10 @@ public partial class TrackEditorWindow : Window
 
         if (!hasSharedSessions)
         {
-            // Selected tracks span albums with different session lists — can't batch-edit
+            // Selected tracks span albums with different session lists —
+            // can't batch-edit. The single item IS the skip-write sentinel
+            // (Rework H23): treat it like the "Mixed" sentinel so SaveMulti
+            // leaves each track's existing SessionIndex alone.
             SessionLabel.IsEnabled = false;
             SessionBox.IsEnabled   = false;
             SessionBox.Items.Add(new ComboBoxItem
@@ -271,11 +311,18 @@ public partial class TrackEditorWindow : Window
             });
             SessionBox.SelectedIndex = 0;
             _mixedFields.Add("SessionIndex");
+            _sessionMixedSentinelIndex = 0;
             return;
         }
 
         foreach (var s in _sessions)
             SessionBox.Items.Add(s.DisplaySummary);
+
+        // "(no session)" pseudo-item, same as the single-edit combo. Without
+        // it the "all selected tracks have SessionIndex=null" branch below
+        // pre-fix collapsed to session 0 via "?? 0" — silent data
+        // corruption on Save (Rework H23).
+        SessionBox.Items.Add(NoSessionLabel);
 
         var distinctIndexes = _editTracks!
             .Select(t => t.SessionIndex)
@@ -284,11 +331,15 @@ public partial class TrackEditorWindow : Window
 
         if (distinctIndexes.Count == 1)
         {
-            SessionBox.SelectedIndex = _sessions.Count == 0 ? -1 : (distinctIndexes[0] ?? 0);
+            // Uniform selection — initialise the combo to the shared value
+            // (real session, or "(no session)" when null).
+            SessionBox.SelectedIndex =
+                SessionIndexMapping.InitialComboIndex(distinctIndexes[0], _sessions.Count);
         }
         else
         {
-            // Append a "Mixed" sentinel at the end; skip write when it's still selected
+            // Append a "Mixed" sentinel at the end; SaveMulti's commit logic
+            // skips the write when this is still selected.
             SessionBox.Items.Add(new ComboBoxItem
             {
                 Content    = "Mixed",
@@ -297,6 +348,7 @@ public partial class TrackEditorWindow : Window
             });
             SessionBox.SelectedIndex = SessionBox.Items.Count - 1;
             _mixedFields.Add("SessionIndex");
+            _sessionMixedSentinelIndex = SessionBox.Items.Count - 1;
         }
     }
 
@@ -454,7 +506,13 @@ public partial class TrackEditorWindow : Window
         target.FlacPath     = NullIfEmpty(FlacPathBox.Text);
         target.Mp3Path      = NullIfEmpty(Mp3PathBox.Text);
         target.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
-        target.SessionIndex = SessionBox.SelectedIndex < 0 ? null : SessionBox.SelectedIndex;
+        // SessionIndexMapping treats anything past the real session list
+        // (including the "(no session)" pseudo-item and any negative
+        // SelectedIndex) as null — no silent collapse to session 0.
+        // Single-edit never has a Mixed sentinel, so pass -1.
+        target.SessionIndex = SessionIndexMapping.ResolveSelection(
+            SessionBox.SelectedIndex, _sessions.Count,
+            mixedSentinelIndex: -1, out _);
         target.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
     }
 
@@ -497,8 +555,20 @@ public partial class TrackEditorWindow : Window
         foreach (var s in _sessions)
             SessionBox.Items.Add(s.DisplaySummary);
 
-        SessionBox.SelectedIndex = _sessions.Count == 0 ? -1 : (selectedIndex ?? 0);
+        // "(no session)" pseudo-item — selectable, maps to SessionIndex=null.
+        // Pre-fix (Rework H23) this fell back to session 0 via "?? 0", so
+        // opening a no-session track and clicking OK silently wrote
+        // SessionIndex = 0. See SessionIndexMapping for the contract.
+        SessionBox.Items.Add(NoSessionLabel);
+
+        SessionBox.SelectedIndex =
+            SessionIndexMapping.InitialComboIndex(selectedIndex, _sessions.Count);
     }
+
+    // The "(no session)" pseudo-item label. Constant so the helper's
+    // tests can assert the right item position; the visible text mirrors
+    // the convention used elsewhere in the editor for sentinels.
+    internal const string NoSessionLabel = "(no session)";
 
     private void OnAddSession(object sender, RoutedEventArgs e)
     {
@@ -590,13 +660,20 @@ public partial class TrackEditorWindow : Window
         }
 
         // ── Session ───────────────────────────────────────────────────────────
-        // Skip when the sentinel items ("Mixed" or "(multiple albums — cannot edit)") are selected
-        var sessionSelection = SessionBox.SelectedIndex;
-        var sessionIsSentinel = sessionSelection < 0 || sessionSelection >= _sessions.Count;
-        if (!(_mixedFields.Contains("SessionIndex") && sessionIsSentinel))
+        // ResolveSelection distinguishes three cases:
+        //   • Real session selected → returns the session index.
+        //   • "(no session)" selected → returns null + isMixedSentinel=false.
+        //   • Multi-edit "Mixed" or "(multiple albums)" sentinel still selected
+        //     → isMixedSentinel=true and we SKIP the write entirely.
+        // The "(multiple albums — cannot edit)" combo state populates with
+        // sessions.Count == 0, so the Mixed-sentinel index is correctly
+        // computed at position 1 → also caught by mixedSentinelPresent.
+        var sessionIdx = SessionIndexMapping.ResolveSelection(
+            SessionBox.SelectedIndex, _sessions.Count,
+            _sessionMixedSentinelIndex, out var isSessionMixedSentinel);
+        if (!isSessionMixedSentinel)
         {
-            int? idx = sessionIsSentinel ? null : sessionSelection;
-            foreach (var t in _editTracks!) t.SessionIndex = idx;
+            foreach (var t in _editTracks!) t.SessionIndex = sessionIdx;
         }
 
         // ── Piece References ──────────────────────────────────────────────────
@@ -702,6 +779,48 @@ public partial class TrackEditorWindow : Window
     private void OnTrackPerformerSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         RemoveTrackPerformerButton.IsEnabled = TrackPerformerList.SelectedItem != null;
+    }
+
+    // ── Cancel-rollback (Rework H22) ─────────────────────────────────────────
+
+    /// <summary>
+    /// JSON deep-clone helper used by the ctors to snapshot the disc track
+    /// list and session list before any edits. Matches the pattern used by
+    /// <see cref="AlbumEditorWindow"/>. Returns a new <c>List&lt;T&gt;</c>
+    /// containing freshly-deserialized copies of every element.
+    /// </summary>
+    private static List<T> DeepClone<T>(IEnumerable<T> source)
+    {
+        var json = JsonSerializer.Serialize(source.ToList());
+        return JsonSerializer.Deserialize<List<T>>(json) ?? new List<T>();
+    }
+
+    /// <summary>
+    /// Rolls back per-step mutations on Cancel / close-X. Single-edit's
+    /// Prev/Next commits write into <c>_disc.Tracks</c> directly; OnAddSession
+    /// appends to <c>_sessions</c> directly. Without this rollback the user's
+    /// "Cancel" would be a polite lie. <c>DialogResult == true</c> means the
+    /// user clicked OK — leave the changes in place.
+    /// </summary>
+    private void TrackEditorWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (DialogResult == true) return;
+
+        // Restore in dependency order: track list first (tracks reference
+        // session positions; the session list snapshot restore will only
+        // bring back sessions that existed at editor-open time, but with the
+        // session indexes the original tracks were saved with, those stay
+        // valid).
+        if (_disc != null && _tracksSnapshotForRollback != null)
+        {
+            _disc.Tracks.Clear();
+            foreach (var t in _tracksSnapshotForRollback) _disc.Tracks.Add(t);
+        }
+        if (_sessionsSnapshotForRollback != null)
+        {
+            _sessions.Clear();
+            foreach (var s in _sessionsSnapshotForRollback) _sessions.Add(s);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
