@@ -160,6 +160,26 @@ public partial class ComposerEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
+        // Rework H32: pre-fix this method called SaveToComposer() then set
+        // DialogResult = true with zero validation, so a blank Name +
+        // blank SortName could persist. The DB's UNIQUE NOT NULL index on
+        // composers.name then produces an opaque SqliteException on save
+        // for the second blank-name attempt. Validate both before commit.
+        if (string.IsNullOrWhiteSpace(NameBox.Text))
+        {
+            MessageBox.Show("Name is required.", "Validation",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            NameBox.Focus();
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(SortNameBox.Text))
+        {
+            MessageBox.Show("Sort Name is required.", "Validation",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            SortNameBox.Focus();
+            return;
+        }
+
         SaveToComposer();
         DialogResult = true;
     }

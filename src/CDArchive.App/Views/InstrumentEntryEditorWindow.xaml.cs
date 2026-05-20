@@ -5,7 +5,8 @@ namespace CDArchive.App.Views;
 
 public partial class InstrumentEntryEditorWindow : Window
 {
-    public InstrumentEntry Entry { get; private set; } = new();
+    // Rework H31: see PerformerEditorWindow for the mutate-in-place rationale.
+    public InstrumentEntry Entry { get; private set; }
 
     public InstrumentEntryEditorWindow(CanonPickLists pickLists, InstrumentEntry? entry = null)
     {
@@ -14,26 +15,26 @@ public partial class InstrumentEntryEditorWindow : Window
         InstrumentCombo.ItemsSource = pickLists.Instruments.Order();
         Title = entry == null ? "Add Instrument" : "Edit Instrument";
 
-        if (entry != null)
-        {
-            InstrumentCombo.Text = entry.Instrument;
-            PartNumberBox.Text  = entry.PartNumber?.ToString() ?? "";
-            KeyBox.Text         = entry.Key ?? "";
-            AlternateBox.Text   = entry.Alternate ?? "";
-        }
+        Entry = entry ?? new InstrumentEntry();
+
+        InstrumentCombo.Text = Entry.Instrument ?? "";
+        PartNumberBox.Text   = Entry.PartNumber?.ToString() ?? "";
+        KeyBox.Text          = Entry.Key       ?? "";
+        AlternateBox.Text    = Entry.Alternate ?? "";
     }
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(InstrumentCombo.Text)) return;
 
-        Entry = new InstrumentEntry
-        {
-            Instrument  = InstrumentCombo.Text.Trim(),
-            PartNumber  = int.TryParse(PartNumberBox.Text.Trim(), out var p) ? p : null,
-            Key         = NullIfEmpty(KeyBox.Text),
-            Alternate   = NullIfEmpty(AlternateBox.Text),
-        };
+        Entry.Instrument = InstrumentCombo.Text.Trim();
+        Entry.PartNumber = int.TryParse(PartNumberBox.Text.Trim(), out var p) ? p : null;
+        Entry.Key        = NullIfEmpty(KeyBox.Text);
+        Entry.Alternate  = NullIfEmpty(AlternateBox.Text);
+        // IsEnsemble and Members are deliberately NOT touched here — this
+        // editor is for a single (non-ensemble) instrument; an ensemble's
+        // Members are managed by EnsembleEntryEditorWindow.
+
         DialogResult = true;
     }
 

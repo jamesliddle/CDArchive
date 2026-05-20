@@ -79,12 +79,16 @@ public partial class EnsembleEntryEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        Entry = new InstrumentEntry
-        {
-            Instrument = Entry.Instrument,
-            IsEnsemble = true,
-            Members = _members.Count > 0 ? new List<InstrumentEntry>(_members) : null,
-        };
+        // Rework H31 + H33: mutate the input Entry in place rather than
+        // reconstructing. Pre-fix the OK handler built a new InstrumentEntry
+        // with `IsEnsemble = true` hardcoded, which (a) silently dropped
+        // any other field the editor doesn't know about (H31's general
+        // pattern), and (b) silently flipped IsEnsemble = true even if the
+        // caller had opened the editor on a non-ensemble entry (H33's
+        // specific symptom). Mutating in place preserves Instrument,
+        // IsEnsemble, and every other non-edited field — this editor's
+        // job is the members list, nothing else.
+        Entry.Members = _members.Count > 0 ? new List<InstrumentEntry>(_members) : null;
         DialogResult = true;
     }
 }
