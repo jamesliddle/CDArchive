@@ -138,6 +138,16 @@ public class SqliteCanonDataService : ICanonDataService
     /// </summary>
     private static async Task ApplySchemaUpgradesAsync(CanonDbContext db)
     {
+        // Defensive cleanup for SQLite's recommended CREATE-COPY-DROP-RENAME
+        // recipe. The recipe runs entirely inside a transaction, so a crash
+        // mid-transaction rolls everything back — but defending against the
+        // off-nominal case (process killed between COMMIT and the next op,
+        // a third-party tool running half a migration manually, an aborted
+        // run that left a `*_new` table tracked by sqlite_master) is cheap
+        // and idempotent: scan once and drop any orphan tables named with
+        // the `_new` suffix before the live migrations run. See Rework C6.
+        await DropOrphanRecreateTablesAsync(db).ConfigureAwait(false);
+
         await EnsureColumnAsync(db, "composers", "is_provisional", "INTEGER NOT NULL DEFAULT 1")
             .ConfigureAwait(false);
         await EnsureColumnAsync(db, "pieces", "is_provisional", "INTEGER NOT NULL DEFAULT 1")
@@ -244,6 +254,41 @@ public class SqliteCanonDataService : ICanonDataService
     }
 
     /// <summary>
+    /// Drops any orphan tables left over from a failed or interrupted
+    /// CREATE-COPY-DROP-RENAME recreate dance. SQLite's recommended schema-
+    /// change recipe builds a sibling `<table>_new` and renames it into
+    /// place at the end of a transaction; a crash before the COMMIT rolls
+    /// the whole thing back, but a partial manual run, a third-party tool's
+    /// half-migration, or a corrupted journal could leave the sibling
+    /// behind. This is cheap to run on every startup and idempotent: on a
+    /// healthy DB sqlite_master has no `*_new` entries and the SELECT
+    /// returns nothing. See Rework C6.
+    /// </summary>
+    internal static async Task DropOrphanRecreateTablesAsync(CanonDbContext db)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        var orphans = new List<string>();
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText =
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%\\_new' ESCAPE '\\'";
+            await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
+                orphans.Add(reader.GetString(0));
+        }
+
+        foreach (var name in orphans)
+        {
+            // Use IF EXISTS as a belt-and-braces guard — sqlite_master and
+            // the table list can theoretically drift in adversarial cases.
+            await ExecAsync(conn, $"DROP TABLE IF EXISTS \"{name}\"").ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Recreates <c>album_tracks</c> with a nullable <c>disc_id</c> column,
     /// preserving every existing row and its id. Implements SQLite's
     /// recommended schema-change recipe:
@@ -262,13 +307,10 @@ public class SqliteCanonDataService : ICanonDataService
     ///   <item>COMMIT, then turn FKs back on.</item>
     /// </list>
     /// </summary>
-    private static async Task RecreateAlbumTracksWithNullableDiscIdAsync(
-        System.Data.Common.DbConnection conn)
-    {
-        // FK enforcement off for the duration of the swap. SQLite docs require
-        // this to be set OUTSIDE the transaction — it's not transactional, and
-        // toggling it inside has no effect.
-        await ExecAsync(conn, "PRAGMA foreign_keys=OFF");
+    private static Task RecreateAlbumTracksWithNullableDiscIdAsync(
+        System.Data.Common.DbConnection conn) =>
+        WithForeignKeysOffAsync(conn, async () =>
+        {
         await using (var tx = await conn.BeginTransactionAsync().ConfigureAwait(false))
         {
             // New table: disc_id nullable, everything else identical.
@@ -331,8 +373,7 @@ public class SqliteCanonDataService : ICanonDataService
 
             await tx.CommitAsync().ConfigureAwait(false);
         }
-        await ExecAsync(conn, "PRAGMA foreign_keys=ON");
-    }
+        });
 
     private static async Task ExecAsync(
         System.Data.Common.DbConnection conn, string sql,
@@ -352,10 +393,10 @@ public class SqliteCanonDataService : ICanonDataService
     /// continue to anchor on album_id (with track_id null or set). Same recipe
     /// as the album_tracks migration.
     /// </summary>
-    private static async Task RecreateAlbumPerformersWithNullableAlbumIdAsync(
-        System.Data.Common.DbConnection conn)
-    {
-        await ExecAsync(conn, "PRAGMA foreign_keys=OFF");
+    private static Task RecreateAlbumPerformersWithNullableAlbumIdAsync(
+        System.Data.Common.DbConnection conn) =>
+        WithForeignKeysOffAsync(conn, async () =>
+        {
         await using (var tx = await conn.BeginTransactionAsync().ConfigureAwait(false))
         {
             await ExecAsync(conn, """
@@ -424,7 +465,38 @@ public class SqliteCanonDataService : ICanonDataService
 
             await tx.CommitAsync().ConfigureAwait(false);
         }
-        await ExecAsync(conn, "PRAGMA foreign_keys=ON");
+        });
+
+    /// <summary>
+    /// Runs <paramref name="body"/> with SQLite foreign-key enforcement
+    /// temporarily disabled, restoring it in a <c>finally</c> block. SQLite
+    /// requires <c>PRAGMA foreign_keys</c> to be toggled outside any
+    /// transaction (it's not transactional itself, so toggling inside has no
+    /// effect), and naïvely placing the OFF…ON pair around a transaction
+    /// leaves FKs disabled if the body throws — the connection then lives on
+    /// with FK enforcement silently off for any caller that reuses it (the
+    /// Microsoft.Data.Sqlite connection pool is a recycling pool). Wrapping
+    /// in try/finally guarantees ON runs on every exit path; the finally also
+    /// catches any error from the ON command itself by surfacing it on the
+    /// way out only if the body succeeded (otherwise the body's exception
+    /// wins). See Rework C6.
+    /// </summary>
+    internal static async Task WithForeignKeysOffAsync(
+        System.Data.Common.DbConnection conn, Func<Task> body)
+    {
+        await ExecAsync(conn, "PRAGMA foreign_keys=OFF").ConfigureAwait(false);
+        try
+        {
+            await body().ConfigureAwait(false);
+        }
+        finally
+        {
+            // Best-effort restore. If the body threw, that exception
+            // propagates; if the PRAGMA itself throws after a successful
+            // body, the connection is left in a bad state but at least the
+            // user sees the error rather than silently running with FKs off.
+            await ExecAsync(conn, "PRAGMA foreign_keys=ON").ConfigureAwait(false);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
