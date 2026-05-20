@@ -263,4 +263,130 @@ public class ArchiveAudioLocatorTests : IDisposable
         Assert.NotNull(hit);
         Assert.EndsWith(".flac", hit!.Value.Path);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Rework H8 — filesystem-probe caching
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Setup helper for the cache tests: one album, one disc, 10 tracks all
+    /// living in the same FLAC folder. Returns the locator + the album + disc
+    /// + track list ready to feed into Resolve.
+    /// </summary>
+    private (ArchiveAudioLocator locator, CanonAlbum album, AlbumDisc disc, List<AlbumTrack> tracks)
+        BuildTenTrackFixture()
+    {
+        for (int i = 1; i <= 10; i++)
+            Touch("Album", "FLAC", $"{i:D2} Track {i}.flac");
+
+        var settings = new FakeSettings { ArchiveRootPath = _root };
+        var locator  = new ArchiveAudioLocator(settings);
+        var album    = new CanonAlbum { Title = "Album" };
+        var disc     = new AlbumDisc { DiscNumber = 1 };
+        album.Discs.Add(disc);
+        var tracks = Enumerable.Range(1, 10)
+            .Select(n => new AlbumTrack { TrackNumber = n })
+            .ToList();
+        return (locator, album, disc, tracks);
+    }
+
+    /// <summary>
+    /// The H8 win: resolving every track on a single-disc album probes the
+    /// filesystem twice total (Directory.Exists for the album dir +
+    /// Directory.Exists + Directory.EnumerateFiles for the FLAC dir), not
+    /// once-per-track. Pre-fix this was ~30 syscalls for 10 tracks; with
+    /// the cache it's 3.
+    /// </summary>
+    [Fact]
+    public void Resolve_OnSameDisc_CachesFilesystemProbes()
+    {
+        var (locator, album, disc, tracks) = BuildTenTrackFixture();
+
+        foreach (var track in tracks)
+            Assert.NotNull(locator.Resolve(album, disc, track));
+
+        // Album-dir exists (1) + FLAC-dir exists (1) + FLAC-dir enumerate (1) = 3.
+        // Pre-fix every track would have re-probed all three, for ~30 total.
+        Assert.Equal(3, locator.FilesystemProbeCount);
+    }
+
+    [Fact]
+    public void Resolve_AfterInvalidate_ReProbesFilesystem()
+    {
+        var (locator, album, disc, tracks) = BuildTenTrackFixture();
+
+        Assert.NotNull(locator.Resolve(album, disc, tracks[0]));
+        var probesBefore = locator.FilesystemProbeCount;
+        Assert.True(probesBefore > 0);
+
+        locator.Invalidate();
+        // Invalidate resets the counter — sanity check.
+        Assert.Equal(0, locator.FilesystemProbeCount);
+
+        Assert.NotNull(locator.Resolve(album, disc, tracks[0]));
+        // Same 3 probes again now that the cache is empty.
+        Assert.Equal(3, locator.FilesystemProbeCount);
+    }
+
+    [Fact]
+    public void Resolve_AfterArchiveRootChange_AutoInvalidates()
+    {
+        // Two parallel fixtures with the same on-disk shape but different
+        // archive roots. Switching the settings between them must cause
+        // the cache to drop — otherwise the second Resolve would look up
+        // a path constructed under the old root.
+        var rootA = Path.Combine(_root, "RootA");
+        var rootB = Path.Combine(_root, "RootB");
+        File.WriteAllText(Touch("RootA", "Album", "FLAC", "01 a.flac"), "");
+        File.WriteAllText(Touch("RootB", "Album", "FLAC", "01 b.flac"), "");
+
+        var settings = new FakeSettings { ArchiveRootPath = rootA };
+        var locator  = new ArchiveAudioLocator(settings);
+        var album    = new CanonAlbum { Title = "Album" };
+        var disc     = new AlbumDisc { DiscNumber = 1 };
+        album.Discs.Add(disc);
+
+        var hitA = locator.Resolve(album, disc, new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hitA);
+        Assert.Contains("RootA", hitA!.Value.Path);
+
+        // Pretend the user changed ArchiveRootPath in the Settings tab.
+        settings.ArchiveRootPath = rootB;
+
+        var hitB = locator.Resolve(album, disc, new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hitB);
+        Assert.Contains("RootB", hitB!.Value.Path);
+        // Cache was rebuilt — the auto-invalidation re-probed for the new
+        // root. Probe count reflects only the post-invalidation work.
+        Assert.Equal(3, locator.FilesystemProbeCount);
+    }
+
+    [Fact]
+    public void Resolve_AcrossMultipleDiscs_CachesPerDirectory()
+    {
+        // A two-disc album with separate FLAC folders. The album dir and each
+        // disc/format dir caches independently.
+        Touch("DoubleAlbum", "Disc 1", "FLAC", "01 a.flac");
+        Touch("DoubleAlbum", "Disc 1", "FLAC", "02 b.flac");
+        Touch("DoubleAlbum", "Disc 2", "FLAC", "01 c.flac");
+
+        var settings = new FakeSettings { ArchiveRootPath = _root };
+        var locator  = new ArchiveAudioLocator(settings);
+        var album    = new CanonAlbum { Title = "DoubleAlbum" };
+        var d1       = new AlbumDisc { DiscNumber = 1 };
+        var d2       = new AlbumDisc { DiscNumber = 2 };
+        album.Discs.Add(d1);
+        album.Discs.Add(d2);
+
+        Assert.NotNull(locator.Resolve(album, d1, new AlbumTrack { TrackNumber = 1 }));
+        Assert.NotNull(locator.Resolve(album, d1, new AlbumTrack { TrackNumber = 2 }));
+        Assert.NotNull(locator.Resolve(album, d2, new AlbumTrack { TrackNumber = 1 }));
+
+        // Probes:
+        //   album dir (1)
+        //   d1 dir (1) + d1 FLAC exists (1) + d1 FLAC enumerate (1)
+        //   d2 dir (1) + d2 FLAC exists (1) + d2 FLAC enumerate (1)
+        // = 7 total. Second Resolve on d1/track2 reuses every cached entry.
+        Assert.Equal(7, locator.FilesystemProbeCount);
+    }
 }
