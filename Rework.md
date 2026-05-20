@@ -20,9 +20,9 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
-3. **`CataloguingService` composer cache collides on shared surnames.** The cache keys on last name alone, but the lookup uses `(lastName, firstName)` — so an album with both Johann Strauss II and Richard Strauss tracks writes the first-encountered composer's birth/death years onto every track. Same trap for the Bachs, Scarlattis, Couperins. Silently wrong metadata written to the tag. Key the cache by `(lastName, firstName)`. (H26)
-4. **`CataloguingService.FindMp3Folder` only returns the first disc folder.** Multi-disc albums catalogued through the tag-write pipeline get tag updates on disc 1 only; discs 2..N silently skip. Walk every `Disc *` folder, not just the first. (H25)
-5. **`CataloguingService` writes tags with no backup of the original.** `WriteFileTag` overwrites tag fields in place. After a bad MusicBrainz match or misparsed work title the user has no undo path short of re-reading from CD. Snapshot the original tag values to a sidecar JSON before the first write. (H27)
+3. **`ArchiveScannerService.ScanArchiveAsync` is async-in-name-only.** The signature returns `Task<List<AlbumInfo>>` but the body runs every disk walk synchronously on the calling thread and returns `Task.FromResult(...)`. Walking a 3,000-CD archive on a network share / sleepy disk freezes the UI for tens of seconds. The sibling `ValidateArchiveAsync` already wraps in `Task.Run` — match the pattern, or restructure to genuinely async I/O. (H28)
+4. **`ArchiveScannerService` orders disc folders lexicographically.** "Disc 10" sorts before "Disc 2" — so 10+ disc box sets get their discs in the wrong order (and the duplicate handling in H28 inherits the same bug). Sort numerically on the trailing integer. (H29)
+5. **`EnsembleEntryEditorWindow.OnOkClick` silently flips `IsEnsemble = true` on every save.** The fix is a one-line guard, but the symptom is a real data-correctness bug: editing a person-typed performer to fix any field (name, role, instrument) silently re-types it as an ensemble. (H33)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 36 |
+| 🟠 High | 33 |
 | 🟡 Medium | 84 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **214** |
+| **Total** | **211** |
 
 ---
 
@@ -151,33 +151,6 @@ Fix at the model: give `RecordingSession` a stable identifier (`Id` / `Key`) and
 [ItunesImportViewModel.cs:171-182](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:171) — the "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two genuinely different albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both "Symphony No. 9") collide. Importing the Bernstein after the Karajan: Bernstein's track 1 looks already-imported and is hidden, the user adds nothing, and the canon silently misses the Bernstein recording.
 
 Fix: include `Label|CatalogueNumber` in the key when present, or key on the iTunes Persistent ID once that's threaded through (see M27).
-
-### H25. `CataloguingService.FindMp3Folder` only returns the first disc folder
-[CataloguingService.cs:184-201](src/CDArchive.Core/Services/CataloguingService.cs:184):
-```csharp
-foreach (var disc in Directory.GetDirectories(albumPath, "Disc *").OrderBy(d => d))
-{
-    var mp3InDisc = Path.Combine(disc, "MP3");
-    if (Directory.Exists(mp3InDisc))
-        return mp3InDisc;  // returns ONLY Disc 1
-}
-```
-For multi-disc albums, only Disc 1's MP3 folder is returned. `ReadAlbumTagsAsync` therefore only processes Disc 1's files — the user's "Cataloguing" workflow silently skips discs 2..N. The owner has many multi-disc box sets in the catalogue; this is a real bug, not a corner case. Fix: collect MP3 folders from every disc and process them together.
-
-### H26. `CataloguingService` composer cache collides on shared surnames
-[CataloguingService.cs:79-100](src/CDArchive.Core/Services/CataloguingService.cs:79):
-```csharp
-var composerCache = new Dictionary<string, ComposerInfo?>(StringComparer.OrdinalIgnoreCase);
-...
-if (!string.IsNullOrEmpty(composerLast) && !composerCache.ContainsKey(composerLast))
-{
-    composerCache[composerLast] = await _reference.LookupComposerAsync(composerLast, ...);
-}
-```
-The cache key is `composerLast` alone, but the lookup uses `(lastName, firstName)`. An album with both Johann Strauss II and Richard Strauss tracks: the second encountered uses the first's cached result. Same for J.S. Bach vs C.P.E. Bach, the Scarlattis, the Couperins. **Silently wrong composer data written to the tag.** Key the cache by `(lastName, firstName)`.
-
-### H27. `CataloguingService` writes tags with no backup of the original
-[CataloguingService.cs:272-299](src/CDArchive.Core/Services/CataloguingService.cs:272) — `WriteFileTag` overwrites the tag fields directly. If the user runs the formatting pipeline and is unhappy with the result (a bad MusicBrainz match, a misparsed work title), the original tags are gone. Recovery requires re-reading from CD or restoring from a separate file backup. At minimum, snapshot the original tag values to a sidecar JSON before the first write so the user has an undo path.
 
 ### H28. `ArchiveScannerService.ScanArchiveAsync` is async-in-name-only — runs synchronously on the calling thread
 [ArchiveScannerService.cs:19-75](src/CDArchive.Core/Services/ArchiveScannerService.cs:19) — the method signature returns `Task<List<AlbumInfo>>` but the body does all the I/O synchronously and returns `Task.FromResult(albums)`. Walking a 3,000-CD archive on a slow drive (network share, USB, sleepy hard disk) hangs the UI thread for tens of seconds with no await yielding. By contrast, the sibling `ValidateArchiveAsync` *does* wrap its work in `Task.Run(...)` ([:131](src/CDArchive.Core/Services/ArchiveScannerService.cs:131)) — the asymmetry suggests one method was added later without copying the pattern. Either add `Task.Run` (cheap) or restructure to genuinely async I/O.
@@ -1091,6 +1064,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C14. `PickListsViewModel.ApplyRenames` fires `SavePiecesAsync` as discarded Task
 [2026-05-19] `rework/picklists-rename-save` — Extended `ICanonDataService.SaveBatchAsync` with an optional `CanonPickLists? pickLists` parameter; extracted `SqliteCanonDataService.SavePickListsCoreAsync` (stages the delete-and-reinsert without flushing) and wired it into the shared transaction in `SaveBatchAsync` ahead of the composers→pieces→albums→loose-tracks chain. Pick-list rows are FK-independent so order doesn't matter on the SQLite side; running first means a piece save in the same batch sees a freshly-renamed value already staged. `PickListsViewModel.ApplyRenames` no longer fire-and-forgets a pieces save — it now returns the rename count and the caller (`SaveAsync`) decides whether to bundle `pieces: _canonVm.Pieces.ToList()` into the same `SaveBatchAsync` call. A piece-side failure now rolls the pick-list change back too; success now waits for both to land before flipping `StatusMessage` to a truthful `"Pick lists saved. Renamed N piece field(s)."`. The `CanonDataService` JSON implementation forwards the new parameter to its sequential `SavePickListsAsync` (best-effort, matching the existing batch stub). Locked in by 3 new tests in `SaveBatchAtomicityTests`: pick-lists-only persists, pick-lists + pieces both land, downstream-failure rolls back the staged pick list too.
+
+### H25 + H26 + H27. `CataloguingService` safety sweep: multi-disc walk + composer cache key + tag-backup sidecar
+[2026-05-20] `rework/cataloguing-service-safety` — Three orthogonal fixes bundled. (H25) `FindMp3Folder` returned only the first matching disc folder; multi-disc albums catalogued through the tag-write pipeline silently skipped discs 2..N. Renamed to `FindMp3Folders` (plural), now `yield`s every `Disc N/MP3` it finds (or the single album-root `MP3` for single-disc, or the flat layout). `ReadAlbumTagsAsync` iterates every disc with per-disc track numbering and re-applies folder-derived `DiscNumber` / `DiscCount` after `FormatEntriesAsync`'s unconditional clear — folder-derived disc info is reliable even when the raw tag is wrong. (H26) The composer-lookup cache keyed on `composerLast` alone; an album with both Johann II and Richard Strauss tracks wrote the first-encountered composer's birth/death years onto every Strauss. Cache now keys on `(lastName, firstName)` (lowercased, tuple value-equality). To make the contract testable, `CataloguingService`'s ctor now takes `ICatalogueReference` instead of the concrete `CompositeCatalogueReference`; DI maps both registrations to the same singleton so `LastSourceUsed` bookkeeping isn't duplicated. (H27) `WriteFileTag` overwrote tag fields with no undo path. New `TrySnapshotOriginalTags` runs before the atomic-write, serialising the pre-write tag values to a `<file>.tagbackup.json` sidecar — but only when no prior backup exists, so the truly-original values survive multiple pipeline runs. New `RestoreFromBackup(filePath)` public API reads the sidecar through the same atomic-write primitive as the forward path; failure modes (missing / corrupt sidecar) return a `WriteResult` failure without throwing. The `TagSnapshot` JSON shape is the cross-run contract — a new `TagSnapshot_RoundTripsThroughJson` test pins it down so a careless rename can't silently break every existing user's backups. 11 new tests in `CataloguingServiceSafetyTests`: `FindMp3Folders` walks for single-disc / multi-disc / mixed-layout / flat / empty; composer cache distinguishes shared surnames AND still hits the cache on repeat lookups; `GetTagBackupPath` shape; snapshot JSON round-trip; `RestoreFromBackup` no-backup and corrupt-backup failure paths. All 494 tests pass.
 
 ### H22 + H23. `TrackEditorWindow` Cancel rollback + "(no session)" silent collapse to session 0
 [2026-05-20] `rework/track-editor-correctness` — Bundled TrackEditor correctness sweep. (H23) Pre-fix both single-edit `RebuildSessionCombo` and multi-edit `PopulateMultiSessionCombo` collapsed `SessionIndex == null` to session 0 via `?? 0` (single-edit: when opening a no-session track, the combo showed session 0 selected and any OK click wrote 0; multi-edit: when every selected track shared a null session, all became session 0 on Save). Added a "(no session)" pseudo-item to the SessionBox after the real sessions; selecting it writes null on commit. Extracted the mapping logic to `CDArchive.Core.Helpers.SessionIndexMapping` so it's testable without WPF — `InitialComboIndex` seeds the combo from a saved `SessionIndex?` (null lands on "(no session)", not session 0); `ResolveSelection` maps a `SelectedIndex` back to the value to write, distinguishing the three semantics ("write real session N", "write null", "skip the write because the user left the Mixed / multi-album sentinel selected"). The "Mixed" sentinel index is tracked explicitly in a field so the multi-edit save path can skip writes correctly whether it's at `sessionCount + 1` (mixed values) or at 0 (the "(multiple albums — cannot edit)" disabled-combo case). (H22) Both single-edit and multi-edit ctors now JSON-deep-clone the disc's track list and the session list on entry, stashing them in `_tracksSnapshotForRollback` + `_sessionsSnapshotForRollback`. A `Closing` handler restores them when `DialogResult != true`, undoing any Prev/Next per-step commits to `_disc.Tracks` and any `OnAddSession` appends to `_sessions`. Pre-fix Cancel was a polite lie — Prev-Next-Cancel left the navigated-from track's edits in place and any newly-added session lingered on the parent album. 23 new tests in `SessionIndexMappingTests` lock in every branch of the helper. The Cancel-rollback path is verified by manual smoke test (no WPF test project — see H39). All 483 tests pass.

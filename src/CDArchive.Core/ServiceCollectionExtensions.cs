@@ -51,6 +51,11 @@ public static class ServiceCollectionExtensions
         });
         services.AddSingleton<MusicBrainzReference>();
         services.AddSingleton<CompositeCatalogueReference>();
+        // CataloguingService takes ICatalogueReference (Rework H26) so tests
+        // can stub the lookup; in production the interface resolves to the
+        // same CompositeCatalogueReference singleton registered above so
+        // LastSourceUsed bookkeeping isn't duplicated across instances.
+        services.AddSingleton<ICatalogueReference>(sp => sp.GetRequiredService<CompositeCatalogueReference>());
         services.AddTransient<ICataloguingService, CataloguingService>();
 
         // Canon data path — SQLite is the sole source of truth at runtime:
