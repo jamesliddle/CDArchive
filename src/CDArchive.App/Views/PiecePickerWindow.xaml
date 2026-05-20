@@ -66,10 +66,16 @@
 
         <!-- Tree -->
         <Border BorderThickness="1" BorderBrush="#CCC" Background="White">
+            <!-- Rework H34: virtualization is the WPF default. Pre-fix this
+                 tree set IsVirtualizing="False"; the picker's PickerNode
+                 view-model holds IsExpanded directly (vs binding through
+                 TreeViewItem.IsExpanded), so the typical "virtualization
+                 dropped my expansion state" trap doesn't apply — there's
+                 no working state in the WPF container that the recycler
+                 could lose. -->
             <TreeView x:Name="PieceTree"
                       BorderThickness="0" Background="White"
                       FontSize="13"
-                      VirtualizingStackPanel.IsVirtualizing="False"
                       SelectedItemChanged="OnTreeSelectionChanged"
                       MouseDoubleClick="OnTreeDoubleClick"
                       KeyDown="OnTreeKeyDown">
