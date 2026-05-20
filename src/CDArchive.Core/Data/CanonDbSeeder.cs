@@ -50,6 +50,16 @@ public class CanonDbSeeder
     {
         var report = new SeedResult();
 
+        // Rework H43: wrap the three SaveChanges in one transaction. Pre-fix
+        // composers + pieces committed independently before albums ran, so
+        // a SeedAlbums failure (duplicate (Label, CatalogueNumber) against
+        // the filtered unique index, a CHECK violation, etc.) left the
+        // composer + piece rows behind with no recovery signal — the user
+        // saw a partial DB and could not tell from --export afterward what
+        // was missing. Single transaction means a mid-seed failure rolls
+        // every subsystem back to the pre-seed empty state.
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         SeedComposers(composers, report);
         SeedPickLists(pickLists, report);
         await _db.SaveChangesAsync();
@@ -60,6 +70,7 @@ public class CanonDbSeeder
         SeedAlbums(albums, report);
         await _db.SaveChangesAsync();
 
+        await tx.CommitAsync();
         return report;
     }
 
@@ -83,6 +94,12 @@ public class CanonDbSeeder
                 DeathState   = c.DeathState,
                 DeathCountry = c.DeathCountry,
                 Notes        = c.Notes,
+                // Rework H42: preserve the JSON IsProvisional value. Pre-fix
+                // this fell through to the row class's C# default of `true`,
+                // so every reseed reset every approval the user had ever
+                // applied — silent loss of months of curation on the
+                // documented recovery path.
+                IsProvisional = c.IsProvisional,
             };
 
             if (c.Aliases is { Count: > 0 })
@@ -221,6 +238,10 @@ public class CanonDbSeeder
             NumberedSubpieces       = src.NumberedSubpieces,
             SubpiecesStart          = src.SubpiecesStart,
             Notes                   = src.Notes,
+            // Rework H42: preserve the JSON IsProvisional. MapPiece is called
+            // recursively for subpieces, so the fix automatically propagates
+            // through the whole piece tree.
+            IsProvisional           = src.IsProvisional,
 
             InstrumentationJson     = RawJson(src.Instrumentation),
             CompositionYearsJson    = RawJson(src.CompositionYears),
@@ -522,6 +543,8 @@ public class CanonDbSeeder
                 SparsCode       = album.SparsCode,
                 IsStereo        = album.IsStereo,
                 Notes           = album.Notes,
+                // Rework H42: preserve JSON IsProvisional. See SeedComposers.
+                IsProvisional   = album.IsProvisional,
             };
 
             // ── Volumes ──────────────────────────────────────────────────────
@@ -584,11 +607,13 @@ public class CanonDbSeeder
                 {
                     var trackRow = new AlbumTrackRow
                     {
-                        TrackNumber = track.TrackNumber,
-                        Duration    = track.Duration,
-                        Description = track.Description,
-                        SparsCode   = track.SparsCode,
-                        IsStereo    = track.IsStereo,
+                        TrackNumber   = track.TrackNumber,
+                        Duration      = track.Duration,
+                        Description   = track.Description,
+                        SparsCode     = track.SparsCode,
+                        IsStereo      = track.IsStereo,
+                        // Rework H42: preserve JSON IsProvisional. See SeedComposers.
+                        IsProvisional = track.IsProvisional,
                     };
                     if (track.SessionIndex is int si && sessionByIndex.TryGetValue(si, out var sessRow))
                         trackRow.Session = sessRow;
