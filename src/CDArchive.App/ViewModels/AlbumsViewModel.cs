@@ -16,6 +16,14 @@ public partial class AlbumsViewModel : ObservableObject
     private readonly PieceReferenceIndex _refIndex;
     private readonly ILogger<AlbumsViewModel> _logger;
 
+    /// <summary>
+    /// Exposed so the Albums view's code-behind can hand it through to
+    /// <see cref="Views.AlbumEditorWindow"/> — the editor's right-click
+    /// "Play track" / "Play from here" actions need it. Pre-fix the
+    /// editor pulled it via the App.ServiceProvider static (Rework H12).
+    /// </summary>
+    public PlayerViewModel Player { get; }
+
     // Full unfiltered list; Albums is the sorted+filtered view.
     private List<CanonAlbum> _allAlbums = [];
 
@@ -33,10 +41,12 @@ public partial class AlbumsViewModel : ObservableObject
     public AlbumsViewModel(
         ICanonDataService svc,
         PieceReferenceIndex refIndex,
+        PlayerViewModel player,
         ILogger<AlbumsViewModel>? logger = null)
     {
         _svc = svc;
         _refIndex = refIndex;
+        Player = player;
         _logger = logger ?? NullLogger<AlbumsViewModel>.Instance;
     }
 

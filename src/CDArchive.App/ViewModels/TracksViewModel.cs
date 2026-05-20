@@ -40,15 +40,24 @@ public partial class TracksViewModel : ObservableObject
     public string SortColumn    { get; set; } = "AlbumTitle";
     public bool   SortAscending { get; set; } = true;
 
+    /// <summary>
+    /// Exposed so <c>TracksView.xaml.cs</c>'s "edit album" path can hand it
+    /// through to <see cref="Views.AlbumEditorWindow"/> for its playback
+    /// context menu. Rework H12.
+    /// </summary>
+    public PlayerViewModel Player { get; }
+
     public TracksViewModel(
         AlbumsViewModel albumsVm,
         ICanonDataService svc,
         PieceReferenceIndex refIndex,
+        PlayerViewModel player,
         ILogger<TracksViewModel>? logger = null)
     {
         _albumsVm = albumsVm;
         _svc      = svc;
         _refIndex = refIndex;
+        Player    = player;
         _logger   = logger ?? NullLogger<TracksViewModel>.Instance;
     }
 

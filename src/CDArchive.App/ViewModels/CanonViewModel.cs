@@ -20,6 +20,13 @@ public partial class CanonViewModel : ObservableObject
     private readonly TracksViewModel _tracksVm;
     private readonly ILogger<CanonViewModel> _logger;
 
+    /// <summary>
+    /// Exposed so <c>CanonView.xaml.cs</c>'s "edit album from Canon" path
+    /// can hand it through to <see cref="Views.AlbumEditorWindow"/> for its
+    /// playback context menu. Rework H12.
+    /// </summary>
+    public PlayerViewModel Player { get; }
+
     // --- Composers ---
 
     [ObservableProperty]
@@ -75,12 +82,14 @@ public partial class CanonViewModel : ObservableObject
         PieceReferenceIndex refIndex,
         AlbumsViewModel albumsVm,
         TracksViewModel tracksVm,
+        PlayerViewModel player,
         ILogger<CanonViewModel>? logger = null)
     {
         _canonDataService = canonDataService;
         _refIndex = refIndex;
         _albumsVm = albumsVm;
         _tracksVm = tracksVm;
+        Player = player;
         _logger = logger ?? NullLogger<CanonViewModel>.Instance;
     }
 

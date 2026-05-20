@@ -70,9 +70,9 @@ public partial class AlbumsView : UserControl
     private void OnContextPlayAlbum(object sender, RoutedEventArgs e)
     {
         if (AlbumList.SelectedItem is not CanonAlbum album) return;
+        if (DataContext is not AlbumsViewModel vm) return;
 
-        var player = App.ServiceProvider.GetRequiredService<PlayerViewModel>();
-        var result = player.PlayAlbum(album);
+        var result = vm.Player.PlayAlbum(album);
         if (result == PlayRequestResult.Playing) return;
 
         ShowPlaybackError(album, result);
@@ -232,7 +232,7 @@ public partial class AlbumsView : UserControl
         if (DataContext is not AlbumsViewModel vm) return;
 
         var (pieces, pickLists) = await vm.LoadEditorDataAsync();
-        var dlg = new AlbumEditorWindow(pickLists, pieces)
+        var dlg = new AlbumEditorWindow(pickLists, pieces, vm.Player)
         {
             Owner = Window.GetWindow(this)
         };
@@ -259,7 +259,7 @@ public partial class AlbumsView : UserControl
         {
             // ── Single album ──────────────────────────────────────────────────
             var album = selected[0];
-            var dlg = new AlbumEditorWindow(pickLists, pieces, album)
+            var dlg = new AlbumEditorWindow(pickLists, pieces, vm.Player, album)
             {
                 Owner = Window.GetWindow(this)
             };
@@ -274,7 +274,7 @@ public partial class AlbumsView : UserControl
         {
             // ── Multiple albums ───────────────────────────────────────────────
             // The editor modifies the albums in-place; no Result needed.
-            var dlg = new AlbumEditorWindow(pickLists, selected, pieces)
+            var dlg = new AlbumEditorWindow(pickLists, selected, pieces, vm.Player)
             {
                 Owner = Window.GetWindow(this)
             };
