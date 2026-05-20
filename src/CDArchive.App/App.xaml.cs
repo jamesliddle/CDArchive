@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using CDArchive.App.ViewModels;
 using CDArchive.Core;
+using CDArchive.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -69,6 +70,14 @@ public partial class App : Application
             ServiceProvider = services.BuildServiceProvider();
 
             Log.Information("Service provider built");
+
+            // ArchiveSettings is constructed by DI with default values only —
+            // see Rework H4. Read the persisted settings.json now, on the UI
+            // thread, before MainViewModel resolves (which transitively pulls
+            // every settings consumer). Failures are logged and swallowed by
+            // Initialize; an unreadable settings file no longer crashes
+            // startup, the user just sees the defaults until they fix it.
+            ServiceProvider.GetRequiredService<IArchiveSettings>().Initialize();
 
             var mainWindow = new MainWindow
             {
