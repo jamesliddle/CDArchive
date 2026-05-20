@@ -7,7 +7,6 @@ using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CDArchive.App.Views;
 
@@ -15,6 +14,13 @@ public partial class AlbumEditorWindow : Window
 {
     private readonly CanonPickLists          _pickLists;
     private readonly IReadOnlyList<CanonPiece> _allPieces;
+    // PlayerViewModel for the right-click "Play track" / "Play from here"
+    // context-menu actions on the track grid. Pre-fix this was pulled via
+    // `App.ServiceProvider.GetRequiredService<PlayerViewModel>()` at the
+    // point of use — service-locator anti-pattern that coupled the dialog
+    // to App's static singleton and made the dialog effectively impossible
+    // to unit-test. Plumbed through the ctor now (Rework H12).
+    private readonly PlayerViewModel _player;
 
     // ── Single-edit working state ─────────────────────────────────────────────
 
@@ -52,11 +58,12 @@ public partial class AlbumEditorWindow : Window
 
     // ── Constructor: single album (new or edit) ───────────────────────────────
 
-    public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonPiece> allPieces, CanonAlbum? album = null)
+    public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonPiece> allPieces, PlayerViewModel player, CanonAlbum? album = null)
     {
         InitializeComponent();
         _pickLists = pickLists;
         _allPieces = allPieces;
+        _player    = player;
         _isMixed   = false;
 
         if (album != null)
@@ -89,11 +96,12 @@ public partial class AlbumEditorWindow : Window
 
     // ── Constructor: multiple albums (bulk edit) ──────────────────────────────
 
-    public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonAlbum> albums, IReadOnlyList<CanonPiece> allPieces)
+    public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonAlbum> albums, IReadOnlyList<CanonPiece> allPieces, PlayerViewModel player)
     {
         InitializeComponent();
         _pickLists  = pickLists;
         _allPieces  = allPieces;
+        _player     = player;
         _isMixed    = true;
         _editAlbums = albums;
 
@@ -434,10 +442,9 @@ public partial class AlbumEditorWindow : Window
         // we're editing the single _album held by this window.
         var album = row.Album ?? _album;
 
-        var player = App.ServiceProvider.GetRequiredService<PlayerViewModel>();
         var result = asSingle
-            ? player.PlaySingleTrack(album, row.Disc, row.Track)
-            : player.PlayFromTrack(album, row.Disc, row.Track);
+            ? _player.PlaySingleTrack(album, row.Disc, row.Track)
+            : _player.PlayFromTrack(album, row.Disc, row.Track);
 
         if (result == PlayRequestResult.Playing) return;
 

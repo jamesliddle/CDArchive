@@ -377,7 +377,7 @@ public partial class TracksView : UserControl
         if (DataContext is not TracksViewModel vm) return;
 
         var (pieces, pickLists) = await vm.LoadEditorDataAsync();
-        var dlg = new AlbumEditorWindow(pickLists, pieces, album)
+        var dlg = new AlbumEditorWindow(pickLists, pieces, vm.Player, album)
         {
             Owner = Window.GetWindow(this),
         };

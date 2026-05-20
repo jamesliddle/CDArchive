@@ -771,7 +771,7 @@ public partial class CanonView : UserControl
         var liveAlbum = albumsVm.AllAlbums.FirstOrDefault(a => ReferenceEquals(a, album)) ?? album;
 
         var (pieces, pickLists) = await albumsVm.LoadEditorDataAsync();
-        var dlg = new AlbumEditorWindow(pickLists, pieces, liveAlbum)
+        var dlg = new AlbumEditorWindow(pickLists, pieces, albumsVm.Player, liveAlbum)
         {
             Owner = Window.GetWindow(this)
         };
