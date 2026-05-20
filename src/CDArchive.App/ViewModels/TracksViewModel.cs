@@ -55,6 +55,14 @@ public partial class TracksViewModel : ObservableObject
     /// <summary>Public read-only access to the loose-track list (for tests and the view).</summary>
     public IReadOnlyList<AlbumTrack> LooseTracks => _looseTracks;
 
+    /// <summary>
+    /// True once <see cref="LoadDataAsync"/> has completed successfully at
+    /// least once. <c>CanonViewModel</c> uses this to decide whether
+    /// <see cref="LooseTracks"/> reflects the current DB state or whether
+    /// a fresh load is needed — see Rework H9.
+    /// </summary>
+    public bool HasLoaded { get; private set; }
+
     [RelayCommand]
     public async Task LoadDataAsync()
     {
@@ -68,6 +76,7 @@ public partial class TracksViewModel : ObservableObject
 
             // Loose tracks aren't held by AlbumsViewModel — fetch separately.
             _looseTracks = await _svc.LoadLooseTracksAsync();
+            HasLoaded = true;
 
             RebuildRows();
             ApplyFilter();

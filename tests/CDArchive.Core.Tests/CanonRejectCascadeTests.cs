@@ -413,4 +413,166 @@ public class CanonRejectCascadeTests : IDisposable
         var album = Assert.Single(afterAlbums);
         Assert.True(album.Discs[0].Tracks[0].PieceRefs is null or { Count: 0 });
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Rework H9 — in-place overloads that accept the caller's
+    // albums + looseTracks lists (avoiding a redundant DB load when the App
+    // already holds those lists in singleton VMs).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The H9 contract: when the caller passes its in-memory albums +
+    /// looseTracks lists into the cascade, those lists are mutated in place
+    /// (track piece-refs stripped) and saved. The caller can then reuse the
+    /// SAME list references for a post-cascade index rebuild without a
+    /// second DB load. This test seeds an album with a ref to a doomed
+    /// piece, runs the in-place overload, and asserts the caller's list now
+    /// reflects the strip.
+    /// </summary>
+    [Fact]
+    public async Task RejectComposer_InPlaceOverload_MutatesCallerAlbumsList()
+    {
+        var composers = new List<CanonComposer>
+        {
+            new() { Name = "Doomed, Composer", SortName = "Doomed, Composer" },
+        };
+        var pieces = new List<CanonPiece>
+        {
+            new() { Composer = "Doomed, Composer", Title = "The Work" },
+        };
+        var albums = new List<CanonAlbum>
+        {
+            new()
+            {
+                Title = "Test Album",
+                Discs = new List<AlbumDisc>
+                {
+                    new()
+                    {
+                        DiscNumber = 1,
+                        Tracks = new List<AlbumTrack>
+                        {
+                            new()
+                            {
+                                TrackNumber = 1,
+                                PieceRefs = new List<TrackPieceRef>
+                                {
+                                    new() { Composer = "Doomed, Composer", PieceTitle = "The Work" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        var looseTracks = new List<AlbumTrack>();
+
+        await _svc.SaveComposersAsync(composers);
+        await _svc.SavePiecesAsync(pieces);
+        await _svc.SaveAlbumsAsync(albums);
+
+        // Sanity: ref is on the caller's track before the cascade runs.
+        var trackBefore = albums[0].Discs[0].Tracks[0];
+        Assert.NotNull(trackBefore.PieceRefs);
+        Assert.Single(trackBefore.PieceRefs!);
+
+        await CanonRejectCascade.RejectComposerAsync(
+            _svc, composers, pieces, albums, looseTracks, composers[0]);
+
+        // The cascade mutated the CALLER's albums list. Same track instance,
+        // PieceRefs now empty or null. The caller can reuse this list for an
+        // index rebuild — no second LoadAlbumsAsync needed.
+        Assert.Same(trackBefore, albums[0].Discs[0].Tracks[0]);
+        Assert.True(trackBefore.PieceRefs is null or { Count: 0 });
+
+        // The DB reflects the same state (the cascade saved through _svc).
+        var fromDb = await _svc.LoadAlbumsAsync();
+        var dbTrack = fromDb[0].Discs[0].Tracks[0];
+        Assert.True(dbTrack.PieceRefs is null or { Count: 0 });
+    }
+
+    /// <summary>
+    /// Companion test for the piece overload: in-place mutation of the
+    /// caller's list, no second DB load required.
+    /// </summary>
+    [Fact]
+    public async Task RejectPiece_InPlaceOverload_MutatesCallerAlbumsList()
+    {
+        var composers = new List<CanonComposer>
+        {
+            new() { Name = "Keeper, Composer", SortName = "Keeper, Composer" },
+        };
+        var doomed = new CanonPiece { Composer = "Keeper, Composer", Title = "Doomed Work" };
+        var pieces = new List<CanonPiece>
+        {
+            doomed,
+            new() { Composer = "Keeper, Composer", Title = "Surviving Work" },
+        };
+        var albums = new List<CanonAlbum>
+        {
+            new()
+            {
+                Title = "Test Album",
+                Discs = new List<AlbumDisc>
+                {
+                    new()
+                    {
+                        DiscNumber = 1,
+                        Tracks = new List<AlbumTrack>
+                        {
+                            new()
+                            {
+                                TrackNumber = 1,
+                                PieceRefs = new List<TrackPieceRef>
+                                {
+                                    new() { Composer = "Keeper, Composer", PieceTitle = "Doomed Work" },
+                                    new() { Composer = "Keeper, Composer", PieceTitle = "Surviving Work" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        var looseTracks = new List<AlbumTrack>();
+
+        await _svc.SaveComposersAsync(composers);
+        await _svc.SavePiecesAsync(pieces);
+        await _svc.SaveAlbumsAsync(albums);
+
+        var trackBefore = albums[0].Discs[0].Tracks[0];
+        Assert.Equal(2, trackBefore.PieceRefs!.Count);
+
+        await CanonRejectCascade.RejectPieceAsync(
+            _svc, pieces, albums, looseTracks, doomed);
+
+        // Same track instance; the Doomed-Work ref is gone; Surviving-Work remains.
+        Assert.Same(trackBefore, albums[0].Discs[0].Tracks[0]);
+        Assert.Single(trackBefore.PieceRefs!);
+        Assert.Equal("Surviving Work", trackBefore.PieceRefs![0].PieceTitle);
+    }
+
+    /// <summary>
+    /// Passing null for albums / looseTracks falls back to the legacy
+    /// load-fresh behaviour. This is what the parameterless overload does
+    /// internally; the test pins down that contract directly.
+    /// </summary>
+    [Fact]
+    public async Task RejectComposer_InPlaceOverload_WithNulls_FallsBackToLoadFresh()
+    {
+        await _svc.SaveComposersAsync(new List<CanonComposer>
+        {
+            new() { Name = "Doomed, Composer", SortName = "Doomed, Composer" },
+        });
+        await _svc.SavePiecesAsync(new List<CanonPiece>());
+
+        var composers = await _svc.LoadComposersAsync();
+        var pieces    = await _svc.LoadPiecesAsync();
+
+        await CanonRejectCascade.RejectComposerAsync(
+            _svc, composers, pieces, albums: null, looseTracks: null, composers[0]);
+
+        // The composer is gone, the cascade didn't crash on the null inputs.
+        Assert.Empty(await _svc.LoadComposersAsync());
+    }
 }
