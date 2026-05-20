@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
 namespace CDArchive.Core.Services;
@@ -18,60 +19,73 @@ public class ArchiveScannerService : IArchiveScannerService
 
     public Task<List<AlbumInfo>> ScanArchiveAsync(CancellationToken ct = default)
     {
-        var albums = new List<AlbumInfo>();
-        var archiveRoot = _settings.ArchiveRootPath;
-
-        if (!_fs.DirectoryExists(archiveRoot))
-            return Task.FromResult(albums);
-
-        foreach (var albumDir in _fs.EnumerateDirectories(archiveRoot))
+        // Rework H28: pre-fix this method built the result list synchronously
+        // on the calling thread and wrapped the return in Task.FromResult —
+        // so the signature was async-in-name-only. At the 3,000-CD target on
+        // a slow drive (network share, USB, sleepy disk) it froze the UI
+        // thread for tens of seconds with no await yielding. Task.Run hops
+        // the directory enumeration off-thread, matching ValidateArchiveAsync's
+        // pattern below.
+        return Task.Run(() =>
         {
-            ct.ThrowIfCancellationRequested();
+            var albums = new List<AlbumInfo>();
+            var archiveRoot = _settings.ArchiveRootPath;
 
-            var albumName = _fs.GetFileName(albumDir);
-            if (ShouldSkip(albumName))
-                continue;
-            var subDirs = _fs.EnumerateDirectories(albumDir).ToList();
-            var subDirNames = subDirs.Select(d => _fs.GetFileName(d)).ToList();
+            if (!_fs.DirectoryExists(archiveRoot))
+                return albums;
 
-            var discDirs = subDirs
-                .Where(d => DiscFolderRegex.IsMatch(_fs.GetFileName(d)))
-                .OrderBy(d => d)
-                .ToList();
-
-            bool hasFlacFolder = subDirNames.Contains("FLAC", StringComparer.OrdinalIgnoreCase);
-            bool hasMp3Folder = subDirNames.Contains("MP3", StringComparer.OrdinalIgnoreCase);
-            bool isMultiDisc = discDirs.Count > 0;
-
-            var album = new AlbumInfo
+            foreach (var albumDir in _fs.EnumerateDirectories(archiveRoot))
             {
-                Name = albumName,
-                FullPath = albumDir
-            };
+                ct.ThrowIfCancellationRequested();
 
-            if (isMultiDisc)
-            {
-                album.DiscCount = discDirs.Count;
-                int discNumber = 1;
-                foreach (var discDir in discDirs)
+                var albumName = _fs.GetFileName(albumDir);
+                if (ShouldSkip(albumName))
+                    continue;
+                var subDirs = _fs.EnumerateDirectories(albumDir).ToList();
+                var subDirNames = subDirs.Select(d => _fs.GetFileName(d)).ToList();
+
+                // Rework H29: numeric disc-folder sort. Pre-fix .OrderBy(d => d)
+                // landed "Disc 10" between "Disc 1" and "Disc 2"; any 10+ disc
+                // box set scanned in the wrong order, with disc-number
+                // assignment below following the (wrong) ordering.
+                var discDirs = DiscFolderOrdering.OrderByDiscNumber(
+                        subDirs.Where(d => DiscFolderRegex.IsMatch(_fs.GetFileName(d))))
+                    .ToList();
+
+                bool hasFlacFolder = subDirNames.Contains("FLAC", StringComparer.OrdinalIgnoreCase);
+                bool hasMp3Folder = subDirNames.Contains("MP3", StringComparer.OrdinalIgnoreCase);
+                bool isMultiDisc = discDirs.Count > 0;
+
+                var album = new AlbumInfo
                 {
-                    var disc = ScanDisc(discDir, discNumber);
-                    album.Discs.Add(disc);
-                    discNumber++;
+                    Name = albumName,
+                    FullPath = albumDir
+                };
+
+                if (isMultiDisc)
+                {
+                    album.DiscCount = discDirs.Count;
+                    int discNumber = 1;
+                    foreach (var discDir in discDirs)
+                    {
+                        var disc = ScanDisc(discDir, discNumber);
+                        album.Discs.Add(disc);
+                        discNumber++;
+                    }
                 }
-            }
-            else
-            {
-                album.DiscCount = 1;
-                var disc = ScanDisc(albumDir, 1);
-                disc.FolderName = albumName;
-                album.Discs.Add(disc);
+                else
+                {
+                    album.DiscCount = 1;
+                    var disc = ScanDisc(albumDir, 1);
+                    disc.FolderName = albumName;
+                    album.Discs.Add(disc);
+                }
+
+                albums.Add(album);
             }
 
-            albums.Add(album);
-        }
-
-        return Task.FromResult(albums);
+            return albums;
+        }, ct);
     }
 
     private static bool ShouldSkip(string name) =>
