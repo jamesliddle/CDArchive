@@ -19,6 +19,15 @@ public interface IArchiveAudioLocator
     /// other format when the preferred one is missing.
     /// </summary>
     AudioFileLocation? Resolve(CanonAlbum album, AlbumDisc disc, AlbumTrack track);
+
+    /// <summary>
+    /// Clears any cached filesystem probes. Call when something the locator
+    /// can't observe has changed: an album's archive folder renamed in the
+    /// editor, files added/removed from disk outside the app, an archive
+    /// rescan completing. Implementations that don't cache may make this a
+    /// no-op. See Rework H8.
+    /// </summary>
+    void Invalidate();
 }
 
 /// <summary>
