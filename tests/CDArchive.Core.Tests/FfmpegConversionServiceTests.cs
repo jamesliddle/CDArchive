@@ -36,7 +36,7 @@ public class FfmpegConversionServiceTests : IDisposable
         public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
         public float PlayerVolume { get; set; } = 1.0f;
         public void Save() { }
-        public void Load() { }
+        public void Initialize() { }
     }
 
     // ---------------- DeriveMp3Path (H16) ----------------

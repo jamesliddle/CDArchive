@@ -21,5 +21,14 @@ public interface IArchiveSettings
     float PlayerVolume { get; set; }
 
     void Save();
-    void Load();
+
+    /// <summary>
+    /// Reads persisted settings from disk and applies them on top of the
+    /// in-memory defaults. The constructor is I/O-free by design (see
+    /// <see cref="ArchiveSettings"/> docstring + Rework H4); call this once
+    /// at startup, on the UI thread, before any consumer reads property
+    /// values. Failure modes (missing file, corrupt JSON, permission denied,
+    /// AV file lock) are logged and swallowed — the defaults survive.
+    /// </summary>
+    void Initialize();
 }
