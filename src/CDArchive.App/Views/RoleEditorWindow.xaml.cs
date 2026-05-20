@@ -5,7 +5,8 @@ namespace CDArchive.App.Views;
 
 public partial class RoleEditorWindow : Window
 {
-    public RoleEntry Role { get; private set; } = new();
+    // Rework H31: see PerformerEditorWindow for the mutate-in-place rationale.
+    public RoleEntry Role { get; private set; }
 
     public RoleEditorWindow(CanonPickLists pickLists, RoleEntry? role = null)
     {
@@ -14,24 +15,21 @@ public partial class RoleEditorWindow : Window
         VoiceTypeCombo.ItemsSource = pickLists.VoiceTypes;
         Title = role == null ? "Add Role" : "Edit Role";
 
-        if (role != null)
-        {
-            NameBox.Text         = role.Name;
-            VoiceTypeCombo.Text  = role.VoiceType ?? "";
-            DescriptionBox.Text  = role.Description ?? "";
-        }
+        Role = role ?? new RoleEntry();
+
+        NameBox.Text         = Role.Name ?? "";
+        VoiceTypeCombo.Text  = Role.VoiceType   ?? "";
+        DescriptionBox.Text  = Role.Description ?? "";
     }
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(NameBox.Text)) return;
 
-        Role = new RoleEntry
-        {
-            Name        = NameBox.Text.Trim(),
-            VoiceType   = NullIfEmpty(VoiceTypeCombo.Text),
-            Description = NullIfEmpty(DescriptionBox.Text),
-        };
+        Role.Name        = NameBox.Text.Trim();
+        Role.VoiceType   = NullIfEmpty(VoiceTypeCombo.Text);
+        Role.Description = NullIfEmpty(DescriptionBox.Text);
+
         DialogResult = true;
     }
 

@@ -20,9 +20,9 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
-3. **Small editors reconstruct `Result = new(...)` instead of mutating in place — silently wipes unknown fields.** Six editors (`PerformerEditorWindow`, `SessionEditorWindow`, `RoleEditorWindow`, `ComposerCreditEditorWindow`, `InstrumentEntryEditorWindow`, `EnsembleEntryEditorWindow`) reconstruct their model from a few string boxes on OK — silently dropping any fields the editor doesn't know about. For `AlbumPerformer` specifically the FK fields (`PersonId`, `EnsembleId`) get reset to null, downgrading a structured Person reference to plain text on the next save. (H31)
-4. **`EnsembleEntryEditorWindow.OnOkClick` silently flips `IsEnsemble = true` on every save.** One-line guard fix; the symptom is real data corruption — editing a person-typed performer to fix any field silently re-types it as an ensemble. (H33)
-5. **`ComposerEditorWindow.OnOkClick` has no validation at all.** Click OK with every box blank and the editor commits a composer with empty name / sort name. Add the same validation pattern the other editors use (track number > 0, name non-empty, etc.). (H32)
+3. **`CanonDbSeeder` silently discards JSON `IsProvisional` — every reseed resets approvals.** None of the row builders copy `src.IsProvisional` to `row.IsProvisional`; rows fall through to the C# field default (`= true`). A user who has curated their canon for months — approving hundreds of composers and pieces — then runs the documented recovery (`delete .db && reseed`) silently loses every approval. The JSON's `is_provisional: false` is dropped on the floor. (H42)
+4. **`CanonDbSeeder.SeedAsync` calls three sequential `SaveChangesAsync` without a wrapping transaction.** Parallel to C5 (cross-save atomicity, already retired in `SaveBatchAsync`). If `SeedAlbums` throws, composers and pieces are already committed — partial state with no recovery signal. Wrap in one transaction. (H43)
+5. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 31 |
+| 🟠 High | 28 |
 | 🟡 Medium | 84 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **209** |
+| **Total** | **206** |
 
 ---
 
@@ -171,41 +171,6 @@ private List<string> CurrentStringList() => SelectedListIndex switch
 The same applies in `CurrentRenameDict`. The display order in `PickListNames` ([:37-39](src/CDArchive.App/ViewModels/PickListsViewModel.cs:37)) is the de-facto schema. Reordering the array silently routes every Add/Update/Remove command to the wrong list — the user picks "Forms" from a dropdown and edits Categories instead. Adding a new entry between two existing ones renumbers everything from that point. No compiler help, no test catches it.
 
 Fix: a `PickListKind` enum + a `Dictionary<PickListKind, List<string>>` (and matching display-name map). The display order becomes a UI concern; the data routing is enum-keyed and rename-safe.
-
-### H31. Several small editors reconstruct `Result = new(...)` instead of mutating in place — silently wipes unknown fields
-The save pattern used by `PerformerEditorWindow`, `SessionEditorWindow`, `RoleEditorWindow`, `ComposerCreditEditorWindow`, `InstrumentEntryEditorWindow`, and `EnsembleEntryEditorWindow`:
-```csharp
-Result = new AlbumPerformer {
-    Name = name, Role = role, Instrument = instrument
-};
-```
-Concrete risks:
-- **`PerformerEditorWindow`** ([:38-43](src/CDArchive.App/Views/PerformerEditorWindow.xaml.cs:38)) constructs a fresh `AlbumPerformer` from three string fields. But `AlbumPerformer` carries structured FK fields too (`PersonId`, `EnsembleId` per the EF row model). Editing a performer that was originally a structured Person reference reconstructs as a free-text-only performer — the FK link is silently lost. **The next save downgrades the structured credit to plain text.**
-- Any future field added to `AlbumPerformer` / `RecordingSession` / `RoleEntry` / `ComposerCredit` / `InstrumentEntry` needs to be added to every editor's `OnOkClick` or it's silently dropped on edit.
-
-Fix pattern: prefer mutating the existing instance in place (as `MarkerEditorWindow` and `VariantEditorWindow` correctly do — both preserve `Id` and any non-edited fields). Reserve reconstruction for true new-object construction.
-
-### H32. `ComposerEditorWindow.OnOkClick` has no validation at all
-[ComposerEditorWindow.xaml.cs:161-165](src/CDArchive.App/Views/ComposerEditorWindow.xaml.cs:161):
-```csharp
-private void OnOkClick(object sender, RoutedEventArgs e)
-{
-    SaveToComposer();
-    DialogResult = true;
-}
-```
-`SaveToComposer` then does `_composer.Name = NameBox.Text.Trim()` — accepting empty Name and empty SortName silently. `composers.name` is a `UNIQUE NOT NULL` index in the DB; saving a blank-name composer collides with any prior blank-name or generates a confusing downstream `SqliteException`. Validate Name + SortName before accepting OK.
-
-### H33. `EnsembleEntryEditorWindow.OnOkClick` silently flips `IsEnsemble = true` on every save
-[EnsembleEntryEditorWindow.xaml.cs:80-89](src/CDArchive.App/Views/EnsembleEntryEditorWindow.xaml.cs:80):
-```csharp
-Entry = new InstrumentEntry {
-    Instrument = Entry.Instrument,
-    IsEnsemble = true,                 // always
-    Members = _members.Count > 0 ? new List<InstrumentEntry>(_members) : null,
-};
-```
-Opening a non-ensemble `InstrumentEntry` in this editor and clicking OK silently converts it to an ensemble. Nothing in the ctor asserts the entry is supposed to be an ensemble. If a future caller opens this on the wrong instrument, the user's structured instrumentation is mutated unexpectedly. Either assert in the ctor or preserve the original `IsEnsemble`.
 
 ### H34. Largest trees in the app have virtualization explicitly disabled
 - [CanonView.xaml:186](src/CDArchive.App/Views/CanonView.xaml:186) — `VirtualizingStackPanel.IsVirtualizing="False"` on the composer tree.
@@ -1058,6 +1023,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C14. `PickListsViewModel.ApplyRenames` fires `SavePiecesAsync` as discarded Task
 [2026-05-19] `rework/picklists-rename-save` — Extended `ICanonDataService.SaveBatchAsync` with an optional `CanonPickLists? pickLists` parameter; extracted `SqliteCanonDataService.SavePickListsCoreAsync` (stages the delete-and-reinsert without flushing) and wired it into the shared transaction in `SaveBatchAsync` ahead of the composers→pieces→albums→loose-tracks chain. Pick-list rows are FK-independent so order doesn't matter on the SQLite side; running first means a piece save in the same batch sees a freshly-renamed value already staged. `PickListsViewModel.ApplyRenames` no longer fire-and-forgets a pieces save — it now returns the rename count and the caller (`SaveAsync`) decides whether to bundle `pieces: _canonVm.Pieces.ToList()` into the same `SaveBatchAsync` call. A piece-side failure now rolls the pick-list change back too; success now waits for both to land before flipping `StatusMessage` to a truthful `"Pick lists saved. Renamed N piece field(s)."`. The `CanonDataService` JSON implementation forwards the new parameter to its sequential `SavePickListsAsync` (best-effort, matching the existing batch stub). Locked in by 3 new tests in `SaveBatchAtomicityTests`: pick-lists-only persists, pick-lists + pieces both land, downstream-failure rolls back the staged pick list too.
+
+### H31 + H32 + H33. Small-editor correctness sweep: mutate-in-place + ComposerEditor validation + IsEnsemble preservation
+[2026-05-20] `rework/small-editor-correctness` — Three editor bugs bundled. (H31) Six small editors — `PerformerEditorWindow`, `SessionEditorWindow`, `RoleEditorWindow`, `ComposerCreditEditorWindow`, `InstrumentEntryEditorWindow`, `EnsembleEntryEditorWindow` — used to reconstruct their model via `Result = new T { ... }` on OK, silently dropping any field the editor didn't surface. The model classes are currently field-pure (no FK fields directly on `AlbumPerformer` — those live on the row class), so the bug is anticipatory rather than immediate, but the prescribed pattern is right: mutate the input instance in place, like `MarkerEditorWindow` and `VariantEditorWindow` already correctly do. Each editor now holds a `_working` reference (the input, or a fresh instance when null) and mutates only the fields its UI exposes. `Result` / `Role` / `Credit` / `Entry` are set to `_working` on OK; the rest of the dialog's public surface is unchanged so call sites still work without modification. (H33) Falls out naturally from H31: `EnsembleEntryEditorWindow.OnOkClick` used to hardcode `IsEnsemble = true` in the reconstruction; under mutate-in-place it only touches `Members`. Opening the editor on a non-ensemble entry (caller bug, but still observable) now preserves `IsEnsemble = false`. (H32) `ComposerEditorWindow.OnOkClick` had zero validation — Name + SortName could be blank, downstream `composers.name UNIQUE NOT NULL` produced an opaque `SqliteException` for the second blank-name save. Validates both before commit and surfaces a `MessageBox` on either missing. New `SmallEditorContractTests` (5 tests) document the model-level invariants — most pointedly the H33-specific `InstrumentEntry.IsEnsemble` preservation when only `Members` is mutated. The editor code-behinds themselves aren't unit-testable without a WPF host (H39 still open); the manual smoke test exercises the UI. All 522 tests pass.
 
 ### H28 + H29. `ArchiveScannerService` async-in-name-only + lexicographic disc ordering
 [2026-05-20] `rework/archive-scanner-fixes` — Two bugs in the same file, both small. (H28) `ScanArchiveAsync` returned `Task<List<AlbumInfo>>` but did every directory enumeration synchronously on the calling thread and wrapped the result in `Task.FromResult` — async-in-name-only, freezing the UI for tens of seconds on slow drives at the 3,000-CD target. Now wrapped in `Task.Run(...)` matching the pattern `ValidateArchiveAsync` already used (the asymmetry the original review flagged). (H29) Disc-folder ordering used `.OrderBy(d => d)` over the full path strings — lexicographic, so "Disc 10" landed between "Disc 1" and "Disc 2". Since the scanner assigns `DiscNumber` 1..N in iteration order, every 10+ disc box set (Beethoven complete symphonies, Mahler complete works, Bach cantatas) ended up with the wrong on-disk-folder → discNumber mapping, and downstream audio-locator resolution silently broke. New `CDArchive.Core.Helpers.DiscFolderOrdering` extracts a (primary, secondary) numeric key from `Disc N` / `Disc N-M` / `Disc 0N` names; `OrderByDiscNumber(paths)` sorts paths by their leaf folder's parsed key. Applied in `ArchiveScannerService.ScanArchiveAsync` AND in `CataloguingService.FindMp3Folders` (the same lexicographic bug existed there too — flagged as a deferred Nit in the H25 PR; now fixed). 17 new tests in `DiscFolderOrderingTests` covering numeric / sub-disc / padded / non-matching cases; 6 new tests in `ArchiveScannerServiceTests` driving the scanner against a fake `IFileSystemService` — the headline case is a 12-disc box-set scan that asserts every Disc N folder gets `DiscNumber = N` regardless of the on-disk enumeration order. The fake `IFileSystemService` is also a useful precedent for future scanner-side tests (no existing scanner tests prior to this PR). All 517 tests pass.

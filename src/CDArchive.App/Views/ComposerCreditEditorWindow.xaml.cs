@@ -5,7 +5,8 @@ namespace CDArchive.App.Views;
 
 public partial class ComposerCreditEditorWindow : Window
 {
-    public ComposerCredit Credit { get; private set; } = new();
+    // Rework H31: see PerformerEditorWindow for the mutate-in-place rationale.
+    public ComposerCredit Credit { get; private set; }
 
     public ComposerCreditEditorWindow(
         IEnumerable<string> composerNames,
@@ -19,11 +20,10 @@ public partial class ComposerCreditEditorWindow : Window
 
         Title = credit == null ? "Add Other Contributor" : "Edit Other Contributor";
 
-        if (credit != null)
-        {
-            NameCombo.Text = credit.Name;
-            RoleCombo.Text = credit.Role ?? "";
-        }
+        Credit = credit ?? new ComposerCredit();
+
+        NameCombo.Text = Credit.Name ?? "";
+        RoleCombo.Text = Credit.Role ?? "";
     }
 
     private void OnOkClick(object sender, RoutedEventArgs e)
@@ -31,11 +31,9 @@ public partial class ComposerCreditEditorWindow : Window
         var name = NameCombo.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
 
-        Credit = new ComposerCredit
-        {
-            Name = name,
-            Role = string.IsNullOrWhiteSpace(RoleCombo.Text) ? null : RoleCombo.Text.Trim(),
-        };
+        Credit.Name = name;
+        Credit.Role = string.IsNullOrWhiteSpace(RoleCombo.Text) ? null : RoleCombo.Text.Trim();
+
         DialogResult = true;
     }
 }
