@@ -33,10 +33,28 @@ public static class CanonRejectCascade
     /// <paramref name="svc"/> in the order required by the FK restrict chain:
     /// <c>SaveAlbumsAsync → SavePiecesAsync → SaveComposersAsync</c>.
     /// </summary>
+    public static Task<RejectResult> RejectComposerAsync(
+        ICanonDataService svc,
+        IList<CanonComposer> composers,
+        IList<CanonPiece>    pieces,
+        CanonComposer        rejected)
+        => RejectComposerAsync(svc, composers, pieces, albums: null, looseTracks: null, rejected);
+
+    /// <summary>
+    /// In-place overload: when <paramref name="albums"/> and
+    /// <paramref name="looseTracks"/> are non-null, the cascade mutates the
+    /// caller's lists rather than loading fresh copies internally. The caller
+    /// (typically <c>CanonViewModel</c>) can then reuse those lists for a
+    /// post-save index rebuild without a second DB load. See Rework H9.
+    /// Null preserves the legacy load-fresh behaviour for callers that don't
+    /// hold the container state.
+    /// </summary>
     public static async Task<RejectResult> RejectComposerAsync(
         ICanonDataService svc,
         IList<CanonComposer> composers,
         IList<CanonPiece>    pieces,
+        List<CanonAlbum>?    albums,
+        List<AlbumTrack>?    looseTracks,
         CanonComposer        rejected)
     {
         var name = rejected.Name;
@@ -50,8 +68,8 @@ public static class CanonRejectCascade
                 (p.Composer ?? "").ToLowerInvariant(),
                 (p.Title    ?? "").ToLowerInvariant())));
 
-        var albums      = await svc.LoadAlbumsAsync().ConfigureAwait(false);
-        var looseTracks = await svc.LoadLooseTracksAsync().ConfigureAwait(false);
+        albums      ??= await svc.LoadAlbumsAsync().ConfigureAwait(false);
+        looseTracks ??= await svc.LoadLooseTracksAsync().ConfigureAwait(false);
 
         // Strip refs from both kinds of container — album-bound tracks and
         // loose tracks both have piece_id FKs that would otherwise block the
@@ -81,9 +99,21 @@ public static class CanonRejectCascade
     /// Removes <paramref name="rejected"/> from <paramref name="pieces"/>,
     /// strips album track refs pointing at it, and saves albums then pieces.
     /// </summary>
+    public static Task<RejectResult> RejectPieceAsync(
+        ICanonDataService svc,
+        IList<CanonPiece> pieces,
+        CanonPiece        rejected)
+        => RejectPieceAsync(svc, pieces, albums: null, looseTracks: null, rejected);
+
+    /// <summary>
+    /// In-place overload — see the overload comment on
+    /// <see cref="RejectComposerAsync"/>. Same Rework H9 motivation.
+    /// </summary>
     public static async Task<RejectResult> RejectPieceAsync(
         ICanonDataService svc,
         IList<CanonPiece> pieces,
+        List<CanonAlbum>? albums,
+        List<AlbumTrack>? looseTracks,
         CanonPiece        rejected)
     {
         var doomedKey = new HashSet<(string composer, string title)>
@@ -92,8 +122,8 @@ public static class CanonRejectCascade
              (rejected.Title    ?? "").ToLowerInvariant()),
         };
 
-        var albums      = await svc.LoadAlbumsAsync().ConfigureAwait(false);
-        var looseTracks = await svc.LoadLooseTracksAsync().ConfigureAwait(false);
+        albums      ??= await svc.LoadAlbumsAsync().ConfigureAwait(false);
+        looseTracks ??= await svc.LoadLooseTracksAsync().ConfigureAwait(false);
 
         var strippedFromAlbums = StripPieceRefs(albums, doomedKey);
         var strippedFromLoose  = StripPieceRefsFromTracks(looseTracks, doomedKey);

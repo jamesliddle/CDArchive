@@ -16,6 +16,8 @@ public partial class CanonViewModel : ObservableObject
 {
     private readonly ICanonDataService _canonDataService;
     private readonly PieceReferenceIndex _refIndex;
+    private readonly AlbumsViewModel _albumsVm;
+    private readonly TracksViewModel _tracksVm;
     private readonly ILogger<CanonViewModel> _logger;
 
     // --- Composers ---
@@ -71,11 +73,42 @@ public partial class CanonViewModel : ObservableObject
     public CanonViewModel(
         ICanonDataService canonDataService,
         PieceReferenceIndex refIndex,
+        AlbumsViewModel albumsVm,
+        TracksViewModel tracksVm,
         ILogger<CanonViewModel>? logger = null)
     {
         _canonDataService = canonDataService;
         _refIndex = refIndex;
+        _albumsVm = albumsVm;
+        _tracksVm = tracksVm;
         _logger = logger ?? NullLogger<CanonViewModel>.Instance;
+    }
+
+    /// <summary>
+    /// Pulls the current album + loose-track lists for an index rebuild.
+    /// Prefers the in-memory copies held by the <see cref="AlbumsViewModel"/>
+    /// and <see cref="TracksViewModel"/> singletons (their LoadData has run
+    /// at least once); falls back to a fresh DB load only when those VMs
+    /// haven't loaded yet (e.g. user opened Canon view as the first thing
+    /// without visiting Albums / Tracks). Pre-fix every site duplicated the
+    /// fresh-load pair, costing ~2 multi-second loads per save / reject at
+    /// the 3,000-CD target. See Rework H9.
+    /// </summary>
+    private async Task<(IReadOnlyList<CanonAlbum> albums, IReadOnlyList<AlbumTrack> looseTracks)>
+        GetContainersForRebuildAsync()
+    {
+        if (_albumsVm.HasLoaded && _tracksVm.HasLoaded)
+            return (_albumsVm.AllAlbums, _tracksVm.LooseTracks);
+
+        _logger.LogDebug(
+            "CanonViewModel falling back to fresh DB load for albums/loose-tracks " +
+            "(albumsVm.HasLoaded={Albums}, tracksVm.HasLoaded={Loose}); the Albums " +
+            "and Tracks views haven't initialised yet.",
+            _albumsVm.HasLoaded, _tracksVm.HasLoaded);
+
+        var albums      = await _canonDataService.LoadAlbumsAsync().ConfigureAwait(false);
+        var looseTracks = await _canonDataService.LoadLooseTracksAsync().ConfigureAwait(false);
+        return (albums, looseTracks);
     }
 
     partial void OnComposerFilterChanged(string value) => ApplyComposerFilter();
@@ -141,8 +174,7 @@ public partial class CanonViewModel : ObservableObject
             // already loaded; failure here just means stale badge counts.
             try
             {
-                var albums      = await _canonDataService.LoadAlbumsAsync();
-                var looseTracks = await _canonDataService.LoadLooseTracksAsync();
+                var (albums, looseTracks) = await GetContainersForRebuildAsync();
                 _refIndex.Rebuild(Pieces, albums, looseTracks);
             }
             catch (Exception ex)
@@ -192,8 +224,7 @@ public partial class CanonViewModel : ObservableObject
             StatusMessage = $"Saved {Pieces.Count} pieces.";
             try
             {
-                var albums      = await _canonDataService.LoadAlbumsAsync();
-                var looseTracks = await _canonDataService.LoadLooseTracksAsync();
+                var (albums, looseTracks) = await GetContainersForRebuildAsync();
                 _refIndex.Rebuild(Pieces, albums, looseTracks);
             }
             catch (Exception ex)
@@ -325,8 +356,21 @@ public partial class CanonViewModel : ObservableObject
             IsLoading = true;
             StatusMessage = $"Deleting {composer.Name}…";
 
+            // Pass the singletons' in-memory lists through the cascade when
+            // they're already loaded — the cascade mutates them in place so
+            // the rebuild below can reuse them without a second DB load.
+            // When the singletons haven't loaded yet, the in-place overload
+            // falls back to its own internal fresh load (legacy behaviour).
+            // See Rework H9.
+            var (albumsForCascade, looseForCascade) = _albumsVm.HasLoaded && _tracksVm.HasLoaded
+                ? (_albumsVm.AllAlbums, (List<AlbumTrack>?)_tracksVm.LooseTracks.ToList())
+                : (null, null);
+            // The cascade returns the (possibly freshly-loaded) lists so the
+            // rebuild below has a coherent post-save state regardless of
+            // which path the overload took.
             var result = await CanonRejectCascade
-                .RejectComposerAsync(_canonDataService, composersList, piecesList, composer);
+                .RejectComposerAsync(_canonDataService, composersList, piecesList,
+                                     albumsForCascade, looseForCascade, composer);
 
             // Reflect the helper's mutations back into the observable collections.
             Composers.Remove(composer);
@@ -337,12 +381,14 @@ public partial class CanonViewModel : ObservableObject
                 if (ReferenceEquals(SelectedPiece, p)) SelectedPiece = null;
             }
 
-            // Container counts are stale; rebuild against the freshly-saved data.
+            // Container counts are stale; rebuild against the freshly-saved
+            // data. The cascade has already mutated the singletons' lists in
+            // place (or freshly-loaded copies, when the singletons weren't
+            // ready) — no second DB load needed here.
             try
             {
-                var freshAlbums      = await _canonDataService.LoadAlbumsAsync();
-                var freshLooseTracks = await _canonDataService.LoadLooseTracksAsync();
-                _refIndex.Rebuild(Pieces.ToList(), freshAlbums, freshLooseTracks);
+                var (albums, looseTracks) = await GetContainersForRebuildAsync();
+                _refIndex.Rebuild(Pieces.ToList(), albums, looseTracks);
             }
             catch (Exception ex)
             {
@@ -385,17 +431,21 @@ public partial class CanonViewModel : ObservableObject
             StatusMessage = $"Deleting {piece.DisplayTitle}…";
 
             var piecesList = Pieces.ToList();
+            // See RejectComposerWithCascadeAsync for the Rework H9 rationale.
+            var (albumsForCascade, looseForCascade) = _albumsVm.HasLoaded && _tracksVm.HasLoaded
+                ? (_albumsVm.AllAlbums, (List<AlbumTrack>?)_tracksVm.LooseTracks.ToList())
+                : (null, null);
             var result = await CanonRejectCascade
-                .RejectPieceAsync(_canonDataService, piecesList, piece);
+                .RejectPieceAsync(_canonDataService, piecesList,
+                                  albumsForCascade, looseForCascade, piece);
 
             Pieces.Remove(piece);
             if (ReferenceEquals(SelectedPiece, piece)) SelectedPiece = null;
 
             try
             {
-                var freshAlbums      = await _canonDataService.LoadAlbumsAsync();
-                var freshLooseTracks = await _canonDataService.LoadLooseTracksAsync();
-                _refIndex.Rebuild(Pieces.ToList(), freshAlbums, freshLooseTracks);
+                var (albums, looseTracks) = await GetContainersForRebuildAsync();
+                _refIndex.Rebuild(Pieces.ToList(), albums, looseTracks);
             }
             catch (Exception ex)
             {

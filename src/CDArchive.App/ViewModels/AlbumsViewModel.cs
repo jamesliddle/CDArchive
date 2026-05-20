@@ -45,6 +45,14 @@ public partial class AlbumsViewModel : ObservableObject
     /// <summary>Exposes the full loaded list for operations that need it (e.g. save after edit).</summary>
     public List<CanonAlbum> AllAlbums => _allAlbums;
 
+    /// <summary>
+    /// True once <see cref="LoadDataAsync"/> has completed successfully at
+    /// least once. Other VMs (notably <c>CanonViewModel</c>) use this to
+    /// decide whether they can pull from <see cref="AllAlbums"/> or whether
+    /// they need to trigger a fresh DB load themselves — see Rework H9.
+    /// </summary>
+    public bool HasLoaded { get; private set; }
+
     [RelayCommand]
     public async Task LoadDataAsync()
     {
@@ -53,6 +61,7 @@ public partial class AlbumsViewModel : ObservableObject
         try
         {
             _allAlbums = await _svc.LoadAlbumsAsync();
+            HasLoaded = true;
             ApplyFilter();
             // Refresh cross-reference index so Canon badges reflect loaded albums.
             // Reuse the piece list already cached in the index — loading a fresh
