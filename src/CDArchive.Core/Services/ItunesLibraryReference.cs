@@ -7,110 +7,83 @@ namespace CDArchive.Core.Services;
 /// <summary>
 /// Mines the user's iTunes Music Library XML for composer info and work details.
 /// This is the highest-priority reference source since it reflects the user's own conventions.
+///
+/// <para>
+/// Threading / caching: the iTunes XML is potentially hundreds of MB. The
+/// previous design read it twice — once eagerly via <see cref="LoadAllTracksAsync"/>
+/// on every iTunes-Import view load, and once lazily into the
+/// composer/works index on first lookup. The all-tracks path bypassed the
+/// cache entirely. This class now does a single XML walk that populates
+/// every projection (composers, works, AllTracks) into a shared
+/// <c>LibraryCache</c>; <see cref="LoadAllTracksAsync"/> reads from the
+/// cache too. See Rework H5.
+/// </para>
+///
+/// <para>
+/// Filtering: the composer / works index only considers tracks whose iTunes
+/// <c>Location</c> URL contains the URL-encoded leaf segment of the user's
+/// <c>ArchiveRootPath</c> — was hardcoded to <c>"CD%20archive"</c>, which
+/// silently produced an empty cache for any user whose archive sat outside
+/// a folder of that exact name. The leaf segment is computed from
+/// <see cref="IArchiveSettings.ArchiveRootPath"/> at cache-build time, so a
+/// settings change followed by <see cref="Refresh"/> picks up the new value.
+/// See Rework H6.
+/// </para>
 /// </summary>
 public class ItunesLibraryReference : ICatalogueReference
 {
     public string SourceName => "iTunes Library";
 
     private static readonly Regex ComposerWithDatesRegex = new(
-        @"^(.+?),\s*(.+?)\s*\((\d{3,4})\s*[\u2013\-]\s*(\d{3,4})?\)$",
+        @"^(.+?),\s*(.+?)\s*\((\d{3,4})\s*[–\-]\s*(\d{3,4})?\)$",
         RegexOptions.Compiled);
 
     private readonly string _libraryPath;
-    private readonly Lazy<Task<LibraryCache>> _cache;
+    private readonly IArchiveSettings? _archiveSettings;
+    private Lazy<Task<LibraryCache>> _cache;
 
-    public ItunesLibraryReference(string? libraryPath = null)
+    /// <summary>
+    /// Standard DI-friendly ctor. <paramref name="archiveSettings"/> drives
+    /// the URL-encoded archive-folder filter used when indexing composers
+    /// and works; pass null in test fixtures that don't care about that
+    /// projection.
+    /// </summary>
+    public ItunesLibraryReference(IArchiveSettings? archiveSettings = null, string? libraryPath = null)
     {
+        _archiveSettings = archiveSettings;
         _libraryPath = libraryPath
             ?? FindDefaultLibraryPath()
             ?? "";
-        _cache = new Lazy<Task<LibraryCache>>(() => Task.Run(BuildCache));
+        _cache = NewLazy();
+    }
+
+    private Lazy<Task<LibraryCache>> NewLazy() =>
+        new(() => Task.Run(BuildCache));
+
+    /// <summary>
+    /// Invalidates the cached parse of the iTunes XML. The next access to
+    /// any of <see cref="LoadAllTracksAsync"/>, <see cref="LookupComposerAsync"/>,
+    /// or <see cref="LookupWorkAsync"/> re-reads the XML and rebuilds the
+    /// projections. Use this when the user has made changes in iTunes that
+    /// the app should pick up without restarting (or when
+    /// <see cref="IArchiveSettings.ArchiveRootPath"/> has changed).
+    /// </summary>
+    public void Refresh()
+    {
+        _cache = NewLazy();
     }
 
     /// <summary>
-    /// Reads every track from the iTunes Music Library XML (no path filter).
-    /// Skips podcasts. Returns a list of <see cref="ItunesTrack"/> DTOs.
+    /// Returns every Music track in the iTunes XML (Podcasts, Movies, TV
+    /// Shows, Audiobooks, Music Videos, and Books are filtered out). Reads
+    /// from the in-memory cache after the first call; call
+    /// <see cref="Refresh"/> to force a re-read.
     /// </summary>
-    public Task<IReadOnlyList<ItunesTrack>> LoadAllTracksAsync() =>
-        Task.Run<IReadOnlyList<ItunesTrack>>(LoadAllTracks);
-
-    private List<ItunesTrack> LoadAllTracks()
+    public async Task<IReadOnlyList<ItunesTrack>> LoadAllTracksAsync()
     {
-        var tracks = new List<ItunesTrack>();
-        if (string.IsNullOrEmpty(_libraryPath) || !File.Exists(_libraryPath))
-            return tracks;
-
-        var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore };
-        using var reader = XmlReader.Create(_libraryPath, settings);
-
-        if (!AdvanceToTracksDict(reader))
-            return tracks;
-
-        while (reader.Read())
-        {
-            if (reader.NodeType == XmlNodeType.EndElement && reader.Name == "dict")
-                break;
-
-            if (reader.NodeType != XmlNodeType.Element || reader.Name != "key")
-                continue;
-
-            var trackIdStr = reader.ReadElementContentAsString();
-            if (!int.TryParse(trackIdStr, out var trackId))
-                continue;
-
-            if (!AdvanceToElement(reader, "dict"))
-                continue;
-
-            var props = ReadDictProperties(reader);
-
-            // Only include Music. iTunes uses boolean flags per non-Music media kind
-            // (Podcast, Movie, TV Show, Audiobook, Music Video, Book); Music itself is
-            // the absence of any such flag. The "Has Video" flag catches video tracks
-            // that aren't explicitly tagged as movies but still aren't music.
-            if (IsTaggedTrue(props, "Podcast")     ||
-                IsTaggedTrue(props, "Movie")       ||
-                IsTaggedTrue(props, "TV Show")     ||
-                IsTaggedTrue(props, "Audiobook")   ||
-                IsTaggedTrue(props, "Music Video") ||
-                IsTaggedTrue(props, "Has Video")   ||
-                IsTaggedTrue(props, "Book"))
-                continue;
-
-            var name = props.GetValueOrDefault("Name", "");
-            if (string.IsNullOrEmpty(name))
-                continue;
-
-            tracks.Add(new ItunesTrack(
-                TrackId:      trackId,
-                PersistentId: NullIfEmpty(props.GetValueOrDefault("Persistent ID")),
-                DiscNumber:   ParseIntOrNull(props.GetValueOrDefault("Disc Number")),
-                TrackNumber:  ParseIntOrNull(props.GetValueOrDefault("Track Number")),
-                Name:         name,
-                DurationMs:   ParseIntOrNull(props.GetValueOrDefault("Total Time")),
-                Genre:        NullIfEmpty(props.GetValueOrDefault("Genre")),
-                Composer:     NullIfEmpty(props.GetValueOrDefault("Composer")),
-                Album:        NullIfEmpty(props.GetValueOrDefault("Album")),
-                AlbumArtist:  NullIfEmpty(props.GetValueOrDefault("Album Artist")),
-                Artist:       NullIfEmpty(props.GetValueOrDefault("Artist")),
-                DateAdded:    ParseDateOrNull(props.GetValueOrDefault("Date Added")),
-                Location:     NullIfEmpty(props.GetValueOrDefault("Location"))));
-        }
-
-        return tracks;
+        var cache = await _cache.Value.ConfigureAwait(false);
+        return cache.AllTracks;
     }
-
-    private static int? ParseIntOrNull(string? s) =>
-        int.TryParse(s, out var v) ? v : null;
-
-    private static DateTime? ParseDateOrNull(string? s) =>
-        DateTime.TryParse(s, null,
-            System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt : null;
-
-    private static string? NullIfEmpty(string? s) =>
-        string.IsNullOrEmpty(s) ? null : s;
-
-    private static bool IsTaggedTrue(Dictionary<string, string> p, string key) =>
-        string.Equals(p.GetValueOrDefault(key), "true", StringComparison.OrdinalIgnoreCase);
 
     public async Task<ComposerInfo?> LookupComposerAsync(string lastName, string? firstName = null)
     {
@@ -145,20 +118,47 @@ public class ItunesLibraryReference : ICatalogueReference
         return match;
     }
 
+    /// <summary>
+    /// Computes the URL-encoded archive-folder substring that
+    /// <see cref="BuildCache"/> uses to filter location URLs. The default
+    /// <c>D:\CD archive</c> produces <c>CD%20archive</c>, matching the
+    /// pre-fix hardcoded value. A custom <c>ArchiveRootPath</c> produces
+    /// the URL-encoded leaf of that path. Internal so the new
+    /// <c>ItunesLibraryReferenceTests</c> can drive the contract directly.
+    /// </summary>
+    internal static string ComputeArchiveFolderFilter(string archiveRootPath)
+    {
+        if (string.IsNullOrWhiteSpace(archiveRootPath)) return "";
+        // GetFileName on a path with a trailing separator returns "" — strip
+        // any trailing slash/backslash first so e.g. "D:\CD archive\" still
+        // resolves to "CD archive".
+        var trimmed = archiveRootPath.TrimEnd('\\', '/');
+        var leaf = Path.GetFileName(trimmed);
+        if (string.IsNullOrEmpty(leaf)) return "";
+        // iTunes Location URLs encode spaces as %20 and use forward slashes.
+        // Uri.EscapeDataString matches that convention for ASCII identifiers.
+        return Uri.EscapeDataString(leaf);
+    }
+
     private LibraryCache BuildCache()
     {
         var cache = new LibraryCache();
         if (string.IsNullOrEmpty(_libraryPath) || !File.Exists(_libraryPath))
             return cache;
 
+        // Derive the substring filter from settings at build time. Defaults
+        // to "CD%20archive" — the pre-fix hardcoded value — when the
+        // settings come back with the default ArchiveRootPath.
+        var archiveFolderFilter = ComputeArchiveFolderFilter(_archiveSettings?.ArchiveRootPath ?? "");
+
         var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore };
         using var reader = XmlReader.Create(_libraryPath, settings);
 
-        // Navigate to the Tracks dict
         if (!AdvanceToTracksDict(reader))
             return cache;
 
-        // Read each track
+        var tracks = new List<ItunesTrack>();
+
         while (reader.Read())
         {
             if (reader.NodeType == XmlNodeType.EndElement && reader.Name == "dict")
@@ -167,32 +167,83 @@ public class ItunesLibraryReference : ICatalogueReference
             if (reader.NodeType != XmlNodeType.Element || reader.Name != "key")
                 continue;
 
-            reader.Read(); // track ID value
-            if (reader.NodeType != XmlNodeType.Text)
+            var trackIdStr = reader.ReadElementContentAsString();
+            if (!int.TryParse(trackIdStr, out var trackId))
                 continue;
 
-            // Now read the track's dict
             if (!AdvanceToElement(reader, "dict"))
                 continue;
 
-            var trackProps = ReadDictProperties(reader);
-            var composerRaw = trackProps.GetValueOrDefault("Composer", "");
-            var nameRaw = trackProps.GetValueOrDefault("Name", "");
-            var location = trackProps.GetValueOrDefault("Location", "");
+            var props = ReadDictProperties(reader);
 
-            // Only index tracks from the CD archive
-            if (!location.Contains("CD%20archive", StringComparison.OrdinalIgnoreCase))
+            // Only include Music. iTunes uses boolean flags per non-Music media
+            // kind (Podcast, Movie, TV Show, Audiobook, Music Video, Book);
+            // Music itself is the absence of any such flag. The "Has Video"
+            // flag catches video tracks that aren't explicitly tagged as
+            // movies but still aren't music.
+            if (IsTaggedTrue(props, "Podcast")     ||
+                IsTaggedTrue(props, "Movie")       ||
+                IsTaggedTrue(props, "TV Show")     ||
+                IsTaggedTrue(props, "Audiobook")   ||
+                IsTaggedTrue(props, "Music Video") ||
+                IsTaggedTrue(props, "Has Video")   ||
+                IsTaggedTrue(props, "Book"))
                 continue;
 
+            var name = props.GetValueOrDefault("Name", "");
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            // Build the ItunesTrack projection used by the import view.
+            tracks.Add(new ItunesTrack(
+                TrackId:      trackId,
+                PersistentId: NullIfEmpty(props.GetValueOrDefault("Persistent ID")),
+                DiscNumber:   ParseIntOrNull(props.GetValueOrDefault("Disc Number")),
+                TrackNumber:  ParseIntOrNull(props.GetValueOrDefault("Track Number")),
+                Name:         name,
+                DurationMs:   ParseIntOrNull(props.GetValueOrDefault("Total Time")),
+                Genre:        NullIfEmpty(props.GetValueOrDefault("Genre")),
+                Composer:     NullIfEmpty(props.GetValueOrDefault("Composer")),
+                Album:        NullIfEmpty(props.GetValueOrDefault("Album")),
+                AlbumArtist:  NullIfEmpty(props.GetValueOrDefault("Album Artist")),
+                Artist:       NullIfEmpty(props.GetValueOrDefault("Artist")),
+                DateAdded:    ParseDateOrNull(props.GetValueOrDefault("Date Added")),
+                Location:     NullIfEmpty(props.GetValueOrDefault("Location"))));
+
+            // Composer / works indexing only considers tracks under the
+            // user's archive folder. An empty filter (no settings injected
+            // or empty ArchiveRootPath) indexes everything — useful for
+            // headless tests.
+            var location = props.GetValueOrDefault("Location", "");
+            var passesArchiveFilter = archiveFolderFilter.Length == 0
+                || location.Contains(archiveFolderFilter, StringComparison.OrdinalIgnoreCase);
+            if (!passesArchiveFilter)
+                continue;
+
+            var composerRaw = props.GetValueOrDefault("Composer", "");
             if (!string.IsNullOrEmpty(composerRaw))
                 IndexComposer(cache, composerRaw);
 
-            if (!string.IsNullOrEmpty(nameRaw) && !string.IsNullOrEmpty(composerRaw))
-                IndexWork(cache, composerRaw, nameRaw);
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(composerRaw))
+                IndexWork(cache, composerRaw, name);
         }
 
+        cache.AllTracks = tracks;
         return cache;
     }
+
+    private static int? ParseIntOrNull(string? s) =>
+        int.TryParse(s, out var v) ? v : null;
+
+    private static DateTime? ParseDateOrNull(string? s) =>
+        DateTime.TryParse(s, null,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt : null;
+
+    private static string? NullIfEmpty(string? s) =>
+        string.IsNullOrEmpty(s) ? null : s;
+
+    private static bool IsTaggedTrue(Dictionary<string, string> p, string key) =>
+        string.Equals(p.GetValueOrDefault(key), "true", StringComparison.OrdinalIgnoreCase);
 
     private static void IndexComposer(LibraryCache cache, string composerRaw)
     {
@@ -353,6 +404,7 @@ public class ItunesLibraryReference : ICatalogueReference
 
     private class LibraryCache
     {
+        public IReadOnlyList<ItunesTrack> AllTracks { get; set; } = Array.Empty<ItunesTrack>();
         public Dictionary<string, List<ComposerInfo>> Composers { get; } = new();
         public Dictionary<string, List<WorkInfo>> Works { get; } = new();
     }
