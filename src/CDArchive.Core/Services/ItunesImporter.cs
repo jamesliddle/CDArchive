@@ -51,7 +51,11 @@ public static class ItunesImporter
         // structured-form piece (Title="", Form="Piano Concerto", Number=21, …,
         // catalog "KV 467") is found by an iTunes parsed title like
         // "Piano Concerto #21 in C, KV 467".
-        var resolver = new PieceReferenceIndex();
+        // Throwaway resolver — registerAsCurrent:false so we don't steal
+        // Current from the live index. Pre-fix this swallowed the static
+        // accessor for the duration of the import, leaving badge converters
+        // reading an empty-hits index. See Rework H7.
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
         resolver.BuildResolver(pieces);
 
         // Pieces created during this very import batch aren't in the resolver yet,
