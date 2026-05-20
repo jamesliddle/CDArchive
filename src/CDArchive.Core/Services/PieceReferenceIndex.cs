@@ -25,7 +25,31 @@ public class PieceReferenceIndex
     /// </summary>
     public static PieceReferenceIndex? Current { get; private set; }
 
-    public PieceReferenceIndex() { Current = this; }
+    /// <summary>
+    /// Standard ctor used by the DI-registered singleton. Sets
+    /// <see cref="Current"/> on construction so value converters resolved
+    /// before any data has loaded still have a non-null index to bind
+    /// against (they'll just see empty hit counts).
+    /// </summary>
+    public PieceReferenceIndex() : this(registerAsCurrent: true) { }
+
+    /// <summary>
+    /// Internal ctor that lets a throwaway resolver opt out of becoming
+    /// <see cref="Current"/>. Used by save-path code (e.g.
+    /// <c>SaveAlbumsCoreAsync</c> / <c>SaveLooseTracksCoreAsync</c>) and by
+    /// <c>ItunesImporter</c>, which build a short-lived index purely for
+    /// <see cref="BuildResolver"/> + <see cref="TryResolve"/> and never touch
+    /// the hit dictionaries. Pre-fix those sites silently stole
+    /// <see cref="Current"/> for the duration of the save: every
+    /// <c>HitCountBadgeConverter</c> read between the throwaway's
+    /// construction and the next real <see cref="Rebuild"/> /
+    /// <see cref="RebuildContainers"/> call returned 0, which is the
+    /// "badges flicker to zero mid-save" symptom Rework H7 described.
+    /// </summary>
+    internal PieceReferenceIndex(bool registerAsCurrent)
+    {
+        if (registerAsCurrent) Current = this;
+    }
 
     // Hits at or below a given piece (original + all versions + all subpieces recursively).
     private Dictionary<CanonPiece, List<PieceAlbumHit>> _hitsForPiece = new();

@@ -2175,7 +2175,11 @@ public class SqliteCanonDataService : ICanonDataService
         var rowIdByVersionModel = new Dictionary<CanonPieceVersion, long>(ReferenceEqualityComparer.Instance);
         foreach (var (id, m) in versionModelByRowId) rowIdByVersionModel[m] = id;
 
-        var resolver = new PieceReferenceIndex();
+        // Throwaway resolver — registerAsCurrent:false so the save path doesn't
+        // steal Current from the live index. Pre-fix every album save left
+        // every HitCountBadgeConverter reading 0 hits until the post-save
+        // RebuildContainers ran. See Rework H7.
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
         resolver.BuildResolver(currentPieces);
 
         // Load-mutate-save. The previous design deleted every matched album's
@@ -2413,7 +2417,8 @@ public class SqliteCanonDataService : ICanonDataService
         foreach (var (id, m) in pieceModelByRowId) rowIdByPieceModel[m] = id;
         var rowIdByVersionModel = new Dictionary<CanonPieceVersion, long>(ReferenceEqualityComparer.Instance);
         foreach (var (id, m) in versionModelByRowId) rowIdByVersionModel[m] = id;
-        var resolver = new PieceReferenceIndex();
+        // Throwaway resolver — see SaveAlbumsCoreAsync above + Rework H7.
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
         resolver.BuildResolver(currentPieces);
 
         var existing = await db.AlbumTracks
