@@ -21,8 +21,8 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
-4. **`PickListsViewModel` hardcodes pick-list selection by index position.** Magic number `SelectedListIndex == 6` (= Ensembles) appears in two places — adding / reordering a pick list silently shifts which one is "the ensemble list". A real correctness bug masquerading as a constant. Lift to a named enum or a `PickListKind.Ensembles` constant. (H30)
-5. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
+4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
+5. **Tests silently `return` on missing preconditions instead of skipping — false-pass risk.** Four tests in `SqliteRoundTripTests` / `CanonDataServiceTests` bail with `if (precondition) return;` instead of `Assert.Skip(...)`. A regression that quietly makes the precondition fail (deleted data file, broken migration) turns the test into "passes by skipping" — xUnit reports it green. Easiest quick win remaining; tractable, isolated, no behavioural risk. (H38)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 23 |
+| 🟠 High | 22 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **200** |
+| **Total** | **199** |
 
 ---
 
@@ -151,26 +151,6 @@ Fix at the model: give `RecordingSession` a stable identifier (`Id` / `Key`) and
 [ItunesImportViewModel.cs:171-182](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:171) — the "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two genuinely different albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both "Symphony No. 9") collide. Importing the Bernstein after the Karajan: Bernstein's track 1 looks already-imported and is hidden, the user adds nothing, and the canon silently misses the Bernstein recording.
 
 Fix: include `Label|CatalogueNumber` in the key when present, or key on the iTunes Persistent ID once that's threaded through (see M27).
-
-### H30. `PickListsViewModel` hardcodes pick-list selection by index position
-[PickListsViewModel.cs:266](src/CDArchive.App/ViewModels/PickListsViewModel.cs:266):
-```csharp
-IsEnsembleList = SelectedListIndex == 6;   // index 6 = Ensembles
-```
-And [PickListsViewModel.cs:286-299](src/CDArchive.App/ViewModels/PickListsViewModel.cs:286):
-```csharp
-private List<string> CurrentStringList() => SelectedListIndex switch
-{
-    0 => _forms,
-    1 => _categories,
-    ...
-    9 => _labels,
-    _ => [],
-};
-```
-The same applies in `CurrentRenameDict`. The display order in `PickListNames` ([:37-39](src/CDArchive.App/ViewModels/PickListsViewModel.cs:37)) is the de-facto schema. Reordering the array silently routes every Add/Update/Remove command to the wrong list — the user picks "Forms" from a dropdown and edits Categories instead. Adding a new entry between two existing ones renumbers everything from that point. No compiler help, no test catches it.
-
-Fix: a `PickListKind` enum + a `Dictionary<PickListKind, List<string>>` (and matching display-name map). The display order becomes a UI concern; the data routing is enum-keyed and rename-safe.
 
 ### H35. No application-level resource dictionary — hex colours and converters duplicated across every view
 The codebase has no shared `App.xaml` resources for the design tokens or common converters. Result:
@@ -939,6 +919,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H30. `PickListsViewModel` hardcodes pick-list selection by index position
+[2026-05-21] `rework/picklists-named-kinds` — Lifted the positional dispatch onto a `PickListKind` enum in `Core/Helpers/PickListKinds.cs`. The ten lists (Forms, Categories, Catalogues, Keys, Instruments, CreativeRoles, Ensembles, VoiceTypes, PerformerRoles, Labels) each have a stable identity; display order is now a presentation array (`PickListKinds.OrderedKinds`) that only the selector ComboBox reads. The VM's two `switch (SelectedListIndex)` expressions (`CurrentStringList` / `CurrentRenameDict`) and the `SelectedListIndex == 6` literal that gated `IsEnsembleList` are gone — replaced by `Dictionary<PickListKind, List<string>>` and `Dictionary<PickListKind, Dictionary<string, string>>` lookups via a new `CurrentKind` computed property. The XAML side keeps binding `SelectedIndex={Binding SelectedListIndex}` (no UI churn) and `ItemsSource` still reads `PickListsViewModel.PickListNames` — that property now forwards `PickListKinds.OrderedDisplayNames`, so the screen renders byte-identically. Reordering / inserting / removing a kind in the display array now only changes presentation; routing stays correct because every command dispatches on the enum, not the position. 8 new tests in `PickListKindsTests` lock in the contract: OrderedKinds covers every enum value uniquely, OrderedDisplayNames mirrors it, DisplayName is the right label per kind, KindAt round-trips through IndexOf, out-of-range KindAt throws, IsStringList returns false only for Ensembles, IsRenamable returns true for exactly the four piece-field kinds (Forms / Categories / Catalogues / Keys), and the default display order is pinned. All 577 tests pass.
 
 ### C4. No logging anywhere
 [2026-05-18] `rework/logging` — Serilog wired through `Microsoft.Extensions.Logging`. App configures rolling daily file sink at `%LocalAppData%\CDArchive\logs\cdarchive-YYYYMMDD.log` (14-day retention, shared write) plus a Debug-window sink for dev. Unhandled dispatcher + AppDomain exceptions and the startup-error catch all route through `Log.Fatal` + `CloseAndFlush`. `ServiceCollectionExtensions.AddCoreServices` calls `AddLogging()` so `ILogger<T>` is resolvable for every service even when no host providers are wired (tests stay quiet). `SqliteCanonDataService` takes `ILogger<SqliteCanonDataService>` (optional, defaults to `NullLogger<T>` for direct test construction) and logs start + elapsed-ms for each of the five `SaveXxxAsync` entry points. Plumbing locked in by `LoggingPlumbingTests` (3 tests).
