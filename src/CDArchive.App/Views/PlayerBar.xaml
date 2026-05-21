@@ -9,8 +9,6 @@
 
     <UserControl.Resources>
 
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-
         <!-- Borderless transport-icon button. Icon glyphs are rendered in Segoe UI Symbol. -->
         <Style x:Key="TransportButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />

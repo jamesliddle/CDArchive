@@ -4,10 +4,39 @@
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
              xmlns:views="clr-namespace:CDArchive.App.Views">
     <Application.Resources>
+        <!-- ── Shared converters ───────────────────────────────────────────
+             Single canonical key. Previously 11 views each declared their
+             own <BooleanToVisibilityConverter> inline under three different
+             key spellings (BoolToVis / BoolToVisConverter /
+             BoolToVisibilityConverter). H37 retired the custom shadow
+             converter; this is the framework one. -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- ── Status brushes (consumed by ConversionStatusToColorConverter
+             and ValidationSeverityToColorConverter) ──────────────────────
+             Previously hardcoded in C# as Colors.Gray / DodgerBlue / etc.
+             (L29). Lives here so a palette change touches XAML, not code. -->
+        <SolidColorBrush x:Key="StatusBrushPending"    Color="Gray" />
+        <SolidColorBrush x:Key="StatusBrushInProgress" Color="DodgerBlue" />
+        <SolidColorBrush x:Key="StatusBrushCompleted" Color="Green" />
+        <SolidColorBrush x:Key="StatusBrushFailed"    Color="Red" />
+        <SolidColorBrush x:Key="SeverityBrushWarning" Color="Orange" />
+        <SolidColorBrush x:Key="SeverityBrushError"   Color="Red" />
+
+        <!-- ── Semantic accent brushes ────────────────────────────────────
+             Named so the most-used hex literals across views have one
+             place to change. The bulk hex-literal sweep is deferred (see
+             Rework.md H35); the foundation exists. -->
+        <SolidColorBrush x:Key="AccentBrush"          Color="#007ACC" />
+        <SolidColorBrush x:Key="ProvisionalBadgeBrush" Color="#E65100" />
+        <SolidColorBrush x:Key="ApprovedBadgeBrush"   Color="#2E7D32" />
+        <SolidColorBrush x:Key="DangerBrush"          Color="#D32F2F" />
+
+        <!-- ── ViewModel → View DataTemplates ─────────────────────────── -->
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
         </DataTemplate>
-<DataTemplate DataType="{x:Type vm:AlbumsViewModel}">
+        <DataTemplate DataType="{x:Type vm:AlbumsViewModel}">
             <views:AlbumsView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:TracksViewModel}">

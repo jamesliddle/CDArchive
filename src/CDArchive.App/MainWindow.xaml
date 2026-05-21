@@ -12,8 +12,6 @@
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
 
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-
         <!-- Navigation RadioButton Style -->
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
             <Setter Property="Foreground" Value="#CCCCCC" />

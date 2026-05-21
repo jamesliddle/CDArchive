@@ -9,8 +9,6 @@
              d:DataContext="{d:DesignInstance Type=vm:TracksViewModel}">
 
     <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
-
         <!-- Mirror AlbumsView's header styles so this view feels native. See the
              *GridView column alignment* lesson in CLAUDE.md: header styles must
              live at UserControl scope (not in ListView.Resources) so the
@@ -177,7 +175,7 @@
                                                Foreground="#E65100" FontSize="11" FontStyle="Italic"
                                                Margin="6,0,0,0" VerticalAlignment="Center"
                                                Visibility="{Binding IsProvisional,
-                                                            Converter={StaticResource BoolToVisConverter}}" />
+                                                            Converter={StaticResource BoolToVis}}" />
                                 </StackPanel>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>

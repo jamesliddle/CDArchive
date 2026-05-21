@@ -7,10 +7,6 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PickListsViewModel}">
 
-    <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </UserControl.Resources>
-
     <DockPanel MaxWidth="480" HorizontalAlignment="Left">
 
         <!-- Selector row -->

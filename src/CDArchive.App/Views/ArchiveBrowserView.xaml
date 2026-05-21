@@ -4,13 +4,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
-             xmlns:converters="clr-namespace:CDArchive.App.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:ArchiveBrowserViewModel}">
-
-    <UserControl.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-    </UserControl.Resources>
 
     <DockPanel>
         <!-- Top Controls -->
@@ -29,7 +24,7 @@
                        Foreground="#555555"
                        VerticalAlignment="Center"
                        Margin="15,0,0,0"
-                       Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}" />
+                       Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}" />
         </StackPanel>
 
         <!-- Status Message -->
