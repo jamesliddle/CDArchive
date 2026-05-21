@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **Editor windows mutate the visual tree imperatively + validate inconsistently.** `AlbumEditorWindow` and `TrackEditorWindow` use `MainTabs.Items.Remove(...)` + `Visibility = Collapsed` from code-behind to switch modes (multi-edit / loose-track); these don't survive a re-show. Five editors validate with `MessageBox.Show` from code-behind, four others silently no-op on missing required fields (the dialog doesn't close and the user gets no feedback). Replace tab/visibility mutation with `Visibility="{Binding IsXxx, ...}"` bindings; pick one validation pattern (ideally `CanSave` + `OK.IsEnabled` so the button greys out before the click) and apply across the editor family. (H18 + H19)
+5. **Dead handlers / dead-code partial methods in CanonView and CanonViewModel.** `CanonView.xaml.cs:72` has an empty `Loaded += (_, _) => { }` handler in the constructor — the real `OnLoaded` is wired in XAML. `CanonViewModel.cs:79-82` has a partial method body that's just a comment ("No longer need to filter pieces by composer"). The source generator handles the no-op for free. Trivial quick-win bundle. (H10 + H11)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 17 |
+| 🟠 High | 15 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 45 |
 | ⚪ Nit | 48 |
-| **Total** | **193** |
+| **Total** | **191** |
 
 ---
 
@@ -110,22 +110,6 @@ All own: details/list population, save logic with validation, field propagation,
 
 ### H14. `PieceEditorWindow.xaml.cs` is 1,114 lines and uses manual field copying between piece/version
 [PieceEditorWindow.xaml.cs:145-181](src/CDArchive.App/Views/PieceEditorWindow.xaml.cs:145) — `VersionToPiece` and `CopyPieceToVersion` manually shuttle ~20 properties between `CanonPiece` and `CanonPieceVersion`. New field added to the model needs adding to both. Either share a base abstract class with `[ObservableProperty]`s, or generate the shuttle with a source generator. At minimum, add a reflection-based test asserting every shared property name flows both ways.
-
-### H18. Editor windows dynamically mutate the visual tree for mode-switching
-- [AlbumEditorWindow.xaml.cs:108-109](src/CDArchive.App/Views/AlbumEditorWindow.xaml.cs:108) — `MainTabs.Items.Remove(PerformersTab); MainTabs.Items.Remove(SessionsTab);`
-- [TrackEditorWindow.xaml.cs:138-142](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:138) — five imperative `Visibility = Collapsed` sets for loose-track mode.
-- Both also `.Items.Add(new ComboBoxItem { Content = "Mixed", ... })` to inject a "Mixed" sentinel into combos.
-
-None of these survive a re-show. The windows are single-use today so it works. `Visibility="Collapsed"` bindings to `IsMultiEdit` / `IsLooseTrack` would be cleaner and reversible.
-
-### H19. Editor windows validate with `MessageBox.Show` from code-behind (inconsistently)
-- [AlbumEditorWindow.xaml.cs:564-572](src/CDArchive.App/Views/AlbumEditorWindow.xaml.cs:564) — Title required.
-- [TrackEditorWindow.xaml.cs:422-428](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:422) — track number positive integer.
-- [TrackEditorWindow.xaml.cs:559-565](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:559) — same check in multi-edit save.
-- [PerformerEditorWindow.xaml.cs:27-32](src/CDArchive.App/Views/PerformerEditorWindow.xaml.cs:27) — Name required.
-- [VariantEditorWindow.xaml.cs:30-34](src/CDArchive.App/Views/VariantEditorWindow.xaml.cs:30) — Description required.
-
-Worse, validation across the editor family is **inconsistent**: `RoleEditorWindow:27`, `ComposerCreditEditorWindow:32`, `InstrumentEntryEditorWindow:28`, and `ComposerEditorWindow` (no validation at all on Name/SortName) all silently no-op on missing required fields — the user clicks OK, the dialog doesn't close, nothing visible happens. Pick a pattern and apply it everywhere: ideally extract VMs and use `CanSave` + bind to `OK.IsEnabled` so the button greys out before the click.
 
 ### H21. `AlbumTrack.SessionIndex` stores a position, not an ID — latent data corruption on session reorder
 [TrackEditorWindow.xaml.cs:457](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:457):
@@ -878,6 +862,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H18 + H19. Editor window mode-switching via XAML bindings + consistent validation
+[2026-05-21] `rework/editor-mode-and-validation` — (H18) Replaced imperative visual-tree mutation in `AlbumEditorWindow` and `TrackEditorWindow` with `Visibility="{Binding ShowXxx, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"` bindings driven by public auto-properties on the window code-behind. `AlbumEditorWindow` gained `ShowPerformersTab` / `ShowSessionsTab` — the multi-edit ctor sets them false instead of calling `MainTabs.Items.Remove(PerformersTab/SessionsTab)`. `TrackEditorWindow` gained `ShowNavigation` / `ShowTrackNumber` / `ShowSession` — the multi-edit ctor sets `ShowNavigation=false`, the loose-track ctor sets all three false, replacing six `xxx.Visibility = Collapsed` assignments across two constructors. The properties are read-only (set once in ctor before the window renders), so no INPC is needed — the binding evaluates once at load. Anticipatory fix: the editors are single-use today, but the original imperative pattern didn't survive a re-show. `OnTabSelectionChanged` already used reference equality on the tab item rather than index, so collapsed tabs work fine with the existing select-first-row logic. (H19) Surfaced `MessageBox.Show` in three small editors that previously silently `return`'d on missing required fields: `RoleEditorWindow` (Role name), `ComposerCreditEditorWindow` (Contributor name), `InstrumentEntryEditorWindow` (Instrument). The 4th site H19 listed — `ComposerEditorWindow` Name/SortName — was already MessageBox-validated as part of H32's retirement. Validation across the editor family is now consistent: every required-field check either grays out OK (the "ideal" CanSave path is deferred to H13's VM extraction) or surfaces a MessageBox. Build clean, all 579 tests pass. WPF code-behind isn't directly testable (H39 still open); the binding evaluation is covered by manual smoke. **Action item for the user:** smoke-test by (a) opening the Album editor on a multi-album selection — Performers/Sessions tabs should be hidden; (b) opening the Track editor on a loose track — Navigation, Track # field, and Session row should all be hidden; (c) opening RoleEditor / ComposerCreditEditor / InstrumentEntryEditor and clicking OK with the required field blank — should now show a MessageBox instead of doing nothing.
 
 ### H35 + H37 + L29. App.xaml shared resources foundation (custom converter retired + status brushes lifted)
 [2026-05-21] `rework/app-shared-resources` — Three related "no shared App.xaml resources" findings retired together. (H37) Deleted the custom `Converters/BoolToVisibilityConverter.cs` — it had identical behaviour to WPF's framework `System.Windows.Controls.BooleanToVisibilityConverter` and exactly one use site (`ValidationView.xaml`) that wasn't actually using it (declared but never referenced). (H35) Established `App.xaml` as the resource dictionary: one canonical `<BooleanToVisibilityConverter x:Key="BoolToVis" />` replaces 11 inline declarations spread across `MainWindow.xaml`, `PlayerBar.xaml`, `AlbumsView.xaml`, `TracksView.xaml`, `CanonView.xaml`, `PickListsView.xaml`, `PiecesWindow.xaml`, `PiecePickerWindow.xaml`, `CatalogueView.xaml`, `ValidationView.xaml`, `ArchiveBrowserView.xaml`. The inline declarations used three different `x:Key` spellings (`BoolToVis` / `BoolToVisConverter` / `BoolToVisibilityConverter`); 24 binding references were renormalised to the single canonical `BoolToVis`. Added named status-palette brushes (`StatusBrushPending` / `InProgress` / `Completed` / `Failed` and `SeverityBrushWarning` / `Error`) plus four semantic accent brushes (`AccentBrush`, `ProvisionalBadgeBrush`, `ApprovedBadgeBrush`, `DangerBrush`). (L29) `ConversionStatusToColorConverter` and `ValidationSeverityToColorConverter` no longer hardcode `Colors.Gray` / `Colors.DodgerBlue` / etc. — they resolve from `Application.Current.Resources[brushKey]`, so palette changes touch XAML, not C#. The bulk sweep of ~280 hex literals across views into named brushes is deferred as a new Low finding (L47) — keeps this PR mechanical and tractable; the foundation is in place. Build clean, all 579 tests pass. **Action item for the user:** smoke-test the Conversion view and the Validation view — status / severity colours should render identically to before (same palette, same brushes, just resolved from XAML instead of code).

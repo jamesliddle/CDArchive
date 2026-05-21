@@ -62,6 +62,17 @@ public partial class TrackEditorWindow : Window
     // True while adding new tracks (Next stays enabled, OK adds to disc)
     private bool IsAddingNew => !_isMixed && _disc != null && _trackIndex >= _disc.Tracks.Count;
 
+    // ── Mode-driven visibility (H18) ──────────────────────────────────────────
+    // Bound from XAML via {Binding Show…, RelativeSource={RelativeSource AncestorType=Window}}.
+    // Set in each constructor before the visual tree is rendered; never mutated
+    // afterward, so no INotifyPropertyChanged is needed — the binding evaluates
+    // once at load. Replaces three batches of imperative `Visibility = Collapsed`
+    // assignments that didn't survive a re-show (anticipatory; editors are
+    // single-use today).
+    public bool ShowNavigation   { get; private set; }
+    public bool ShowTrackNumber  { get; private set; }
+    public bool ShowSession      { get; private set; }
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public TrackEditorWindow(
@@ -79,6 +90,10 @@ public partial class TrackEditorWindow : Window
         _pickLists = pickLists;
         _allPieces = allPieces;
         _isMixed   = false;
+
+        ShowNavigation  = true;
+        ShowTrackNumber = true;
+        ShowSession     = true;
 
         // Rework H22 — snapshot the disc's track list and the session list
         // before any edits land. Prev/Next commits in single-edit mode mutate
@@ -121,6 +136,10 @@ public partial class TrackEditorWindow : Window
         _isMixed    = true;
         _editTracks = tracks;
 
+        ShowNavigation  = false;
+        ShowTrackNumber = true;
+        ShowSession     = true;
+
         // Rework H22 — snapshot the (possibly caller-owned) session list so
         // OnAddSession appends here can be rolled back on Cancel. Tracks are
         // only written on OK via SaveMulti, so no per-track snapshot is
@@ -135,8 +154,8 @@ public partial class TrackEditorWindow : Window
 
         Title = $"Edit {tracks.Count} Tracks";
 
-        // Prev/Next has no meaning in bulk mode
-        NavigationPanel.Visibility = Visibility.Collapsed;
+        // Prev/Next has no meaning in bulk mode — ShowNavigation drives
+        // NavigationPanel.Visibility via XAML binding (H18).
 
         PopulateMultiFields(sessions != null);
     }
@@ -166,17 +185,17 @@ public partial class TrackEditorWindow : Window
         _isLooseTrack = true;
         _looseTrack   = track;
 
+        // Hide UI that has no meaning for a loose track. Drives Visibility
+        // bindings in XAML (H18) — replaces five imperative .Visibility=Collapsed
+        // assignments that didn't survive a re-show.
+        ShowNavigation  = false;
+        ShowTrackNumber = false;
+        ShowSession     = false;
+
         PieceRefList.ItemsSource       = _pieceRefs;
         TrackPerformerList.ItemsSource = _trackPerformers;
 
         Title = "Edit Loose Track";
-
-        // Hide UI that has no meaning for a loose track.
-        NavigationPanel.Visibility  = Visibility.Collapsed;
-        TrackNumberLabel.Visibility = Visibility.Collapsed;
-        TrackNumberBox.Visibility   = Visibility.Collapsed;
-        SessionLabel.Visibility     = Visibility.Collapsed;
-        SessionPanel.Visibility     = Visibility.Collapsed;
 
         LoadLooseTrack();
     }

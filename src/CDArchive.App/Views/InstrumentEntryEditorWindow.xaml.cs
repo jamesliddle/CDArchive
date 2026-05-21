@@ -25,7 +25,14 @@ public partial class InstrumentEntryEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(InstrumentCombo.Text)) return;
+        // H19: surface a MessageBox on missing required field instead of
+        // silently no-op'ing — matches PerformerEditorWindow / VariantEditorWindow.
+        if (string.IsNullOrWhiteSpace(InstrumentCombo.Text))
+        {
+            MessageBox.Show(this, "Instrument is required.", "Missing field",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         Entry.Instrument = InstrumentCombo.Text.Trim();
         Entry.PartNumber = int.TryParse(PartNumberBox.Text.Trim(), out var p) ? p : null;

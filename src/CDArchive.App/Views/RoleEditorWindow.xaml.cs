@@ -24,7 +24,14 @@ public partial class RoleEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(NameBox.Text)) return;
+        // H19: surface a MessageBox on missing required field instead of
+        // silently no-op'ing — matches PerformerEditorWindow / VariantEditorWindow.
+        if (string.IsNullOrWhiteSpace(NameBox.Text))
+        {
+            MessageBox.Show(this, "Role name is required.", "Missing field",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         Role.Name        = NameBox.Text.Trim();
         Role.VoiceType   = NullIfEmpty(VoiceTypeCombo.Text);

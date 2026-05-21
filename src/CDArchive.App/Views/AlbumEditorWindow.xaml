@@ -158,7 +158,10 @@
             </TabItem>
 
             <!-- ══ Tab 2: Performers ══════════════════════════════════════════ -->
-            <TabItem x:Name="PerformersTab" Header="Performers">
+            <TabItem x:Name="PerformersTab" Header="Performers"
+                     Visibility="{Binding ShowPerformersTab,
+                                           RelativeSource={RelativeSource AncestorType=Window},
+                                           Converter={StaticResource BoolToVis}}">
                 <DockPanel Margin="10">
 
                     <StackPanel DockPanel.Dock="Top">
@@ -217,7 +220,10 @@
             </TabItem>
 
             <!-- ══ Tab 3: Sessions ════════════════════════════════════════════ -->
-            <TabItem x:Name="SessionsTab" Header="Sessions">
+            <TabItem x:Name="SessionsTab" Header="Sessions"
+                     Visibility="{Binding ShowSessionsTab,
+                                           RelativeSource={RelativeSource AncestorType=Window},
+                                           Converter={StaticResource BoolToVis}}">
                 <DockPanel Margin="10">
 
                     <StackPanel DockPanel.Dock="Top">
