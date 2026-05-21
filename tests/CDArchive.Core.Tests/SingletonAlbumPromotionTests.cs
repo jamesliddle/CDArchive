@@ -48,13 +48,6 @@ public class SingletonAlbumPromotionTests : IDisposable
         try { Directory.Delete(_tempDir, recursive: true); } catch { /* best-effort */ }
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     private static CanonAlbum SyntheticWrapper(string title, params AlbumPerformer[] albumPerformers) =>
         new()
         {

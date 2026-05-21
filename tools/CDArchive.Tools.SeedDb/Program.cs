@@ -320,13 +320,6 @@ internal static class Program
         return 0;
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     /// <summary>
     /// Walks up from the executing assembly's directory to find the repo root.
     /// Accepts either <c>Classical Canon composers.json</c> or <c>ClassicalCanon.db</c>
