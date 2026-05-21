@@ -27,13 +27,6 @@ public class AlbumSaveInPlaceTests
         return new SqliteCanonDataService(factory, json);
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     private static async Task SeedComposerAndPieceAsync(SqliteCanonDataService svc)
     {
         await svc.SaveComposersAsync(new List<CanonComposer>
@@ -128,6 +121,128 @@ public class AlbumSaveInPlaceTests
             Assert.Equal(idsBefore.Count, idsAfter.Count);
             foreach (var (key, idBefore) in idsBefore)
                 Assert.Equal(idBefore, idsAfter[key]);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    /// <summary>
+    /// Renaming an album's Title via the editor's JSON-clone-and-substitute
+    /// pattern must end with exactly one album in the DB carrying the new
+    /// title — never two — and the disc/track structure must survive.
+    ///
+    /// <para>The editor JSON-clones the album for Cancel-safe editing, so the
+    /// renamed instance passed to <c>SaveAlbumsAsync</c> has no CWT entry and
+    /// the save falls back to <see cref="CanonAlbum.IdentityKey"/>. For an
+    /// album without Label/CatalogueNumber the key folds in Title|Subtitle —
+    /// so a rename produces a different key, the existing row becomes an
+    /// orphan in the same transaction, and the renamed album inserts fresh.
+    /// Row IDs churn (documented in CLAUDE.md), but the user-visible contract
+    /// "one album in, one album out" must hold.</para>
+    ///
+    /// <para>Regression test for Top-5 #5 (H20): the file previously covered
+    /// content-edit / add-track / remove-track / constraint-rollback / batch
+    /// isolation, but nothing pinned the rename outcome — a regression that
+    /// broke orphan-delete would silently leave a duplicate.</para>
+    /// </summary>
+    [Fact]
+    public async Task RenamingAlbumTitle_LeavesOneAlbum_NoDuplicates()
+    {
+        var dbPath = "";
+        try
+        {
+            var svc = NewService(out dbPath, out var factory);
+            await SeedComposerAndPieceAsync(svc);
+
+            var album = BuildAlbum("Original Title", trackCount: 4, 1, 2);
+            await svc.SaveAlbumsAsync(new List<CanonAlbum> { album });
+
+            // Simulate the AlbumEditorWindow JSON-clone-and-substitute flow:
+            // load → JSON-clone → mutate the clone → save the clone (no CWT
+            // entry). This is the path that exercises IdentityKey-based dedup.
+            var loaded   = (await svc.LoadAlbumsAsync()).Single();
+            var loadedId = (await SnapshotAlbumIdsAsync(factory)).Single().Value;
+            var clone    = JsonSerializer.Deserialize<CanonAlbum>(JsonSerializer.Serialize(loaded))!;
+            clone.Title  = "Renamed Title";
+            await svc.SaveAlbumsAsync(new List<CanonAlbum> { clone });
+
+            // Exactly one album survives, carrying the new title.
+            var afterIds = await SnapshotAlbumIdsAsync(factory);
+            var only     = Assert.Single(afterIds);
+            Assert.Equal("Renamed Title", only.Key);
+
+            // Disc + track counts preserved through the orphan-delete +
+            // reinsert dance.
+            await using var db = await factory.CreateDbContextAsync();
+            Assert.Equal(2, await db.AlbumDiscs.CountAsync(d => d.AlbumId == only.Value));
+            Assert.Equal(8, await db.AlbumTracks.CountAsync(
+                t => t.DiscId != null && db.AlbumDiscs
+                    .Where(d => d.AlbumId == only.Value)
+                    .Select(d => d.Id)
+                    .Contains(t.DiscId.Value)));
+
+            // Row ID churned — documented behaviour (CLAUDE.md, "Album save:
+            // load-mutate-save"). Asserted here so a future change that makes
+            // rename ID-stable shows up as a deliberate test update, not a
+            // silent contract drift.
+            Assert.NotEqual(loadedId, only.Value);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    private static async Task<Dictionary<string, long>> SnapshotAlbumIdsAsync(
+        IDbContextFactory<CanonDbContext> factory)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return await db.Albums.ToDictionaryAsync(a => a.Title ?? "", a => a.Id);
+    }
+
+    /// <summary>
+    /// Companion to the rename test above: an album with Label + CatalogueNumber
+    /// also goes through the orphan-delete + reinsert dance on a Title rename
+    /// (Title is part of <see cref="CanonAlbum.IdentityKey"/>, so any rename
+    /// invalidates the key). This case is non-trivial because there's a
+    /// <c>UNIQUE</c> filtered index on (label, catalogue_number) — the
+    /// implementation must order the orphan-DELETE before the INSERT in the
+    /// same transaction, or the index would reject the new row.
+    /// </summary>
+    [Fact]
+    public async Task RenamingAlbumTitle_WithLabelAndCatalogue_StillEndsAsOneAlbum()
+    {
+        var dbPath = "";
+        try
+        {
+            var svc = NewService(out dbPath, out var factory);
+            await SeedComposerAndPieceAsync(svc);
+
+            var album = BuildAlbum("Original Title", trackCount: 3);
+            album.Label = "DG"; album.CatalogueNumber = "447-401";
+            await svc.SaveAlbumsAsync(new List<CanonAlbum> { album });
+
+            var loaded  = (await svc.LoadAlbumsAsync()).Single();
+            var clone   = JsonSerializer.Deserialize<CanonAlbum>(JsonSerializer.Serialize(loaded))!;
+            clone.Title = "Renamed Title";
+            await svc.SaveAlbumsAsync(new List<CanonAlbum> { clone });
+
+            // The (label, catalogue_number) unique index would have rejected
+            // the insert if EF batched it before the orphan delete. Reaching
+            // this assertion proves the ordering is correct.
+            var only = Assert.Single(await SnapshotAlbumIdsAsync(factory));
+            Assert.Equal("Renamed Title", only.Key);
+
+            await using var db = await factory.CreateDbContextAsync();
+            Assert.Equal(3, await db.AlbumTracks.CountAsync(
+                t => t.DiscId != null && db.AlbumDiscs
+                    .Where(d => d.AlbumId == only.Value)
+                    .Select(d => d.Id)
+                    .Contains(t.DiscId.Value)));
         }
         finally
         {

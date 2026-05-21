@@ -35,13 +35,6 @@ public class AlbumIdentityTests
         return new SqliteCanonDataService(factory, json);
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     /// <summary>
     /// IdentityKey: an album with no Label / CatalogueNumber but a Title
     /// returns a stable, non-null key. Pre-fix this returned null and the

@@ -29,13 +29,6 @@ public class SaveBatchAtomicityTests
         return new SqliteCanonDataService(factory, json);
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     private static CanonComposer Composer(string name) => new() { Name = name, SortName = name };
 
     private static CanonPiece Piece(string composer, string title) => new()

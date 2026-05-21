@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **No test asserts row-ID behaviour after a Title rename.** [AlbumSaveInPlaceTests.cs](tests/CDArchive.Core.Tests/AlbumSaveInPlaceTests.cs) covers content-edit / add-track / remove-track / constraint-violation rollback / multi-album batch isolation, but `CLAUDE.md` documents "row IDs do churn on a Title rename" as accepted behaviour without a test pinning the outcome. A regression that breaks the orphan-delete-and-reinsert path would silently turn a rename into a duplicate. Add a test that renames an album's Title, saves, and asserts: one album exists with the new title, disc/track counts preserved, identity correctly resolved via the composite `IdentityKey`. (H20)
+5. **No application-level resource dictionary — hex colours and converters duplicated across every view.** `BooleanToVisibilityConverter` is redeclared inline in 11 separate XAML files; hex colour literals (`#007ACC`, `#E0E0E0`, `#E65100`, `#2E7D32`, …) scatter across ~20 views; no shared style for the repeated status-bar / toolbar-button / provisional-badge patterns. A theming change requires editing every view. Add `App.xaml` `ResourceDictionary` with named brushes + shared converters + common styles. Bundles cleanly with H37 (custom `BoolToVisibilityConverter` shadows the framework version with one inconsistent use site). (H35 + H37)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 21 |
+| 🟠 High | 19 |
 | 🟡 Medium | 83 |
-| 🟢 Low | 46 |
+| 🟢 Low | 45 |
 | ⚪ Nit | 48 |
-| **Total** | **198** |
+| **Total** | **195** |
 
 ---
 
@@ -111,13 +111,6 @@ All own: details/list population, save logic with validation, field propagation,
 ### H14. `PieceEditorWindow.xaml.cs` is 1,114 lines and uses manual field copying between piece/version
 [PieceEditorWindow.xaml.cs:145-181](src/CDArchive.App/Views/PieceEditorWindow.xaml.cs:145) — `VersionToPiece` and `CopyPieceToVersion` manually shuttle ~20 properties between `CanonPiece` and `CanonPieceVersion`. New field added to the model needs adding to both. Either share a base abstract class with `[ObservableProperty]`s, or generate the shuttle with a source generator. At minimum, add a reflection-based test asserting every shared property name flows both ways.
 
-### H17. `SimpleDbContextFactory` boilerplate is duplicated
-- [tools/CDArchive.Tools.SeedDb/Program.cs:323](tools/CDArchive.Tools.SeedDb/Program.cs:323)
-- [tests/CDArchive.Core.Tests/AlbumSaveInPlaceTests.cs:30](tests/CDArchive.Core.Tests/AlbumSaveInPlaceTests.cs:30)
-- Almost certainly in other test files.
-
-A shared `tests/CDArchive.Core.Tests.Infrastructure/` helper would consolidate. Same for `BuildAlbum`, `SeedComposerAndPieceAsync`, the `Path.GetTempPath()` ceremony.
-
 ### H18. Editor windows dynamically mutate the visual tree for mode-switching
 - [AlbumEditorWindow.xaml.cs:108-109](src/CDArchive.App/Views/AlbumEditorWindow.xaml.cs:108) — `MainTabs.Items.Remove(PerformersTab); MainTabs.Items.Remove(SessionsTab);`
 - [TrackEditorWindow.xaml.cs:138-142](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:138) — five imperative `Visibility = Collapsed` sets for loose-track mode.
@@ -133,9 +126,6 @@ None of these survive a re-show. The windows are single-use today so it works. `
 - [VariantEditorWindow.xaml.cs:30-34](src/CDArchive.App/Views/VariantEditorWindow.xaml.cs:30) — Description required.
 
 Worse, validation across the editor family is **inconsistent**: `RoleEditorWindow:27`, `ComposerCreditEditorWindow:32`, `InstrumentEntryEditorWindow:28`, and `ComposerEditorWindow` (no validation at all on Name/SortName) all silently no-op on missing required fields — the user clicks OK, the dialog doesn't close, nothing visible happens. Pick a pattern and apply it everywhere: ideally extract VMs and use `CanSave` + bind to `OK.IsEnabled` so the button greys out before the click.
-
-### H20. No test asserts row-ID behavior after a Title rename
-[AlbumSaveInPlaceTests.cs](tests/CDArchive.Core.Tests/AlbumSaveInPlaceTests.cs) covers content-edit, add-track, remove-track, constraint-violation rollback, multi-album batch isolation. CLAUDE.md documents that "row IDs do churn on a Title rename" as accepted. But no test asserts *what happens* on rename, so a regression that breaks the orphan-delete-and-reinsert behaviour (turning a rename into a silent duplicate) would go undetected. Add a test that asserts: after rename, one album exists with the new title, disc count preserved.
 
 ### H21. `AlbumTrack.SessionIndex` stores a position, not an ID — latent data corruption on session reorder
 [TrackEditorWindow.xaml.cs:457](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:457):
@@ -763,9 +753,6 @@ If the app is single-user and the user doesn't need a11y, fine — but worth not
 
 Hardcoded `Colors.Gray`, `Colors.DodgerBlue`, etc. Changing the conversion status palette means recompiling. Combined with M54's frozen-brush fix, store the colors as `App.xaml` `SolidColorBrush` resources and have the converter look them up via `Application.Current.Resources["StatusBrushPending"]`. Then a theme change touches XAML, not C#.
 
-### L30. `SimpleDbContextFactory` boilerplate duplicated across 9 test files (extension of H17)
-Same `private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>` declaration appears in (at least): `AlbumSaveInPlaceTests`, `AlbumIdentityTests`, `AlbumTracksNullableDiscIdMigrationTests`, `AlbumTrackIsStereoTests`, `CanonRejectCascadeTests`, `LooseTrackRoundTripTests`, `TrackCascadeTests`, `SingletonAlbumPromotionTests`, `SqliteRoundTripTests`. Each test file also re-implements `Path.GetTempPath()` + `Directory.CreateDirectory(...)` + `try { Directory.Delete(...) } catch {}` cleanup. A shared `SqliteTestHarness : IDisposable` helper in `tests/CDArchive.Core.Tests.Infrastructure/` consolidates the boilerplate to ~10 lines per test class.
-
 ### L31. `PieceReferenceIndex.DistinctContainerCount` allocates two HashSets per call
 [PieceReferenceIndex.cs:252-263](src/CDArchive.Core/Services/PieceReferenceIndex.cs:252) — called per visible tree node per refresh (via the badge converter). For a Canon tree with hundreds of visible nodes, hundreds of HashSet allocations per repaint. Pre-compute and cache the distinct-container counts during `Rebuild` (the same loop that builds `_hitsForPiece` can build a `_distinctContainerCount` dict). Saves the allocations and turns the converter into a pure dictionary lookup.
 
@@ -911,6 +898,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H17 + H20 + L30. SimpleDbContextFactory consolidated + Title-rename regression test
+[2026-05-21] `rework/test-infra-and-rename` — (H17 + L30) Moved the 6-line `SimpleDbContextFactory : IDbContextFactory<CanonDbContext>` class into `CDArchive.Core.Data` (production assembly — both tests and the SeedDb tool reference Core, so a single canonical location replaces 12 identical inline copies: 11 test files + `tools/CDArchive.Tools.SeedDb/Program.cs`). Each call site already imports `CDArchive.Core.Data`, so no new `using` directives were needed. L30 is the same-finding-different-severity duplicate flagged as "extension of H17" — retiring together. (H20) Added two tests in `AlbumSaveInPlaceTests` that pin the Title-rename behaviour CLAUDE.md documents as accepted. `RenamingAlbumTitle_LeavesOneAlbum_NoDuplicates` exercises the AlbumEditorWindow JSON-clone path: save an album → load → JSON-clone → mutate Title → save the clone (no CWT entry). Asserts: one album in the DB carrying the new title, disc/track counts preserved, and row ID churned (documented behaviour — orphan-delete and reinsert is what makes the rename work). `RenamingAlbumTitle_WithLabelAndCatalogue_StillEndsAsOneAlbum` repeats the flow with Label + CatalogueNumber set, which is non-trivial because the `UNIQUE` filtered index on (label, catalogue_number) requires the orphan-DELETE to be ordered before the INSERT — reaching the assertion proves the ordering is correct. All 579 tests pass (577 baseline + 2 new). **Action item for the user:** smoke-test the album editor's rename flow — open an album, change Title, click OK. The renamed album should appear once in the list (no duplicate), with all tracks intact.
 
 ### H38. Tests silently `return` on missing preconditions instead of skipping — false-pass risk
 [2026-05-21] `rework/test-skip-preconditions` — Two of the four originally-listed sites had already been removed during prior refactors (the `SaveOperations_DoNotTouchJsonFiles` test now builds its own temp-dir fixture rather than depending on the canonical JSON files; the `FindRepoDataDirectory_*` tests likewise build a synthetic temp tree). The two remaining sites in `SqliteRoundTripTests` (`LeventailDeJeanne_MovementsHaveIndividualComposers` line 71-72, `CrossComposerSubpieceFinder_SurfacesLeventailMovementsUnderTheirComposers` line 112-113) both gated on whether the canonical "(Various)" L'éventail data had been seeded. Both `[Fact]`s become `[SkippableFact]` and the `if (leventail is null) return;` lines become `Skip.If(leventail is null, "L'éventail de Jeanne not present in seeded data.")`. xUnit now reports an explicit `Skipped` result instead of a silent green pass when the precondition fails. Added the `Xunit.SkippableFact` package (v1.4.13) — chosen over `Assert.Skip` because xUnit 2.5.3 (the version pinned here) doesn't ship that API; `Assert.Skip` is xUnit 3. All 577 tests pass with the L'éventail data present (none skip in the current seeded state).

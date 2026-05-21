@@ -49,13 +49,6 @@ public class AlbumTracksNullableDiscIdMigrationTests : IDisposable
         try { Directory.Delete(_tempDir, recursive: true); } catch { /* best-effort */ }
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     /// <summary>
     /// New service instance over the SAME on-disk DB so EnsureInitializedAsync
     /// (one-shot per instance) runs again — needed when a test mutates the

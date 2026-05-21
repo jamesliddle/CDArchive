@@ -41,13 +41,6 @@ public class SqliteRoundTripTests
         return new SqliteCanonDataService(factory, json);
     }
 
-    private sealed class SimpleDbContextFactory : IDbContextFactory<CanonDbContext>
-    {
-        private readonly DbContextOptions<CanonDbContext> _options;
-        public SimpleDbContextFactory(DbContextOptions<CanonDbContext> options) => _options = options;
-        public CanonDbContext CreateDbContext() => new(_options);
-    }
-
     /// <summary>
     /// Regression: collaborative works (a parent piece whose subpieces each have
     /// a different composer) used to land in the DB with every movement assigned
