@@ -6,8 +6,6 @@ namespace CDArchive.Core.Services;
 
 public class ArchiveScannerService : IArchiveScannerService
 {
-    private static readonly Regex DiscFolderRegex = new(@"^Disc \d+(-\d+)?$", RegexOptions.Compiled);
-
     private readonly IArchiveSettings _settings;
     private readonly IFileSystemService _fs;
 
@@ -49,7 +47,7 @@ public class ArchiveScannerService : IArchiveScannerService
                 // box set scanned in the wrong order, with disc-number
                 // assignment below following the (wrong) ordering.
                 var discDirs = DiscFolderOrdering.OrderByDiscNumber(
-                        subDirs.Where(d => DiscFolderRegex.IsMatch(_fs.GetFileName(d))))
+                        subDirs.Where(d => DiscFolderConventions.IsDiscFolderName(_fs.GetFileName(d))))
                     .ToList();
 
                 bool hasFlacFolder = subDirNames.Contains("FLAC", StringComparer.OrdinalIgnoreCase);
@@ -185,7 +183,7 @@ public class ArchiveScannerService : IArchiveScannerService
         var subDirNames = subDirs.Select(d => _fs.GetFileName(d)).ToList();
 
         var discDirs = subDirs
-            .Where(d => DiscFolderRegex.IsMatch(_fs.GetFileName(d)))
+            .Where(d => DiscFolderConventions.IsDiscFolderName(_fs.GetFileName(d)))
             .ToList();
 
         bool hasFlacFolder = subDirNames.Any(n => n.Equals("FLAC", StringComparison.OrdinalIgnoreCase));
@@ -232,7 +230,7 @@ public class ArchiveScannerService : IArchiveScannerService
         foreach (var dir in subDirs)
         {
             var name = _fs.GetFileName(dir);
-            if (!expectedNames.Contains(name) && !DiscFolderRegex.IsMatch(name))
+            if (!expectedNames.Contains(name) && !DiscFolderConventions.IsDiscFolderName(name))
             {
                 result.Issues.Add(new ValidationIssue(
                     ValidationSeverity.Warning,

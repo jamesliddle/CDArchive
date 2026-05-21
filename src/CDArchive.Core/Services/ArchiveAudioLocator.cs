@@ -1,3 +1,4 @@
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
 namespace CDArchive.Core.Services;
@@ -157,9 +158,19 @@ public sealed class ArchiveAudioLocator : IArchiveAudioLocator
 
     /// <summary>
     /// Returns the absolute path of the disc folder under <paramref name="albumDir"/>.
-    /// Order: explicit <see cref="AlbumDisc.FolderName"/> → "Disc {n}" if multi-disc
-    /// → the album directory itself (single-disc albums put FLAC/MP3 directly
-    /// under the album folder).
+    /// Order: explicit <see cref="AlbumDisc.FolderName"/> → unpadded
+    /// <c>"Disc N"</c> → padded <c>"Disc NN"</c> → the album directory
+    /// itself (single-disc albums put FLAC/MP3 directly under the album
+    /// folder).
+    ///
+    /// <para>
+    /// Rework H46: pre-fix this only tried <c>$"Disc {disc.DiscNumber}"</c>
+    /// (unpadded), so a 10+ disc box set scaffolded with padded names
+    /// (<c>Disc 01</c>) silently failed playback on discs 1-9 — the
+    /// locator's convention path didn't match the on-disk folder. Now we
+    /// walk <see cref="DiscFolderConventions.CandidateNames"/>, which
+    /// yields both forms; whichever exists wins.
+    /// </para>
     /// </summary>
     private string? ResolveDiscDirectory(string albumDir, CanonAlbum album, AlbumDisc disc)
     {
@@ -171,8 +182,13 @@ public sealed class ArchiveAudioLocator : IArchiveAudioLocator
 
         if (album.Discs.Count > 1)
         {
-            var defaultDir = Path.Combine(albumDir, $"Disc {disc.DiscNumber}");
-            return DirExistsCached(defaultDir) ? defaultDir : null;
+            foreach (var candidate in DiscFolderConventions.CandidateNames(disc.DiscNumber))
+            {
+                var dir = Path.Combine(albumDir, candidate);
+                if (DirExistsCached(dir))
+                    return dir;
+            }
+            return null;
         }
 
         return albumDir;
