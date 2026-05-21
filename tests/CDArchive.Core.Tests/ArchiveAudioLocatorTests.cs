@@ -389,4 +389,45 @@ public class ArchiveAudioLocatorTests : IDisposable
         // = 7 total. Second Resolve on d1/track2 reuses every cached entry.
         Assert.Equal(7, locator.FilesystemProbeCount);
     }
+
+    /// <summary>
+    /// Rework H46 regression: a 10+ disc box set scaffolded with padded
+    /// folder names (<c>Disc 01</c>) must resolve for discs 1-9 via the
+    /// locator. Pre-fix the locator only tried unpadded <c>Disc 1</c>;
+    /// playback silently failed and the user had to set
+    /// <see cref="AlbumDisc.FolderName"/> manually for every padded disc.
+    /// </summary>
+    [Fact]
+    public void Resolve_PaddedDiscFolder_ResolvesViaCandidateNames()
+    {
+        // Album scaffolded as a 12-disc box set: Disc 01..Disc 12.
+        Touch("BoxSet", "Disc 01", "FLAC", "01 a.flac");
+        Touch("BoxSet", "Disc 09", "FLAC", "01 i.flac");
+        Touch("BoxSet", "Disc 12", "FLAC", "01 l.flac");
+
+        var settings = new FakeSettings { ArchiveRootPath = _root };
+        var locator  = new ArchiveAudioLocator(settings);
+        var album    = new CanonAlbum { Title = "BoxSet" };
+        for (int i = 1; i <= 12; i++)
+            album.Discs.Add(new AlbumDisc { DiscNumber = i });
+
+        // Disc 1 — padded folder, must still resolve.
+        var hit1  = locator.Resolve(album, album.Discs[0],
+            new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hit1);
+        Assert.Contains("Disc 01", hit1!.Value.Path);
+
+        // Disc 9 — also padded.
+        var hit9 = locator.Resolve(album, album.Discs[8],
+            new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hit9);
+        Assert.Contains("Disc 09", hit9!.Value.Path);
+
+        // Disc 12 — naturally two-digit; the helper's unpadded form is
+        // already "Disc 12" so this resolves the same way.
+        var hit12 = locator.Resolve(album, album.Discs[11],
+            new AlbumTrack { TrackNumber = 1 });
+        Assert.NotNull(hit12);
+        Assert.Contains("Disc 12", hit12!.Value.Path);
+    }
 }

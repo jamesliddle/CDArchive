@@ -1,3 +1,4 @@
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
 namespace CDArchive.Core.Services;
@@ -16,13 +17,8 @@ public class AlbumScaffoldingService : IAlbumScaffoldingService
     public string GetAlbumPath(string albumName) =>
         _fs.CombinePath(_settings.ArchiveRootPath, albumName);
 
-    public string GetDiscFolderName(int discNumber, int totalDiscs)
-    {
-        if (totalDiscs >= 10)
-            return $"Disc {discNumber:D2}";
-
-        return $"Disc {discNumber}";
-    }
+    public string GetDiscFolderName(int discNumber, int totalDiscs) =>
+        DiscFolderConventions.Format(discNumber, totalDiscs);
 
     public AlbumInfo CreateAlbumStructure(string albumName, int discCount)
     {

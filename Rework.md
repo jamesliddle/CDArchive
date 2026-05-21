@@ -21,7 +21,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
-4. **`AlbumScaffoldingService` pads disc folder names but `ArchiveAudioLocator` doesn't.** Scaffolding writes `Disc 01` … `Disc 10` for 10+ disc albums; the locator looks for `Disc 1` … `Disc 10`. For padded box sets the locator's convention path doesn't match — playback silently fails to find files on discs 1-9, and the user has to set `AlbumDisc.FolderName` manually for every disc. Pair with the just-retired H29 (lexicographic disc ordering) via a shared `DiscFolderConventions.Format(discNumber, totalDiscs)` helper that scaffolding / locator / scanner all call. (H46)
+4. **`PickListsViewModel` hardcodes pick-list selection by index position.** Magic number `SelectedListIndex == 6` (= Ensembles) appears in two places — adding / reordering a pick list silently shifts which one is "the ensemble list". A real correctness bug masquerading as a constant. Lift to a named enum or a `PickListKind.Ensembles` constant. (H30)
 5. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 24 |
-| 🟡 Medium | 84 |
+| 🟠 High | 23 |
+| 🟡 Medium | 83 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **202** |
+| **Total** | **200** |
 
 ---
 
@@ -233,23 +233,6 @@ Fix: change `Dictionary<string, IndexEntry>` to `Dictionary<string, List<IndexEn
 
 For the current single-user case it's fine — the user works in free-text. But H7 (throwaway-resolver) and H26 (same-surname composer collision) both surface the cost of free-text-only: every dedup is fuzzy, every lookup risks collision. Either prune the unused tables from the schema (the `EnsembleNameRow`, `EnsembleMembershipRow`, `PersonRow` tables and their FK columns on `AlbumPerformerRow`), or commit to populating them in the editor + seeder.
 
-### H46. `AlbumScaffoldingService` pads disc folder names but `ArchiveAudioLocator` doesn't — silent playback breakage for 10+ disc sets
-[AlbumScaffoldingService.cs:19-25](src/CDArchive.Core/Services/AlbumScaffoldingService.cs:19):
-```csharp
-public string GetDiscFolderName(int discNumber, int totalDiscs)
-{
-    if (totalDiscs >= 10)
-        return $"Disc {discNumber:D2}";
-    return $"Disc {discNumber}";
-}
-```
-For a 10+ disc box set, scaffolding creates `Disc 01`, `Disc 02`, ..., `Disc 10`. But [ArchiveAudioLocator.cs:105](src/CDArchive.Core/Services/ArchiveAudioLocator.cs:105) constructs the lookup path as:
-```csharp
-var defaultDir = Path.Combine(albumDir, $"Disc {disc.DiscNumber}");
-```
-— `disc.DiscNumber` is an `int`, default formatting, no padding. So the locator looks for `Disc 1`, `Disc 9`, `Disc 10`. For discs 1-9 in a padded box set, **the locator's convention path doesn't match the scaffolded folder** (looks for `Disc 1`, folder is `Disc 01`). Playback silently fails to find the file; the user has to manually set `AlbumDisc.FolderName` for every padded disc to override.
-
-This pairs with H29 (lexicographic ordering at 10+ discs) and M35 (three places hardcode "Disc *") — together they make the 10+ disc box set a fragile case across the entire pipeline. Pick one convention (padded or unpadded) and apply it everywhere via a shared `DiscFolderConventions.Format(discNumber, totalDiscs)` helper that scaffolding, locator, and scanner all call.
 
 ### H47. `PiecesWindow.xaml.cs` duplicates CanonView's piece-tree machinery — third implementation of "sort pieces"
 [PiecesWindow.xaml.cs:157-197](src/CDArchive.App/Views/PiecesWindow.xaml.cs:157) — re-implements the entire piece sort logic (Catalogue / Title / Category / Year tie-breaker chains) that already exists in two other places:
@@ -385,13 +368,6 @@ var totalMovements = workGroups
     .FirstOrDefault(g => g.Key == workKey)?.Count() ?? 1;
 ```
 `FirstOrDefault` over `workGroups` per entry, then `.Count()` (re-enumerates the group) per hit. For a 20-track album this is fine; for a 100-track box set it adds up. Convert once: `var movementCount = workGroups.ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);` then O(1) lookup.
-
-### M35. The "Disc *" folder-naming convention is hardcoded in three places
-- [CataloguingService.cs:190](src/CDArchive.Core/Services/CataloguingService.cs:190) — `Directory.GetDirectories(albumPath, "Disc *")`.
-- [ArchiveScannerService.cs:8](src/CDArchive.Core/Services/ArchiveScannerService.cs:8) — `DiscFolderRegex = new(@"^Disc \d+(-\d+)?$", ...)`.
-- [ArchiveAudioLocator.cs:105](src/CDArchive.Core/Services/ArchiveAudioLocator.cs:105) — `Path.Combine(albumDir, $"Disc {disc.DiscNumber}")`.
-
-Three different services with three different representations (glob, regex, string-format) of the same convention. Anything else (`CD1`, `Disc One`, `Part 1`, language-localised) is invisible to all three. Lift to a single `IArchiveSettings.DiscFolderPattern` (or a shared `ArchiveConventions` helper). Without it, the next user / a renamed folder silently produces "empty album" symptoms in scan + lost playback in the locator + skipped tagging.
 
 ### M36. Archive-walking services have no error handling — one bad folder crashes the whole pass
 - [ArchiveScannerService.cs:27, :139](src/CDArchive.Core/Services/ArchiveScannerService.cs:27) — `_fs.EnumerateDirectories(archiveRoot)` and per-album sub-enumerations bubble exceptions all the way out.
@@ -990,6 +966,9 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 ### C14. `PickListsViewModel.ApplyRenames` fires `SavePiecesAsync` as discarded Task
 [2026-05-19] `rework/picklists-rename-save` — Extended `ICanonDataService.SaveBatchAsync` with an optional `CanonPickLists? pickLists` parameter; extracted `SqliteCanonDataService.SavePickListsCoreAsync` (stages the delete-and-reinsert without flushing) and wired it into the shared transaction in `SaveBatchAsync` ahead of the composers→pieces→albums→loose-tracks chain. Pick-list rows are FK-independent so order doesn't matter on the SQLite side; running first means a piece save in the same batch sees a freshly-renamed value already staged. `PickListsViewModel.ApplyRenames` no longer fire-and-forgets a pieces save — it now returns the rename count and the caller (`SaveAsync`) decides whether to bundle `pieces: _canonVm.Pieces.ToList()` into the same `SaveBatchAsync` call. A piece-side failure now rolls the pick-list change back too; success now waits for both to land before flipping `StatusMessage` to a truthful `"Pick lists saved. Renamed N piece field(s)."`. The `CanonDataService` JSON implementation forwards the new parameter to its sequential `SavePickListsAsync` (best-effort, matching the existing batch stub). Locked in by 3 new tests in `SaveBatchAtomicityTests`: pick-lists-only persists, pick-lists + pieces both land, downstream-failure rolls back the staged pick list too.
+
+### H46 + M35. Disc-folder convention centralised + padded folders resolve
+[2026-05-20] `rework/disc-folder-conventions` — Two adjacent fixes bundled (one High, one Medium), both about the "Disc N" folder-naming convention being scattered. (M35) The same convention appeared in four places with four different representations: `AlbumScaffoldingService.GetDiscFolderName` formatted with conditional zero-padding; `ArchiveAudioLocator.ResolveDiscDirectory` constructed `$"Disc {N}"` unpadded; `ArchiveScannerService.DiscFolderRegex` had a private compiled regex; `CataloguingService.FindMp3Folders` used a `Disc *` glob. New `Core/Helpers/DiscFolderConventions` consolidates all four: `Format(discNumber, totalDiscs)` for outbound scaffolding (pads when totalDiscs ≥ 10), `CandidateNames(discNumber)` for inbound locator lookup (yields both unpadded and padded so the locator finds either), `IsDiscFolderName(name)` for the scanner's regex match, `SearchPattern` for the cataloguer's glob. All four sites routed through the helper. (H46) The locator's `ResolveDiscDirectory` walked only the unpadded `$"Disc {N}"` candidate — for a 10+ disc box set scaffolded with padded names, discs 1-9 silently failed playback because the locator looked for `Disc 1` but the on-disk folder was `Disc 01`. Now walks `CandidateNames` and returns whichever exists; the user no longer has to set `AlbumDisc.FolderName` manually for every padded disc. Paired with `DiscFolderOrdering` (the existing helper from H29's retirement), the entire "Disc N" surface area is now single-sourced. 24 new tests across `DiscFolderConventionsTests` (helper contract) and `ArchiveAudioLocatorTests` (the H46 padded-disc regression itself). All 550 tests pass.
 
 ### H34 + H45. WPF tree virtualization re-enabled + DI lifetimes aligned
 [2026-05-20] `rework/wpf-di-hygiene` — Two small App-side hygiene fixes bundled. (H34) Both the Canon composer tree (`CanonView.xaml`) and the piece picker (`PiecePickerWindow.xaml`) had `VirtualizingStackPanel.IsVirtualizing="False"` explicitly set — a workaround for an Items.Refresh()-collapses-expansion bug that's already handled by the existing `SaveAllExpansionState` / `RestoreAllExpansionState` round-trip in `CanonView.xaml.cs` and by the picker's view-model `PickerNode.IsExpanded` binding (the picker holds expansion state in the VM, not on the WPF container, so the recycler can't lose it). With virtualization off, every `TreeViewItem` for every collapsed-or-visible node was realized at construction — tens of thousands of WPF containers on a fully-loaded catalogue, with scroll cost O(n) instead of O(viewport). Removing the attribute lets the WPF default (virtualization on) kick in; the in-line XAML comments document why it's safe. (H45) `SettingsViewModel` and `ImportExportViewModel` were registered `AddTransient` but the singleton `MainViewModel` ctor-injected them — silent violation of the Transient contract, both VMs frozen for the singleton's lifetime. Promoted both to `AddSingleton` to match the rest of the VM graph (only `MainViewModel.NavigateTo*` consumes them, and singletons match every other VM's lifetime in the graph). Same actual runtime behavior, but no captive-dependency surprise for future contributors. No Core-side tests to add (App-only changes; the App test project is still H39's deferred item); build cleanliness + the existing 526 tests passing is the verification.
