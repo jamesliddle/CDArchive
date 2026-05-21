@@ -57,7 +57,7 @@ public class SqliteRoundTripTests
     /// <c>composer</c> overrides, falling back to the parent's composer when
     /// the subpiece doesn't specify one.
     /// </summary>
-    [Fact]
+    [SkippableFact]
     public async Task LeventailDeJeanne_MovementsHaveIndividualComposers()
     {
         var dataDir = FindDataDirectory();
@@ -67,9 +67,10 @@ public class SqliteRoundTripTests
         var leventail = pieces.FirstOrDefault(p =>
             (p.Title ?? "").StartsWith("L'éventail", StringComparison.Ordinal));
 
-        // Skip if the seeder hasn't been run with the (Various)-aware data.
-        // We only assert the contract when the work is present.
-        if (leventail is null) return;
+        // Skip cleanly if the seeder hasn't been run with the (Various)-aware
+        // data. xUnit reports an explicit Skipped result instead of the
+        // previous `return;`, which masqueraded as a passing test.
+        Skip.If(leventail is null, "L'éventail de Jeanne not present in seeded data.");
 
         Assert.Equal("(Various)", leventail.Composer);
         Assert.NotNull(leventail.Subpieces);
@@ -98,7 +99,7 @@ public class SqliteRoundTripTests
     /// load-path normalization preserves the per-movement composers needed for
     /// detection.
     /// </summary>
-    [Fact]
+    [SkippableFact]
     public async Task CrossComposerSubpieceFinder_SurfacesLeventailMovementsUnderTheirComposers()
     {
         var dataDir = FindDataDirectory();
@@ -107,10 +108,11 @@ public class SqliteRoundTripTests
         var pieces = await svc.LoadPiecesAsync();
 
         // Skip cleanly when L'éventail isn't seeded (e.g., a clean checkout
-        // before the (Various) sentinel was added).
+        // before the (Various) sentinel was added). Reports an explicit
+        // Skipped result instead of the previous `return;` no-op.
         var leventail = pieces.FirstOrDefault(p =>
             (p.Title ?? "").StartsWith("L'éventail", StringComparison.Ordinal));
-        if (leventail is null) return;
+        Skip.If(leventail is null, "L'éventail de Jeanne not present in seeded data.");
 
         var byComposer = CrossComposerSubpieceFinder.Find(pieces);
 

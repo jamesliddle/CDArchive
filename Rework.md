@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **Tests silently `return` on missing preconditions instead of skipping — false-pass risk.** Four tests in `SqliteRoundTripTests` / `CanonDataServiceTests` bail with `if (precondition) return;` instead of `Assert.Skip(...)`. A regression that quietly makes the precondition fail (deleted data file, broken migration) turns the test into "passes by skipping" — xUnit reports it green. Easiest quick win remaining; tractable, isolated, no behavioural risk. (H38)
+5. **No test asserts row-ID behaviour after a Title rename.** [AlbumSaveInPlaceTests.cs](tests/CDArchive.Core.Tests/AlbumSaveInPlaceTests.cs) covers content-edit / add-track / remove-track / constraint-violation rollback / multi-album batch isolation, but `CLAUDE.md` documents "row IDs do churn on a Title rename" as accepted behaviour without a test pinning the outcome. A regression that breaks the orphan-delete-and-reinsert path would silently turn a rename into a duplicate. Add a test that renames an album's Title, saves, and asserts: one album exists with the new title, disc/track counts preserved, identity correctly resolved via the composite `IdentityKey`. (H20)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 22 |
+| 🟠 High | 21 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 46 |
 | ⚪ Nit | 48 |
-| **Total** | **199** |
+| **Total** | **198** |
 
 ---
 
@@ -177,14 +177,6 @@ The codebase uses **both**:
 - [ValidationView.xaml:12](src/CDArchive.App/Views/ValidationView.xaml:12) is the lone exception: `<converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />` — qualified with `converters:` so it picks up the custom one.
 
 Net effect: the custom converter exists, is built into the assembly, but has exactly one usage that's indistinguishable in behaviour from the 10 framework usages. Future maintainers will assume both are interchangeable until one of them subtly diverges (e.g. someone adds a `Hidden` mode to the custom one). Delete the custom converter and switch ValidationView to the framework one, or rename it to `NullableBoolToVisibilityConverter` and give it actual distinct behaviour. Pairs with H35 — once a shared App.xaml resource declares the converter once, the inconsistency surfaces naturally.
-
-### H38. Tests silently `return` on missing preconditions instead of skipping — false-pass risk
-- [SqliteRoundTripTests.cs:71](tests/CDArchive.Core.Tests/SqliteRoundTripTests.cs:71): `if (leventail is null) return;`
-- [SqliteRoundTripTests.cs:112](tests/CDArchive.Core.Tests/SqliteRoundTripTests.cs:112): `if (leventail is null) return;` (different test)
-- [SqliteRoundTripTests.cs:174](tests/CDArchive.Core.Tests/SqliteRoundTripTests.cs:174): `if (!jsonPaths.All(File.Exists)) return;`
-- [CanonDataServiceTests.cs:62](tests/CDArchive.Core.Tests/CanonDataServiceTests.cs:62): `if (!File.Exists(dbFile)) return;`
-
-A regression that silently makes the precondition fail (data file deleted, migration not run, etc.) turns the test into "passes by skipping" rather than "fails because the contract is violated". xUnit reports it as a pass. Use `[SkippableFact]` + `Skip.If(...)` from `Xunit.SkippableFact`, or `Assert.Skip(...)` in xUnit 2.5+, so the test result is explicitly `Skipped` not `Passed`.
 
 ### H39. Zero test coverage for any ViewModel
 The 31 test files cover Core models (`CanonModelDisplayTests`, `MarkerTests`, `PieceSortingTests`, `ComposerSortingTests`), Core services (`SqliteRoundTripTests`, `AlbumSaveInPlaceTests`, `CanonRejectCascadeTests`, etc.), and a few helpers (`StringSimilarityTests`, `TagParserTests`). **No tests for any `*ViewModel`** — `CanonViewModel`, `AlbumsViewModel`, `TracksViewModel`, `PickListsViewModel`, `ItunesImportViewModel`, `PlayerViewModel`, `MainViewModel`, `SettingsViewModel`, `ConversionViewModel`, etc.
@@ -919,6 +911,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H38. Tests silently `return` on missing preconditions instead of skipping — false-pass risk
+[2026-05-21] `rework/test-skip-preconditions` — Two of the four originally-listed sites had already been removed during prior refactors (the `SaveOperations_DoNotTouchJsonFiles` test now builds its own temp-dir fixture rather than depending on the canonical JSON files; the `FindRepoDataDirectory_*` tests likewise build a synthetic temp tree). The two remaining sites in `SqliteRoundTripTests` (`LeventailDeJeanne_MovementsHaveIndividualComposers` line 71-72, `CrossComposerSubpieceFinder_SurfacesLeventailMovementsUnderTheirComposers` line 112-113) both gated on whether the canonical "(Various)" L'éventail data had been seeded. Both `[Fact]`s become `[SkippableFact]` and the `if (leventail is null) return;` lines become `Skip.If(leventail is null, "L'éventail de Jeanne not present in seeded data.")`. xUnit now reports an explicit `Skipped` result instead of a silent green pass when the precondition fails. Added the `Xunit.SkippableFact` package (v1.4.13) — chosen over `Assert.Skip` because xUnit 2.5.3 (the version pinned here) doesn't ship that API; `Assert.Skip` is xUnit 3. All 577 tests pass with the L'éventail data present (none skip in the current seeded state).
 
 ### H30. `PickListsViewModel` hardcodes pick-list selection by index position
 [2026-05-21] `rework/picklists-named-kinds` — Lifted the positional dispatch onto a `PickListKind` enum in `Core/Helpers/PickListKinds.cs`. The ten lists (Forms, Categories, Catalogues, Keys, Instruments, CreativeRoles, Ensembles, VoiceTypes, PerformerRoles, Labels) each have a stable identity; display order is now a presentation array (`PickListKinds.OrderedKinds`) that only the selector ComboBox reads. The VM's two `switch (SelectedListIndex)` expressions (`CurrentStringList` / `CurrentRenameDict`) and the `SelectedListIndex == 6` literal that gated `IsEnsembleList` are gone — replaced by `Dictionary<PickListKind, List<string>>` and `Dictionary<PickListKind, Dictionary<string, string>>` lookups via a new `CurrentKind` computed property. The XAML side keeps binding `SelectedIndex={Binding SelectedListIndex}` (no UI churn) and `ItemsSource` still reads `PickListsViewModel.PickListNames` — that property now forwards `PickListKinds.OrderedDisplayNames`, so the screen renders byte-identically. Reordering / inserting / removing a kind in the display array now only changes presentation; routing stays correct because every command dispatches on the enum, not the position. 8 new tests in `PickListKindsTests` lock in the contract: OrderedKinds covers every enum value uniquely, OrderedDisplayNames mirrors it, DisplayName is the right label per kind, KindAt round-trips through IndexOf, out-of-range KindAt throws, IsStringList returns false only for Ensembles, IsRenamable returns true for exactly the four piece-field kinds (Forms / Categories / Catalogues / Keys), and the default display order is pinned. All 577 tests pass.
