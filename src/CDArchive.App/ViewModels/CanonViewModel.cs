@@ -125,11 +125,6 @@ public partial class CanonViewModel : ObservableObject
     partial void OnComposerProvisionalFilterChanged(ProvisionalFilter value) => ApplyComposerFilter();
     partial void OnPieceProvisionalFilterChanged(ProvisionalFilter value) => ApplyPiecesFilter();
 
-    partial void OnSelectedComposerChanged(CanonComposer? value)
-    {
-        // No longer need to filter pieces by composer (Composers tab no longer shows pieces)
-    }
-
     partial void OnSelectedPieceChanged(CanonPiece? value)
     {
         SelectedPieceSubpieces = value?.Subpieces != null

@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **Dead handlers / dead-code partial methods in CanonView and CanonViewModel.** `CanonView.xaml.cs:72` has an empty `Loaded += (_, _) => { }` handler in the constructor — the real `OnLoaded` is wired in XAML. `CanonViewModel.cs:79-82` has a partial method body that's just a comment ("No longer need to filter pieces by composer"). The source generator handles the no-op for free. Trivial quick-win bundle. (H10 + H11)
+5. **VMs call `MessageBox.Show` directly + open WPF file dialogs from VM code.** Five sites across `AlbumsViewModel`, `ItunesImportViewModel`, `ImportExportViewModel` reference `System.Windows.MessageBox` / `Microsoft.Win32.SaveFileDialog` from the VM, coupling Core MVVM logic to WPF and blocking headless unit-testing. `SettingsViewModel` already follows the right pattern (raises `BrowseXxxRequested` events for the View to handle). Introduce a minimal `IDialogService { ConfirmAsync, ShowErrorAsync }` + `IFileDialogService { PickSave, PickOpen }` and inject both — unlocks VM-level test coverage (H39) for those flows. (H3)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 15 |
+| 🟠 High | 13 |
 | 🟡 Medium | 83 |
-| 🟢 Low | 45 |
+| 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **191** |
+| **Total** | **188** |
 
 ---
 
@@ -91,12 +91,6 @@ VMs shouldn't reference `System.Windows` or `Microsoft.Win32` — blocks headles
 
 Introduce a minimal `IDialogService { Task<bool> ConfirmAsync(...); Task ShowErrorAsync(...); }` and an `IFileDialogService { string? PickSave(...); string? PickOpen(...); }` and inject both.
 
-
-### H10. `CanonView`'s `Loaded += (_, _) => { }` dead handler
-[CanonView.xaml.cs:72](src/CDArchive.App/Views/CanonView.xaml.cs:72) — empty Loaded handler in the ctor. The real `OnLoaded` is wired in XAML. Delete or consolidate.
-
-### H11. `CanonViewModel.OnSelectedComposerChanged` is dead code with a misleading comment
-[CanonViewModel.cs:79-82](src/CDArchive.App/ViewModels/CanonViewModel.cs:79) — partial method body is just a comment ("No longer need to filter pieces by composer"). Delete it; the source generator handles the no-op.
 
 ### H13. Every editor window is pure code-behind with no VM
 The big three are the worst offenders:
@@ -774,15 +768,6 @@ An `IPieceSortable` interface with the six getters, implemented by both types, w
 
 The abstraction exists for testability (DuplicateDetectionService mocks it via NSubstitute) but is bypassed inconsistently. Result: only some I/O paths are mockable; the rest hit the real filesystem in tests. Expand the interface to cover the missing operations or commit to direct `System.IO` everywhere and remove the abstraction.
 
-### L45. `DispatcherHelper.cs` is dead code — defined but never called from anywhere
-[DispatcherHelper.cs:6-19](src/CDArchive.App/Helpers/DispatcherHelper.cs:6) — declares a `static class DispatcherHelper` with one method `RunOnUiThread(Action action)` that wraps `Application.Current.Dispatcher.CheckAccess()` / `Invoke`. A grep for `DispatcherHelper` across the whole `src/` tree returns only the definition file — zero callers.
-
-The helper was probably added for a planned cross-thread refresh that ended up using `Dispatcher.BeginInvoke` inline (e.g. `CanonView.xaml.cs.OnIndexRebuilt` does its own `Dispatcher.BeginInvoke`). Either:
-1. **Delete it.** 19 lines of unused code in `Helpers/` confuses new contributors who assume "helper exists, must be the right pattern to use".
-2. **Use it.** Replace the inline `Application.Current.Dispatcher.BeginInvoke(...)` sites (CanonView and likely others) with `DispatcherHelper.RunOnUiThread(...)` so the helper has real callers and the call sites are uniform.
-
-Path 2 is also a stepping-stone toward fixing C2 / H7 / M63 (NAudio sync-context capture, `PieceReferenceIndex.Indexed` event fires on calling thread, etc.) — a single chokepoint for "marshal to UI thread" makes those threading fixes one-file edits.
-
 ### L46. `ArchiveAudioLocatorTests` defines `FakeSettings` by hand instead of using NSubstitute
 [ArchiveAudioLocatorTests.cs:28-37](tests/CDArchive.Core.Tests/ArchiveAudioLocatorTests.cs:28) — 11-line inline class implementing every `IArchiveSettings` property with mutable defaults. Inconsistent with the 3 other test files that already use NSubstitute (`DuplicateDetectionServiceTests`, `AlbumScaffoldingServiceTests`, `ConversionStatusServiceTests`). Either consolidate on NSubstitute (delete FakeSettings, use `Substitute.For<IArchiveSettings>()`) or commit to hand-rolled fakes (and explain why FakeSettings exists when NSubstitute is already a project dep). The cost of inconsistency is mostly cognitive — a new contributor wonders which pattern to follow for the next test.
 
@@ -862,6 +847,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H10 + H11 + L45. Dead code cleanup (CanonView, CanonViewModel, DispatcherHelper)
+[2026-05-21] `rework/dead-code-cleanup` — Three trivial dead-code findings retired together. (H10) Removed the empty `Loaded += (_, _) => { };` handler from `CanonView`'s constructor — the real `OnLoaded` is wired in XAML and runs as expected. (H11) Removed the `OnSelectedComposerChanged` partial method body in `CanonViewModel` whose body was just a comment ("No longer need to filter pieces by composer"). The CommunityToolkit source generator handles the no-op for free when no partial method body is defined. (L45) Deleted `src/CDArchive.App/Helpers/DispatcherHelper.cs` — `grep -rn DispatcherHelper src/ tests/ tools/` confirmed zero callers across the entire repo. The helper's `RunOnUiThread(Action)` wrapper was likely added for a planned cross-thread refresh that ended up using inline `Dispatcher.BeginInvoke` instead (e.g. `CanonView.OnIndexRebuilt`). The Rework note flagged "Path 2: replace inline dispatch sites with the helper" as a stepping-stone toward C2/H7/M63, but C2 already shipped its own `SynchronizationContext` capture path (per `NAudioPlayerService`), so the chokepoint-helper story isn't load-bearing. Deleted to reduce confusion for new contributors. Build clean, all 579 tests pass. **Action item for the user:** none — three lines of dead code removed, no behavioural change.
 
 ### H18 + H19. Editor window mode-switching via XAML bindings + consistent validation
 [2026-05-21] `rework/editor-mode-and-validation` — (H18) Replaced imperative visual-tree mutation in `AlbumEditorWindow` and `TrackEditorWindow` with `Visibility="{Binding ShowXxx, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"` bindings driven by public auto-properties on the window code-behind. `AlbumEditorWindow` gained `ShowPerformersTab` / `ShowSessionsTab` — the multi-edit ctor sets them false instead of calling `MainTabs.Items.Remove(PerformersTab/SessionsTab)`. `TrackEditorWindow` gained `ShowNavigation` / `ShowTrackNumber` / `ShowSession` — the multi-edit ctor sets `ShowNavigation=false`, the loose-track ctor sets all three false, replacing six `xxx.Visibility = Collapsed` assignments across two constructors. The properties are read-only (set once in ctor before the window renders), so no INPC is needed — the binding evaluates once at load. Anticipatory fix: the editors are single-use today, but the original imperative pattern didn't survive a re-show. `OnTabSelectionChanged` already used reference equality on the tab item rather than index, so collapsed tabs work fine with the existing select-first-row logic. (H19) Surfaced `MessageBox.Show` in three small editors that previously silently `return`'d on missing required fields: `RoleEditorWindow` (Role name), `ComposerCreditEditorWindow` (Contributor name), `InstrumentEntryEditorWindow` (Instrument). The 4th site H19 listed — `ComposerEditorWindow` Name/SortName — was already MessageBox-validated as part of H32's retirement. Validation across the editor family is now consistent: every required-field check either grays out OK (the "ideal" CanSave path is deferred to H13's VM extraction) or surfaces a MessageBox. Build clean, all 579 tests pass. WPF code-behind isn't directly testable (H39 still open); the binding evaluation is covered by manual smoke. **Action item for the user:** smoke-test by (a) opening the Album editor on a multi-album selection — Performers/Sessions tabs should be hidden; (b) opening the Track editor on a loose track — Navigation, Track # field, and Session row should all be hidden; (c) opening RoleEditor / ComposerCreditEditor / InstrumentEntryEditor and clicking OK with the required field blank — should now show a MessageBox instead of doing nothing.

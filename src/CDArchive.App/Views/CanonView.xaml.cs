@@ -68,8 +68,6 @@ public partial class CanonView : UserControl
     public CanonView()
     {
         InitializeComponent();
-
-        Loaded += (_, _) => { };
     }
 
     // ── Initial data load ────────────────────────────────────────────────────
