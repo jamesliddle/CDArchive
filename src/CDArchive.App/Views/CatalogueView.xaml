@@ -4,12 +4,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
-             xmlns:converters="clr-namespace:CDArchive.App.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:CatalogueViewModel}">
 
     <UserControl.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <Style x:Key="RuleButtonStyle" TargetType="Button">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="12,6" />
@@ -59,7 +57,7 @@
                 BorderThickness="1"
                 Padding="12"
                 Margin="0,0,0,12"
-                Visibility="{Binding HasEntries, Converter={StaticResource BoolToVisibilityConverter}}">
+                Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <TextBlock Text="Bulk Fields (applied to all tracks)"
                            FontSize="14"
@@ -134,7 +132,7 @@
                     Command="{Binding WriteTagsCommand}"
                     Style="{StaticResource ActionButtonStyle}"
                     Margin="10,0,0,0"
-                    Visibility="{Binding HasEntries, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}}" />
             <TextBlock Text="{Binding StatusMessage}"
                        FontSize="13"
                        Foreground="#555555"

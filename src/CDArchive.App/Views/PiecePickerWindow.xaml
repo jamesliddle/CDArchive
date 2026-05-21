@@ -9,10 +9,6 @@
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False">
 
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
-
     <DockPanel Margin="12">
 
         <!-- OK / Cancel -->

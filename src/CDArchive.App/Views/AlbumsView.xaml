@@ -9,8 +9,6 @@
              d:DataContext="{d:DesignInstance Type=vm:AlbumsViewModel}">
 
     <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
-
         <!-- Left-aligned header (default WPF centers; we want headers to
              match the left-aligned cell content). Defined here, not in
              ListView.Resources, because GridViewColumn lives outside the
@@ -173,7 +171,7 @@
                                                Foreground="#E65100" FontSize="11" FontStyle="Italic"
                                                Margin="6,0,0,0" VerticalAlignment="Center"
                                                Visibility="{Binding IsProvisional,
-                                                            Converter={StaticResource BoolToVisConverter}}" />
+                                                            Converter={StaticResource BoolToVis}}" />
                                 </StackPanel>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>

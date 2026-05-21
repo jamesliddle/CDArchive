@@ -6,10 +6,6 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False">
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
-    </Window.Resources>
-
     <DockPanel Margin="8">
         <!-- Toolbar: Filter + New Piece + Delete Piece -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
@@ -192,7 +188,7 @@
                                         Style="{StaticResource ExpanderToggle}"
                                         IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
                                         Visibility="{Binding HasTreeChildren,
-                                            Converter={StaticResource BoolToVisConverter}}" />
+                                            Converter={StaticResource BoolToVis}}" />
                                 </Border>
                                 <Border Width="{Binding ActualWidth, ElementName=HdrTitle}">
                                     <TextBlock Text="{Binding DisplayTitleShort}"
@@ -232,7 +228,7 @@
                                         Style="{StaticResource ExpanderToggle}"
                                         IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
                                         Visibility="{Binding HasChildren,
-                                            Converter={StaticResource BoolToVisConverter}}" />
+                                            Converter={StaticResource BoolToVis}}" />
                                 </Border>
                                 <Border Width="{Binding ActualWidth, ElementName=HdrTitle}">
                                     <TextBlock Text="{Binding DisplayTitle}"
@@ -272,7 +268,7 @@
                                         Style="{StaticResource ExpanderToggle}"
                                         IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
                                         Visibility="{Binding HasSubpieces,
-                                            Converter={StaticResource BoolToVisConverter}}" />
+                                            Converter={StaticResource BoolToVis}}" />
                                 </Border>
                                 <Border Width="{Binding ActualWidth, ElementName=HdrTitle}">
                                     <TextBlock Text="{Binding DisplayTitle}"

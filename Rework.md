@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **No application-level resource dictionary — hex colours and converters duplicated across every view.** `BooleanToVisibilityConverter` is redeclared inline in 11 separate XAML files; hex colour literals (`#007ACC`, `#E0E0E0`, `#E65100`, `#2E7D32`, …) scatter across ~20 views; no shared style for the repeated status-bar / toolbar-button / provisional-badge patterns. A theming change requires editing every view. Add `App.xaml` `ResourceDictionary` with named brushes + shared converters + common styles. Bundles cleanly with H37 (custom `BoolToVisibilityConverter` shadows the framework version with one inconsistent use site). (H35 + H37)
+5. **Editor windows mutate the visual tree imperatively + validate inconsistently.** `AlbumEditorWindow` and `TrackEditorWindow` use `MainTabs.Items.Remove(...)` + `Visibility = Collapsed` from code-behind to switch modes (multi-edit / loose-track); these don't survive a re-show. Five editors validate with `MessageBox.Show` from code-behind, four others silently no-op on missing required fields (the dialog doesn't close and the user gets no feedback). Replace tab/visibility mutation with `Visibility="{Binding IsXxx, ...}"` bindings; pick one validation pattern (ideally `CanSave` + `OK.IsEnabled` so the button greys out before the click) and apply across the editor family. (H18 + H19)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 19 |
+| 🟠 High | 17 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 45 |
 | ⚪ Nit | 48 |
-| **Total** | **195** |
+| **Total** | **193** |
 
 ---
 
@@ -142,14 +142,6 @@ Fix at the model: give `RecordingSession` a stable identifier (`Id` / `Key`) and
 
 Fix: include `Label|CatalogueNumber` in the key when present, or key on the iTunes Persistent ID once that's threaded through (see M27).
 
-### H35. No application-level resource dictionary — hex colours and converters duplicated across every view
-The codebase has no shared `App.xaml` resources for the design tokens or common converters. Result:
-- **`BooleanToVisibilityConverter` is redeclared inline in 11 separate files** (MainWindow, PlayerBar, AlbumsView, TracksView, CanonView, PickListsView, PiecesWindow, PiecePickerWindow, CatalogueView, ValidationView, ArchiveBrowserView). One canonical declaration in [App.xaml:6-25](src/CDArchive.App/App.xaml:6) would suffice.
-- **Hex colour literals everywhere**: `#007ACC` (primary blue) ~15+ uses, `#E0E0E0` (border gray) ~20+, `#555`/`#555555` (text muted), `#F0F4F8` (status background), `#FAFAFA` (alt-row), `#E65100` (provisional orange), `#2E7D32` (badge green), `#D32F2F` (danger red), `#CCE5FF` (selected), `#888888`, `#333333`, `#2D2D30`. A theming change requires touching every view individually. No dark-mode story; the dark sidebar (`#2D2D30`) + light content (`#F5F5F5`) is hand-coded.
-- **No shared styles** for the repeated patterns: status bar `Border` + `TextBlock`, toolbar buttons with hardcoded padding/font-size, "(provisional)" badge formatting.
-
-Add `App.xaml` resource dictionary with named colour brushes (`{StaticResource ProvisionalBadgeBrush}`, etc.), shared converters, and common styles. Pays for itself the first time a design tweak lands.
-
 ### H36. 39 `Click="OnFoo"` event handlers across 13 XAML views bypass VM RelayCommands
 CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The split:
 - `AlbumsView.xaml` (2): all toolbar buttons + context menu items use `Click="OnXxx"`, not `Command="{Binding XxxCommand}"`.
@@ -158,15 +150,6 @@ CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The
 - `ItunesImportView.xaml` (1): `Click="OnImportSelectedClick"` for the primary action even though `LoadCommand` next to it uses `Command="{Binding ...}"` — **inconsistent within the same toolbar**.
 
 The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow`, the small editors) using Click for OK/Cancel is more defensible (dialog plumbing), but the main views' `Click=` pattern is exactly the trap CLAUDE.md documents: status messages get overwritten by handlers, VM `CanExecute` doesn't gate the button, the action can't be tested without WPF, and naming-parallel VM commands appear dead-but-aren't-actually-bound. The right fix is in H2/H19 (extract VMs); this finding is the XAML-side proof that the problem is much wider than CanonView alone.
-
-### H37. Custom `BoolToVisibilityConverter` shares its class name with WPF's built-in — used inconsistently
-[Converters/BoolToVisibilityConverter.cs:7](src/CDArchive.App/Converters/BoolToVisibilityConverter.cs:7) declares a class named `BoolToVisibilityConverter` in `CDArchive.App.Converters`. WPF already ships `System.Windows.Controls.BooleanToVisibilityConverter` with identical behaviour.
-
-The codebase uses **both**:
-- 10 of the 11 XAML files that need bool→visibility declare `<BooleanToVisibilityConverter x:Key="..." />` with no `xmlns:` prefix — that's the framework one in `System.Windows.Controls` (the default presentation namespace), so they're not using the custom converter at all.
-- [ValidationView.xaml:12](src/CDArchive.App/Views/ValidationView.xaml:12) is the lone exception: `<converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />` — qualified with `converters:` so it picks up the custom one.
-
-Net effect: the custom converter exists, is built into the assembly, but has exactly one usage that's indistinguishable in behaviour from the 10 framework usages. Future maintainers will assume both are interchangeable until one of them subtly diverges (e.g. someone adds a `Hidden` mode to the custom one). Delete the custom converter and switch ValidationView to the framework one, or rename it to `NullableBoolToVisibilityConverter` and give it actual distinct behaviour. Pairs with H35 — once a shared App.xaml resource declares the converter once, the inconsistency surfaces naturally.
 
 ### H39. Zero test coverage for any ViewModel
 The 31 test files cover Core models (`CanonModelDisplayTests`, `MarkerTests`, `PieceSortingTests`, `ComposerSortingTests`), Core services (`SqliteRoundTripTests`, `AlbumSaveInPlaceTests`, `CanonRejectCascadeTests`, etc.), and a few helpers (`StringSimilarityTests`, `TagParserTests`). **No tests for any `*ViewModel`** — `CanonViewModel`, `AlbumsViewModel`, `TracksViewModel`, `PickListsViewModel`, `ItunesImportViewModel`, `PlayerViewModel`, `MainViewModel`, `SettingsViewModel`, `ConversionViewModel`, etc.
@@ -747,12 +730,6 @@ If the app is single-user and the user doesn't need a11y, fine — but worth not
 ### L28. No app-level keyboard shortcuts beyond Space
 [MainWindow.xaml.cs:27-38](src/CDArchive.App/MainWindow.xaml.cs:27) wires Space → play/pause. Nothing else: no F5 to refresh, no Ctrl+F to focus the filter, no Enter to invoke the default action in lists, no Esc to clear filter, no Ctrl+S in editors (some have OK via Enter via `IsDefault`, but no Save shortcut for the main views). Mouse-only workflow. Add via `KeyBinding`s on the relevant `InputBindings` collections.
 
-### L29. Color converters hardcode colors in C# instead of resolving from resources
-- [ConversionStatusToColorConverter.cs:16-21](src/CDArchive.App/Converters/ConversionStatusToColorConverter.cs:16)
-- [ValidationSeverityToColorConverter.cs:16-19](src/CDArchive.App/Converters/ValidationSeverityToColorConverter.cs:16)
-
-Hardcoded `Colors.Gray`, `Colors.DodgerBlue`, etc. Changing the conversion status palette means recompiling. Combined with M54's frozen-brush fix, store the colors as `App.xaml` `SolidColorBrush` resources and have the converter look them up via `Application.Current.Resources["StatusBrushPending"]`. Then a theme change touches XAML, not C#.
-
 ### L31. `PieceReferenceIndex.DistinctContainerCount` allocates two HashSets per call
 [PieceReferenceIndex.cs:252-263](src/CDArchive.Core/Services/PieceReferenceIndex.cs:252) — called per visible tree node per refresh (via the badge converter). For a Canon tree with hundreds of visible nodes, hundreds of HashSet allocations per repaint. Pre-compute and cache the distinct-container counts during `Rebuild` (the same loop that builds `_hitsForPiece` can build a `_distinctContainerCount` dict). Saves the allocations and turns the converter into a pure dictionary lookup.
 
@@ -824,6 +801,9 @@ Path 2 is also a stepping-stone toward fixing C2 / H7 / M63 (NAudio sync-context
 
 ### L46. `ArchiveAudioLocatorTests` defines `FakeSettings` by hand instead of using NSubstitute
 [ArchiveAudioLocatorTests.cs:28-37](tests/CDArchive.Core.Tests/ArchiveAudioLocatorTests.cs:28) — 11-line inline class implementing every `IArchiveSettings` property with mutable defaults. Inconsistent with the 3 other test files that already use NSubstitute (`DuplicateDetectionServiceTests`, `AlbumScaffoldingServiceTests`, `ConversionStatusServiceTests`). Either consolidate on NSubstitute (delete FakeSettings, use `Substitute.For<IArchiveSettings>()`) or commit to hand-rolled fakes (and explain why FakeSettings exists when NSubstitute is already a project dep). The cost of inconsistency is mostly cognitive — a new contributor wonders which pattern to follow for the next test.
+
+### L47. App.xaml foundation exists, but ~280 hex literals across views still bypass named brushes (follow-up to H35)
+The H35 retirement landed shared `BoolToVis` converter + named status / severity / accent brushes (`AccentBrush`, `ProvisionalBadgeBrush`, `ApprovedBadgeBrush`, `DangerBrush`) in `App.xaml`. But the bulk hex-literal sweep — replacing the ~280 hex literals across views with `{StaticResource ...}` references — was deferred to keep that PR tractable. The most-used literals are `#555` (62×, text-muted), `#888` (25×), `#E0E0E0` (21×, border gray), `#CCC` (19×), `#FAFAFA` (14×, alt-row), `#333333` (11×), `#007ACC` (11×, accent — has a named brush already), `#555555` (10×), `#2E7D32` (10×, badge-green — already named), `#D0D0D0` (8×), `#E65100` (4×, provisional — already named), `#D32F2F` (4×, danger — already named). Sweep these into the App.xaml dictionary as `TextMutedBrush` / `BorderBrush` / `AltRowBrush` / etc. and replace the literal sites view-by-view. Mechanical work, no behavioural risk; pays for itself the first time a design tweak lands.
 
 ---
 
@@ -898,6 +878,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H35 + H37 + L29. App.xaml shared resources foundation (custom converter retired + status brushes lifted)
+[2026-05-21] `rework/app-shared-resources` — Three related "no shared App.xaml resources" findings retired together. (H37) Deleted the custom `Converters/BoolToVisibilityConverter.cs` — it had identical behaviour to WPF's framework `System.Windows.Controls.BooleanToVisibilityConverter` and exactly one use site (`ValidationView.xaml`) that wasn't actually using it (declared but never referenced). (H35) Established `App.xaml` as the resource dictionary: one canonical `<BooleanToVisibilityConverter x:Key="BoolToVis" />` replaces 11 inline declarations spread across `MainWindow.xaml`, `PlayerBar.xaml`, `AlbumsView.xaml`, `TracksView.xaml`, `CanonView.xaml`, `PickListsView.xaml`, `PiecesWindow.xaml`, `PiecePickerWindow.xaml`, `CatalogueView.xaml`, `ValidationView.xaml`, `ArchiveBrowserView.xaml`. The inline declarations used three different `x:Key` spellings (`BoolToVis` / `BoolToVisConverter` / `BoolToVisibilityConverter`); 24 binding references were renormalised to the single canonical `BoolToVis`. Added named status-palette brushes (`StatusBrushPending` / `InProgress` / `Completed` / `Failed` and `SeverityBrushWarning` / `Error`) plus four semantic accent brushes (`AccentBrush`, `ProvisionalBadgeBrush`, `ApprovedBadgeBrush`, `DangerBrush`). (L29) `ConversionStatusToColorConverter` and `ValidationSeverityToColorConverter` no longer hardcode `Colors.Gray` / `Colors.DodgerBlue` / etc. — they resolve from `Application.Current.Resources[brushKey]`, so palette changes touch XAML, not C#. The bulk sweep of ~280 hex literals across views into named brushes is deferred as a new Low finding (L47) — keeps this PR mechanical and tractable; the foundation is in place. Build clean, all 579 tests pass. **Action item for the user:** smoke-test the Conversion view and the Validation view — status / severity colours should render identically to before (same palette, same brushes, just resolved from XAML instead of code).
 
 ### H17 + H20 + L30. SimpleDbContextFactory consolidated + Title-rename regression test
 [2026-05-21] `rework/test-infra-and-rename` — (H17 + L30) Moved the 6-line `SimpleDbContextFactory : IDbContextFactory<CanonDbContext>` class into `CDArchive.Core.Data` (production assembly — both tests and the SeedDb tool reference Core, so a single canonical location replaces 12 identical inline copies: 11 test files + `tools/CDArchive.Tools.SeedDb/Program.cs`). Each call site already imports `CDArchive.Core.Data`, so no new `using` directives were needed. L30 is the same-finding-different-severity duplicate flagged as "extension of H17" — retiring together. (H20) Added two tests in `AlbumSaveInPlaceTests` that pin the Title-rename behaviour CLAUDE.md documents as accepted. `RenamingAlbumTitle_LeavesOneAlbum_NoDuplicates` exercises the AlbumEditorWindow JSON-clone path: save an album → load → JSON-clone → mutate Title → save the clone (no CWT entry). Asserts: one album in the DB carrying the new title, disc/track counts preserved, and row ID churned (documented behaviour — orphan-delete and reinsert is what makes the rename work). `RenamingAlbumTitle_WithLabelAndCatalogue_StillEndsAsOneAlbum` repeats the flow with Label + CatalogueNumber set, which is non-trivial because the `UNIQUE` filtered index on (label, catalogue_number) requires the orphan-DELETE to be ordered before the INSERT — reaching the assertion proves the ordering is correct. All 579 tests pass (577 baseline + 2 new). **Action item for the user:** smoke-test the album editor's rename flow — open an album, change Title, click OK. The renamed album should appear once in the list (no duplicate), with all tracks intact.

@@ -9,7 +9,6 @@
              d:DataContext="{d:DesignInstance Type=vm:ValidationViewModel}">
 
     <UserControl.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:ValidationSeverityToColorConverter x:Key="SeverityToColorConverter" />
     </UserControl.Resources>
 
