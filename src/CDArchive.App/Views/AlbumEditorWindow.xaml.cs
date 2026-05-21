@@ -45,6 +45,16 @@ public partial class AlbumEditorWindow : Window
 
     public CanonAlbum? Result { get; private set; }
 
+    // ── Mode-driven visibility (H18) ──────────────────────────────────────────
+    // Bound from XAML via {Binding Show…, RelativeSource={RelativeSource AncestorType=Window}}.
+    // Set in each constructor before the visual tree is rendered; never mutated
+    // afterward, so no INotifyPropertyChanged is needed — the binding evaluates
+    // once at load. Replaces `MainTabs.Items.Remove(PerformersTab/SessionsTab)`
+    // imperative mutation in the multi-edit ctor (didn't survive a re-show —
+    // anticipatory; the editor is single-use today).
+    public bool ShowPerformersTab { get; private set; } = true;
+    public bool ShowSessionsTab   { get; private set; } = true;
+
     // ── TrackRow: flat view model for combined disc+track grid ───────────────
 
     private class TrackRow(AlbumDisc disc, AlbumTrack track, CanonAlbum? album = null)
@@ -112,9 +122,11 @@ public partial class AlbumEditorWindow : Window
 
         Title = $"Edit {albums.Count} Albums";
 
-        // Remove Performers and Sessions tabs; Discs & Tracks stays
-        MainTabs.Items.Remove(PerformersTab);
-        MainTabs.Items.Remove(SessionsTab);
+        // Performers / Sessions tabs hidden in multi-edit — Visibility bindings
+        // (driven by ShowPerformersTab / ShowSessionsTab) collapse the tab
+        // strip entries (H18). Discs & Tracks stays.
+        ShowPerformersTab = false;
+        ShowSessionsTab   = false;
 
         // Widen the Album column so the user can see which album each track belongs to
         AlbumColumn.Width = 200;
