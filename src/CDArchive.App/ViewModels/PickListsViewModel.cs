@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -8,35 +9,41 @@ namespace CDArchive.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the Pick Lists editor screen.
-/// Manages all eight pick lists (Forms, Categories, Catalogues, Keys,
-/// Instruments, Creative Roles, Ensembles, Voice Types) through a single dropdown-driven UI.
+/// Manages all ten pick lists (Forms, Categories, Catalogues, Keys,
+/// Instruments, Creative Roles, Ensembles, Voice Types, Performer Roles,
+/// Labels) through a single dropdown-driven UI.
+///
+/// <para>
+/// Rework H30 regression: pre-fix the VM identified lists by their display
+/// index — most painfully <c>SelectedListIndex == 6</c> (= Ensembles) appeared
+/// as a literal in two places, and <c>CurrentStringList()</c> /
+/// <c>CurrentRenameDict()</c> were positional <c>switch</c> expressions over
+/// the same display order. Reordering or inserting a new pick list silently
+/// routed every Add / Update / Remove to the wrong list. Now the dispatch
+/// runs on <see cref="PickListKind"/> via <see cref="PickListKinds"/>; the
+/// display order is just a presentation array.
+/// </para>
 /// </summary>
 public partial class PickListsViewModel : ObservableObject
 {
     private readonly ICanonDataService _svc;
     private readonly CanonViewModel _canonVm;
 
-    // Working copies — always kept sorted
-    private readonly List<string> _forms           = [];
-    private readonly List<string> _categories      = [];
-    private readonly List<string> _catalogPrefixes = [];
-    private readonly List<string> _keyTonalities   = [];
-    private readonly List<string> _instruments     = [];
-    private readonly List<string> _creativeRoles   = [];
+    // Working copies — always kept sorted. Keyed by kind, so reshuffling the
+    // display order in PickListKinds.OrderedKinds doesn't risk routing
+    // commands to the wrong list.
+    private readonly Dictionary<PickListKind, List<string>> _stringLists;
     private readonly List<EnsembleDefinition> _ensembles = [];
-    private readonly List<string> _voiceTypes      = [];
-    private readonly List<string> _performerRoles  = [];
-    private readonly List<string> _labels          = [];
 
-    // Rename tracking for lists that map to piece fields
-    private readonly Dictionary<string, string> _formRenames     = new();
-    private readonly Dictionary<string, string> _categoryRenames = new();
-    private readonly Dictionary<string, string> _catalogRenames  = new();
-    private readonly Dictionary<string, string> _keyRenames      = new();
+    // Rename tracking for lists that map to piece fields. Same keying
+    // discipline: indexed by kind, not by display position.
+    private readonly Dictionary<PickListKind, Dictionary<string, string>> _renames;
 
-    public static IReadOnlyList<string> PickListNames { get; } =
-        ["Forms", "Categories", "Catalogues", "Keys", "Instruments", "Creative Roles", "Ensembles", "Voice Types",
-         "Performer Roles", "Labels"];
+    /// <summary>
+    /// Display order for the selector ComboBox. Bound via <c>x:Static</c>
+    /// from <c>PickListsView.xaml</c>.
+    /// </summary>
+    public static IReadOnlyList<string> PickListNames { get; } = PickListKinds.OrderedDisplayNames;
 
     [ObservableProperty] private int _selectedListIndex;
     [ObservableProperty] private ObservableCollection<string> _currentItems = [];
@@ -45,10 +52,37 @@ public partial class PickListsViewModel : ObservableObject
     [ObservableProperty] private bool _isEnsembleList;
     [ObservableProperty] private string _statusMessage = "";
 
+    /// <summary>
+    /// The kind currently displayed. Computed from <see cref="SelectedListIndex"/>;
+    /// the rest of the VM dispatches on this, never on the raw index.
+    /// </summary>
+    public PickListKind CurrentKind => PickListKinds.KindAt(SelectedListIndex);
+
     public PickListsViewModel(ICanonDataService svc, CanonViewModel canonVm)
     {
         _svc = svc;
         _canonVm = canonVm;
+
+        _stringLists = new Dictionary<PickListKind, List<string>>
+        {
+            [PickListKind.Forms]          = [],
+            [PickListKind.Categories]     = [],
+            [PickListKind.Catalogues]     = [],
+            [PickListKind.Keys]           = [],
+            [PickListKind.Instruments]    = [],
+            [PickListKind.CreativeRoles]  = [],
+            [PickListKind.VoiceTypes]     = [],
+            [PickListKind.PerformerRoles] = [],
+            [PickListKind.Labels]         = [],
+        };
+
+        _renames = new Dictionary<PickListKind, Dictionary<string, string>>
+        {
+            [PickListKind.Forms]      = new(),
+            [PickListKind.Categories] = new(),
+            [PickListKind.Catalogues] = new(),
+            [PickListKind.Keys]       = new(),
+        };
     }
 
     /// <summary>Reloads all lists from JSON. Called on each navigation to this screen.</summary>
@@ -56,15 +90,15 @@ public partial class PickListsViewModel : ObservableObject
     {
         var pl = await _svc.LoadPickListsAsync();
 
-        Load(_forms,           pl.Forms);
-        Load(_categories,      pl.Categories);
-        Load(_catalogPrefixes, pl.CatalogPrefixes);
-        Load(_keyTonalities,   pl.KeyTonalities);
-        Load(_instruments,     pl.Instruments);
-        Load(_creativeRoles,   pl.CreativeRoles);
-        Load(_voiceTypes,      pl.VoiceTypes);
-        Load(_performerRoles,  pl.PerformerRoles);
-        Load(_labels,          pl.Labels);
+        Load(_stringLists[PickListKind.Forms],          pl.Forms);
+        Load(_stringLists[PickListKind.Categories],     pl.Categories);
+        Load(_stringLists[PickListKind.Catalogues],     pl.CatalogPrefixes);
+        Load(_stringLists[PickListKind.Keys],           pl.KeyTonalities);
+        Load(_stringLists[PickListKind.Instruments],    pl.Instruments);
+        Load(_stringLists[PickListKind.CreativeRoles],  pl.CreativeRoles);
+        Load(_stringLists[PickListKind.VoiceTypes],     pl.VoiceTypes);
+        Load(_stringLists[PickListKind.PerformerRoles], pl.PerformerRoles);
+        Load(_stringLists[PickListKind.Labels],         pl.Labels);
 
         _ensembles.Clear();
         if (pl.Ensembles != null)
@@ -74,10 +108,7 @@ public partial class PickListsViewModel : ObservableObject
                 Members = e.Members != null ? new List<string>(e.Members) : null,
             }));
 
-        _formRenames.Clear();
-        _categoryRenames.Clear();
-        _catalogRenames.Clear();
-        _keyRenames.Clear();
+        foreach (var dict in _renames.Values) dict.Clear();
 
         RefreshCurrentList();
         StatusMessage = "";
@@ -201,16 +232,16 @@ public partial class PickListsViewModel : ObservableObject
 
             var pl = new CanonPickLists
             {
-                Forms           = _forms.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                Categories      = _categories.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                CatalogPrefixes = _catalogPrefixes.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                KeyTonalities   = _keyTonalities.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                Instruments     = _instruments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                CreativeRoles   = _creativeRoles.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
+                Forms           = Sorted(PickListKind.Forms),
+                Categories      = Sorted(PickListKind.Categories),
+                CatalogPrefixes = Sorted(PickListKind.Catalogues),
+                KeyTonalities   = Sorted(PickListKind.Keys),
+                Instruments     = Sorted(PickListKind.Instruments),
+                CreativeRoles   = Sorted(PickListKind.CreativeRoles),
                 Ensembles       = SortedEnsembles().ToList(),
-                VoiceTypes      = _voiceTypes.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                PerformerRoles  = _performerRoles.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
-                Labels          = _labels.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
+                VoiceTypes      = Sorted(PickListKind.VoiceTypes),
+                PerformerRoles  = Sorted(PickListKind.PerformerRoles),
+                Labels          = Sorted(PickListKind.Labels),
             };
 
             await _svc.SaveBatchAsync(
@@ -219,10 +250,7 @@ public partial class PickListsViewModel : ObservableObject
 
             _canonVm.PickLists = pl;           // Refresh the shared in-memory copy
 
-            _formRenames.Clear();
-            _categoryRenames.Clear();
-            _catalogRenames.Clear();
-            _keyRenames.Clear();
+            foreach (var dict in _renames.Values) dict.Clear();
 
             StatusMessage = renamedCount > 0
                 ? $"Pick lists saved. Renamed {renamedCount} piece field(s)."
@@ -234,6 +262,9 @@ public partial class PickListsViewModel : ObservableObject
         }
     }
 
+    private List<string> Sorted(PickListKind kind) =>
+        _stringLists[kind].OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+
     // ── Helpers exposed to view code-behind ──────────────────────────────────
 
     /// <summary>
@@ -242,7 +273,7 @@ public partial class PickListsViewModel : ObservableObject
     /// </summary>
     public CanonPickLists PickListsForDialog => new()
     {
-        Instruments  = new List<string>(_instruments),
+        Instruments  = new List<string>(_stringLists[PickListKind.Instruments]),
         Ensembles    = _ensembles.Select(e => new EnsembleDefinition
         {
             Name    = e.Name,
@@ -271,7 +302,8 @@ public partial class PickListsViewModel : ObservableObject
 
     private void RefreshCurrentList()
     {
-        IsEnsembleList = SelectedListIndex == 6;   // index 6 = Ensembles
+        var kind = CurrentKind;
+        IsEnsembleList = kind == PickListKind.Ensembles;
 
         IEnumerable<string> items = IsEnsembleList
             ? SortedEnsembles().Select(e => e.IsFixed ? $"{e.Name}  ({e.Members!.Count})" : e.Name)
@@ -291,29 +323,21 @@ public partial class PickListsViewModel : ObservableObject
         return idx < list.Count ? list[idx] : "";
     }
 
-    private List<string> CurrentStringList() => SelectedListIndex switch
-    {
-        0 => _forms,
-        1 => _categories,
-        2 => _catalogPrefixes,
-        3 => _keyTonalities,
-        4 => _instruments,
-        5 => _creativeRoles,
-        // 6 = Ensembles — handled separately (not a List<string>)
-        7 => _voiceTypes,
-        8 => _performerRoles,
-        9 => _labels,
-        _ => [],
-    };
+    /// <summary>
+    /// The string-list backing the currently selected kind. For
+    /// <see cref="PickListKind.Ensembles"/> (which is not a string list)
+    /// returns an empty list — callers gate on <see cref="IsEnsembleList"/>
+    /// before invoking, so this branch is defensive only.
+    /// </summary>
+    private List<string> CurrentStringList() =>
+        _stringLists.TryGetValue(CurrentKind, out var list) ? list : [];
 
-    private Dictionary<string, string> CurrentRenameDict() => SelectedListIndex switch
-    {
-        0 => _formRenames,
-        1 => _categoryRenames,
-        2 => _catalogRenames,
-        3 => _keyRenames,
-        _ => new Dictionary<string, string>(),
-    };
+    /// <summary>
+    /// The rename-tracking dictionary for the currently selected kind, or
+    /// an empty dict for kinds whose values don't map to a piece-level field.
+    /// </summary>
+    private Dictionary<string, string> CurrentRenameDict() =>
+        _renames.TryGetValue(CurrentKind, out var dict) ? dict : new Dictionary<string, string>();
 
     private IEnumerable<EnsembleDefinition> SortedEnsembles() =>
         _ensembles.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
@@ -334,8 +358,7 @@ public partial class PickListsViewModel : ObservableObject
     /// </summary>
     private int ApplyRenames()
     {
-        if (_formRenames.Count == 0 && _categoryRenames.Count == 0 &&
-            _catalogRenames.Count == 0 && _keyRenames.Count == 0)
+        if (_renames.Values.All(d => d.Count == 0))
             return 0;
 
         var count = 0;
@@ -348,22 +371,26 @@ public partial class PickListsViewModel : ObservableObject
     private int ApplyRenamesToPiece(CanonPiece piece)
     {
         var count = 0;
+        var formRenames     = _renames[PickListKind.Forms];
+        var categoryRenames = _renames[PickListKind.Categories];
+        var catalogRenames  = _renames[PickListKind.Catalogues];
+        var keyRenames      = _renames[PickListKind.Keys];
 
-        if (piece.Form != null && _formRenames.TryGetValue(piece.Form, out var nf))
+        if (piece.Form != null && formRenames.TryGetValue(piece.Form, out var nf))
         { piece.Form = nf; count++; }
 
         if (piece.InstrumentationCategory != null &&
-            _categoryRenames.TryGetValue(piece.InstrumentationCategory, out var nc))
+            categoryRenames.TryGetValue(piece.InstrumentationCategory, out var nc))
         { piece.InstrumentationCategory = nc; count++; }
 
-        if (piece.KeyTonality != null && _keyRenames.TryGetValue(piece.KeyTonality, out var nk))
+        if (piece.KeyTonality != null && keyRenames.TryGetValue(piece.KeyTonality, out var nk))
         { piece.KeyTonality = nk; count++; }
 
         if (piece.CatalogInfo != null)
         {
             foreach (var ci in piece.CatalogInfo)
             {
-                if (ci.Catalog != null && _catalogRenames.TryGetValue(ci.Catalog, out var ncat))
+                if (ci.Catalog != null && catalogRenames.TryGetValue(ci.Catalog, out var ncat))
                 { ci.Catalog = ncat; count++; }
             }
         }
