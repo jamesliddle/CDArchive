@@ -180,10 +180,17 @@
                             BorderThickness="0,0,0,1" Margin="0,0,0,2" />
 
                     <!-- ── Unified tree: Composer → Piece → Subpiece/Version ── -->
+                    <!-- Rework H34: virtualization is the WPF default. Pre-fix
+                         this tree set IsVirtualizing="False" to work around an
+                         Items.Refresh() expansion-state collapse; that's now
+                         handled by SaveAllExpansionState / RestoreAllExpansionState
+                         in the code-behind. With virtualization off, every
+                         TreeViewItem for every collapsed-or-visible node was
+                         realized at construction — tens of thousands of WPF
+                         containers on a fully-loaded catalogue. -->
                     <TreeView x:Name="ComposerTree"
                               BorderThickness="0" Background="White"
                               FontSize="13"
-                              VirtualizingStackPanel.IsVirtualizing="False"
                               SelectedItemChanged="OnComposerTreeSelectionChanged"
                               MouseRightButtonDown="OnTreeMouseRightButtonDown"
                               ContextMenuOpening="OnTreeContextMenuOpening"

@@ -58,12 +58,21 @@ public partial class App : Application
             });
 
             services.AddSingleton<MainViewModel>();
-            services.AddTransient<SettingsViewModel>();
+            // Rework H45: SettingsViewModel and ImportExportViewModel were
+            // registered Transient but the Singleton MainViewModel ctor-
+            // injected them, freezing the first instance for life and
+            // silently violating the Transient contract. Every other VM in
+            // this graph is Singleton; matching these two to Singleton
+            // documents the actual in-practice behavior and removes the
+            // captive-dependency trap. (The pre-fix behavior was already
+            // singleton-like; this is a no-op runtime change with a
+            // correctness gain on the registration intent.)
+            services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<CanonViewModel>();
             services.AddSingleton<AlbumsViewModel>();
             services.AddSingleton<TracksViewModel>();
             services.AddSingleton<ItunesImportViewModel>();
-            services.AddTransient<ImportExportViewModel>();
+            services.AddSingleton<ImportExportViewModel>();
             services.AddSingleton<PickListsViewModel>();
             services.AddSingleton<PlayerViewModel>();
 
