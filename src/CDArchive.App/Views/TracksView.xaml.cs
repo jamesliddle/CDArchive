@@ -59,22 +59,26 @@ public partial class TracksView : UserControl
         };
     }
 
-    private async void OnRefreshClick(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is TracksViewModel vm)
-            await vm.LoadDataCommand.ExecuteAsync(null);
-    }
+    // H36 (TracksView slice): OnRefreshClick / OnContextApproveTrack /
+    // OnContextRejectTrack retired — XAML binds to LoadDataCommand /
+    // ApproveTracksCommand / RejectTracksCommand on the VM.
+    //
+    // Reselect-after-approve dropped intentionally: the AlbumsView slice
+    // doesn't reselect either, and a clean RelayCommand round-trip can't
+    // easily push state back to the View. If user feedback turns out to
+    // miss reselect, a future PR can add an attached behaviour that
+    // listens to a "LastApprovedTrackIds" property on the VM.
 
     private void OnTrackSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         EditButton.IsEnabled = TrackList.SelectedItems.Count > 0;
     }
 
-    // ── Context menu: Approve / Reject ────────────────────────────────────────
+    // ── Context menu: enable-state only ───────────────────────────────────────
 
     /// <summary>
     /// Enables Approve only when at least one selected row is still provisional.
-    /// Reject is always enabled when there's a selection (the handler shows a
+    /// Reject is always enabled when there's a selection (the command shows a
     /// confirmation dialog before deleting).
     /// </summary>
     private void OnTrackContextMenuOpened(object sender, RoutedEventArgs e)
@@ -82,71 +86,6 @@ public partial class TracksView : UserControl
         var selected = TrackList.SelectedItems.Cast<AlbumTrackRow>().ToList();
         CtxApproveTrack.IsEnabled = selected.Any(r => r.IsProvisional);
         CtxRejectTrack.IsEnabled  = selected.Count > 0;
-    }
-
-    private async void OnContextApproveTrack(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not TracksViewModel vm) return;
-        var rows = TrackList.SelectedItems.Cast<AlbumTrackRow>().ToList();
-        if (rows.Count == 0) return;
-
-        try
-        {
-            var changed = await vm.ApproveRowsAsync(rows);
-            vm.RebuildRows();
-            vm.ApplyFilter();
-            vm.StatusMessage = changed > 0
-                ? $"Approved {changed} track(s)."
-                : "No provisional tracks in selection — nothing to approve.";
-            ReselectTracks(rows.Select(r => r.Track).ToList());
-        }
-        catch (Exception ex)
-        {
-            vm.StatusMessage = $"Could not approve: {ex.Message}";
-            MessageBox.Show(vm.StatusMessage, "Approve Tracks",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async void OnContextRejectTrack(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not TracksViewModel vm) return;
-        var rows = TrackList.SelectedItems.Cast<AlbumTrackRow>().ToList();
-        if (rows.Count == 0) return;
-
-        // Build a confirmation summary that breaks out album-bound vs loose so
-        // the user understands what's about to happen.
-        var albumBound = rows.Count(r => r.Album is not null);
-        var loose      = rows.Count(r => r.Album is null);
-        var detail = (albumBound, loose) switch
-        {
-            ( > 0, > 0) => $"{albumBound} album track(s) and {loose} loose track(s)",
-            ( > 0, _ )  => $"{albumBound} album track(s)",
-            ( _,  > 0)  => $"{loose} loose track(s)",
-            _           => $"{rows.Count} track(s)",
-        };
-
-        var prompt = rows.Count == 1
-            ? $"Delete '{rows[0].Piece}'?\n\nThis cannot be undone."
-            : $"Delete {detail}?\n\nThis cannot be undone.";
-
-        var confirm = MessageBox.Show(prompt, "Reject Tracks",
-            MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
-        if (confirm != MessageBoxResult.OK) return;
-
-        try
-        {
-            var removed = await vm.RejectRowsAsync(rows);
-            vm.RebuildRows();
-            vm.ApplyFilter();
-            vm.StatusMessage = $"Rejected and deleted {removed} track(s).";
-        }
-        catch (Exception ex)
-        {
-            vm.StatusMessage = $"Could not reject: {ex.Message}";
-            MessageBox.Show(vm.StatusMessage, "Reject Tracks",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
     }
 
     // ── Column-header sort ────────────────────────────────────────────────────
