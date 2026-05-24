@@ -114,8 +114,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>True between <see cref="BeginScrub"/> and <see cref="EndScrub"/>; suppresses playback-driven slider updates while the user is dragging.</summary>
-    public bool IsScrubbing { get; private set; }
+    /// <summary>
+    /// True between <see cref="BeginScrub"/> and <see cref="EndScrub"/>;
+    /// suppresses playback-driven slider updates while the user is dragging.
+    /// Promoted to an <c>[ObservableProperty]</c> (M1) so any binding /
+    /// test / future scrub indicator can observe the change rather than
+    /// having to poll. The setter stays effectively private — only the
+    /// view-side scrub coordination methods below mutate it.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isScrubbing;
 
     private float _volume;
     /// <summary>
