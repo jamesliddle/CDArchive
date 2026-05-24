@@ -317,6 +317,22 @@ public partial class AlbumEditorWindow : Window
     private void OnRemoveSession(object sender, RoutedEventArgs e)
     {
         if (SessionList.SelectedItem is not RecordingSession selected) return;
+
+        // H21 (first slice): re-anchor every track's positional
+        // SessionIndex BEFORE we mutate the sessions list, so tracks that
+        // pointed at the removed session become "no session" and tracks
+        // that pointed at later sessions keep addressing the same logical
+        // session (index - 1). The pure logic lives in
+        // SessionIndexMapping.RemapTracksAfterSessionRemoval so it's
+        // unit-tested without WPF. Pre-fix this method just removed the
+        // session and every track's SessionIndex silently mis-pointed.
+        var removedIndex = _sessions.IndexOf(selected);
+        if (removedIndex >= 0)
+        {
+            var allTracks = _album.Discs.SelectMany(d => d.Tracks);
+            SessionIndexMapping.RemapTracksAfterSessionRemoval(removedIndex, allTracks);
+        }
+
         _sessions.Remove(selected);
         PopulateSessionList();
     }
