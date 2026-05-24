@@ -21,7 +21,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. The fix needs design — `ItunesTrack` doesn't carry Label/CatalogueNumber, so the dedup key needs to either add `Artist` matching (fuzzy) or thread iTunes Persistent ID into `AlbumTrack` per M27 (cleaner; needs schema). (H24)
 3. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
-4. **Continue H36's Click-to-RelayCommand migration in `TracksView`.** AlbumsView slice landed [2026-05-24] with the `ApproveAlbumsCommand` / `RejectAlbumsCommand` / `CheckReferencesCommand` pattern. TracksView has the same shape: New/Edit (modal — keep), Refresh, Approve/Reject in context menu. Surface `ApproveTracksCommand` / `RejectTracksCommand` on `TracksViewModel`, swap the XAML, copy the test pattern from `AlbumsViewModelCommandTests`. The other 11 views follow in subsequent PRs. (H36, scoped to TracksView)
+4. **Continue H36's Click-to-RelayCommand migration in `ItunesImportView`.** AlbumsView + TracksView slices landed [2026-05-24]. ItunesImportView is the smallest remaining offender: a single `Click="OnImportSelectedClick"` next to a `Command="{Binding LoadCommand}"` — inconsistent within the same toolbar. Surface `ImportSelectedTracksCommand` on `ItunesImportViewModel`, bind the button, write a regression test. The remaining 10 views (CanonView is the largest) follow in subsequent PRs. (H36, scoped to ItunesImportView)
 5. **Migrate `CanonView`'s expansion-state machinery to the new `TreeExpansionState` helper.** This PR landed a generic save/restore helper in `App.Helpers` consumed by `PiecesWindow`. `CanonView` still has its own ~100-line walk with 4 hashsets (composers / pieces / contributed-groups + a subpieces variant). Migrating it needs a multi-set facade on top of the helper — caller provides per-set key extractors, helper does the recursion. Concrete H47 follow-up; bounded to one view. (follow-up to H47)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
@@ -107,10 +107,10 @@ Fix: include `Label|CatalogueNumber` in the key when present, or key on the iTun
 
 ### H36. 39 `Click="OnFoo"` event handlers across 13 XAML views bypass VM RelayCommands
 CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The split:
-- ~~`AlbumsView.xaml`~~ — 4 of the toolbar / context-menu sites migrated [2026-05-24] in the `rework/albumsview-relay-commands` PR; modal-dialog handlers (New/Edit/Delete/Play) stay in code-behind by design (View ownership). Pattern is now demonstrated; the test infrastructure (RecordingDialogService + AlbumsViewModelCommandTests) is the template for subsequent views.
-- `TracksView.xaml` (2): same shape as AlbumsView's pre-fix state — toolbar buttons + context menu use `Click="OnXxx"`. Next natural slice (Top-5 #4).
-- `CanonView.xaml` (1 in tree handlers, plus every nav/sort/show combo via `SelectionChanged` handlers): every action button + the entire context menu.
-- `ItunesImportView.xaml` (1): `Click="OnImportSelectedClick"` for the primary action even though `LoadCommand` next to it uses `Command="{Binding ...}"` — **inconsistent within the same toolbar**.
+- ~~`AlbumsView.xaml`~~ — migrated [2026-05-24] in `rework/albumsview-relay-commands`. 4 sites moved to RelayCommands; modal-dialog handlers (New/Edit/Delete/Play) stay in code-behind by design (View ownership).
+- ~~`TracksView.xaml`~~ — migrated [2026-05-24] in `rework/tracksview-relay-commands`. Same pattern: Refresh → `LoadDataCommand`; context-menu Approve/Reject → new `ApproveTracksCommand` / `RejectTracksCommand` on `TracksViewModel`. New/Edit/DoubleClick stay (modal). Reselect-after-approve dropped (see PR notes).
+- `CanonView.xaml` (1 in tree handlers, plus every nav/sort/show combo via `SelectionChanged` handlers): every action button + the entire context menu. Most complex view — likely the next-to-last to migrate.
+- `ItunesImportView.xaml` (1): `Click="OnImportSelectedClick"` for the primary action even though `LoadCommand` next to it uses `Command="{Binding ...}"` — **inconsistent within the same toolbar**. Smallest remaining slice; good next candidate.
 
 The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow`, the small editors) using Click for OK/Cancel is more defensible (dialog plumbing), but the main views' `Click=` pattern is exactly the trap CLAUDE.md documents: status messages get overwritten by handlers, VM `CanExecute` doesn't gate the button, the action can't be tested without WPF, and naming-parallel VM commands appear dead-but-aren't-actually-bound. The right fix is in H2/H19 (extract VMs); this finding is the XAML-side proof that the problem is much wider than CanonView alone.
 
@@ -793,6 +793,25 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H36 (TracksView slice). Refresh + context-menu Approve/Reject migrated to RelayCommands
+[2026-05-24] `rework/tracksview-relay-commands` — Second slice of H36's wider migration, mirroring the AlbumsView pattern from earlier in the day.
+
+Surfaced two new `[RelayCommand]` properties on `TracksViewModel`:
+- `ApproveTracksCommand(IList? selection)` — filters to `AlbumTrackRow` entries from the selection, delegates to the existing `ApproveRowsAsync`, rebuilds the row list, applies the filter, updates status. Errors routed through `IDialogService.ShowError`.
+- `RejectTracksCommand(IList? selection)` — same filter; preserves the existing album-bound vs loose breakdown in the confirmation prompt (e.g. `"2 album track(s) and 1 loose track(s)"`); prompts via `IDialogService.Confirm`; delegates to `RejectRowsAsync`.
+
+`TracksViewModel`'s constructor gained an `IDialogService dialogs` parameter — DI auto-resolves it because `IDialogService` was registered as a singleton when H3 landed.
+
+XAML changes: toolbar Refresh button binds to `LoadDataCommand` (existing); context-menu Approve/Reject use the same `PlacementTarget.DataContext.XxxCommand` + `PlacementTarget.SelectedItems` pattern AlbumsView established. Three code-behind handlers retired (`OnRefreshClick`, `OnContextApproveTrack`, `OnContextRejectTrack`).
+
+**Reselect-after-approve dropped intentionally**: the pre-fix `ReselectTracks(...)` call in the Approve handler re-highlighted the just-approved rows after the row list rebuilt. That logic doesn't fit cleanly into a RelayCommand round-trip (the command can't push state back to the View). The AlbumsView slice didn't have a reselect equivalent either, so this is consistent. If user feedback misses it, a future PR can add an attached behaviour listening to a "LastApprovedTrackIds" property on the VM. The View's `ReselectTracks` helper itself stays — it's still called from the modal-edit code path.
+
+What stays in TracksView code-behind by design: `OnNewTrackClick` / `OnEditTracksClick` / `OnTrackDoubleClick` all open `TrackEditorWindow` / `AlbumEditorWindow` needing Window ownership; `OnColumnHeaderClick` manages GridView sort state; `OnTrackContextMenuOpened` controls per-row IsEnabled.
+
+6 new tests in `TracksViewModelCommandTests`: Approve no-selection / non-provisional-only / has-provisional-clears-flag-and-saves; Reject respects-cancel / prompt-mentions-loose-count / single-row-uses-piece-name. Total App.Tests: 21.
+
+Total: 610 tests (589 Core + 21 App), all pass. H36 stays open in High (10 views remaining); Top-5 #4 promotes to ItunesImportView (smallest remaining slice).
 
 ### H36 (AlbumsView slice). Toolbar + context-menu Click handlers migrated to RelayCommands
 [2026-05-24] `rework/albumsview-relay-commands` — First slice of H36's wider migration. Surfaced three new `[RelayCommand]` properties on `AlbumsViewModel`:

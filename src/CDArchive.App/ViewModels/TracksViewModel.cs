@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.App.Services;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,6 +21,7 @@ public partial class TracksViewModel : ObservableObject
     private readonly AlbumsViewModel _albumsVm;
     private readonly ICanonDataService _svc;
     private readonly PieceReferenceIndex _refIndex;
+    private readonly IDialogService _dialogs;
     private readonly ILogger<TracksViewModel> _logger;
 
     // Loose tracks (singletons with no owning album). Loaded alongside albums
@@ -52,12 +54,14 @@ public partial class TracksViewModel : ObservableObject
         ICanonDataService svc,
         PieceReferenceIndex refIndex,
         PlayerViewModel player,
+        IDialogService dialogs,
         ILogger<TracksViewModel>? logger = null)
     {
         _albumsVm = albumsVm;
         _svc      = svc;
         _refIndex = refIndex;
         Player    = player;
+        _dialogs  = dialogs;
         _logger   = logger ?? NullLogger<TracksViewModel>.Instance;
     }
 
@@ -249,6 +253,86 @@ public partial class TracksViewModel : ObservableObject
         if (result.LooseRemoved      > 0) await _svc.SaveLooseTracksAsync(_looseTracks);
 
         return result.Total;
+    }
+
+    /// <summary>
+    /// Multi-select Approve command surfaced via H36 (TracksView slice). XAML
+    /// binds the context-menu MenuItem's <c>CommandParameter</c> to the
+    /// ListView's <c>SelectedItems</c>; the command filters to AlbumTrackRow
+    /// entries that are still provisional, delegates to the existing
+    /// <see cref="ApproveRowsAsync"/>, rebuilds the row list, applies the
+    /// filter, and updates status. Errors routed through <see cref="IDialogService"/>.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApproveTracksAsync(System.Collections.IList? selection)
+    {
+        var rows = (selection ?? Array.Empty<object>())
+            .OfType<AlbumTrackRow>()
+            .ToList();
+        if (rows.Count == 0) return;
+
+        try
+        {
+            var changed = await ApproveRowsAsync(rows);
+            RebuildRows();
+            ApplyFilter();
+            StatusMessage = changed > 0
+                ? $"Approved {changed} track(s)."
+                : "No provisional tracks in selection — nothing to approve.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ApproveTracks failed");
+            StatusMessage = $"Could not approve: {ex.Message}";
+            _dialogs.ShowError(StatusMessage, "Approve Tracks");
+        }
+    }
+
+    /// <summary>
+    /// Multi-select Reject command surfaced via H36 (TracksView slice). Builds
+    /// a confirmation summary that breaks out album-bound vs loose so the user
+    /// understands what's about to happen, prompts via
+    /// <see cref="IDialogService.Confirm"/>, then delegates to the existing
+    /// <see cref="RejectRowsAsync"/> + rebuild + filter + status. Errors routed
+    /// through the dialog service.
+    /// </summary>
+    [RelayCommand]
+    private async Task RejectTracksAsync(System.Collections.IList? selection)
+    {
+        var rows = (selection ?? Array.Empty<object>())
+            .OfType<AlbumTrackRow>()
+            .ToList();
+        if (rows.Count == 0) return;
+
+        var albumBound = rows.Count(r => r.Album is not null);
+        var loose      = rows.Count(r => r.Album is null);
+        var detail = (albumBound, loose) switch
+        {
+            ( > 0, > 0) => $"{albumBound} album track(s) and {loose} loose track(s)",
+            ( > 0, _ )  => $"{albumBound} album track(s)",
+            ( _,  > 0)  => $"{loose} loose track(s)",
+            _           => $"{rows.Count} track(s)",
+        };
+
+        var prompt = rows.Count == 1
+            ? $"Delete '{rows[0].Piece}'?\n\nThis cannot be undone."
+            : $"Delete {detail}?\n\nThis cannot be undone.";
+
+        if (!_dialogs.Confirm(prompt, "Reject Tracks")) return;
+
+        try
+        {
+            var removed = await RejectRowsAsync(rows);
+            RebuildRows();
+            ApplyFilter();
+            StatusMessage = $"Rejected and deleted {removed} track(s).";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "RejectTracks failed");
+            StatusMessage = $"Could not reject: {ex.Message}";
+            _dialogs.ShowError(StatusMessage, "Reject Tracks");
+        }
     }
 
     /// <summary>Editor-data loader passthrough.</summary>
