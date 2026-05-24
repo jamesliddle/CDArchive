@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
 namespace CDArchive.App.Views;
@@ -140,77 +141,26 @@ public partial class PieceEditorWindow : Window
 
     /// <summary>
     /// Converts a <see cref="CanonPieceVersion"/> into a transient <see cref="CanonPiece"/>
-    /// so the unified editor can work with it unchanged.
+    /// so the unified editor can work with it unchanged. Delegates to the
+    /// shared <see cref="PieceVersionShuttle.FromVersion"/> helper (H14) —
+    /// pre-fix the property list lived here and silently dropped any field
+    /// that wasn't kept in sync between the two model classes (which is how
+    /// the <c>TextAuthor</c> drift went unnoticed for so long).
     /// </summary>
-    private static CanonPiece VersionToPiece(CanonPieceVersion v, bool showSubpieceNumbers)
-    {
-        // Use showSubpieceNumbers as the default only when the version has no explicit override.
-        bool? numberedOverride = v.NumberedSubpieces;
-        return new CanonPiece
-        {
-            Composer               = v.Composer,
-            Composers              = v.Composers?.ToList(),
-            Form                   = v.Form,
-            Title                  = v.Title,
-            TitleEnglish           = v.TitleEnglish,
-            Subtitle               = v.Subtitle,
-            Nickname               = v.Nickname,
-            Number                 = v.Number,
-            MusicNumber            = v.MusicNumber,
-            KeyTonality            = v.KeyTonality,
-            KeyMode                = v.KeyMode,
-            CatalogInfo            = v.CatalogInfo?.ToList(),
-            InstrumentationCategory= v.InstrumentationCategory,
-            Instrumentation        = v.Instrumentation,
-            PublicationYear        = v.PublicationYear,
-            CompositionYears       = v.CompositionYears,
-            // Preserve explicit override; if null, seed from parent's default so the
-            // checkbox shows the right value.
-            NumberedSubpieces      = numberedOverride ?? (showSubpieceNumbers ? null : false),
-            SubpiecesStart         = v.SubpiecesStart,
-            Notes                  = v.Notes,
-            Variants               = v.Variants?.ToList(),
-            Roles                  = v.Roles,
-            // Markers are reference-shared (not cloned) so their stable Ids
-            // travel into the piece editor and back out on save. The legacy
-            // Tempos / FirstLine fields are no longer copied — every
-            // anchor entry lives on Markers now.
-            Markers                = v.Markers?.ToList(),
-            Subpieces              = v.Subpieces?.ToList(),
-        };
-    }
+    private static CanonPiece VersionToPiece(CanonPieceVersion v, bool showSubpieceNumbers) =>
+        PieceVersionShuttle.FromVersion(v, showSubpieceNumbers);
 
     /// <summary>
     /// Copies the edited <see cref="_piece"/> back into the source
-    /// <see cref="CanonPieceVersion"/> after the user clicks OK.
+    /// <see cref="CanonPieceVersion"/> after the user clicks OK. Delegates
+    /// to <see cref="PieceVersionShuttle.IntoVersion"/>; the version-only
+    /// <c>Description</c> field is still owned by this editor.
     /// </summary>
     private void CopyPieceToVersion()
     {
         var v = _sourceVersion!;
-        v.Description           = NullIfEmpty(VersionDescriptionBox.Text);
-        v.Composer              = _piece.Composer;
-        v.Composers             = _piece.Composers;
-        v.Form                  = _piece.Form;
-        v.Title                 = _piece.Title;
-        v.TitleEnglish          = _piece.TitleEnglish;
-        v.Subtitle              = _piece.Subtitle;
-        v.Nickname              = _piece.Nickname;
-        v.Number                = _piece.Number;
-        v.MusicNumber           = _piece.MusicNumber;
-        v.KeyTonality           = _piece.KeyTonality;
-        v.KeyMode               = _piece.KeyMode;
-        v.CatalogInfo           = _piece.CatalogInfo;
-        v.InstrumentationCategory = _piece.InstrumentationCategory;
-        v.Instrumentation       = _piece.Instrumentation;
-        v.PublicationYear       = _piece.PublicationYear;
-        v.CompositionYears      = _piece.CompositionYears;
-        v.NumberedSubpieces     = _piece.NumberedSubpieces;
-        v.SubpiecesStart        = _piece.SubpiecesStart;
-        v.Notes                 = _piece.Notes;
-        v.Variants              = _piece.Variants;
-        v.Roles                 = _piece.Roles;
-        v.Markers               = _piece.Markers;
-        v.Subpieces             = _piece.Subpieces;
+        v.Description = NullIfEmpty(VersionDescriptionBox.Text);
+        PieceVersionShuttle.IntoVersion(_piece, v);
     }
 
     private void PopulateDropdowns()
