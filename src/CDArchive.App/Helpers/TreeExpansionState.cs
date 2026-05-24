@@ -53,7 +53,15 @@ public static class TreeExpansionState
         Apply(root, root.Items, keyOf, from);
     }
 
-    private static void Collect(
+    /// <summary>
+    /// Append-only variant of <see cref="Save"/>: walks a subtree under
+    /// <paramref name="parent"/> and records expanded items into
+    /// <paramref name="into"/> without clearing first. Used by orchestrators
+    /// (e.g. CanonView) that walk a heterogeneous top-level structure and
+    /// recurse into multiple subtrees, accumulating expansion state into a
+    /// single set as they go.
+    /// </summary>
+    public static void CollectExpanded(
         ItemsControl parent,
         ItemCollection items,
         Func<object, object?> keyOf,
@@ -67,11 +75,18 @@ public static class TreeExpansionState
             var key = keyOf(item);
             if (key != null) into.Add(key);
             if (container.HasItems)
-                Collect(container, container.Items, keyOf, into);
+                CollectExpanded(container, container.Items, keyOf, into);
         }
     }
 
-    private static void Apply(
+    /// <summary>
+    /// Re-expand variant of <see cref="Restore"/> for a subtree rooted at
+    /// <paramref name="parent"/>. Callers that walk a heterogeneous
+    /// top-level structure (e.g. CanonView's composer / cross-composer /
+    /// contributed-group nodes) recurse into each subtree by passing the
+    /// appropriate <c>TreeViewItem</c> as <paramref name="parent"/>.
+    /// </summary>
+    public static void ApplyExpanded(
         ItemsControl parent,
         ItemCollection items,
         Func<object, object?> keyOf,
@@ -86,7 +101,18 @@ public static class TreeExpansionState
             container.IsExpanded = true;
             container.UpdateLayout();   // ensure child containers exist before recursing
             if (container.HasItems)
-                Apply(container, container.Items, keyOf, from);
+                ApplyExpanded(container, container.Items, keyOf, from);
         }
     }
+
+    // Internal aliases for the Save/Restore wrappers above. They're identical
+    // to CollectExpanded/ApplyExpanded but kept named separately so the call
+    // sites (Save/Restore) stay readable.
+    private static void Collect(ItemsControl parent, ItemCollection items,
+                                Func<object, object?> keyOf, HashSet<object> into) =>
+        CollectExpanded(parent, items, keyOf, into);
+
+    private static void Apply(ItemsControl parent, ItemCollection items,
+                              Func<object, object?> keyOf, HashSet<object> from) =>
+        ApplyExpanded(parent, items, keyOf, from);
 }
