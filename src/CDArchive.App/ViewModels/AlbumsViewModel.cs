@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Windows;
+using CDArchive.App.Services;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
@@ -14,6 +14,7 @@ public partial class AlbumsViewModel : ObservableObject
 {
     private readonly ICanonDataService _svc;
     private readonly PieceReferenceIndex _refIndex;
+    private readonly IDialogService _dialogs;
     private readonly ILogger<AlbumsViewModel> _logger;
 
     /// <summary>
@@ -42,11 +43,13 @@ public partial class AlbumsViewModel : ObservableObject
         ICanonDataService svc,
         PieceReferenceIndex refIndex,
         PlayerViewModel player,
+        IDialogService dialogs,
         ILogger<AlbumsViewModel>? logger = null)
     {
         _svc = svc;
         _refIndex = refIndex;
         Player = player;
+        _dialogs = dialogs;
         _logger = logger ?? NullLogger<AlbumsViewModel>.Instance;
     }
 
@@ -170,10 +173,8 @@ public partial class AlbumsViewModel : ObservableObject
     public async Task RejectAlbumAsync(CanonAlbum album)
     {
         var title = album.DisplayTitle;
-        var confirm = MessageBox.Show(
-            $"Delete provisional album '{title}'?",
-            "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.OK) return;
+        if (!_dialogs.Confirm($"Delete provisional album '{title}'?", "Confirm Rejection"))
+            return;
         _allAlbums.Remove(album);
         await SaveAsync();
         ApplyFilter();

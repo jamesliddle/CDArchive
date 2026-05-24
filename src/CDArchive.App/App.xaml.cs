@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using CDArchive.App.Services;
 using CDArchive.App.ViewModels;
 using CDArchive.Core;
 using CDArchive.Core.Services;
@@ -56,6 +57,13 @@ public partial class App : Application
                 b.ClearProviders();
                 b.AddSerilog(Log.Logger, dispose: false);
             });
+
+            // Rework H3: VM-level abstractions over the WPF dialog surface so
+            // VMs stay free of `System.Windows.MessageBox` / `Microsoft.Win32`
+            // references. WPF-only by design; both impls live in
+            // CDArchive.App.Services.
+            services.AddSingleton<IDialogService, WpfDialogService>();
+            services.AddSingleton<IFileDialogService, WpfFileDialogService>();
 
             services.AddSingleton<MainViewModel>();
             // Rework H45: SettingsViewModel and ImportExportViewModel were
