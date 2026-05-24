@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **`CanonDbSeeder.MapPerformer` always sets `PersonId = null` and `EnsembleId = null` — dead schema.** The comment says "linking is done later via the editor", but the editor (`PerformerEditorWindow`) also doesn't write these FKs. The `people` / `ensembles` / `ensemble_memberships` tables and their FK columns on `AlbumPerformerRow` are populated by nothing — schema exists but is dead. Decide: either prune the unused tables + FK columns from the schema (mechanical), or commit to populating them in the editor + seeder (feature work). Decision required from the user. (H44)
+5. **`PieceEditorWindow.xaml.cs` is 1,114 lines + manual field copying between piece/version.** `VersionToPiece` and `CopyPieceToVersion` manually shuttle ~20 properties between `CanonPiece` and `CanonPieceVersion`. New field on the model needs adding to both shuttle directions or it's silently dropped on edit. Either share a base abstract class with `[ObservableProperty]`s, or add a reflection-based test asserting every shared property name flows both ways. (H14)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 12 |
+| 🟠 High | 9 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **187** |
+| **Total** | **184** |
 
 ---
 
@@ -117,14 +117,6 @@ CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The
 
 The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow`, the small editors) using Click for OK/Cancel is more defensible (dialog plumbing), but the main views' `Click=` pattern is exactly the trap CLAUDE.md documents: status messages get overwritten by handlers, VM `CanExecute` doesn't gate the button, the action can't be tested without WPF, and naming-parallel VM commands appear dead-but-aren't-actually-bound. The right fix is in H2/H19 (extract VMs); this finding is the XAML-side proof that the problem is much wider than CanonView alone.
 
-### H39. Zero test coverage for any ViewModel
-The 31 test files cover Core models (`CanonModelDisplayTests`, `MarkerTests`, `PieceSortingTests`, `ComposerSortingTests`), Core services (`SqliteRoundTripTests`, `AlbumSaveInPlaceTests`, `CanonRejectCascadeTests`, etc.), and a few helpers (`StringSimilarityTests`, `TagParserTests`). **No tests for any `*ViewModel`** — `CanonViewModel`, `AlbumsViewModel`, `TracksViewModel`, `PickListsViewModel`, `ItunesImportViewModel`, `PlayerViewModel`, `MainViewModel`, `SettingsViewModel`, `ConversionViewModel`, etc.
-
-CLAUDE.md's "Find the actual UI click handler" lesson is exactly the kind of bug a VM-level test would catch (status message overwritten, fire-and-forget save). C3 (bare catch blocks), C14 (fire-and-forget rename save), H21 (SessionIndex by position), H24 (album-title-only dedup), H30 (hardcoded combo indices), M45 (init-order coupling) — all are VM-layer bugs identified in this review with zero existing test infrastructure to detect a regression. WPF code-behind is hard to test; VMs aren't. Adding a `CDArchive.App.Tests` project with one test per major VM unblocks all the VM-layer refactors recommended elsewhere in this review.
-
-### H40. None of this review's Critical/High findings have regression tests
-The 412 existing test attributes are dominated by data-layer round-trips. The Critical findings (C2 NAudio SyncContext, C5 cross-save atomicity, C8 ffmpeg command injection, C9 MusicBrainz exception swallowing, C10 MusicBrainz rate-limit thread safety, C12 TagLib write failure handling, C13 non-atomic file write, C14 fire-and-forget save, C15 live-data mutation) have no tests. If they're fixed, no test guards against re-introducing the bug — and there's no test to drive the fix (no failing-test-first option). Adding even one regression test per Critical finding before fixing it is the cheapest way to lock in the improvements.
-
 ### H41. `PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`
 [PieceReferenceIndex.cs:495-496](src/CDArchive.Core/Services/PieceReferenceIndex.cs:495):
 ```csharp
@@ -138,12 +130,6 @@ CLAUDE.md describes the Op. 2 / Op. 10 / Op. 31 "Three Piano Sonatas" collision 
 The collision is partially mitigated by `OrderBy(p => p.IsProvisional)` at [:137](src/CDArchive.Core/Services/PieceReferenceIndex.cs:137) (approved wins over provisional), but ties WITHIN approved pieces are silent. Album refs to the loser silently fail to resolve and badges drop to zero with no diagnostic.
 
 Fix: change `Dictionary<string, IndexEntry>` to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` use the subpath / catalog to disambiguate; or detect collisions at build time and log them so they can be reported in the unresolved-refs summary the seeder already produces.
-
-### H44. `CanonDbSeeder.MapPerformer` always sets `PersonId = null` and `EnsembleId = null`
-[CanonDbSeeder.cs:792-801](src/CDArchive.Core/Data/CanonDbSeeder.cs:792) — comment says "linking is done later via the editor". But the editor (`PerformerEditorWindow`) ALSO doesn't write `PersonId`/`EnsembleId` (per H31). And the runtime save path takes whatever the model has and writes it back. So the structured FK references in `people` / `ensembles` tables are NEVER populated unless a future workflow lands. The schema exists but is dead.
-
-For the current single-user case it's fine — the user works in free-text. But H7 (throwaway-resolver) and H26 (same-surname composer collision) both surface the cost of free-text-only: every dedup is fuzzy, every lookup risks collision. Either prune the unused tables from the schema (the `EnsembleNameRow`, `EnsembleMembershipRow`, `PersonRow` tables and their FK columns on `AlbumPerformerRow`), or commit to populating them in the editor + seeder.
-
 
 ### H47. `PiecesWindow.xaml.cs` duplicates CanonView's piece-tree machinery — third implementation of "sort pieces"
 [PiecesWindow.xaml.cs:157-197](src/CDArchive.App/Views/PiecesWindow.xaml.cs:157) — re-implements the entire piece sort logic (Catalogue / Title / Category / Year tie-breaker chains) that already exists in two other places:
@@ -836,6 +822,24 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
 
+### H39 + H40. App.Tests foundation + first VM regression tests (H3 dialog flows)
+[2026-05-21] `rework/app-tests-foundation` — Created `tests/CDArchive.App.Tests/` project targeting `net8.0-windows` (must match the App project's TFM to reference WPF-flavoured assemblies, but `UseWPF` is NOT set so no WPF runtime initialisation in headless tests). Project references `CDArchive.App` + `CDArchive.Core`, pulls in xUnit 2.5.3 + NSubstitute 5.3.0 to match the Core test stack. Test doubles in `tests/CDArchive.App.Tests/Infrastructure/`: `RecordingDialogService` (records every `Confirm` / `ShowInfo` / `ShowError` call, scriptable `ConfirmResponse`) and `ScriptedFileDialogService` (queues for save/open path responses, records call titles). H3's foundation made these mockable; this PR exercises them.
+
+**8 starter tests** cover the three H3 sites:
+
+- `AlbumsViewModelDialogTests` (3 tests) — `RejectAlbumAsync` asks for confirmation; respects user-cancel (no removal, no `SaveAlbumsAsync` call); respects user-confirm (album removed, save called, status set).
+- `ItunesImportViewModelDialogTests` (2 tests) — empty selection shows info + does not call `SaveBatchAsync`; load-throws path surfaces error dialog with the inner exception's message and sets status to "Import failed: …".
+- `ImportExportViewModelDialogTests` (3 tests) — `RestoreFromJsonCommand` with both file picks cancelled doesn't reach the confirmation; picking a file then cancelling confirmation does NOT touch SQLite (no `SaveComposersAsync`/`SavePiecesAsync`).
+
+(H39) Zero VM coverage is no longer literal — three VMs now have headless tests. The pattern (RecordingDialogService + NSubstitute for Core services) is documented for future VMs. (H40) The H3 retirement now ships with regression tests in the same PR cycle; the "regression test for every Critical/High" gap is bounded going forward — future Rework PRs land tests alongside the fix.
+
+Note: with no `.sln` at the repo root, `dotnet test` runs one project at a time. The convention is now:
+```
+dotnet test tests/CDArchive.Core.Tests/CDArchive.Core.Tests.csproj
+dotnet test tests/CDArchive.App.Tests/CDArchive.App.Tests.csproj
+```
+Total: 587 tests (579 Core + 8 App), all pass. **Action item for the user:** none — fix is test-infrastructure only.
+
 ### H3. IDialogService + IFileDialogService — VMs no longer reference System.Windows / Microsoft.Win32
 [2026-05-21] `rework/dialog-service` — Introduced two thin abstractions over the WPF modal-dialog surface so view-models can stay headless-testable. `IDialogService { Confirm, ShowInfo, ShowError }` and `IFileDialogService { PickSaveFile, PickOpenFile }` live in `CDArchive.App.Services`; `WpfDialogService` and `WpfFileDialogService` are the production implementations and are the only classes in the app outside editor windows allowed to call `MessageBox.Show` / instantiate `SaveFileDialog`/`OpenFileDialog`. Both registered as DI singletons in `App.OnStartup`. Five call sites refactored: `AlbumsViewModel.RejectAlbumAsync` (Reject confirmation), `ItunesImportViewModel.ImportTracksAsync` ("Nothing to import" info + "Import error" with stack dump), `ImportExportViewModel.RestoreFromJsonAsync` (Restore confirmation), and `ImportExportViewModel.PickSaveFile` / `PickOpenFile` (now thin VM-side wrappers carrying the JSON filter constant; the dialog construction itself moved into `WpfFileDialogService`). `using System.Windows;` and `using Microsoft.Win32;` removed from all three VM files (plus `CanonViewModel.cs` which had a stale `using System.Windows` left over from earlier work). `SettingsViewModel`'s `BrowseXxxRequested` event pattern was the existing good counterexample and stays — the new abstractions complement it rather than replace it. Build clean, all 579 tests pass. WPF code-behind isn't directly testable (H39 still open), but the dialog flows are now mockable: an `App.Tests` project could ship a `RecordingDialogService` + `ScriptedFileDialogService` and assert "VM asked for confirmation before rejecting" without spinning up WPF. **Action item for the user:** smoke-test (a) right-click "Reject Album" on a provisional album — confirmation dialog should appear; (b) iTunes import view with no selection → "Import Selected" → info MessageBox; (c) iTunes import flow that throws → error MessageBox; (d) Import/Export Restore from JSON → save/open dialogs + restore confirmation.
 
@@ -947,4 +951,10 @@ Findings addressed and verified. Each entry should be moved here from its origin
 
 Findings intentionally not being addressed (architectural cost too high, requires a feature decision the user isn't ready to make, blocked on a prior finding). Move entries here in place rather than retiring them. Each entry should include: `[YYYY-MM-DD] — <reason for deferral>`.
 
-*(none yet)*
+### H44. `CanonDbSeeder.MapPerformer` always sets `PersonId = null` and `EnsembleId = null` — dead schema
+[2026-05-21] — User wants to revisit as a feature after the rework is complete, rather than pruning the unused schema now. Context: the `people` / `ensembles` / `ensemble_names` / `ensemble_memberships` tables and the `PersonId` / `EnsembleId` FK columns on `album_performers` are populated by nothing — seeder always sets them null, `PerformerEditorWindow` never writes them. The comment in `MapPerformer` says "linking is done later via the editor" but the editor doesn't have that workflow. Three paths considered:
+1. **Prune the dead schema** — drop 4 EF entities + 4 tables + 2 FK columns. Mechanical, well-bounded, but loses the schema design (Ensemble Names with date ranges, Memberships with start/end dates — MusicBrainz-quality modelling).
+2. **Populate via editor work** — build Person + Ensemble editors (Composer-like), add linking workflow in `PerformerEditor`, add a canonical-data JSON seed, AND a back-population pass extracting structured entities from existing free-text `DisplayName` values across 3000 CDs.
+3. **Leave as-is** — accept the misleading "FK exists but unused" signal; revisit when feature work begins.
+
+User chose path 3 with intent to circle back as a feature (option 2) once the rework backlog has been worked down. The schema's current "dead but waiting" state is documented as intentional. Re-open this entry (move back to High) when the feature work is ready to start. The right entry point will be the back-population heuristic: given a `display_name` like `"Karajan, Herbert von"`, can we reliably split into person identity + canonical name + date range? That decision precedes the editor work.
