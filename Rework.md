@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **`PieceEditorWindow.xaml.cs` is 1,114 lines + manual field copying between piece/version.** `VersionToPiece` and `CopyPieceToVersion` manually shuttle ~20 properties between `CanonPiece` and `CanonPieceVersion`. New field on the model needs adding to both shuttle directions or it's silently dropped on edit. Either share a base abstract class with `[ObservableProperty]`s, or add a reflection-based test asserting every shared property name flows both ways. (H14)
+5. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 9 |
+| 🟠 High | 8 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **184** |
+| **Total** | **183** |
 
 ---
 
@@ -89,9 +89,6 @@ The big three are the worst offenders:
 And the small ones share the pattern at smaller scale (40–170 lines each): `ComposerEditorWindow`, `PerformerEditorWindow`, `SessionEditorWindow`, `RoleEditorWindow`, `ComposerCreditEditorWindow`, `InstrumentEntryEditorWindow`, `EnsembleEntryEditorWindow`, `VariantEditorWindow`, `MarkerEditorWindow`, `RolePickerWindow`, `PieceRefDetailsWindow` (339 lines), `PiecePickerWindow` (518 lines), `PieceAlbumsWindow`.
 
 All own: details/list population, save logic with validation, field propagation, dialog ownership. Untestable without WPF. The pattern repeats: constructor → optional mode flags → branchy `PopulateXxx` and `OnOkClick`. Extract real VMs (at least for the three big editors). For the small ones, a shared `EditorDialogBase` with common patterns (NullIfEmpty, validation result, Result/Saved property) would consolidate the boilerplate.
-
-### H14. `PieceEditorWindow.xaml.cs` is 1,114 lines and uses manual field copying between piece/version
-[PieceEditorWindow.xaml.cs:145-181](src/CDArchive.App/Views/PieceEditorWindow.xaml.cs:145) — `VersionToPiece` and `CopyPieceToVersion` manually shuttle ~20 properties between `CanonPiece` and `CanonPieceVersion`. New field added to the model needs adding to both. Either share a base abstract class with `[ObservableProperty]`s, or generate the shuttle with a source generator. At minimum, add a reflection-based test asserting every shared property name flows both ways.
 
 ### H21. `AlbumTrack.SessionIndex` stores a position, not an ID — latent data corruption on session reorder
 [TrackEditorWindow.xaml.cs:457](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:457):
@@ -821,6 +818,15 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H14. PieceVersionShuttle extracted + reflection contract test (catches dropped TextAuthor)
+[2026-05-21] `rework/piece-version-shuttle` — Extracted the piece↔version property-shuttle logic from `PieceEditorWindow.xaml.cs` (where it lived as two ~25-line manual property lists in `VersionToPiece` + `CopyPieceToVersion`) into a new `CDArchive.Core.Helpers.PieceVersionShuttle` static class with two methods: `FromVersion(v, showSubpieceNumbersDefault)` returns a transient piece for editing; `IntoVersion(p, v)` writes the shared fields back. Two explicit exception sets — `PieceOnlyPropertyNames` (`IsProvisional`, `Versions`, `Arrangements`, `Cadenza`, `TitleNumber`) and `VersionOnlyPropertyNames` (`Description`, `ContributingComposers`) — document which fields don't participate.
+
+**Latent bug found and fixed while extracting**: `TextAuthor` (librettist/lyricist credit, a `JsonElement?`) exists on both `CanonPiece` and `CanonPieceVersion` but was missing from both directions of the original editor shuttle. Editing a version silently wiped the user's librettist data. Now in the shuttle in both directions; covered by a dedicated regression test (`TextAuthor_SurvivesRoundTrip`).
+
+The reflection-based contract test (`SharedProperties_RoundTrip_PreservesValues`) is the centerpiece: it enumerates every public settable property that exists with matching name + type on both classes, applies the explicit exception lists, and round-trips a sentinel value through `FromVersion → IntoVersion → assert preserved`. Future drift (adding a property to both classes but forgetting one direction of the shuttle) fails the test with a pointed error message ("Add the property to PieceVersionShuttle.FromVersion + IntoVersion, or add it to PieceOnlyPropertyNames / VersionOnlyPropertyNames if it's intentionally not shuttled."). Sentinel values are typed: `string` → `$"sentinel-{name}"`, `JsonElement?` → a serialised object, `List<T>` → a single-element list — and the helper throws on unknown types so the next contributor knows to extend it.
+
+PieceEditorWindow's two methods now delegate to the helper (10 lines each, down from ~30); the editor still owns the version-only `Description` field. 4 new tests in `PieceVersionShuttleTests`: the reflection contract, the targeted `TextAuthor` regression, `NumberedSubpieces` explicit-override-beats-default, and `VersionOnlyFields_AreNotClobberedByIntoVersion`. Build clean, all 591 tests pass (583 Core + 8 App). **Action item for the user:** smoke-test by opening any piece that has a version with a `text_author` field in its JSON, edit something else (Title, Notes, whatever), and click OK. The TextAuthor should still be present on the version after save. Pre-fix this would have silently nulled.
 
 ### H39 + H40. App.Tests foundation + first VM regression tests (H3 dialog flows)
 [2026-05-21] `rework/app-tests-foundation` — Created `tests/CDArchive.App.Tests/` project targeting `net8.0-windows` (must match the App project's TFM to reference WPF-flavoured assemblies, but `UseWPF` is NOT set so no WPF runtime initialisation in headless tests). Project references `CDArchive.App` + `CDArchive.Core`, pulls in xUnit 2.5.3 + NSubstitute 5.3.0 to match the Core test stack. Test doubles in `tests/CDArchive.App.Tests/Infrastructure/`: `RecordingDialogService` (records every `Confirm` / `ShowInfo` / `ShowError` call, scriptable `ConfirmResponse`) and `ScriptedFileDialogService` (queues for save/open path responses, records call titles). H3's foundation made these mockable; this PR exercises them.
