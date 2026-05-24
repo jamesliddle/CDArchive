@@ -162,4 +162,112 @@ public class SessionIndexMappingTests
     {
         Assert.Equal(expected, SessionIndexMapping.MixedSentinelIndex(sessionCount, present));
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RemapTracksAfterSessionRemoval — H21 first slice
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Remap_TrackPointingAtRemovedSession_BecomesNull()
+    {
+        var tracks = new[]
+        {
+            new Models.AlbumTrack { TrackNumber = 1, SessionIndex = 1 },  // → removed
+            new Models.AlbumTrack { TrackNumber = 2, SessionIndex = 1 },  // → removed
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+
+        Assert.Equal(2, changed);
+        Assert.Null(tracks[0].SessionIndex);
+        Assert.Null(tracks[1].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_TrackPointingAtLaterSession_DecrementsByOne()
+    {
+        // Sessions [0, 1, 2, 3]; removing index 1. Tracks at indices 2, 3
+        // should move to 1, 2 (same logical sessions, new positions).
+        var tracks = new[]
+        {
+            new Models.AlbumTrack { SessionIndex = 2 },  // → 1
+            new Models.AlbumTrack { SessionIndex = 3 },  // → 2
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+
+        Assert.Equal(2, changed);
+        Assert.Equal(1, tracks[0].SessionIndex);
+        Assert.Equal(2, tracks[1].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_TrackPointingAtEarlierSession_Unchanged()
+    {
+        var tracks = new[]
+        {
+            new Models.AlbumTrack { SessionIndex = 0 },  // stays 0 — earlier than removed (1)
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+
+        Assert.Equal(0, changed);
+        Assert.Equal(0, tracks[0].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_TrackWithNullSession_Unchanged()
+    {
+        var tracks = new[]
+        {
+            new Models.AlbumTrack { SessionIndex = null },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(0, tracks);
+
+        Assert.Equal(0, changed);
+        Assert.Null(tracks[0].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_MixedTracks_AllCasesAtOnce()
+    {
+        // Sessions [0, 1, 2]; remove index 1.
+        // - SessionIndex=0 → unchanged (earlier than removed)
+        // - SessionIndex=1 → null (removed session itself)
+        // - SessionIndex=2 → 1 (later than removed)
+        // - SessionIndex=null → unchanged (no session)
+        var tracks = new[]
+        {
+            new Models.AlbumTrack { TrackNumber = 1, SessionIndex = 0 },
+            new Models.AlbumTrack { TrackNumber = 2, SessionIndex = 1 },
+            new Models.AlbumTrack { TrackNumber = 3, SessionIndex = 2 },
+            new Models.AlbumTrack { TrackNumber = 4, SessionIndex = null },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+
+        Assert.Equal(2, changed);  // tracks 2 and 3 changed
+        Assert.Equal(0, tracks[0].SessionIndex);
+        Assert.Null(tracks[1].SessionIndex);
+        Assert.Equal(1, tracks[2].SessionIndex);
+        Assert.Null(tracks[3].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_NegativeRemovedIndex_NoOp()
+    {
+        // Defensive: caller passed a "session not found" signal (-1).
+        var tracks = new[]
+        {
+            new Models.AlbumTrack { SessionIndex = 0 },
+            new Models.AlbumTrack { SessionIndex = 1 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(-1, tracks);
+
+        Assert.Equal(0, changed);
+        Assert.Equal(0, tracks[0].SessionIndex);
+        Assert.Equal(1, tracks[1].SessionIndex);
+    }
 }
