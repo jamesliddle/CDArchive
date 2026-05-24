@@ -76,6 +76,20 @@ public class PieceReferenceIndex
     private Dictionary<string, Dictionary<string, IndexEntry>> _byComposerTitle =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// H41: pieces that lost a same-composer + same-title-key collision during
+    /// the last index build. The kept piece won via insertion order
+    /// (approved-first per <see cref="RebuildInternal"/>); the dropped piece
+    /// is unreachable via <see cref="TryResolve"/> for that key — any album
+    /// ref pointing at it will silently fail and the dropped piece's badge
+    /// will stay at zero. Surface this in diagnostic UI / tool output so the
+    /// user can fix the data (typically by disambiguating one of the titles).
+    /// Reset on every <see cref="Rebuild"/> / <see cref="RebuildContainers"/> /
+    /// <see cref="BuildResolver"/>.
+    /// </summary>
+    public IReadOnlyList<TitleCollision> Collisions { get; private set; } =
+        Array.Empty<TitleCollision>();
+
     // The piece list used on the last Rebuild. Cached so album-only rebuilds
     // (RebuildAlbums) can reuse the same CanonPiece instances — critical
     // because the CanonView tree holds reference-identity keys into the hit
@@ -158,9 +172,16 @@ public class PieceReferenceIndex
         // + catalog "KV 467", which BuildDisplayTitle renders identically)
         // would otherwise be tiebroken by insertion order — and load-order is
         // by id, which gives the provisional duplicate the win.
+        // H41: record any same-composer + same-title-key collisions so the
+        // seeder + diagnostic UI can surface them. Pre-fix the TryAdd inside
+        // RegisterPiece silently swallowed the loser. The approved-first
+        // OrderBy still applies, so the kept entry in each collision is the
+        // approved piece when one exists.
+        var collisions = new List<TitleCollision>();
         foreach (var p in pieces.OrderBy(p => p.IsProvisional))
-            RegisterPiece(p, p.Composer?.Trim() ?? "", ancestors: [], byComposerTitle);
+            RegisterPiece(p, p.Composer?.Trim() ?? "", ancestors: [], byComposerTitle, collisions);
         _byComposerTitle = byComposerTitle;
+        Collisions = collisions;
 
         foreach (var album in albums)
         {
@@ -321,9 +342,11 @@ public class PieceReferenceIndex
         var byComposerTitle = new Dictionary<string, Dictionary<string, IndexEntry>>(
             StringComparer.OrdinalIgnoreCase);
         // Approved pieces first — see comment in RebuildInternal.
+        var collisions = new List<TitleCollision>();
         foreach (var p in _cachedPieces.OrderBy(p => p.IsProvisional))
-            RegisterPiece(p, p.Composer?.Trim() ?? "", ancestors: [], byComposerTitle);
+            RegisterPiece(p, p.Composer?.Trim() ?? "", ancestors: [], byComposerTitle, collisions);
         _byComposerTitle = byComposerTitle;
+        Collisions = collisions;
     }
 
     /// <summary>
@@ -507,17 +530,39 @@ public class PieceReferenceIndex
     /// Registers a piece in the composer+title lookup, then recurses into any
     /// <c>form: "set"</c> subpieces so each constituent work is discoverable by
     /// its own title while still crediting the set container on hit.
+    ///
+    /// <para>H41: when a key already has an entry, the new piece is dropped
+    /// (TryAdd semantics) AND a <see cref="TitleCollision"/> is appended to
+    /// <paramref name="collisions"/> so callers can surface the diagnostic.
+    /// The first-write-wins behaviour is preserved (combined with the
+    /// approved-first OrderBy in <see cref="RebuildInternal"/>) — the kept
+    /// piece is the approved one when one of the colliders is provisional.</para>
     /// </summary>
     private static void RegisterPiece(
         CanonPiece p, string composer, IReadOnlyList<CanonPiece> ancestors,
-        Dictionary<string, Dictionary<string, IndexEntry>> index)
+        Dictionary<string, Dictionary<string, IndexEntry>> index,
+        List<TitleCollision> collisions)
     {
         if (composer.Length == 0) return;
         if (!index.TryGetValue(composer, out var titleMap))
             index[composer] = titleMap = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (var key in EnumerateTitleKeys(p))
-            titleMap.TryAdd(NormalizeTitle(key), new IndexEntry(p, ancestors));
+        {
+            var norm = NormalizeTitle(key);
+            if (titleMap.TryGetValue(norm, out var existing))
+            {
+                // Don't self-collide: a piece that emits the same key under
+                // multiple variants (e.g. Title == DisplayTitle when no
+                // catalog/key) shouldn't show as a "collision against
+                // itself". Only record a collision when the conflicting
+                // entry belongs to a different piece.
+                if (!ReferenceEquals(existing.Piece, p))
+                    collisions.Add(new TitleCollision(composer, norm, KeptPiece: existing.Piece, DroppedPiece: p));
+                continue;
+            }
+            titleMap[norm] = new IndexEntry(p, ancestors);
+        }
 
         // Recurse into set-type containers: their subpieces are independent
         // works, not movements. Other forms' subpieces are movements, reached
@@ -531,7 +576,7 @@ public class PieceReferenceIndex
                 var subComposer = !string.IsNullOrWhiteSpace(sub.Composer)
                     ? sub.Composer!.Trim()
                     : composer;
-                RegisterPiece(sub, subComposer, childAncestors, index);
+                RegisterPiece(sub, subComposer, childAncestors, index, collisions);
             }
         }
     }
@@ -822,3 +867,18 @@ public class PieceReferenceIndex
         list.Add(hit);
     }
 }
+
+/// <summary>
+/// A same-composer + same-normalized-title-key collision detected during
+/// <see cref="PieceReferenceIndex"/> build. The <see cref="KeptPiece"/>
+/// won the slot in the resolver (its album refs continue to resolve);
+/// the <see cref="DroppedPiece"/> is unreachable for that key, so any
+/// album ref pointing at it via that title variant silently fails and
+/// the piece's badge stays at zero. Surface via the seeder's report and
+/// any future diagnostics tab in the app — H41.
+/// </summary>
+public sealed record TitleCollision(
+    string Composer,
+    string NormalizedKey,
+    CanonPiece KeptPiece,
+    CanonPiece DroppedPiece);

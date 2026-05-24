@@ -120,6 +120,25 @@ internal static class Program
             Console.WriteLine();
         }
 
+        if (result.IndexCollisions.Count > 0)
+        {
+            Console.WriteLine("── Title-key collisions in the piece resolver index ─────");
+            Console.WriteLine("   These pieces share a composer + normalized title key.");
+            Console.WriteLine("   The KEPT piece is reachable via that key in TryResolve;");
+            Console.WriteLine("   the DROPPED piece is not — album refs pointing at it");
+            Console.WriteLine("   via that title variant silently fail to resolve.");
+            Console.WriteLine();
+            foreach (var c in result.IndexCollisions
+                         .OrderBy(c => c.Composer)
+                         .ThenBy(c => c.NormalizedKey))
+            {
+                Console.WriteLine($"  [{c.Composer}]  key=\"{c.NormalizedKey}\"");
+                Console.WriteLine($"    KEPT:    {c.KeptPiece.DisplayTitle}");
+                Console.WriteLine($"    DROPPED: {c.DroppedPiece.DisplayTitle}");
+            }
+            Console.WriteLine();
+        }
+
         if (result.UnresolvedRefs.Count > 0)
         {
             Console.WriteLine("── Unresolved refs by failure reason ────────────────────");

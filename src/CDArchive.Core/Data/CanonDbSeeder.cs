@@ -203,6 +203,11 @@ public class CanonDbSeeder
         // Build the shared resolver over all pieces now that _pieceRowByModel is populated.
         _resolver.BuildResolver(orderedPieces);
 
+        // H41: surface same-composer + same-title-key collisions in the seed
+        // report. These are pieces unreachable via TryResolve for that title
+        // key — typically a sign of duplicate data the user should clean up.
+        report.IndexCollisions.AddRange(_resolver.Collisions);
+
         report.PieceCount = _pieceRowByModel.Count;
     }
 
@@ -874,6 +879,15 @@ public class SeedResult
     public List<string> UnknownComposerReferences { get; } = [];
     public List<UnresolvedRef> UnresolvedRefs { get; } = [];
 
+    /// <summary>
+    /// H41: any same-composer + same-title-key collisions detected while
+    /// building the resolver index. The kept piece won the slot; the
+    /// dropped piece is unreachable via that key. Sourced from
+    /// <see cref="PieceReferenceIndex.Collisions"/> after
+    /// <see cref="PieceReferenceIndex.BuildResolver"/> completes.
+    /// </summary>
+    public List<Services.TitleCollision> IndexCollisions { get; } = [];
+
     // Internal: composer-name → row linkage used to build the lookup index
     // after SaveChanges populates Ids.
     internal List<(CanonComposer model, ComposerRow row)> ComposerRows { get; } = [];
@@ -891,6 +905,7 @@ public class SeedResult
                 $"Pick-list values:   {PickListValueCount,6}",
                 $"Albums:             {AlbumCount,6}",
                 $"Unresolved refs:    {UnresolvedRefs.Count,6}",
+                $"Index collisions:   {IndexCollisions.Count,6}",
                 $"Unknown composer references on pieces: {UnknownComposerReferences.Count,6}",
             };
             return string.Join(Environment.NewLine, lines);
