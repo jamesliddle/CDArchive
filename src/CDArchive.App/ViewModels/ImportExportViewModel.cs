@@ -2,18 +2,19 @@ using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Windows;
+using CDArchive.App.Services;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
 
 namespace CDArchive.App.ViewModels;
 
 public partial class ImportExportViewModel : ObservableObject
 {
     private readonly ICanonDataService _svc;
+    private readonly IDialogService _dialogs;
+    private readonly IFileDialogService _fileDialogs;
 
     private static readonly JsonSerializerOptions ReadOptions = new()
     {
@@ -31,9 +32,11 @@ public partial class ImportExportViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "";
     [ObservableProperty] private bool _isBusy;
 
-    public ImportExportViewModel(ICanonDataService svc)
+    public ImportExportViewModel(ICanonDataService svc, IDialogService dialogs, IFileDialogService fileDialogs)
     {
-        _svc = svc;
+        _svc         = svc;
+        _dialogs     = dialogs;
+        _fileDialogs = fileDialogs;
     }
 
     // ── Export ───────────────────────────────────────────────────────────────
@@ -205,11 +208,10 @@ public partial class ImportExportViewModel : ObservableObject
         if (composersPath != null) lines.Add($"Composers: {Path.GetFileName(composersPath)}");
         if (piecesPath != null)    lines.Add($"Pieces: {Path.GetFileName(piecesPath)}");
 
-        var result = MessageBox.Show(
-            $"This will overwrite the SQLite database content with:\n\n{string.Join("\n", lines)}\n\nContinue?",
-            "Confirm Restore", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-
-        if (result != MessageBoxResult.OK) return;
+        if (!_dialogs.Confirm(
+                $"This will overwrite the SQLite database content with:\n\n{string.Join("\n", lines)}\n\nContinue?",
+                "Confirm Restore"))
+            return;
 
         await RunAsync(async () =>
         {
@@ -277,27 +279,14 @@ public partial class ImportExportViewModel : ObservableObject
     private static string PieceKey(CanonPiece p) =>
         $"{p.Composer?.Trim()}|{p.Title?.Trim()}";
 
-    private static string? PickSaveFile(string title, string? defaultFileName, string? initialDirectory)
-    {
-        var dlg = new SaveFileDialog
-        {
-            Title = title,
-            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-            DefaultExt = "json",
-            FileName = defaultFileName ?? "",
-            InitialDirectory = initialDirectory ?? "",
-        };
-        return dlg.ShowDialog() == true ? dlg.FileName : null;
-    }
+    // Thin wrappers around the file-dialog service so the JSON filter /
+    // default extension live in one place. Kept on the VM (not in
+    // WpfFileDialogService) because the filter is data-domain-specific.
+    private const string JsonFilter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
 
-    private static string? PickOpenFile(string title)
-    {
-        var dlg = new OpenFileDialog
-        {
-            Title = title,
-            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-            DefaultExt = "json",
-        };
-        return dlg.ShowDialog() == true ? dlg.FileName : null;
-    }
+    private string? PickSaveFile(string title, string? defaultFileName, string? initialDirectory) =>
+        _fileDialogs.PickSaveFile(title, JsonFilter, "json", defaultFileName, initialDirectory);
+
+    private string? PickOpenFile(string title) =>
+        _fileDialogs.PickOpenFile(title, JsonFilter, "json");
 }

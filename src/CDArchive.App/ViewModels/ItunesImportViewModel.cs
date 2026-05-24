@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Windows;
+using CDArchive.App.Services;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,6 +11,7 @@ public partial class ItunesImportViewModel : ObservableObject
 {
     private readonly ICanonDataService _data;
     private readonly ItunesLibraryReference _itunes;
+    private readonly IDialogService _dialogs;
 
     /// <summary>Full unfiltered set, kept around so we can re-apply the filter cheaply.</summary>
     private List<ItunesTrack> _allTracks = [];
@@ -50,10 +51,11 @@ public partial class ItunesImportViewModel : ObservableObject
     [ObservableProperty]
     private int _shownCount;
 
-    public ItunesImportViewModel(ICanonDataService data, ItunesLibraryReference itunes)
+    public ItunesImportViewModel(ICanonDataService data, ItunesLibraryReference itunes, IDialogService dialogs)
     {
-        _data   = data;
-        _itunes = itunes;
+        _data    = data;
+        _itunes  = itunes;
+        _dialogs = dialogs;
     }
 
     partial void OnFilterChanged(string value) => ApplyFilter();
@@ -106,8 +108,7 @@ public partial class ItunesImportViewModel : ObservableObject
     {
         if (selected.Count == 0)
         {
-            MessageBox.Show("No tracks selected.", "Nothing to import",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            _dialogs.ShowInfo("No tracks selected.", "Nothing to import");
             return;
         }
 
@@ -155,8 +156,7 @@ public partial class ItunesImportViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Import failed: {ex.Message}";
-            MessageBox.Show(ex.ToString(), "Import error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogs.ShowError(ex.ToString(), "Import error");
         }
         finally
         {

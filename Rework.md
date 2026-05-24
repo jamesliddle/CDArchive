@@ -22,7 +22,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
 3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
 4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **VMs call `MessageBox.Show` directly + open WPF file dialogs from VM code.** Five sites across `AlbumsViewModel`, `ItunesImportViewModel`, `ImportExportViewModel` reference `System.Windows.MessageBox` / `Microsoft.Win32.SaveFileDialog` from the VM, coupling Core MVVM logic to WPF and blocking headless unit-testing. `SettingsViewModel` already follows the right pattern (raises `BrowseXxxRequested` events for the View to handle). Introduce a minimal `IDialogService { ConfirmAsync, ShowErrorAsync }` + `IFileDialogService { PickSave, PickOpen }` and inject both — unlocks VM-level test coverage (H39) for those flows. (H3)
+5. **`CanonDbSeeder.MapPerformer` always sets `PersonId = null` and `EnsembleId = null` — dead schema.** The comment says "linking is done later via the editor", but the editor (`PerformerEditorWindow`) also doesn't write these FKs. The `people` / `ensembles` / `ensemble_memberships` tables and their FK columns on `AlbumPerformerRow` are populated by nothing — schema exists but is dead. Decide: either prune the unused tables + FK columns from the schema (mechanical), or commit to populating them in the editor + seeder (feature work). Decision required from the user. (H44)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 13 |
+| 🟠 High | 12 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **188** |
+| **Total** | **187** |
 
 ---
 
@@ -79,18 +79,6 @@ One file owns: schema migrations, load operations for 5 subsystems, save operati
 
 ### H2. `CanonView.xaml.cs` is 1,436 lines of code-behind doing VM/service work
 Owns: sort state, context-menu state, expansion state across 3 tree levels, the tree-rebuild orchestrator, provisional filter routing, suppression flags. Approve/Reject handlers reach into the VM, mutate observable collections, call `SaveAllAsync`, overwrite status messages. CLAUDE.md flags one symptom of this; the file is full of similar foot-guns. Extract expansion state → service, sort/filter UI state → into VM, Approve/Reject handlers → VM RelayCommands via `CommandParameter`.
-
-### H3. Multiple VMs call `MessageBox.Show` directly + use WPF file dialogs in VMs
-- [AlbumsViewModel.cs:137-139](src/CDArchive.App/ViewModels/AlbumsViewModel.cs:137) — Reject confirmation.
-- [ItunesImportViewModel.cs:109-111](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:109) — "Nothing to import".
-- [ItunesImportViewModel.cs:156-157](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:156) — Import error (dumps full stack trace to user).
-- [ImportExportViewModel.cs:208-212](src/CDArchive.App/ViewModels/ImportExportViewModel.cs:208) — Restore confirmation.
-- [ImportExportViewModel.cs:280-302](src/CDArchive.App/ViewModels/ImportExportViewModel.cs:280) — `SaveFileDialog` / `OpenFileDialog` directly from VM helpers.
-
-VMs shouldn't reference `System.Windows` or `Microsoft.Win32` — blocks headless unit-testing and couples Core MVVM logic to WPF. The good counterexample is [SettingsViewModel.cs:30-31, :62-71](src/CDArchive.App/ViewModels/SettingsViewModel.cs:30) which raises `BrowseArchivePathRequested` / `BrowseFfmpegPathRequested` events for the View to handle the dialog — that's the right pattern.
-
-Introduce a minimal `IDialogService { Task<bool> ConfirmAsync(...); Task ShowErrorAsync(...); }` and an `IFileDialogService { string? PickSave(...); string? PickOpen(...); }` and inject both.
-
 
 ### H13. Every editor window is pure code-behind with no VM
 The big three are the worst offenders:
@@ -847,6 +835,9 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H3. IDialogService + IFileDialogService — VMs no longer reference System.Windows / Microsoft.Win32
+[2026-05-21] `rework/dialog-service` — Introduced two thin abstractions over the WPF modal-dialog surface so view-models can stay headless-testable. `IDialogService { Confirm, ShowInfo, ShowError }` and `IFileDialogService { PickSaveFile, PickOpenFile }` live in `CDArchive.App.Services`; `WpfDialogService` and `WpfFileDialogService` are the production implementations and are the only classes in the app outside editor windows allowed to call `MessageBox.Show` / instantiate `SaveFileDialog`/`OpenFileDialog`. Both registered as DI singletons in `App.OnStartup`. Five call sites refactored: `AlbumsViewModel.RejectAlbumAsync` (Reject confirmation), `ItunesImportViewModel.ImportTracksAsync` ("Nothing to import" info + "Import error" with stack dump), `ImportExportViewModel.RestoreFromJsonAsync` (Restore confirmation), and `ImportExportViewModel.PickSaveFile` / `PickOpenFile` (now thin VM-side wrappers carrying the JSON filter constant; the dialog construction itself moved into `WpfFileDialogService`). `using System.Windows;` and `using Microsoft.Win32;` removed from all three VM files (plus `CanonViewModel.cs` which had a stale `using System.Windows` left over from earlier work). `SettingsViewModel`'s `BrowseXxxRequested` event pattern was the existing good counterexample and stays — the new abstractions complement it rather than replace it. Build clean, all 579 tests pass. WPF code-behind isn't directly testable (H39 still open), but the dialog flows are now mockable: an `App.Tests` project could ship a `RecordingDialogService` + `ScriptedFileDialogService` and assert "VM asked for confirmation before rejecting" without spinning up WPF. **Action item for the user:** smoke-test (a) right-click "Reject Album" on a provisional album — confirmation dialog should appear; (b) iTunes import view with no selection → "Import Selected" → info MessageBox; (c) iTunes import flow that throws → error MessageBox; (d) Import/Export Restore from JSON → save/open dialogs + restore confirmation.
 
 ### H10 + H11 + L45. Dead code cleanup (CanonView, CanonViewModel, DispatcherHelper)
 [2026-05-21] `rework/dead-code-cleanup` — Three trivial dead-code findings retired together. (H10) Removed the empty `Loaded += (_, _) => { };` handler from `CanonView`'s constructor — the real `OnLoaded` is wired in XAML and runs as expected. (H11) Removed the `OnSelectedComposerChanged` partial method body in `CanonViewModel` whose body was just a comment ("No longer need to filter pieces by composer"). The CommunityToolkit source generator handles the no-op for free when no partial method body is defined. (L45) Deleted `src/CDArchive.App/Helpers/DispatcherHelper.cs` — `grep -rn DispatcherHelper src/ tests/ tools/` confirmed zero callers across the entire repo. The helper's `RunOnUiThread(Action)` wrapper was likely added for a planned cross-thread refresh that ended up using inline `Dispatcher.BeginInvoke` instead (e.g. `CanonView.OnIndexRebuilt`). The Rework note flagged "Path 2: replace inline dispatch sites with the helper" as a stepping-stone toward C2/H7/M63, but C2 already shipped its own `SynchronizationContext` capture path (per `NAudioPlayerService`), so the chokepoint-helper story isn't load-bearing. Deleted to reduce confusion for new contributors. Build clean, all 579 tests pass. **Action item for the user:** none — three lines of dead code removed, no behavioural change.
