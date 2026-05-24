@@ -31,12 +31,9 @@ public partial class ItunesImportView : UserControl
         InitializeComponent();
     }
 
-    private async void OnImportSelectedClick(object sender, System.Windows.RoutedEventArgs e)
-    {
-        if (DataContext is not ItunesImportViewModel vm) return;
-        var selected = TracksGrid.SelectedItems.OfType<ItunesTrack>().ToList();
-        await vm.ImportTracksAsync(selected);
-    }
+    // H36 (ItunesImportView slice): OnImportSelectedClick retired — XAML now
+    // binds `Command="{Binding ImportSelectedTracksCommand}"` with
+    // `CommandParameter="{Binding ElementName=TracksGrid, Path=SelectedItems}"`.
 
     /// <summary>
     /// Replaces the DataGrid's built-in single-column sort with a multi-key
