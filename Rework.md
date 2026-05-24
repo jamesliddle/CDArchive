@@ -20,9 +20,9 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. The fix needs design — `ItunesTrack` doesn't carry Label/CatalogueNumber, so the dedup key needs to either add `Artist` matching (fuzzy) or thread iTunes Persistent ID into `AlbumTrack` per M27 (cleaner; needs schema). (H24)
-3. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-4. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
-5. **Migrate one view's `Click="OnFoo"` handlers to RelayCommands (start with AlbumsView).** 39 Click handlers across 13 XAML views bypass VM RelayCommands — exactly the "find the actual UI callsite" trap CLAUDE.md documents. Status messages get overwritten by handlers, VM CanExecute doesn't gate the button, and the action can't be tested without WPF. Tractable as a single-view starter PR: pick AlbumsView (2 toolbar buttons + context-menu items), surface the existing AlbumsViewModel commands as `[RelayCommand]` properties, swap the XAML, write an App.Tests regression test asserting the command flow. The other 12 views follow in subsequent PRs. (H36, scoped to AlbumsView)
+3. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
+4. **Migrate one view's `Click="OnFoo"` handlers to RelayCommands (start with AlbumsView).** 39 Click handlers across 13 XAML views bypass VM RelayCommands — exactly the "find the actual UI callsite" trap CLAUDE.md documents. Status messages get overwritten by handlers, VM CanExecute doesn't gate the button, and the action can't be tested without WPF. Tractable as a single-view starter PR: pick AlbumsView (2 toolbar buttons + context-menu items), surface the existing AlbumsViewModel commands as `[RelayCommand]` properties, swap the XAML, write an App.Tests regression test asserting the command flow. The other 12 views follow in subsequent PRs. (H36, scoped to AlbumsView)
+5. **Migrate `CanonView`'s expansion-state machinery to the new `TreeExpansionState` helper.** This PR landed a generic save/restore helper in `App.Helpers` consumed by `PiecesWindow`. `CanonView` still has its own ~100-line walk with 4 hashsets (composers / pieces / contributed-groups + a subpieces variant). Migrating it needs a multi-set facade on top of the helper — caller provides per-set key extractors, helper does the recursion. Concrete H47 follow-up; bounded to one view. (follow-up to H47)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 7 |
+| 🟠 High | 6 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **182** |
+| **Total** | **181** |
 
 ---
 
@@ -113,17 +113,6 @@ CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The
 - `ItunesImportView.xaml` (1): `Click="OnImportSelectedClick"` for the primary action even though `LoadCommand` next to it uses `Command="{Binding ...}"` — **inconsistent within the same toolbar**.
 
 The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow`, the small editors) using Click for OK/Cancel is more defensible (dialog plumbing), but the main views' `Click=` pattern is exactly the trap CLAUDE.md documents: status messages get overwritten by handlers, VM `CanExecute` doesn't gate the button, the action can't be tested without WPF, and naming-parallel VM commands appear dead-but-aren't-actually-bound. The right fix is in H2/H19 (extract VMs); this finding is the XAML-side proof that the problem is much wider than CanonView alone.
-
-### H47. `PiecesWindow.xaml.cs` duplicates CanonView's piece-tree machinery — third implementation of "sort pieces"
-[PiecesWindow.xaml.cs:157-197](src/CDArchive.App/Views/PiecesWindow.xaml.cs:157) — re-implements the entire piece sort logic (Catalogue / Title / Category / Year tie-breaker chains) that already exists in two other places:
-- [PieceSorting.cs:44-125](src/CDArchive.Core/Models/PieceSorting.cs:44) — the UI-free helper extracted to Core (per the H2 lesson), unit-testable.
-- [CanonView.xaml.cs](src/CDArchive.App/Views/CanonView.xaml.cs) — calls `PieceSorting.Sort`, but maintains its own `_pieceSortField` state and column-header click handling.
-
-And it re-implements the expansion-state save/restore dance:
-- [PiecesWindow.xaml.cs:100-142](src/CDArchive.App/Views/PiecesWindow.xaml.cs:100) — `SaveExpansionState` / `RestoreExpansionState` / `ApplyExpandedItems`.
-- [CanonView.xaml.cs](src/CDArchive.App/Views/CanonView.xaml.cs) — `SaveAllExpansionState` / `RestoreAllExpansionState` / etc. (similar but uses 3 separate hash sets).
-
-Three implementations of the same domain logic. Adding a new sort field requires three coordinated edits; fixing a sort bug requires touching three files (none of which share tests). The `PieceSorting` helper IS the right abstraction — both views should call it. The expansion-state machinery has no extracted helper at all; pairs with H2 (CanonView code-behind sprawl) as the second site that would benefit from a `TreeExpansionStateService`.
 
 ---
 
@@ -804,6 +793,17 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H47. PiecesWindow dedup — sort routed through PieceSorting, expansion state via shared helper
+[2026-05-24] `rework/pieces-window-dedup` — Eliminated the "third implementation of sort pieces" in `PiecesWindow.xaml.cs`. Two parts.
+
+**Sort dedup** — `PiecesWindow.ApplySort` + its `CatalogAsc` / `CatalogDesc` helpers (~40 lines) replaced by a single call to `PieceSorting.Sort(pieces, crossComposerNodes: null, field).Cast<CanonPiece>()`. Added a small `ParseSortField` string→enum mapper for the view's `"Catalog"` column tag (PieceSorting uses `Catalogue`). Behaviour preservation: ascending order matches the previous impl exactly (PieceSorting's tiebreaker chain — catalogue → title — is a stricter refinement of the previous arbitrary ordering). Descending order uses `.Reverse()` over the ascending result, which flips the tiebreakers too — a subtle visible change for "Category descending" / "Year descending" where pieces within the same category now order by reverse catalogue. Acceptable: previous tiebreaker order was undocumented and the dedup payoff outweighs the change. Documented inline.
+
+**Expansion-state dedup** — Extracted the recursive WPF tree-walk into a new `CDArchive.App.Helpers.TreeExpansionState` static class (`Save(root, keyOf, into)` / `Restore(root, keyOf, from)`). PiecesWindow's ~50 lines of `CollectExpandedItems` / `ApplyExpandedItems` collapses to two-line delegations; the view keeps only its `ExpansionKey(item)` predicate that knows about its item-type vocabulary (CanonPiece / SubpieceDisplayNode / VersionDisplayNode). `CanonView`'s more complex expansion-state machinery (4 hashsets, type-dispatched walk) stays in place — migrating it needs a multi-set facade on top of the helper; flagged as a Top-5 follow-up in slot 5.
+
+No new unit tests in this PR: PieceSorting already has comprehensive tests in `PieceSortingTests` (the sort half is now covered transitively), and the expansion-state walk requires a real WPF visual tree (`ItemContainerGenerator` is virtualised) so it can't be unit-tested headlessly. Manual smoke covers the visible behaviour.
+
+Build clean, all 597 tests pass (589 Core + 8 App). **Action item for the user:** smoke-test the Pieces window: open it from the Canon view, sort by Title / Catalog / Category / Year, click headers to toggle ascending/descending. Expand a few subpieces, change the filter, confirm the expansions survive the rebuild. The catalogue tiebreaker on Category-descending / Year-descending now reverses too (see note above).
 
 ### H41. PieceReferenceIndex collision detection (silent TryAdd drops now surfaced as diagnostics)
 [2026-05-24] `rework/piece-index-collision-detection` — Replaced the silent `titleMap.TryAdd(...)` in `RegisterPiece` with a detect-and-record pattern. The collision behaviour stays first-write-wins (combined with the existing approved-first `OrderBy`, so the approved piece keeps winning), but each dropped registration is now appended to a new public `IReadOnlyList<TitleCollision> Collisions` property on the index. The `TitleCollision` record carries `(Composer, NormalizedKey, KeptPiece, DroppedPiece)` so callers can present an actionable diagnostic — typically the user has duplicate data that needs deduplicating.

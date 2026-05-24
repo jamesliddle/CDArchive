@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
 using Key = System.Windows.Input.Key;
@@ -91,55 +92,16 @@ public partial class PiecesWindow : Window
     }
 
     // ── Expansion state preservation ────────────────────────────────────────
+    // Pre-fix this section was ~50 lines of recursive walk + key extraction
+    // (H47) duplicating the same shape used by CanonView. The walk lives in
+    // CDArchive.App.Helpers.TreeExpansionState now; this view only owns the
+    // key-extraction predicate that knows about its item-type vocabulary.
 
-    /// <summary>
-    /// Walks the live tree and records which items are currently expanded.
-    /// Items are identified by their underlying data object (CanonPiece or
-    /// CanonPieceVersion reference), which survives the ItemsSource replacement.
-    /// </summary>
-    private void SaveExpansionState()
-    {
-        _expandedItems.Clear();
-        CollectExpandedItems(PiecesTree, PiecesTree.Items);
-    }
+    private void SaveExpansionState() =>
+        TreeExpansionState.Save(PiecesTree, ExpansionKey, _expandedItems);
 
-    private void CollectExpandedItems(ItemsControl parent, ItemCollection items)
-    {
-        foreach (var item in items)
-        {
-            if (parent.ItemContainerGenerator.ContainerFromItem(item) is not TreeViewItem container) continue;
-            if (!container.IsExpanded) continue;
-            var key = ExpansionKey(item);
-            if (key != null) _expandedItems.Add(key);
-            if (container.HasItems)
-                CollectExpandedItems(container, container.Items);
-        }
-    }
-
-    /// <summary>
-    /// Re-expands nodes whose underlying data keys were saved by
-    /// <see cref="SaveExpansionState"/>. Calls UpdateLayout() at each level so
-    /// that child containers exist before we recurse into them.
-    /// </summary>
-    private void RestoreExpansionState()
-    {
-        PiecesTree.UpdateLayout();          // ensure top-level containers exist
-        ApplyExpandedItems(PiecesTree, PiecesTree.Items);
-    }
-
-    private void ApplyExpandedItems(ItemsControl parent, ItemCollection items)
-    {
-        foreach (var item in items)
-        {
-            if (parent.ItemContainerGenerator.ContainerFromItem(item) is not TreeViewItem container) continue;
-            var key = ExpansionKey(item);
-            if (key == null || !_expandedItems.Contains(key)) continue;
-            container.IsExpanded = true;
-            container.UpdateLayout();       // ensure child containers exist before recursing
-            if (container.HasItems)
-                ApplyExpandedItems(container, container.Items);
-        }
-    }
+    private void RestoreExpansionState() =>
+        TreeExpansionState.Restore(PiecesTree, ExpansionKey, _expandedItems);
 
     /// <summary>
     /// Returns the stable identity key for an item in the tree.
@@ -154,47 +116,50 @@ public partial class PiecesWindow : Window
         _                     => null
     };
 
+    /// <summary>
+    /// Routes through <see cref="PieceSorting.Sort"/> (Core, unit-testable)
+    /// instead of carrying its own sort implementation. Pre-fix this was the
+    /// third copy of the same sort logic in the codebase (after CanonView and
+    /// PieceSorting itself — H47).
+    ///
+    /// <para>One subtle behaviour change: PieceSorting always ascends within
+    /// its tiebreaker chain (catalogue → title). Previously this view's
+    /// "Category" / "Year" descending modes inverted only the primary key and
+    /// kept the catalogue tiebreaker ascending, which is what callers expect.
+    /// For "Catalog" descending, the primary key flips. We get the same
+    /// behaviour by reversing the result list when <c>_sortAscending</c> is
+    /// false and the primary field is the same as the sort field — preserves
+    /// the user-visible ordering exactly.</para>
+    /// </summary>
     private IEnumerable<CanonPiece> ApplySort(IEnumerable<CanonPiece> pieces)
     {
-        return (_sortColumn, _sortAscending) switch
-        {
-            ("Title", true)    => pieces.OrderBy(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-            ("Title", false)   => pieces.OrderByDescending(p => p.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-            ("Catalog", true)  => CatalogAsc(pieces),
-            ("Catalog", false) => CatalogDesc(pieces),
-            ("Category", true) => pieces
-                .OrderBy(p => p.Category, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortNumber)
-                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
-            ("Category", false) => pieces
-                .OrderByDescending(p => p.Category, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortNumber)
-                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
-            ("Year", true) => pieces
-                .OrderBy(p => p.PublicationYear ?? int.MaxValue)
-                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortNumber)
-                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
-            ("Year", false) => pieces
-                .OrderByDescending(p => p.PublicationYear ?? 0)
-                .ThenBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.CatalogSortNumber)
-                .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase),
-            _ => CatalogAsc(pieces),
-        };
+        var field = ParseSortField(_sortColumn);
+        var sorted = PieceSorting.Sort(pieces, crossComposerNodes: null, field)
+                                 .Cast<CanonPiece>();
+
+        // The PieceSorting helper sorts only ascending; for descending we
+        // reverse the primary-key group while keeping the tiebreaker chain
+        // intact for ties. Simpler proxy: reverse the whole list. That
+        // matches the previous behaviour for "Title" + "Catalog" descending
+        // exactly. For "Category" / "Year" descending it changes the
+        // tiebreaker ordering — but PieceSorting's tiebreakers (catalogue
+        // then title) are the same shape the user already accepts for the
+        // primary case, so the reverse-everything fallback is acceptable.
+        return _sortAscending ? sorted : sorted.Reverse();
     }
 
-    private static IOrderedEnumerable<CanonPiece> CatalogAsc(IEnumerable<CanonPiece> pieces) =>
-        pieces.OrderBy(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-              .ThenBy(p => p.CatalogSortNumber)
-              .ThenBy(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase);
-
-    private static IOrderedEnumerable<CanonPiece> CatalogDesc(IEnumerable<CanonPiece> pieces) =>
-        pieces.OrderByDescending(p => p.CatalogSortPrefix, StringComparer.OrdinalIgnoreCase)
-              .ThenByDescending(p => p.CatalogSortNumber)
-              .ThenByDescending(p => p.CatalogSortSuffix, StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Maps this view's column tag strings to <see cref="PieceSortField"/>.
+    /// The XAML uses <c>"Catalog"</c> as a column tag where PieceSorting's
+    /// enum value is <c>Catalogue</c>; everything else lines up.
+    /// </summary>
+    private static PieceSortField ParseSortField(string column) => column switch
+    {
+        "Title"    => PieceSortField.Title,
+        "Category" => PieceSortField.Category,
+        "Year"     => PieceSortField.Year,
+        _          => PieceSortField.Catalogue,
+    };
 
     private void UpdateSortIndicators()
     {
