@@ -93,49 +93,9 @@ public partial class AlbumsView : UserControl
             "Playback", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private async void OnContextApproveAlbum(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not AlbumsViewModel vm) return;
-        var selected = AlbumList.SelectedItems.Cast<CanonAlbum>().Where(a => a.IsProvisional).ToList();
-        if (selected.Count == 0) return;
-        foreach (var album in selected)
-            album.IsProvisional = false;
-        await vm.SaveAsync();
-        vm.ApplyFilter();
-        vm.StatusMessage = selected.Count == 1
-            ? $"Approved {selected[0].DisplayTitle}."
-            : $"Approved {selected.Count} album(s).";
-    }
-
-    private async void OnContextRejectAlbum(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not AlbumsViewModel vm) return;
-        var selected = AlbumList.SelectedItems.Cast<CanonAlbum>().Where(a => a.IsProvisional).ToList();
-        if (selected.Count == 0) return;
-
-        var prompt = selected.Count == 1
-            ? $"Delete provisional album '{selected[0].DisplayTitle}'?"
-            : $"Delete {selected.Count} provisional album(s)?";
-        var confirm = MessageBox.Show(prompt, "Confirm Rejection",
-            MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.OK) return;
-
-        foreach (var album in selected)
-            vm.AllAlbums.Remove(album);
-        await vm.SaveAsync();
-        vm.ApplyFilter();
-        vm.StatusMessage = selected.Count == 1
-            ? $"Rejected and deleted {selected[0].DisplayTitle}."
-            : $"Rejected and deleted {selected.Count} album(s).";
-    }
-
-    // ── Toolbar: refresh ──────────────────────────────────────────────────────
-
-    private async void OnRefreshClick(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is AlbumsViewModel vm)
-            await vm.LoadDataCommand.ExecuteAsync(null);
-    }
+    // H36: OnContextApproveAlbum / OnContextRejectAlbum / OnRefreshClick
+    // retired — XAML now binds to ApproveAlbumsCommand /
+    // RejectAlbumsCommand / LoadDataCommand on the VM.
 
     // ── List selection ────────────────────────────────────────────────────────
 
@@ -206,26 +166,10 @@ public partial class AlbumsView : UserControl
         vm.ApplyFilter();
     }
 
-    // ── Consistency check ─────────────────────────────────────────────────────
-
-    private async void OnCheckReferencesClick(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not AlbumsViewModel vm) return;
-
-        if (vm.AllAlbums.Count == 0)
-        {
-            MessageBox.Show("No albums loaded.", "Check References",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var report = await vm.RunConsistencyCheckAsync();
-        MessageBox.Show(report, "Check Album References",
-            MessageBoxButton.OK,
-            report.StartsWith("All") ? MessageBoxImage.Information : MessageBoxImage.Warning);
-    }
-
     // ── New album ─────────────────────────────────────────────────────────────
+    // H36: OnCheckReferencesClick retired — toolbar button now binds to
+    // CheckReferencesCommand on the VM (which routes its messages through
+    // IDialogService).
 
     private async Task NewAlbumAsync()
     {
