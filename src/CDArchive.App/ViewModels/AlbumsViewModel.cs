@@ -166,6 +166,30 @@ public partial class AlbumsViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Multi-select Approve command surfaced via H36 — XAML binds the
+    /// context-menu MenuItem's <c>CommandParameter</c> to the ListView's
+    /// <c>SelectedItems</c>. Only items still flagged provisional are
+    /// flipped to approved; rows that are already approved are skipped.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApproveAlbumsAsync(System.Collections.IList? selection)
+    {
+        var albums = (selection ?? Array.Empty<object>())
+            .OfType<CanonAlbum>()
+            .Where(a => a.IsProvisional)
+            .ToList();
+        if (albums.Count == 0) return;
+
+        foreach (var a in albums)
+            a.IsProvisional = false;
+        await SaveAsync();
+        ApplyFilter();
+        StatusMessage = albums.Count == 1
+            ? $"Approved {albums[0].DisplayTitle}."
+            : $"Approved {albums.Count} album(s).";
+    }
+
+    /// <summary>
     /// Rejects the given album: prompts for confirmation, removes it from the
     /// in-memory list, and persists (which deletes the row via the SaveAlbumsAsync
     /// orphan-cleanup pass).
@@ -179,6 +203,61 @@ public partial class AlbumsViewModel : ObservableObject
         await SaveAsync();
         ApplyFilter();
         StatusMessage = $"Rejected and deleted {title}.";
+    }
+
+    /// <summary>
+    /// Multi-select Reject command surfaced via H36. Filters to provisional
+    /// rows (the context menu only enables the item when a provisional row
+    /// is selected, but this guards against stale selections); prompts once
+    /// with a count-aware message; removes all confirmed rows then saves.
+    /// </summary>
+    [RelayCommand]
+    private async Task RejectAlbumsAsync(System.Collections.IList? selection)
+    {
+        var albums = (selection ?? Array.Empty<object>())
+            .OfType<CanonAlbum>()
+            .Where(a => a.IsProvisional)
+            .ToList();
+        if (albums.Count == 0) return;
+
+        var prompt = albums.Count == 1
+            ? $"Delete provisional album '{albums[0].DisplayTitle}'?"
+            : $"Delete {albums.Count} provisional album(s)?";
+        if (!_dialogs.Confirm(prompt, "Confirm Rejection")) return;
+
+        foreach (var a in albums)
+            _allAlbums.Remove(a);
+        await SaveAsync();
+        ApplyFilter();
+        StatusMessage = albums.Count == 1
+            ? $"Rejected and deleted {albums[0].DisplayTitle}."
+            : $"Rejected and deleted {albums.Count} album(s).";
+    }
+
+    /// <summary>
+    /// Validates every <see cref="TrackPieceRef"/> across all loaded albums
+    /// and presents a human-readable report via <see cref="IDialogService"/>.
+    /// Surfaced as a RelayCommand via H36 so the toolbar button binds to
+    /// <c>Command="{Binding CheckReferencesCommand}"</c> instead of routing
+    /// through code-behind.
+    /// </summary>
+    [RelayCommand]
+    private async Task CheckReferencesAsync()
+    {
+        if (_allAlbums.Count == 0)
+        {
+            _dialogs.ShowInfo("No albums loaded.", "Check References");
+            return;
+        }
+
+        var report = await RunConsistencyCheckAsync();
+        // The report's first word is "All" when the check passes ("All N
+        // album refs resolved cleanly."). Anything else means at least one
+        // issue — show as a warning-styled dialog.
+        if (report.StartsWith("All", StringComparison.Ordinal))
+            _dialogs.ShowInfo(report, "Check Album References");
+        else
+            _dialogs.ShowError(report, "Check Album References");
     }
 
     private IEnumerable<CanonAlbum> ApplySort(IEnumerable<CanonAlbum> source)

@@ -63,10 +63,10 @@
                     <Button Content="Check References" Padding="12,5" FontSize="13"
                             Margin="0,0,6,0"
                             ToolTip="Validate all track-to-piece links against the current Canon"
-                            Click="OnCheckReferencesClick" />
+                            Command="{Binding CheckReferencesCommand}" />
                     <Button Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
                             ToolTip="Reload all data from the database"
-                            Click="OnRefreshClick" />
+                            Command="{Binding LoadDataCommand}" />
                 </StackPanel>
 
                 <!-- Filter (left side, fills remaining space) -->
@@ -113,13 +113,26 @@
                   ScrollViewer.HorizontalScrollBarVisibility="Auto">
 
             <ListView.ContextMenu>
+                <!-- H36: Approve / Reject are now RelayCommands on the VM.
+                     PlacementTarget.SelectedItems is the standard pattern for
+                     passing a ListView's multi-selection into a command from a
+                     ContextMenu (ContextMenu lives outside the visual tree, so
+                     ElementName binding won't reach back to the ListView). -->
                 <ContextMenu Opened="OnAlbumContextMenuOpened">
                     <MenuItem Header="Play album" Click="OnContextPlayAlbum" />
                     <Separator />
                     <MenuItem x:Name="CtxApproveAlbum"
-                              Header="Approve" Click="OnContextApproveAlbum" />
+                              Header="Approve"
+                              Command="{Binding PlacementTarget.DataContext.ApproveAlbumsCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems,
+                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                     <MenuItem x:Name="CtxRejectAlbum"
-                              Header="Reject" Click="OnContextRejectAlbum" />
+                              Header="Reject"
+                              Command="{Binding PlacementTarget.DataContext.RejectAlbumsCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems,
+                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                 </ContextMenu>
             </ListView.ContextMenu>
 

@@ -21,7 +21,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. The fix needs design — `ItunesTrack` doesn't carry Label/CatalogueNumber, so the dedup key needs to either add `Artist` matching (fuzzy) or thread iTunes Persistent ID into `AlbumTrack` per M27 (cleaner; needs schema). (H24)
 3. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
-4. **Migrate one view's `Click="OnFoo"` handlers to RelayCommands (start with AlbumsView).** 39 Click handlers across 13 XAML views bypass VM RelayCommands — exactly the "find the actual UI callsite" trap CLAUDE.md documents. Status messages get overwritten by handlers, VM CanExecute doesn't gate the button, and the action can't be tested without WPF. Tractable as a single-view starter PR: pick AlbumsView (2 toolbar buttons + context-menu items), surface the existing AlbumsViewModel commands as `[RelayCommand]` properties, swap the XAML, write an App.Tests regression test asserting the command flow. The other 12 views follow in subsequent PRs. (H36, scoped to AlbumsView)
+4. **Continue H36's Click-to-RelayCommand migration in `TracksView`.** AlbumsView slice landed [2026-05-24] with the `ApproveAlbumsCommand` / `RejectAlbumsCommand` / `CheckReferencesCommand` pattern. TracksView has the same shape: New/Edit (modal — keep), Refresh, Approve/Reject in context menu. Surface `ApproveTracksCommand` / `RejectTracksCommand` on `TracksViewModel`, swap the XAML, copy the test pattern from `AlbumsViewModelCommandTests`. The other 11 views follow in subsequent PRs. (H36, scoped to TracksView)
 5. **Migrate `CanonView`'s expansion-state machinery to the new `TreeExpansionState` helper.** This PR landed a generic save/restore helper in `App.Helpers` consumed by `PiecesWindow`. `CanonView` still has its own ~100-line walk with 4 hashsets (composers / pieces / contributed-groups + a subpieces variant). Migrating it needs a multi-set facade on top of the helper — caller provides per-set key extractors, helper does the recursion. Concrete H47 follow-up; bounded to one view. (follow-up to H47)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
@@ -107,8 +107,8 @@ Fix: include `Label|CatalogueNumber` in the key when present, or key on the iTun
 
 ### H36. 39 `Click="OnFoo"` event handlers across 13 XAML views bypass VM RelayCommands
 CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The split:
-- `AlbumsView.xaml` (2): all toolbar buttons + context menu items use `Click="OnXxx"`, not `Command="{Binding XxxCommand}"`.
-- `TracksView.xaml` (2): same.
+- ~~`AlbumsView.xaml`~~ — 4 of the toolbar / context-menu sites migrated [2026-05-24] in the `rework/albumsview-relay-commands` PR; modal-dialog handlers (New/Edit/Delete/Play) stay in code-behind by design (View ownership). Pattern is now demonstrated; the test infrastructure (RecordingDialogService + AlbumsViewModelCommandTests) is the template for subsequent views.
+- `TracksView.xaml` (2): same shape as AlbumsView's pre-fix state — toolbar buttons + context menu use `Click="OnXxx"`. Next natural slice (Top-5 #4).
 - `CanonView.xaml` (1 in tree handlers, plus every nav/sort/show combo via `SelectionChanged` handlers): every action button + the entire context menu.
 - `ItunesImportView.xaml` (1): `Click="OnImportSelectedClick"` for the primary action even though `LoadCommand` next to it uses `Command="{Binding ...}"` — **inconsistent within the same toolbar**.
 
@@ -793,6 +793,21 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H36 (AlbumsView slice). Toolbar + context-menu Click handlers migrated to RelayCommands
+[2026-05-24] `rework/albumsview-relay-commands` — First slice of H36's wider migration. Surfaced three new `[RelayCommand]` properties on `AlbumsViewModel`:
+
+- `ApproveAlbumsCommand(IList? selection)` — multi-select Approve. Filters to provisional rows defensively (the context-menu enable-check should already filter, but the VM doesn't trust the caller); flips `IsProvisional = false` on each; saves once; status message is count-aware.
+- `RejectAlbumsCommand(IList? selection)` — multi-select Reject. Same filter; prompts once via `IDialogService.Confirm` with a count-aware message; removes the confirmed rows and saves.
+- `CheckReferencesCommand` — empty-albums case shows info via `IDialogService.ShowInfo`; otherwise routes the report through `ShowInfo` (passes — "All N album refs…") or `ShowError` (fails). The previous handler called `MessageBox.Show` directly from code-behind.
+
+XAML changes: the toolbar Refresh button binds `Command="{Binding LoadDataCommand}"` (existing command, just wired up); the Check References button binds `Command="{Binding CheckReferencesCommand}"`. Context-menu Approve / Reject use the standard `PlacementTarget.DataContext.XxxCommand` + `PlacementTarget.SelectedItems` pattern via `RelativeSource AncestorType=ContextMenu` (ContextMenu lives outside the visual tree so ElementName binding won't reach back). Four code-behind handlers retired: `OnContextApproveAlbum`, `OnContextRejectAlbum`, `OnRefreshClick`, `OnCheckReferencesClick`.
+
+What stays in AlbumsView code-behind by design: `OnNewAlbumClick` / `OnEditAlbumClick` / `OnDeleteAlbumClick` / `OnContextPlayAlbum` all open modal dialogs (`AlbumEditorWindow` / `MessageBox.Show`) that need `Window.GetWindow(this)` as the dialog Owner — that's a legitimate View concern, not a VM one. The H13 (AlbumEditor extraction) work will eventually surface a different pattern for those, but the H36 migration scope is "actions that don't need View ownership".
+
+7 new App.Tests in `AlbumsViewModelCommandTests`: Approve filters provisional, Approve does nothing when none selected, Approve handles null selection; Reject confirms then removes, Reject respects cancel, Reject skips non-provisional; CheckReferences shows info on empty albums. Pattern is the template for subsequent view migrations.
+
+Total: 604 tests (589 Core + 15 App), all pass. Pattern proven; the other 12 views need the same treatment in subsequent PRs.
 
 ### H47. PiecesWindow dedup — sort routed through PieceSorting, expansion state via shared helper
 [2026-05-24] `rework/pieces-window-dedup` — Eliminated the "third implementation of sort pieces" in `PiecesWindow.xaml.cs`. Two parts.
