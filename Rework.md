@@ -21,8 +21,8 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
 2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. The fix needs design — `ItunesTrack` doesn't carry Label/CatalogueNumber, so the dedup key needs to either add `Artist` matching (fuzzy) or thread iTunes Persistent ID into `AlbumTrack` per M27 (cleaner; needs schema). (H24)
 3. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
-4. **Continue H36's Click-to-RelayCommand migration with `PickListsView` or `RolePickerWindow`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. The two smallest remaining views each have a single Click handler — quick next slice to keep momentum, demonstrates the pattern generalises to non-list-based views. `CanonView` (10 handlers) is the largest remaining and deserves its own dedicated PR after the easy slices are done. (H36, scoped to PickListsView / RolePickerWindow)
-5. **`PlayerViewModel.IsScrubbing` is one-way state used from code-behind, not XAML.** Public getter, private setter, called from `PlayerBar.xaml.cs`'s `BeginScrub()` / `EndScrub()`. Works fine, but bypasses `[ObservableProperty]` — not testable through bindings, not visible via `PropertyChanged`. Convert to `[ObservableProperty]` so the scrub indicator (if anything wants to bind to it) lights up, and so any future test on the player VM can observe the scrub state via property-changed notifications. Tractable single-property change. (M1)
+4. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
+5. **`ItunesImporter.Import` uses `ref int` counters across three call layers.** [ItunesImporter.cs:237-247](src/CDArchive.Core/Services/ItunesImporter.cs:237) — passes `ref int newComposers, ref int newPieces, ref int newSubpieces` through three helper layers. Awkward to thread and easy to miss-increment. Wrap in `class Counters { int Composers, Pieces, Subpieces }` and pass once. Bounded refactor of one helper file. (M4)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -61,10 +61,10 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 |---|---|
 | 🔴 Critical | 0 |
 | 🟠 High | 6 |
-| 🟡 Medium | 83 |
+| 🟡 Medium | 81 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **181** |
+| **Total** | **179** |
 
 ---
 
@@ -118,12 +118,6 @@ The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow
 ---
 
 ## 🟡 Medium
-
-### M1. `IsScrubbing` is a one-way state used from code-behind, not from XAML
-[PlayerViewModel.cs:117-118](src/CDArchive.App/ViewModels/PlayerViewModel.cs:117) — public getter, private setter, used by `BeginScrub()` / `EndScrub()` called from `PlayerBar.xaml.cs`. Works fine, but bypasses `ObservableProperty` — neither testable through bindings nor visible via PropertyChanged. Make it `[ObservableProperty]` or scope `internal`.
-
-### M2. `ImportExportViewModel` is `Transient` but most other VMs are `Singleton` — risk of stale state
-[App.xaml.cs:28](src/CDArchive.App/App.xaml.cs:28) — every navigation creates a fresh instance. If it caches last-used file paths, state is lost across navigations. Verify intent; singleton would match the rest.
 
 ### M3. `PieceRow.AlbumRefs` inverse navigation exists but `EndPiece` has none
 [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` won't be detected by `Composer.Pieces` walk. Reject cascade hits FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error. Add an inverse or pre-check in `CanonRejectCascade.RejectPieceAsync`.
@@ -794,6 +788,17 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### M1 + M2. PlayerViewModel.IsScrubbing → [ObservableProperty]; ImportExportViewModel Singleton (M2 stale)
+[2026-05-24] `rework/observable-isscrubbing` — Two Medium-tier housekeeping items closed in one PR.
+
+(M1) `PlayerViewModel.IsScrubbing` converted from `public bool IsScrubbing { get; private set; }` (bare auto-property) to `[ObservableProperty] private bool _isScrubbing;`. The CommunityToolkit source generator emits a public property with PropertyChanged notification. `BeginScrub()` / `EndScrub()` keep their existing semantics — they just go through the generated setter now. Public set visibility is slightly relaxed (was `private set;`, now `set;` via generator default), but practically the only callers are still the two scrub coordination methods on the VM itself — and the visibility relaxation is intentional: tests can now exercise scrub state without reflection.
+
+Locked in by 2 new tests in `PlayerViewModelIsScrubbingTests`: `BeginScrub_RaisesPropertyChanged_ForIsScrubbing` and `EndScrub_RaisesPropertyChanged_AndClearsIsScrubbing`. Both subscribe to `INotifyPropertyChanged`, invoke the scrub method, assert the right `PropertyChanged` event fired. This is the kind of observability that was impossible pre-fix.
+
+(M2) Already retired in spirit — H45 (`rework/wpf-di-hygiene`) promoted both `SettingsViewModel` and `ImportExportViewModel` from `AddTransient` to `AddSingleton` back on 2026-05-21. M2's finding text was stale; moving it here as a paperwork cleanup.
+
+Total: 615 tests (589 Core + 26 App), all pass. Counts: Medium 83→81, Total 181→179. Top-5 #5 was M1; promoted to M4 (ItunesImporter ref int counters — bounded refactor of one helper file).
 
 ### H47 follow-up. CanonView level-3+ subpiece walks routed through `TreeExpansionState`
 [2026-05-24] `rework/canonview-expansion-helper` — Top-5 #4 had teased "migrate CanonView's expansion-state machinery to the new `TreeExpansionState` helper" as a long-pending follow-up to H47's PiecesWindow dedup. Scoped down to what actually deserves extraction: the level-3+ generic subpiece walks were duplicate-shaped against PiecesWindow's; the level-1 (composer) and level-2 (piece-under-composer) walks **stay in CanonView** because they recurse through a heterogeneous top-level structure (`ComposerTreeNode`'s `Pieces` / `CrossComposerNodes` / `ContributedGroups`, each branch with different key logic). A generic facade for the heterogeneous part wouldn't be simpler than the explicit code.
