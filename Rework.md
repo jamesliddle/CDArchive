@@ -19,10 +19,10 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
 1. **Fix `AlbumTrack.SessionIndex` — positional reference is latent data corruption.** Tracks store their session reference as an `int?` position into `CanonAlbum.Sessions`, not as a stable identifier. Reorder or delete a session in the Album Editor's Sessions tab and every existing `SessionIndex` on the album's tracks silently points at the wrong session. Give `RecordingSession` a stable `Id` / `Key` and translate existing SessionIndex values during a one-shot migration. (H21)
-2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. Include Label / CatalogueNumber / Performer in the dedup key, or key on a composite that distinguishes pressings. (H24)
-3. **`PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`.** CLAUDE.md describes the specific Op. 2 / Op. 10 / Op. 31 collision the existing fix avoids, but the underlying `Dictionary<string, IndexEntry>.TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Convert to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` disambiguate, or detect collisions at build time and log them. (H41)
-4. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
-5. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
+2. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. The fix needs design — `ItunesTrack` doesn't carry Label/CatalogueNumber, so the dedup key needs to either add `Artist` matching (fuzzy) or thread iTunes Persistent ID into `AlbumTrack` per M27 (cleaner; needs schema). (H24)
+3. **`PiecesWindow.xaml.cs` duplicates `CanonView`'s piece-tree machinery — third implementation of "sort pieces".** Re-implements piece sort + expansion-state save/restore that already lives in `PieceSorting.cs` (Core, unit-testable) and `CanonView.xaml.cs`. Three implementations of the same domain logic — adding a new sort field requires three coordinated edits. Route `PiecesWindow` through the existing `PieceSorting.Sort` helper, and extract the expansion-state machinery into a shared `TreeExpansionStateService` both views consume. (H47)
+4. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
+5. **Migrate one view's `Click="OnFoo"` handlers to RelayCommands (start with AlbumsView).** 39 Click handlers across 13 XAML views bypass VM RelayCommands — exactly the "find the actual UI callsite" trap CLAUDE.md documents. Status messages get overwritten by handlers, VM CanExecute doesn't gate the button, and the action can't be tested without WPF. Tractable as a single-view starter PR: pick AlbumsView (2 toolbar buttons + context-menu items), surface the existing AlbumsViewModel commands as `[RelayCommand]` properties, swap the XAML, write an App.Tests regression test asserting the command flow. The other 12 views follow in subsequent PRs. (H36, scoped to AlbumsView)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 8 |
+| 🟠 High | 7 |
 | 🟡 Medium | 83 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **183** |
+| **Total** | **182** |
 
 ---
 
@@ -113,20 +113,6 @@ CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The
 - `ItunesImportView.xaml` (1): `Click="OnImportSelectedClick"` for the primary action even though `LoadCommand` next to it uses `Command="{Binding ...}"` — **inconsistent within the same toolbar**.
 
 The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow`, the small editors) using Click for OK/Cancel is more defensible (dialog plumbing), but the main views' `Click=` pattern is exactly the trap CLAUDE.md documents: status messages get overwritten by handlers, VM `CanExecute` doesn't gate the button, the action can't be tested without WPF, and naming-parallel VM commands appear dead-but-aren't-actually-bound. The right fix is in H2/H19 (extract VMs); this finding is the XAML-side proof that the problem is much wider than CanonView alone.
-
-### H41. `PieceReferenceIndex.RegisterPiece` silently drops duplicate-title pieces via `TryAdd`
-[PieceReferenceIndex.cs:495-496](src/CDArchive.Core/Services/PieceReferenceIndex.cs:495):
-```csharp
-foreach (var key in EnumerateTitleKeys(p))
-    titleMap.TryAdd(NormalizeTitle(key), new IndexEntry(p, ancestors));
-```
-CLAUDE.md describes the Op. 2 / Op. 10 / Op. 31 "Three Piano Sonatas" collision and how the fix (registering set members under their catalog-bearing titles) avoids it for *that* known case. But the underlying `TryAdd` pattern is still there — any future title collision under the same composer silently drops every piece after the first. Examples that could collide:
-- Two pieces with the same `DisplayTitleShort` because they share form + number + key but differ only in catalog (rare for primary catalog but possible with secondary catalogs like B./H./M.).
-- A piece whose `Title` happens to equal another piece's `DisplayTitle` or `DisplayTitleShort` under the same composer.
-
-The collision is partially mitigated by `OrderBy(p => p.IsProvisional)` at [:137](src/CDArchive.Core/Services/PieceReferenceIndex.cs:137) (approved wins over provisional), but ties WITHIN approved pieces are silent. Album refs to the loser silently fail to resolve and badges drop to zero with no diagnostic.
-
-Fix: change `Dictionary<string, IndexEntry>` to `Dictionary<string, List<IndexEntry>>` and have `TryResolve` use the subpath / catalog to disambiguate; or detect collisions at build time and log them so they can be reported in the unresolved-refs summary the seeder already produces.
 
 ### H47. `PiecesWindow.xaml.cs` duplicates CanonView's piece-tree machinery — third implementation of "sort pieces"
 [PiecesWindow.xaml.cs:157-197](src/CDArchive.App/Views/PiecesWindow.xaml.cs:157) — re-implements the entire piece sort logic (Catalogue / Title / Category / Year tie-breaker chains) that already exists in two other places:
@@ -818,6 +804,17 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H41. PieceReferenceIndex collision detection (silent TryAdd drops now surfaced as diagnostics)
+[2026-05-24] `rework/piece-index-collision-detection` — Replaced the silent `titleMap.TryAdd(...)` in `RegisterPiece` with a detect-and-record pattern. The collision behaviour stays first-write-wins (combined with the existing approved-first `OrderBy`, so the approved piece keeps winning), but each dropped registration is now appended to a new public `IReadOnlyList<TitleCollision> Collisions` property on the index. The `TitleCollision` record carries `(Composer, NormalizedKey, KeptPiece, DroppedPiece)` so callers can present an actionable diagnostic — typically the user has duplicate data that needs deduplicating.
+
+Per-key granularity matters: `EnumerateTitleKeys` emits up to 5 title variants per piece (Title, DisplayTitle, DisplayTitleShort, stripped-nickname/subtitle versions). Two pieces can collide on one variant (e.g. plain Title="Hungarian Rhapsody") while differing on the catalog-bearing DisplayTitle ("Hungarian Rhapsody #2" vs "#6"). Each colliding key is a separate `TitleCollision` record, not one piece-vs-piece pair. Self-collisions (a single piece emitting the same key under multiple variants, e.g. when Title equals DisplayTitle because no catalog/key) are explicitly suppressed via `ReferenceEquals` so they don't pollute the report.
+
+`SeedResult.IndexCollisions` populates from `_resolver.Collisions` after `BuildResolver` runs; the SeedDb tool's report grew a new "Title-key collisions in the piece resolver index" section showing each kept/dropped pair under its composer + key. The `Summary` line includes the count alongside `Unresolved refs`.
+
+The deeper "convert to `Dictionary<string, List<IndexEntry>>` and disambiguate at resolve time" path the original finding suggested is deferred — it'd require TrackPieceRef to carry a discriminator (catalog number? subpath context?), which is a much larger model change. The detect-and-log path retires the symptom (silent loss → visible diagnostic) without that surgery; if the user encounters a real collision in their data, the seeder report names both pieces so they can dedupe.
+
+6 new tests in `PieceReferenceIndexCollisionTests`: no-collision happy path, two-approved-pieces collision records both, approved-beats-provisional in collision, different-composers-same-title-no-collision, per-key granularity (collision on bare Title, no collision on DisplayTitle), and collisions list resets between builds. Build clean, all 597 tests pass (589 Core + 8 App). **Action item for the user:** re-run the seeder (`dotnet run --project tools/CDArchive.Tools.SeedDb`) and check the new "Title-key collisions" section in the output. Any entries there are pieces in your data whose primary catalogue-less Title matches another piece under the same composer — typically duplicates worth investigating.
 
 ### H14. PieceVersionShuttle extracted + reflection contract test (catches dropped TextAuthor)
 [2026-05-21] `rework/piece-version-shuttle` — Extracted the piece↔version property-shuttle logic from `PieceEditorWindow.xaml.cs` (where it lived as two ~25-line manual property lists in `VersionToPiece` + `CopyPieceToVersion`) into a new `CDArchive.Core.Helpers.PieceVersionShuttle` static class with two methods: `FromVersion(v, showSubpieceNumbersDefault)` returns a transient piece for editing; `IntoVersion(p, v)` writes the shared fields back. Two explicit exception sets — `PieceOnlyPropertyNames` (`IsProvisional`, `Versions`, `Arrangements`, `Cadenza`, `TitleNumber`) and `VersionOnlyPropertyNames` (`Description`, `ContributingComposers`) — document which fields don't participate.
