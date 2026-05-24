@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
@@ -425,36 +426,21 @@ public partial class CanonView : UserControl
         }
     }
 
-    // Recursive helpers for subpiece/version nodes (level 3+)
+    // Recursive helpers for subpiece/version nodes (level 3+).
+    // H47 follow-up: these now route through the generic `TreeExpansionState`
+    // helper (shared with PiecesWindow). The view only owns its
+    // SubpieceKey(item) predicate, which knows about its item-type vocabulary.
+    // The level-1 (composer) and level-2 (piece-under-composer) walks above
+    // stay in CanonView by design — they recurse through a heterogeneous
+    // top-level structure (ComposerTreeNode's Pieces / CrossComposerNodes /
+    // ContributedGroups), each branch with different key logic. A generic
+    // facade for that wouldn't be simpler than the explicit code.
 
-    private void CollectExpandedSubpieces(ItemsControl parent, ItemCollection items)
-    {
-        foreach (var item in items)
-        {
-            if (parent.ItemContainerGenerator.ContainerFromItem(item)
-                    is not TreeViewItem container) continue;
-            if (!container.IsExpanded) continue;
-            var key = SubpieceKey(item);
-            if (key != null) _expandedSubpieces.Add(key);
-            if (container.HasItems)
-                CollectExpandedSubpieces(container, container.Items);
-        }
-    }
+    private void CollectExpandedSubpieces(ItemsControl parent, ItemCollection items) =>
+        TreeExpansionState.CollectExpanded(parent, items, SubpieceKey, _expandedSubpieces);
 
-    private void ApplyExpandedSubpieces(ItemsControl parent, ItemCollection items)
-    {
-        foreach (var item in items)
-        {
-            if (parent.ItemContainerGenerator.ContainerFromItem(item)
-                    is not TreeViewItem container) continue;
-            var key = SubpieceKey(item);
-            if (key == null || !_expandedSubpieces.Contains(key)) continue;
-            container.IsExpanded = true;
-            container.UpdateLayout();
-            if (container.HasItems)
-                ApplyExpandedSubpieces(container, container.Items);
-        }
-    }
+    private void ApplyExpandedSubpieces(ItemsControl parent, ItemCollection items) =>
+        TreeExpansionState.ApplyExpanded(parent, items, SubpieceKey, _expandedSubpieces);
 
     private static object? SubpieceKey(object item) => item switch
     {
