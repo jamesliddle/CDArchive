@@ -28,7 +28,8 @@
 
             <Button Grid.Column="2"
                     Content="Import Selected" Padding="12,4" Height="28" FontSize="12"
-                    Click="OnImportSelectedClick"
+                    Command="{Binding ImportSelectedTracksCommand}"
+                    CommandParameter="{Binding ElementName=TracksGrid, Path=SelectedItems}"
                     IsEnabled="{Binding IsReady}" />
 
             <TextBlock Grid.Column="4"

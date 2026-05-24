@@ -101,6 +101,24 @@ public partial class ItunesImportViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Command wrapper around <see cref="ImportTracksAsync"/> for the
+    /// "Import Selected" toolbar button (H36, ItunesImportView slice). The
+    /// XAML passes <c>TracksGrid.SelectedItems</c> as the parameter; this
+    /// method projects to <see cref="ItunesTrack"/> defensively and
+    /// delegates. Pre-fix the toolbar's Load button used a Command binding
+    /// but this button used a code-behind <c>Click</c> handler — an
+    /// inconsistency the original H36 review specifically flagged.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportSelectedTracksAsync(System.Collections.IList? selection)
+    {
+        var tracks = (selection ?? Array.Empty<object>())
+            .OfType<ItunesTrack>()
+            .ToList();
+        await ImportTracksAsync(tracks);
+    }
+
+    /// <summary>
     /// Imports the given tracks into the canon: groups by album, infers piece structure,
     /// creates provisional composers / pieces / albums as needed, and saves everything.
     /// </summary>
