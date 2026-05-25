@@ -136,6 +136,7 @@
                         <ComboBox Grid.Row="6" Grid.Column="1" x:Name="SparsCodeBox"
                                   Width="100" HorizontalAlignment="Left"
                                   FontSize="13" Margin="0,0,0,8"
+                                  SelectionChanged="OnSparsCodeChanged"
                                   ToolTip="D=digital, A=analogue: recording / mixing / mastering">
                             <ComboBoxItem Content="DDD" />
                             <ComboBoxItem Content="ADD" />
@@ -149,7 +150,8 @@
                                    Margin="0,0,8,0" />
                         <ComboBox Grid.Row="7" Grid.Column="1" x:Name="StereoBox"
                                   Width="120" HorizontalAlignment="Left"
-                                  FontSize="13" Margin="0,0,0,8">
+                                  FontSize="13" Margin="0,0,0,8"
+                                  SelectionChanged="OnStereoChanged">
                             <ComboBoxItem Content="Unknown" />
                             <ComboBoxItem Content="Stereo" />
                             <ComboBoxItem Content="Mono" />

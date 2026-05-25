@@ -158,15 +158,15 @@ public partial class AlbumEditorWindow : Window
         }
 
         // Single-edit. H13 slice 1: the 7 text fields load through the VM
-        // (TwoWay-bound in XAML); SparsCode + IsStereo stay imperative until
-        // later H13 slices migrate combobox handling.
+        // (TwoWay-bound in XAML). H13 slice 2: SparsCode + IsStereo also
+        // load through the VM; the code-behind syncs the non-editable
+        // ComboBoxes imperatively below since they use a "Mixed" sentinel
+        // ComboBoxItem rather than a placeholder text and the binding
+        // story is awkward for dynamically-appended items.
         _vm.LoadSingle(_album);
 
-        SparsCodeCombo.SelectValue(SparsCodeBox, _album.SparsCode);
-
-        StereoBox.SelectedIndex = _album.IsStereo.HasValue
-            ? (_album.IsStereo.Value ? 1 : 2)
-            : 0;
+        SparsCodeCombo.SelectValue(SparsCodeBox, _vm.SparsCode.Value);
+        SetStereoComboFromVm();
     }
 
     private void PopulateMultiDetailsTab()
@@ -187,26 +187,70 @@ public partial class AlbumEditorWindow : Window
         if (_vm.ArchiveFolder.IsMixed)   { MixedPlaceholder.Apply(ArchiveFolderBox);   _mixedFields.Add("ArchiveFolder"); }
         if (_vm.Notes.IsMixed)           { MixedPlaceholder.Apply(NotesBox);           _mixedFields.Add("Notes"); }
 
-        if (SparsCodeCombo.PopulateMixed(SparsCodeBox, albums.Select(a => a.SparsCode)))
-            _mixedFields.Add("SparsCode");
-
-        // Stereo — non-editable ComboBox; add a "Mixed" sentinel item when needed
-        var stereoDistinct = albums.Select(a => a.IsStereo).Distinct().ToList();
-        if (stereoDistinct.Count == 1)
+        // H13 slice 2: SparsCode + IsStereo sync from VM. When the VM loaded
+        // them as Mixed, append the "Mixed" sentinel ComboBoxItem and select
+        // it. _mixedFields is still populated for compatibility with the
+        // remaining SaveMulti logic for the combos.
+        if (_vm.SparsCode.IsMixed)
         {
-            StereoBox.SelectedIndex = stereoDistinct[0] switch { true => 1, false => 2, _ => 0 };
+            SparsCodeCombo.AppendMixedSentinel(SparsCodeBox);
+            _mixedFields.Add("SparsCode");
         }
         else
         {
+            SparsCodeCombo.SelectValue(SparsCodeBox, _vm.SparsCode.Value);
+        }
+
+        SetStereoComboFromVm();
+        if (_vm.IsStereo.IsMixed) _mixedFields.Add("IsStereo");
+    }
+
+    /// <summary>
+    /// H13 slice 2: SelectionChanged handler pushes the user's pick back to
+    /// the VM. The current value flows to the VM's <see cref="MixedField{T}.Value"/>,
+    /// which trips <c>WasEdited = true</c> and (for previously-Mixed cases)
+    /// clears <c>IsMixed = false</c>. Save reads from VM.
+    /// </summary>
+    private void OnSparsCodeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var picked = SparsCodeCombo.GetValue(SparsCodeBox);
+        // Null/empty from GetValue maps to "Unknown" in the VM's string
+        // vocabulary (LoadSingle uses the same normalisation).
+        _vm.SparsCode.Value = string.IsNullOrEmpty(picked) ? "Unknown" : picked;
+    }
+
+    private void OnStereoChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (StereoBox.SelectedItem is not ComboBoxItem cbi) return;
+        _vm.IsStereo.Value = cbi.Content as string ?? "Unknown";
+    }
+
+    /// <summary>
+    /// H13 slice 2: sync <c>StereoBox</c> from <c>_vm.IsStereo.Value</c>. The
+    /// dropdown has three fixed items (Unknown / Stereo / Mono) at indexes
+    /// 0..2. When the VM is Mixed, we append a "Mixed" sentinel ComboBoxItem
+    /// at index 3 (matching the pre-fix pattern) and select it.
+    /// </summary>
+    private void SetStereoComboFromVm()
+    {
+        if (_vm.IsStereo.IsMixed)
+        {
             StereoBox.Items.Add(new ComboBoxItem
             {
-                Content   = "Mixed",
+                Content    = AlbumEditorViewModel.IsStereoMixedSentinel,
                 Foreground = Brushes.DarkGray,
-                FontStyle  = FontStyles.Italic
+                FontStyle  = FontStyles.Italic,
             });
-            StereoBox.SelectedIndex = 3;   // index of the just-added sentinel
-            _mixedFields.Add("IsStereo");
+            StereoBox.SelectedIndex = 3;
+            return;
         }
+
+        StereoBox.SelectedIndex = _vm.IsStereo.Value switch
+        {
+            "Stereo" => 1,
+            "Mono"   => 2,
+            _        => 0,   // "Unknown" or anything unexpected
+        };
     }
 
     // H13 slice 1: SetOrMixed / SetOrMixedEditableCombo retired — the
@@ -588,11 +632,9 @@ public partial class AlbumEditorWindow : Window
         _album.CatalogueNumber = NullIfEmpty(_vm.CatalogueNumber.Value);
         _album.Barcode         = NullIfEmpty(_vm.Barcode.Value);
         _album.ArchiveFolder   = NullIfEmpty(_vm.ArchiveFolder.Value);
-        _album.SparsCode       = SparsCodeCombo.GetValue(SparsCodeBox);
+        _album.SparsCode       = AlbumEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
         _album.Notes           = NullIfEmpty(_vm.Notes.Value);
-        _album.IsStereo        = StereoBox.SelectedIndex == 1 ? true
-                               : StereoBox.SelectedIndex == 2 ? false
-                               : (bool?)null;
+        _album.IsStereo        = AlbumEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
 
         _album.Performers = _performers.Count > 0 ? _performers : null;
         _album.Sessions   = _sessions.Count   > 0 ? _sessions   : null;
@@ -626,21 +668,25 @@ public partial class AlbumEditorWindow : Window
         ApplyMixedFieldText("CatalogueNumber", _vm.CatalogueNumber, v => { foreach (var a in _editAlbums!) a.CatalogueNumber = v; });
         ApplyMixedFieldText("Barcode",         _vm.Barcode,         v => { foreach (var a in _editAlbums!) a.Barcode         = v; });
         ApplyMixedFieldText("ArchiveFolder",   _vm.ArchiveFolder,   v => { foreach (var a in _editAlbums!) a.ArchiveFolder   = v; });
-        var sparsBoxIsMixedSentinel = SparsCodeCombo.IsMixedSentinelSelected(SparsCodeBox);
-        var sparsTouched = !_mixedFields.Contains("SparsCode") || !sparsBoxIsMixedSentinel;
-        var sparsBoxValue = sparsTouched ? SparsCodeCombo.GetValue(SparsCodeBox) : null;
+        // H13 slice 2: SparsCode + IsStereo read from VM. The
+        // SelectionChanged handlers push every user pick into the VM; if the
+        // user never touched a field that loaded Mixed, _vm.X.IsMixed is
+        // still true (no SelectionChanged fired) and we skip writing.
+        var sparsTouched = !_mixedFields.Contains("SparsCode") || !_vm.SparsCode.IsMixed;
+        var sparsBoxValue = sparsTouched
+            ? AlbumEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value)
+            : null;
         if (sparsTouched)
             foreach (var a in _editAlbums!) a.SparsCode = sparsBoxValue;
         ApplyMixedFieldText("Notes",           _vm.Notes,           v => { foreach (var a in _editAlbums!) a.Notes           = v; });
 
-        // Stereo — SelectedIndex 3 is the "Mixed" sentinel; skip if still there
-        var stereoChanged = !_mixedFields.Contains("IsStereo") || StereoBox.SelectedIndex != 3;
+        // IsStereo via VM. Same shape: only write when not still showing the
+        // Mixed sentinel (i.e. user touched the dropdown).
+        var stereoChanged = !_mixedFields.Contains("IsStereo") || !_vm.IsStereo.IsMixed;
         bool? stereoNew = null;
         if (stereoChanged)
         {
-            stereoNew = StereoBox.SelectedIndex == 1 ? (bool?)true
-                      : StereoBox.SelectedIndex == 2 ? false
-                      : null;
+            stereoNew = AlbumEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
             foreach (var a in _editAlbums!) a.IsStereo = stereoNew;
         }
 
