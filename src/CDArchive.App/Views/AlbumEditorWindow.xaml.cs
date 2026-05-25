@@ -25,8 +25,9 @@ public partial class AlbumEditorWindow : Window
     // ── Single-edit working state ─────────────────────────────────────────────
 
     private CanonAlbum          _album;
-    private List<AlbumPerformer> _performers;
-    private List<RecordingSession> _sessions;
+    // H13 slice 3: Performers and Sessions list state moved onto
+    // AlbumEditorViewModel as ObservableCollection<T>. Reference them via
+    // _vm.Performers / _vm.Sessions throughout the code-behind.
 
     // Snapshots captured at load time so we can detect album-level changes to
     // SparsCode / IsStereo / Performers and propagate them down to every track
@@ -98,16 +99,11 @@ public partial class AlbumEditorWindow : Window
             _album.Discs.Add(disc1);
         }
 
-        _performers = _album.Performers ?? [];
-        _sessions   = _album.Sessions   ?? [];
-
         // Snapshot the inheritable album-level fields so SaveSingle can detect
         // changes and propagate them down to every track.
         _originalInheritable = AlbumFieldPropagator.Snapshot(_album);
 
-        PopulateDetailsTab();
-        PopulatePerformerList();
-        PopulateSessionList();
+        PopulateDetailsTab();   // _vm.LoadSingle inside also populates Performers + Sessions
         PopulateTrackGrid();
     }
 
@@ -123,10 +119,10 @@ public partial class AlbumEditorWindow : Window
         _isMixed    = true;
         _editAlbums = albums;
 
-        // These aren't used in multi-edit mode but the fields must be initialised
-        _album      = new CanonAlbum();
-        _performers = [];
-        _sessions   = [];
+        // These aren't used in multi-edit mode but the field must be initialised.
+        // Performers / Sessions live on the VM (slice 3) and stay empty in
+        // multi-edit since those tabs are hidden (H18).
+        _album = new CanonAlbum();
 
         Title = $"Edit {albums.Count} Albums";
 
@@ -259,12 +255,10 @@ public partial class AlbumEditorWindow : Window
     // is still in PopulateMultiDetailsTab above and is later H13 territory.
 
     // ── Performers tab ────────────────────────────────────────────────────────
-
-    private void PopulatePerformerList()
-    {
-        PerformerList.ItemsSource = null;
-        PerformerList.ItemsSource = _performers;
-    }
+    // H13 slice 3: list state lives on _vm.Performers (ObservableCollection).
+    // XAML's ListView ItemsSource binds to it directly. The Add/Edit/Remove
+    // handlers stay in code-behind because they open modal child dialogs
+    // needing Window.GetWindow(this) as Owner — legitimate View concern.
 
     private void OnPerformerSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -277,34 +271,28 @@ public partial class AlbumEditorWindow : Window
     {
         var dlg = new PerformerEditorWindow(null, _pickLists.PerformerRoles) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _performers.Add(dlg.Result);
-        PopulatePerformerList();
+        _vm.Performers.Add(dlg.Result);
     }
 
     private void OnEditPerformer(object sender, RoutedEventArgs e)
     {
         if (PerformerList.SelectedItem is not AlbumPerformer selected) return;
-        var idx = _performers.IndexOf(selected);
+        var idx = _vm.Performers.IndexOf(selected);
         var dlg = new PerformerEditorWindow(selected, _pickLists.PerformerRoles) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _performers[idx] = dlg.Result;
-        PopulatePerformerList();
+        _vm.Performers[idx] = dlg.Result;
     }
 
     private void OnRemovePerformer(object sender, RoutedEventArgs e)
     {
         if (PerformerList.SelectedItem is not AlbumPerformer selected) return;
-        _performers.Remove(selected);
-        PopulatePerformerList();
+        _vm.Performers.Remove(selected);
     }
 
     // ── Sessions tab ─────────────────────────────────────────────────────────
-
-    private void PopulateSessionList()
-    {
-        SessionList.ItemsSource = null;
-        SessionList.ItemsSource = _sessions;
-    }
+    // Same pattern as Performers above. The OnRemoveSession handler also
+    // calls SessionIndexMapping.RemapTracksAfterSessionRemoval (H21) to
+    // re-anchor every track's positional SessionIndex before the removal.
 
     private void OnSessionSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -317,18 +305,16 @@ public partial class AlbumEditorWindow : Window
     {
         var dlg = new SessionEditorWindow(null) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _sessions.Add(dlg.Result);
-        PopulateSessionList();
+        _vm.Sessions.Add(dlg.Result);
     }
 
     private void OnEditSession(object sender, RoutedEventArgs e)
     {
         if (SessionList.SelectedItem is not RecordingSession selected) return;
-        var idx = _sessions.IndexOf(selected);
+        var idx = _vm.Sessions.IndexOf(selected);
         var dlg = new SessionEditorWindow(selected) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _sessions[idx] = dlg.Result;
-        PopulateSessionList();
+        _vm.Sessions[idx] = dlg.Result;
     }
 
     private void OnRemoveSession(object sender, RoutedEventArgs e)
@@ -343,15 +329,14 @@ public partial class AlbumEditorWindow : Window
         // SessionIndexMapping.RemapTracksAfterSessionRemoval so it's
         // unit-tested without WPF. Pre-fix this method just removed the
         // session and every track's SessionIndex silently mis-pointed.
-        var removedIndex = _sessions.IndexOf(selected);
+        var removedIndex = _vm.Sessions.IndexOf(selected);
         if (removedIndex >= 0)
         {
             var allTracks = _album.Discs.SelectMany(d => d.Tracks);
             SessionIndexMapping.RemapTracksAfterSessionRemoval(removedIndex, allTracks);
         }
 
-        _sessions.Remove(selected);
-        PopulateSessionList();
+        _vm.Sessions.Remove(selected);
     }
 
     // ── Tab selection ─────────────────────────────────────────────────────────
@@ -416,12 +401,13 @@ public partial class AlbumEditorWindow : Window
 
     /// <summary>
     /// Returns the session list to pass to <see cref="TrackEditorWindow"/>.
-    /// In single-edit mode this is the album-level session list held in <c>_sessions</c>.
-    /// In multi-edit mode each album owns its own session list.
+    /// In single-edit mode this is the album-level session list held by the
+    /// VM (slice 3 — was previously <c>_sessions</c>). In multi-edit mode
+    /// each album owns its own session list.
     /// </summary>
-    private List<RecordingSession> SessionsFor(CanonAlbum? album)
+    private IList<RecordingSession> SessionsFor(CanonAlbum? album)
     {
-        if (!_isMixed) return _sessions;
+        if (!_isMixed) return _vm.Sessions;
         var a = album ?? _editAlbums![0];
         return a.Sessions ??= [];
     }
@@ -466,7 +452,10 @@ public partial class AlbumEditorWindow : Window
         var dlg = new TrackEditorWindow(disc, disc.Tracks.Count,
                                         sessions, _pickLists, _allPieces) { Owner = this };
         dlg.ShowDialog();
-        if (!_isMixed) PopulateSessionList();
+        // H13 slice 3: no manual refresh needed — TrackEditor's OnAddSession
+        // appends to the same ObservableCollection (_vm.Sessions, passed
+        // through via SessionsFor) and the ListView ItemsSource binding
+        // updates via CollectionChanged automatically.
         PopulateTrackGrid(disc.Tracks.Count > 0 ? disc.Tracks[^1] : null);
     }
 
@@ -526,7 +515,10 @@ public partial class AlbumEditorWindow : Window
                                             sessions, _pickLists, _allPieces) { Owner = this };
             dlg.ShowDialog();
 
-            if (!_isMixed) PopulateSessionList();
+            // H13 slice 3: no manual refresh needed — TrackEditor's OnAddSession
+        // appends to the same ObservableCollection (_vm.Sessions, passed
+        // through via SessionsFor) and the ListView ItemsSource binding
+        // updates via CollectionChanged automatically.
 
             var reselect = index < disc.Tracks.Count ? disc.Tracks[index] : null;
             PopulateTrackGrid(reselect);
@@ -543,10 +535,10 @@ public partial class AlbumEditorWindow : Window
             // multi-edit mode where the user only picked tracks from one album), pass
             // that album's session list so the Session combo is usable. Otherwise
             // pass null — the Session combo will be disabled in the editor.
-            List<RecordingSession>? sharedSessions;
+            IList<RecordingSession>? sharedSessions;
             if (!_isMixed)
             {
-                sharedSessions = _sessions;
+                sharedSessions = _vm.Sessions;
             }
             else
             {
@@ -636,8 +628,12 @@ public partial class AlbumEditorWindow : Window
         _album.Notes           = NullIfEmpty(_vm.Notes.Value);
         _album.IsStereo        = AlbumEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
 
-        _album.Performers = _performers.Count > 0 ? _performers : null;
-        _album.Sessions   = _sessions.Count   > 0 ? _sessions   : null;
+        // H13 slice 3: snapshot ObservableCollections to List<T> on save — the
+        // CanonAlbum model fields are List<T>?, and storing the ObservableCollection
+        // instance directly would be a type mismatch + would tie the model to a
+        // UI-facing collection type.
+        _album.Performers = _vm.Performers.Count > 0 ? _vm.Performers.ToList() : null;
+        _album.Sessions   = _vm.Sessions.Count   > 0 ? _vm.Sessions.ToList()   : null;
 
         _album.Discs.RemoveAll(d => d.Tracks.Count == 0);
 

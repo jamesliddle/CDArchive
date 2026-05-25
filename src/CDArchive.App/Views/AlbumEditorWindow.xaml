@@ -196,6 +196,7 @@
 
                     <ListView x:Name="PerformerList" FontSize="13"
                               BorderThickness="1" BorderBrush="#CCC" Margin="0,8,0,0"
+                              ItemsSource="{Binding Performers}"
                               SelectionChanged="OnPerformerSelectionChanged">
                         <ListView.View>
                             <GridView>
@@ -258,6 +259,7 @@
 
                     <ListView x:Name="SessionList" FontSize="13"
                               BorderThickness="1" BorderBrush="#CCC" Margin="0,8,0,0"
+                              ItemsSource="{Binding Sessions}"
                               SelectionChanged="OnSessionSelectionChanged">
                         <ListView.View>
                             <GridView>

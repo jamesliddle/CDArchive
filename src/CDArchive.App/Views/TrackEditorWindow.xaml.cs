@@ -20,7 +20,12 @@ public partial class TrackEditorWindow : Window
     private int _trackIndex;                      // index into _disc.Tracks; >= Count means "adding new"
 
     // Mutable so OnAddSession can append to the album's session list directly.
-    private readonly List<RecordingSession>   _sessions;
+    // H13 slice 3: relaxed from List<RecordingSession> to IList<RecordingSession>
+    // so AlbumEditorViewModel's ObservableCollection can be passed through
+    // directly (it implements IList<T>). The editor's mutations (Add via
+    // OnAddSession) propagate back to the AlbumEditor's VM via this shared
+    // reference, the same way the pre-fix shared-List propagation worked.
+    private readonly IList<RecordingSession>  _sessions;
     private readonly CanonPickLists           _pickLists;
     private readonly IReadOnlyList<CanonPiece> _allPieces;
 
@@ -78,7 +83,7 @@ public partial class TrackEditorWindow : Window
     public TrackEditorWindow(
         AlbumDisc disc,
         int trackIndex,
-        List<RecordingSession> sessions,
+        IList<RecordingSession> sessions,
         CanonPickLists pickLists,
         IReadOnlyList<CanonPiece> allPieces)
     {
@@ -122,7 +127,7 @@ public partial class TrackEditorWindow : Window
     /// </summary>
     public TrackEditorWindow(
         IReadOnlyList<AlbumTrack> tracks,
-        List<RecordingSession>? sessions,
+        IList<RecordingSession>? sessions,
         CanonPickLists pickLists,
         IReadOnlyList<CanonPiece> allPieces)
     {
