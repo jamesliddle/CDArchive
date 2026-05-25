@@ -87,6 +87,18 @@ public static class SparsCodeCombo
             return false;
         }
 
+        AppendMixedSentinel(box);
+        return true;
+    }
+
+    /// <summary>
+    /// Appends the "Mixed" sentinel <see cref="ComboBoxItem"/> (gray italic)
+    /// to <paramref name="box"/> and selects it. Used by the H13 slice 2
+    /// editor flow where the caller has already decided via VM state that the
+    /// field is Mixed and just wants to render the sentinel.
+    /// </summary>
+    public static void AppendMixedSentinel(ComboBox box)
+    {
         var sentinel = new ComboBoxItem
         {
             Content    = MixedSentinel,
@@ -95,6 +107,5 @@ public static class SparsCodeCombo
         };
         box.Items.Add(sentinel);
         box.SelectedItem = sentinel;
-        return true;
     }
 }
