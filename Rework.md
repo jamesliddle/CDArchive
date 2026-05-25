@@ -18,11 +18,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **`ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber.** The "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both `"Symphony No. 9"`) collide: after importing one, the other's tracks appear "already imported" and silently disappear from the import grid. The fix needs design — `ItunesTrack` doesn't carry Label/CatalogueNumber, so the dedup key needs to either add `Artist` matching (fuzzy) or thread iTunes Persistent ID into `AlbumTrack` per M27 (cleaner; needs schema). (H24)
-2. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
-3. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
-4. **`ItunesImporter.Import` uses `ref int` counters across three call layers.** [ItunesImporter.cs:237-247](src/CDArchive.Core/Services/ItunesImporter.cs:237) — passes `ref int newComposers, ref int newPieces, ref int newSubpieces` through three helper layers. Awkward to thread and easy to miss-increment. Wrap in `class Counters { int Composers, Pieces, Subpieces }` and pass once. Bounded refactor of one helper file. (M4)
-5. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
+1. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
+2. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
+3. **`ItunesImporter.Import` uses `ref int` counters across three call layers.** [ItunesImporter.cs:237-247](src/CDArchive.Core/Services/ItunesImporter.cs:237) — passes `ref int newComposers, ref int newPieces, ref int newSubpieces` through three helper layers. Awkward to thread and easy to miss-increment. Wrap in `class Counters { int Composers, Pieces, Subpieces }` and pass once. Bounded refactor of one helper file. (M4)
+4. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
+5. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 6 |
+| 🟠 High | 5 |
 | 🟡 Medium | 81 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **179** |
+| **Total** | **178** |
 
 ---
 
@@ -101,11 +101,6 @@ The track's session reference is an `int?` position into `CanonAlbum.Sessions`. 
 
 **Remaining**: the architectural cleanup. Give `RecordingSession` a stable `Id` (or string `Key`) and store that on tracks instead of an index, so the model stops carrying positional FKs entirely. Migration: every existing `AlbumTrack.SessionIndex` value needs translating to the new key on first load. JSON snapshot format gains a `session_id` field; SQLite schema gains a corresponding column; the seeder + save path + editor + `SessionIndexMapping` all switch. Multi-PR work; lower priority now that the bug class is gone.
 
-
-### H24. `ItunesImportViewModel` dedup hides legitimate tracks by ignoring Label/CatalogueNumber
-[ItunesImportViewModel.cs:171-182](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:171) — the "already imported" index keys on `(album-title-lowercased, disc#, track#)`. Two genuinely different albums with the same title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both "Symphony No. 9") collide. Importing the Bernstein after the Karajan: Bernstein's track 1 looks already-imported and is hidden, the user adds nothing, and the canon silently misses the Bernstein recording.
-
-Fix: include `Label|CatalogueNumber` in the key when present, or key on the iTunes Persistent ID once that's threaded through (see M27).
 
 ### H36. 39 `Click="OnFoo"` event handlers across 13 XAML views bypass VM RelayCommands
 CLAUDE.md flagged this once as a bug pattern; the audit shows it's systemic. The split:
@@ -790,6 +785,23 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H24. iTunes import dedup widened to include performer
+[2026-05-24] `rework/itunes-dedup-performer` — Pre-fix the "already imported" filter keyed on `(album-title-lowercased, disc#, track#)`. Two genuinely different albums sharing a title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both "Symphony No. 9") collided: after importing one, the other's tracks looked already-imported and were silently hidden from the preview grid.
+
+The original finding suggested adding `Label|CatalogueNumber` to the key, but `ItunesTrack` doesn't carry those — iTunes XML doesn't include pressing-specific catalogue info. The right discriminator on the iTunes side is `AlbumArtist`; on the canon side, the album's first `AlbumPerformer.Name`. Both sides normalise through a new public `ItunesImportViewModel.NormalisePerformer(string?)` helper.
+
+Normalisation: lowercase → strip non-alphanumeric → sort tokens by ordinal. "Karajan, Herbert von" and "Herbert von Karajan" both collapse to "herbertkarajanvon" → the canon's filtered-name-order vs the iTunes XML's natural-order doesn't matter.
+
+The key type widens from `(string album, int disc, int track)` to `(string album, string performer, int disc, int track)`. Albums with no performer info dedup as before (empty performer string) — legacy data still works.
+
+The deeper "thread iTunes Persistent ID through" path the finding mentioned as an alternative is M27's territory — schema change to add `ItunesPersistentId` on `AlbumTrack`. Not needed for the symptom fix; the performer-matching path is enough.
+
+Limitations documented in tests: diacritic-aware normalisation isn't done (Dvořák → "dvk", Dvorak → "dvorak", they don't match). Pragmatic — the classical-CD canon's actual data uses consistent diacritics across iTunes and canon-side spellings.
+
+8 new tests in `ItunesImportDedupTests`: null/blank handling, token-order invariance, case + punctuation stripping, different performers produce different keys, orchestra credits stable, diacritic limitation documented. Total: 629 tests (595 Core + 34 App). H24 retires; H36/CanonView (was #3) promotes to Top-5 #2; M5 (iTunes import has no album dedup on re-import) takes the new slot #5 as the natural follow-up.
+
+**Action item for the user**: smoke-test by importing one same-titled album (e.g. a Beethoven 9), confirming its tracks no longer appear in the preview; then look at a DIFFERENT performer's Beethoven 9 if you have one in your iTunes library — those tracks should STILL appear as not-imported.
 
 ### H21 (first slice). Defensive SessionIndex remap on session removal
 [2026-05-24] `rework/sessionindex-defensive-remap` — Closed out the **bug class** H21 documented without doing the full model migration. The active corruption case ("user removes a session in the Album Editor → every track's positional `SessionIndex` silently mis-points") can no longer happen.
