@@ -55,6 +55,12 @@ public partial class AlbumEditorWindow : Window
     public bool ShowPerformersTab { get; private set; } = true;
     public bool ShowSessionsTab   { get; private set; } = true;
 
+    // ── View-model (H13 slice 1: text fields) ────────────────────────────────
+    // XAML TwoWay-binds the 7 text fields to _vm.X.Value. The combobox-driven
+    // and list-shaped fields stay in code-behind for now — later H13 slices
+    // migrate them.
+    private readonly AlbumEditorViewModel _vm = new();
+
     // ── TrackRow: flat view model for combined disc+track grid ───────────────
 
     private class TrackRow(AlbumDisc disc, AlbumTrack track, CanonAlbum? album = null)
@@ -71,6 +77,7 @@ public partial class AlbumEditorWindow : Window
     public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonPiece> allPieces, PlayerViewModel player, CanonAlbum? album = null)
     {
         InitializeComponent();
+        DataContext = _vm;
         _pickLists = pickLists;
         _allPieces = allPieces;
         _player    = player;
@@ -109,6 +116,7 @@ public partial class AlbumEditorWindow : Window
     public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonAlbum> albums, IReadOnlyList<CanonPiece> allPieces, PlayerViewModel player)
     {
         InitializeComponent();
+        DataContext = _vm;
         _pickLists  = pickLists;
         _allPieces  = allPieces;
         _player     = player;
@@ -149,14 +157,10 @@ public partial class AlbumEditorWindow : Window
             return;
         }
 
-        // Single-edit
-        TitleBox.Text           = _album.Title           ?? "";
-        SubtitleBox.Text        = _album.Subtitle        ?? "";
-        LabelBox.Text           = _album.Label           ?? "";
-        CatalogueNumberBox.Text = _album.CatalogueNumber ?? "";
-        BarcodeBox.Text         = _album.Barcode         ?? "";
-        ArchiveFolderBox.Text   = _album.ArchiveFolder   ?? "";
-        NotesBox.Text           = _album.Notes           ?? "";
+        // Single-edit. H13 slice 1: the 7 text fields load through the VM
+        // (TwoWay-bound in XAML); SparsCode + IsStereo stay imperative until
+        // later H13 slices migrate combobox handling.
+        _vm.LoadSingle(_album);
 
         SparsCodeCombo.SelectValue(SparsCodeBox, _album.SparsCode);
 
@@ -169,22 +173,22 @@ public partial class AlbumEditorWindow : Window
     {
         var albums = _editAlbums!;
 
-        SetOrMixed(TitleBox,           "Title",
-            albums.Select(a => a.Title           ?? "").Distinct());
-        SetOrMixed(SubtitleBox,        "Subtitle",
-            albums.Select(a => a.Subtitle        ?? "").Distinct());
-        SetOrMixedEditableCombo(LabelBox, "Label",
-            albums.Select(a => a.Label           ?? "").Distinct());
-        SetOrMixed(CatalogueNumberBox, "CatalogueNumber",
-            albums.Select(a => a.CatalogueNumber ?? "").Distinct());
-        SetOrMixed(BarcodeBox,         "Barcode",
-            albums.Select(a => a.Barcode         ?? "").Distinct());
-        SetOrMixed(ArchiveFolderBox,   "ArchiveFolder",
-            albums.Select(a => a.ArchiveFolder   ?? "").Distinct());
+        // H13 slice 1: the 7 text fields' mixed-state model lives on the VM
+        // via MixedField<string>. The XAML binding propagates VM.X.Value to
+        // TextBox.Text; MixedPlaceholder.Apply below adds the gray-italic
+        // chrome + first-edit-clear keystroke wiring on top of the binding.
+        _vm.LoadMulti(albums, MixedPlaceholder.PlaceholderText);
+
+        if (_vm.Title.IsMixed)           { MixedPlaceholder.Apply(TitleBox);           _mixedFields.Add("Title"); }
+        if (_vm.Subtitle.IsMixed)        { MixedPlaceholder.Apply(SubtitleBox);        _mixedFields.Add("Subtitle"); }
+        if (_vm.Label.IsMixed)           { MixedPlaceholder.Apply(LabelBox);           _mixedFields.Add("Label"); }
+        if (_vm.CatalogueNumber.IsMixed) { MixedPlaceholder.Apply(CatalogueNumberBox); _mixedFields.Add("CatalogueNumber"); }
+        if (_vm.Barcode.IsMixed)         { MixedPlaceholder.Apply(BarcodeBox);         _mixedFields.Add("Barcode"); }
+        if (_vm.ArchiveFolder.IsMixed)   { MixedPlaceholder.Apply(ArchiveFolderBox);   _mixedFields.Add("ArchiveFolder"); }
+        if (_vm.Notes.IsMixed)           { MixedPlaceholder.Apply(NotesBox);           _mixedFields.Add("Notes"); }
+
         if (SparsCodeCombo.PopulateMixed(SparsCodeBox, albums.Select(a => a.SparsCode)))
             _mixedFields.Add("SparsCode");
-        SetOrMixed(NotesBox,           "Notes",
-            albums.Select(a => a.Notes           ?? "").Distinct());
 
         // Stereo — non-editable ComboBox; add a "Mixed" sentinel item when needed
         var stereoDistinct = albums.Select(a => a.IsStereo).Distinct().ToList();
@@ -205,41 +209,10 @@ public partial class AlbumEditorWindow : Window
         }
     }
 
-    // ── Mixed-state helpers ───────────────────────────────────────────────────
-
-    /// <summary>
-    /// Populates <paramref name="box"/> with the single unanimous value, or shows the
-    /// "Mixed" placeholder when the values differ across the selected albums.  See
-    /// <see cref="MixedPlaceholder"/> for the clear-on-first-edit behaviour.
-    /// </summary>
-    private void SetOrMixed(TextBox box, string fieldName, IEnumerable<string> distinctValues)
-    {
-        var vals = distinctValues.ToList();
-        if (vals.Count == 1)
-        {
-            box.Text = vals[0];
-            return;
-        }
-
-        _mixedFields.Add(fieldName);
-        MixedPlaceholder.Apply(box);
-    }
-
-    /// <summary>
-    /// Same as <see cref="SetOrMixed"/> but for an <c>IsEditable</c> ComboBox.
-    /// </summary>
-    private void SetOrMixedEditableCombo(ComboBox box, string fieldName, IEnumerable<string> distinctValues)
-    {
-        var vals = distinctValues.ToList();
-        if (vals.Count == 1)
-        {
-            box.Text = vals[0];
-            return;
-        }
-
-        _mixedFields.Add(fieldName);
-        MixedPlaceholder.Apply(box);
-    }
+    // H13 slice 1: SetOrMixed / SetOrMixedEditableCombo retired — the
+    // text-field mixed-state machinery now lives on AlbumEditorViewModel.
+    // The remaining mixed handling for SparsCode + IsStereo (combobox-based)
+    // is still in PopulateMultiDetailsTab above and is later H13 territory.
 
     // ── Performers tab ────────────────────────────────────────────────────────
 
@@ -596,7 +569,10 @@ public partial class AlbumEditorWindow : Window
     {
         if (_isMixed) { SaveMulti(); return; }
 
-        var title = TitleBox.Text.Trim();
+        // H13 slice 1: text fields read from the VM (TwoWay-bound, so this is
+        // the current TextBox content as the binding propagated it). SparsCode
+        // + IsStereo stay code-behind until a later slice migrates them.
+        var title = (_vm.Title.Value ?? "").Trim();
         if (string.IsNullOrEmpty(title))
         {
             MessageBox.Show("Title is required.", "Validation",
@@ -607,13 +583,13 @@ public partial class AlbumEditorWindow : Window
         }
 
         _album.Title           = title;
-        _album.Subtitle        = NullIfEmpty(SubtitleBox.Text);
-        _album.Label           = NullIfEmpty(LabelBox.Text);
-        _album.CatalogueNumber = NullIfEmpty(CatalogueNumberBox.Text);
-        _album.Barcode         = NullIfEmpty(BarcodeBox.Text);
-        _album.ArchiveFolder   = NullIfEmpty(ArchiveFolderBox.Text);
+        _album.Subtitle        = NullIfEmpty(_vm.Subtitle.Value);
+        _album.Label           = NullIfEmpty(_vm.Label.Value);
+        _album.CatalogueNumber = NullIfEmpty(_vm.CatalogueNumber.Value);
+        _album.Barcode         = NullIfEmpty(_vm.Barcode.Value);
+        _album.ArchiveFolder   = NullIfEmpty(_vm.ArchiveFolder.Value);
         _album.SparsCode       = SparsCodeCombo.GetValue(SparsCodeBox);
-        _album.Notes           = NullIfEmpty(NotesBox.Text);
+        _album.Notes           = NullIfEmpty(_vm.Notes.Value);
         _album.IsStereo        = StereoBox.SelectedIndex == 1 ? true
                                : StereoBox.SelectedIndex == 2 ? false
                                : (bool?)null;
@@ -639,20 +615,23 @@ public partial class AlbumEditorWindow : Window
     /// </summary>
     private void SaveMulti()
     {
-        // Text / editable-combo fields: skip if the value is still the "Mixed" sentinel
-        // or (for mixed fields only) if the user left it empty after clearing the sentinel.
-        ApplyText("Title",           TitleBox.Text.Trim(),           v => { foreach (var a in _editAlbums!) a.Title           = v; });
-        ApplyText("Subtitle",        SubtitleBox.Text.Trim(),        v => { foreach (var a in _editAlbums!) a.Subtitle        = v; });
-        ApplyText("Label",           LabelBox.Text.Trim(),           v => { foreach (var a in _editAlbums!) a.Label           = v; });
-        ApplyText("CatalogueNumber", CatalogueNumberBox.Text.Trim(), v => { foreach (var a in _editAlbums!) a.CatalogueNumber = v; });
-        ApplyText("Barcode",         BarcodeBox.Text.Trim(),         v => { foreach (var a in _editAlbums!) a.Barcode         = v; });
-        ApplyText("ArchiveFolder",   ArchiveFolderBox.Text.Trim(),   v => { foreach (var a in _editAlbums!) a.ArchiveFolder   = v; });
+        // H13 slice 1: text fields source their values from the VM's
+        // MixedField<string> wrappers. ApplyMixedFieldText preserves the
+        // pre-fix semantics: don't write to all albums if the field is still
+        // showing the placeholder, and don't wipe-all-to-empty if the user
+        // cleared a mixed field without typing a replacement.
+        ApplyMixedFieldText("Title",           _vm.Title,           v => { foreach (var a in _editAlbums!) a.Title           = v; });
+        ApplyMixedFieldText("Subtitle",        _vm.Subtitle,        v => { foreach (var a in _editAlbums!) a.Subtitle        = v; });
+        ApplyMixedFieldText("Label",           _vm.Label,           v => { foreach (var a in _editAlbums!) a.Label           = v; });
+        ApplyMixedFieldText("CatalogueNumber", _vm.CatalogueNumber, v => { foreach (var a in _editAlbums!) a.CatalogueNumber = v; });
+        ApplyMixedFieldText("Barcode",         _vm.Barcode,         v => { foreach (var a in _editAlbums!) a.Barcode         = v; });
+        ApplyMixedFieldText("ArchiveFolder",   _vm.ArchiveFolder,   v => { foreach (var a in _editAlbums!) a.ArchiveFolder   = v; });
         var sparsBoxIsMixedSentinel = SparsCodeCombo.IsMixedSentinelSelected(SparsCodeBox);
         var sparsTouched = !_mixedFields.Contains("SparsCode") || !sparsBoxIsMixedSentinel;
         var sparsBoxValue = sparsTouched ? SparsCodeCombo.GetValue(SparsCodeBox) : null;
         if (sparsTouched)
             foreach (var a in _editAlbums!) a.SparsCode = sparsBoxValue;
-        ApplyText("Notes",           NotesBox.Text.Trim(),           v => { foreach (var a in _editAlbums!) a.Notes           = v; });
+        ApplyMixedFieldText("Notes",           _vm.Notes,           v => { foreach (var a in _editAlbums!) a.Notes           = v; });
 
         // Stereo — SelectedIndex 3 is the "Mixed" sentinel; skip if still there
         var stereoChanged = !_mixedFields.Contains("IsStereo") || StereoBox.SelectedIndex != 3;
@@ -701,16 +680,29 @@ public partial class AlbumEditorWindow : Window
     // tested directly via AlbumFieldPropagatorTests.
 
     /// <summary>
-    /// Applies <paramref name="newValue"/> to all albums via <paramref name="setter"/>
-    /// unless the field was mixed and the user left it as "Mixed" or empty.
+    /// H13 slice 1: VM-driven equivalent of the old <c>ApplyText</c>. Preserves
+    /// the pre-fix semantics — for a field that started Mixed:
+    /// <list type="bullet">
+    ///   <item>Still showing the placeholder (<c>field.IsMixed == true</c>) → skip.
+    ///     The user never touched it, so don't propagate to all albums.</item>
+    ///   <item>User cleared the placeholder but typed nothing (<c>Value</c> is
+    ///     empty) → skip. Don't wipe every album to blank as a side effect of
+    ///     clearing chrome.</item>
+    ///   <item>User typed something — apply (via <see cref="NullIfEmpty"/>).</item>
+    /// </list>
+    /// For fields that started Unanimous, the IsMixed check returns false and
+    /// the empty check is suppressed by <c>!_mixedFields.Contains(fieldName)</c>
+    /// — so a unanimous-empty field stays empty across albums (idempotent),
+    /// and a deliberately-emptied unanimous field also writes empty (the user
+    /// wanted to wipe; unanimous wasn't mixed to begin with).
     /// </summary>
-    private void ApplyText(string fieldName, string newValue, Action<string?> setter)
+    private void ApplyMixedFieldText(string fieldName, MixedField<string> field, Action<string?> setter)
     {
         if (_mixedFields.Contains(fieldName) &&
-            (newValue == "Mixed" || string.IsNullOrEmpty(newValue)))
+            (field.IsMixed || string.IsNullOrEmpty(field.Value)))
             return;
 
-        setter(NullIfEmpty(newValue));
+        setter(NullIfEmpty(field.Value));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

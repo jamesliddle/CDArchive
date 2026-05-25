@@ -77,7 +77,12 @@
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Title *"
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
+                        <!-- H13 slice 1: TextBoxes TwoWay-bind to AlbumEditorViewModel.X.Value
+                             (MixedField<string>). MixedPlaceholder.Apply() in code-behind
+                             still handles the gray-italic chrome + first-edit-clear keystrokes
+                             on top of the binding. -->
                         <TextBox Grid.Row="0" Grid.Column="1" x:Name="TitleBox"
+                                 Text="{Binding Title.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Subtitle -->
@@ -85,6 +90,7 @@
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Row="1" Grid.Column="1" x:Name="SubtitleBox"
+                                 Text="{Binding Subtitle.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Label -->
@@ -92,7 +98,9 @@
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <ComboBox Grid.Row="2" Grid.Column="1" x:Name="LabelBox"
-                                  IsEditable="True" FontSize="13" Padding="2,2"
+                                  IsEditable="True"
+                                  Text="{Binding Label.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  FontSize="13" Padding="2,2"
                                   Margin="0,0,0,8" />
 
                         <!-- Catalogue Number -->
@@ -100,6 +108,7 @@
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Row="3" Grid.Column="1" x:Name="CatalogueNumberBox"
+                                 Text="{Binding CatalogueNumber.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Barcode -->
@@ -107,6 +116,7 @@
                                    FontSize="13" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Row="4" Grid.Column="1" x:Name="BarcodeBox"
+                                 Text="{Binding Barcode.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Archive Folder (subfolder under the archive root, or an absolute path) -->
@@ -115,6 +125,7 @@
                                    Margin="0,0,8,0"
                                    ToolTip="Folder containing this album's audio files. Leave blank to use the album Title as the folder name (the standard convention). A bare name resolves under the configured archive root; an absolute path is used as-is." />
                         <TextBox Grid.Row="5" Grid.Column="1" x:Name="ArchiveFolderBox"
+                                 Text="{Binding ArchiveFolder.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8"
                                  ToolTip="Leave blank to default to the album Title. Override when the on-disk folder name differs (e.g. 'Beethoven Symphonies 1 3 Bernstein' or 'D:\Music\Singles\track')." />
 
@@ -149,6 +160,7 @@
                                    FontSize="13" VerticalAlignment="Top"
                                    Margin="0,4,8,0" />
                         <TextBox Grid.Row="8" Grid.Column="1" x:Name="NotesBox"
+                                 Text="{Binding Notes.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Height="60" FontSize="13" Padding="4,3"
                                  TextWrapping="Wrap" AcceptsReturn="True"
                                  Margin="0,0,0,8" />
