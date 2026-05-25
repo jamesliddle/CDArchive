@@ -18,11 +18,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 685 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Track + Piece editors follow in subsequent PRs. (H13, scoped to AlbumEditor)
+1. **Extract `AlbumEditorViewModel` (first of three big-editor VM extractions).** `AlbumEditorWindow.xaml.cs` is 720 lines of code-behind doing VM/service work with two constructors (single + multi-edit) sharing 90%+ setup. The previous Rework PRs unlocked the path: `IDialogService`/`IFileDialogService` (H3) ships the dialog surface, `App.Tests` (H39+H40) ships the test fixtures, the `ShowPerformersTab` / `ShowSessionsTab` properties (H18) sketch the mode-state shape. Start with the album editor — biggest single payoff because it's the most-used dialog. Multi-session work; first slice should likely be the simple text fields (Title/Subtitle/Label/CatalogueNumber/Barcode/ArchiveFolder/Notes) via TwoWay bindings, with multi-edit's "Mixed" placeholder pattern as the design challenge. Track + Piece editors follow in later PRs. (H13, scoped to AlbumEditor)
 2. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
-3. **`ItunesImporter.Import` uses `ref int` counters across three call layers.** [ItunesImporter.cs:237-247](src/CDArchive.Core/Services/ItunesImporter.cs:237) — passes `ref int newComposers, ref int newPieces, ref int newSubpieces` through three helper layers. Awkward to thread and easy to miss-increment. Wrap in `class Counters { int Composers, Pieces, Subpieces }` and pass once. Bounded refactor of one helper file. (M4)
-4. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
-5. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
+3. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
+4. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
+5. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -61,10 +61,10 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 |---|---|
 | 🔴 Critical | 0 |
 | 🟠 High | 5 |
-| 🟡 Medium | 81 |
+| 🟡 Medium | 80 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **178** |
+| **Total** | **177** |
 
 ---
 
@@ -118,9 +118,6 @@ The editor windows (`AlbumEditorWindow`, `PieceEditorWindow`, `TrackEditorWindow
 
 ### M3. `PieceRow.AlbumRefs` inverse navigation exists but `EndPiece` has none
 [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` won't be detected by `Composer.Pieces` walk. Reject cascade hits FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error. Add an inverse or pre-check in `CanonRejectCascade.RejectPieceAsync`.
-
-### M4. `ItunesImporter` uses `ref int` counters across multiple helpers
-[ItunesImporter.cs:237-247](src/CDArchive.Core/Services/ItunesImporter.cs:237) — passing `ref int newComposers, ref int newPieces, ref int newSubpieces` through three call layers is awkward and easy to miss-increment. Wrap in a `class Counters { int Composers, Pieces, Subpieces }` and pass once.
 
 ### M5. iTunes import has no album dedup
 `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group. Re-importing the same data creates duplicates. Dedup by `(Title, Label, CatalogueNumber)` or surface duplicates in the import preview.
@@ -785,6 +782,15 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### M4. ItunesImporter `ref int` counters bundled into a Counters class
+[2026-05-24] `rework/itunes-importer-counters` — Pre-fix `ItunesImporter` threaded three counter values (`newComposers`, `newPieces`, `newSubpieces`) through its call graph as separate `ref int` parameters on four methods: `PopulatePieceRefs`, `GetOrCreateComposer`, `ResolveOrCreateTopPiece`, `EnsureSubpiecePath`. Awkward to thread (every helper signature gained three more parameters); easy to miss-increment when adding a new code path; ugly to read at call sites.
+
+Wrapped them in a small private `Counters { int Composers; int Pieces; int Subpieces; }` class — a single argument carries all three. The class is `private sealed`; no external consumers, only the importer's helpers see it. Mutable by design — helpers bump counts in place, the outer `Import` method reads totals into the returned `ImportResult`.
+
+Pure refactor, no behaviour change. The existing 10 tests in `ItunesImporterTests` already cover the counter values via `ImportResult.NewComposers` / `NewPieces` / `NewSubpieces` assertions, so no new tests needed.
+
+Total: 629 tests (595 Core + 34 App), all pass. Counts: Medium 81→80, Total 178→177. Top-5 #3 was M4; reshuffles: H21 remainder → #3, M5 → #4, M3 (PieceRow EndPiece inverse-nav) → new #5.
 
 ### H24. iTunes import dedup widened to include performer
 [2026-05-24] `rework/itunes-dedup-performer` — Pre-fix the "already imported" filter keyed on `(album-title-lowercased, disc#, track#)`. Two genuinely different albums sharing a title (Karajan's Beethoven 9 and Bernstein's Beethoven 9 are both "Symphony No. 9") collided: after importing one, the other's tracks looked already-imported and were silently hidden from the preview grid.

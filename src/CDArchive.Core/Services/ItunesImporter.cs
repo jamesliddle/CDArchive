@@ -64,7 +64,11 @@ public static class ItunesImporter
         var newlyCreatedTopPieces = new Dictionary<(string, string), CanonPiece>(
             new CaseInsensitivePairComparer());
 
-        int newComposers = 0, newPieces = 0, newSubpieces = 0;
+        // M4: counters threaded through PopulatePieceRefs / GetOrCreateComposer
+        // / ResolveOrCreateTopPiece / EnsureSubpiecePath as a single bundle
+        // rather than three separate `ref int` parameters. Easy to miss-
+        // increment one when adding the next; one bundle means one read.
+        var counters = new Counters();
         var newAlbums      = new List<CanonAlbum>();
         var newLooseTracks = new List<AlbumTrack>();
 
@@ -90,8 +94,7 @@ public static class ItunesImporter
                 loose.Performers = performers.Select(name => new AlbumPerformer { Name = name }).ToList();
 
             PopulatePieceRefs(t, loose, composers, composerByName, pieces,
-                              resolver, newlyCreatedTopPieces,
-                              ref newComposers, ref newPieces, ref newSubpieces);
+                              resolver, newlyCreatedTopPieces, counters);
 
             newLooseTracks.Add(loose);
         }
@@ -196,8 +199,7 @@ public static class ItunesImporter
                     }
 
                     PopulatePieceRefs(track, albumTrack, composers, composerByName, pieces,
-                                      resolver, newlyCreatedTopPieces,
-                                      ref newComposers, ref newPieces, ref newSubpieces);
+                                      resolver, newlyCreatedTopPieces, counters);
 
                     disc.Tracks.Add(albumTrack);
                 }
@@ -209,7 +211,24 @@ public static class ItunesImporter
         }
 
         return new ImportResult(newAlbums, newLooseTracks,
-                                newComposers, newPieces, newSubpieces, tracks.Count);
+                                counters.Composers, counters.Pieces, counters.Subpieces, tracks.Count);
+    }
+
+    /// <summary>
+    /// Bundle for the three "new entities created during this import" counters
+    /// (composers / pieces / subpieces). Pre-fix these were threaded through
+    /// the import call graph as three separate <c>ref int</c> parameters, easy
+    /// to miss-increment when adding new sites. The bundle is private to
+    /// <see cref="ItunesImporter"/> — no external consumers — and intentionally
+    /// mutable: helper methods bump the counts in place during their work,
+    /// the outer <see cref="Import"/> reads the final totals into the
+    /// returned <see cref="ImportResult"/>. (M4)
+    /// </summary>
+    private sealed class Counters
+    {
+        public int Composers;
+        public int Pieces;
+        public int Subpieces;
     }
 
     /// <summary>
@@ -246,9 +265,7 @@ public static class ItunesImporter
         IList<CanonPiece> pieces,
         PieceReferenceIndex resolver,
         Dictionary<(string, string), CanonPiece> newlyCreatedTopPieces,
-        ref int newComposers,
-        ref int newPieces,
-        ref int newSubpieces)
+        Counters counters)
     {
         var parsedComposer = ItunesImportInference.ParseComposer(source.Composer);
         if (parsedComposer is null)
@@ -258,7 +275,7 @@ public static class ItunesImporter
             return;
         }
 
-        var composer = GetOrCreateComposer(parsedComposer, composers, composerByName, ref newComposers);
+        var composer = GetOrCreateComposer(parsedComposer, composers, composerByName, counters);
 
         // Ensure each contributor (e.g. "compl. Franco Alfano") has a
         // CanonComposer entry — their works often live in the canon too.
@@ -273,7 +290,7 @@ public static class ItunesImporter
                 var contribParsed = new ItunesImportInference.ParsedComposer(
                     c.Name, c.BirthYear, c.DeathYear);
                 var contribComposer = GetOrCreateComposer(
-                    contribParsed, composers, composerByName, ref newComposers);
+                    contribParsed, composers, composerByName, counters);
                 contributorComposers.Add((contribComposer, c.Role));
             }
         }
@@ -281,7 +298,7 @@ public static class ItunesImporter
         var parsedName = ItunesImportInference.ParseTrackName(source.Name);
         var topPiece = ResolveOrCreateTopPiece(composer, parsedName.PieceTitle,
                                                resolver, pieces, newlyCreatedTopPieces,
-                                               contributorComposers, ref newPieces);
+                                               contributorComposers, counters);
 
         if (parsedName.SubpieceRefs.Count == 0)
         {
@@ -299,7 +316,7 @@ public static class ItunesImporter
             target.PieceRefs = new List<TrackPieceRef>(parsedName.SubpieceRefs.Count);
             foreach (var subRef in parsedName.SubpieceRefs)
             {
-                EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, ref newSubpieces);
+                EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, counters);
                 target.PieceRefs.Add(new TrackPieceRef
                 {
                     Composer     = composer.Name,
@@ -328,7 +345,7 @@ public static class ItunesImporter
         ItunesImportInference.ParsedComposer parsed,
         IList<CanonComposer> composers,
         Dictionary<string, CanonComposer> byName,
-        ref int newCount)
+        Counters counters)
     {
         if (byName.TryGetValue(parsed.Name, out var existing))
             return existing;
@@ -343,7 +360,7 @@ public static class ItunesImporter
         };
         composers.Add(fresh);
         byName[fresh.Name] = fresh;
-        newCount++;
+        counters.Composers++;
         return fresh;
     }
 
@@ -371,7 +388,7 @@ public static class ItunesImporter
         IList<CanonPiece> pieces,
         Dictionary<(string, string), CanonPiece> newlyCreated,
         IReadOnlyList<(CanonComposer Composer, string Role)>? contributors,
-        ref int newCount)
+        Counters counters)
     {
         var key = (composer.Name, title);
         if (newlyCreated.TryGetValue(key, out var fromBatch))
@@ -415,7 +432,7 @@ public static class ItunesImporter
 
         pieces.Add(fresh);
         newlyCreated[key] = fresh;
-        newCount++;
+        counters.Pieces++;
         return fresh;
     }
 
@@ -428,7 +445,7 @@ public static class ItunesImporter
         CanonPiece root,
         IReadOnlyList<string> path,
         string? musicNumberForLeaf,
-        ref int newSubpieces)
+        Counters counters)
     {
         var current = root;
         for (int i = 0; i < path.Count; i++)
@@ -451,7 +468,7 @@ public static class ItunesImporter
                 if (!string.IsNullOrEmpty(parsedNumber))
                     existing.MusicNumber = parsedNumber;
                 current.Subpieces.Add(existing);
-                newSubpieces++;
+                counters.Subpieces++;
             }
             else
             {
