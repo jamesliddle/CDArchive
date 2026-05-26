@@ -305,4 +305,206 @@ public partial class TrackEditorViewModel : ObservableObject
         else
             field.InitMixed(mixedPlaceholder);
     }
+
+    // ── Save (slice 5) ────────────────────────────────────────────────────────
+    // The CommitCurrentTrack / CommitLooseTrack / SaveMulti orchestration
+    // previously lived on TrackEditorWindow's code-behind, reading from VM
+    // properties and writing to AlbumTrack / disc.Tracks / loose AlbumTrack
+    // instances. Slice 5 moves the data-mutation pass into the VM. The
+    // editor's code-behind retains only the UI-bound bits — validation
+    // feedback (MessageBox + Focus on the InvalidTrackNumber case) and
+    // DialogResult = true.
+    //
+    // Mirrors the AlbumEditor slice 4 pattern.
+
+    /// <summary>
+    /// Validation result returned by the Save methods. <see cref="None"/>
+    /// means the data-mutation succeeded and the caller can close the dialog
+    /// (or proceed to navigate, for Prev/Next). Other values indicate a
+    /// validation failure; the caller is expected to surface a user-visible
+    /// message and focus the relevant control.
+    /// </summary>
+    public enum SaveValidationError
+    {
+        None,
+        /// <summary>TrackNumber was missing or didn't parse to a positive integer.</summary>
+        InvalidTrackNumber,
+    }
+
+    /// <summary>
+    /// H13 TrackEditor slice 5: single-edit save. Validates TrackNumber, then
+    /// writes the VM state into the disc's track list. When
+    /// <paramref name="trackIndex"/> is past the end of <c>disc.Tracks</c>,
+    /// adds a fresh <see cref="AlbumTrack"/> (the "add-new" path); otherwise
+    /// updates the track at that index in place.
+    /// </summary>
+    public SaveValidationError SaveSingle(AlbumDisc disc, int trackIndex)
+    {
+        if (!int.TryParse((TrackNumber.Value ?? "").Trim(), out var num) || num <= 0)
+            return SaveValidationError.InvalidTrackNumber;
+
+        if (trackIndex >= disc.Tracks.Count)
+        {
+            var newTrack = new AlbumTrack();
+            ApplyToTrack(newTrack, num);
+            disc.Tracks.Add(newTrack);
+        }
+        else
+        {
+            ApplyToTrack(disc.Tracks[trackIndex], num);
+        }
+        return SaveValidationError.None;
+    }
+
+    /// <summary>
+    /// H13 TrackEditor slice 5: loose-track save. No validation (TrackNumber +
+    /// Session UI are hidden in loose mode). Forces TrackNumber=0 and
+    /// SessionIndex=null sentinels. Mutates the supplied track in place.
+    /// </summary>
+    public void SaveLoose(AlbumTrack track)
+    {
+        track.TrackNumber  = 0;
+        track.Duration     = NullIfEmpty(Duration.Value);
+        track.SparsCode    = SparsCodeFromString(SparsCode.Value);
+        track.IsStereo     = IsStereoFromString(IsStereo.Value);
+        track.Description  = NullIfEmpty(Description.Value);
+        track.FlacPath     = NullIfEmpty(FlacPath.Value);
+        track.Mp3Path      = NullIfEmpty(Mp3Path.Value);
+        track.PieceRefs    = PieceRefs.Items.Count   > 0 ? PieceRefs.Items.ToList()   : null;
+        track.Performers   = Performers.Items.Count > 0 ? Performers.Items.ToList() : null;
+        track.SessionIndex = null;
+    }
+
+    /// <summary>
+    /// H13 TrackEditor slice 5: multi-edit save. Applies per-field skip/append
+    /// semantics across every track in <paramref name="tracks"/>:
+    /// <list type="bullet">
+    ///   <item>Text fields: write only when StartedMixed=false OR user typed
+    ///     a non-empty value (preserves the "don't wipe on backspace" safety).</item>
+    ///   <item>Combobox fields (SparsCode, IsStereo, Session): write IFF
+    ///     !(StartedMixed && IsMixed) — i.e. unanimous OR user picked a value.</item>
+    ///   <item>List fields (PieceRefs, Performers): Unanimous → replace each
+    ///     track's list with a fresh copy; Mixed + WasEdited → append each
+    ///     editor entry to each track's existing list (additive semantic).</item>
+    ///   <item>TrackNumber: validated only when !allLoose AND user touched it
+    ///     (must parse to positive integer). Returns
+    ///     <see cref="SaveValidationError.InvalidTrackNumber"/> if validation
+    ///     fails; the caller surfaces the message and focuses the control.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="tracks">The tracks being bulk-edited.</param>
+    /// <param name="allLoose">True when every track is a loose track. Hides
+    /// the TrackNumber UI in the View and skips TrackNumber + Session writes
+    /// here (loose tracks stay at TrackNumber=0, SessionIndex=null sentinels).</param>
+    public SaveValidationError SaveMulti(IReadOnlyList<AlbumTrack> tracks, bool allLoose)
+    {
+        // Track # — skip when allLoose batch OR Mixed-but-untouched.
+        int? trackNum = null;
+        if (!allLoose && !SkipMixedTextWrite(TrackNumber))
+        {
+            var trackNumText = (TrackNumber.Value ?? "").Trim();
+            if (!int.TryParse(trackNumText, out var n) || n <= 0)
+                return SaveValidationError.InvalidTrackNumber;
+            trackNum = n;
+        }
+        if (trackNum is { } resolvedTrackNum)
+            foreach (var t in tracks) t.TrackNumber = resolvedTrackNum;
+
+        // Text fields.
+        ApplyMixedFieldText(Duration,    v => { foreach (var t in tracks) t.Duration    = v; });
+        ApplyMixedFieldText(Description, v => { foreach (var t in tracks) t.Description = v; });
+
+        // Combobox fields (SparsCode, IsStereo): write IFF !(StartedMixed && IsMixed).
+        if (!(SparsCode.StartedMixed && SparsCode.IsMixed))
+        {
+            var spars = SparsCodeFromString(SparsCode.Value);
+            foreach (var t in tracks) t.SparsCode = spars;
+        }
+        if (!(IsStereo.StartedMixed && IsStereo.IsMixed))
+        {
+            var stereo = IsStereoFromString(IsStereo.Value);
+            foreach (var t in tracks) t.IsStereo = stereo;
+        }
+
+        // Session — same contract. The "(multiple albums — cannot edit)" case
+        // loads as IsMixed=true so this skips; the !allLoose check above
+        // doesn't apply because for allLoose Session also loads as Mixed.
+        if (!(Session.StartedMixed && Session.IsMixed))
+        {
+            foreach (var t in tracks) t.SessionIndex = Session.Value;
+        }
+
+        // Lists — branch on Unanimous (replace) vs Mixed (append).
+        ApplyListMulti(PieceRefs, tracks,
+            t => t.PieceRefs,
+            (t, v) => t.PieceRefs = v,
+            () => new List<TrackPieceRef>());
+
+        ApplyListMulti(Performers, tracks,
+            t => t.Performers,
+            (t, v) => t.Performers = v,
+            () => new List<AlbumPerformer>());
+
+        return SaveValidationError.None;
+    }
+
+    /// <summary>Internal: write every scalar + list field on <paramref name="target"/>.</summary>
+    private void ApplyToTrack(AlbumTrack target, int trackNumber)
+    {
+        target.TrackNumber  = trackNumber;
+        target.Duration     = NullIfEmpty(Duration.Value);
+        target.SparsCode    = SparsCodeFromString(SparsCode.Value);
+        target.IsStereo     = IsStereoFromString(IsStereo.Value);
+        target.Description  = NullIfEmpty(Description.Value);
+        target.FlacPath     = NullIfEmpty(FlacPath.Value);
+        target.Mp3Path      = NullIfEmpty(Mp3Path.Value);
+        target.PieceRefs    = PieceRefs.Items.Count   > 0 ? PieceRefs.Items.ToList()   : null;
+        target.SessionIndex = Session.Value;
+        target.Performers   = Performers.Items.Count > 0 ? Performers.Items.ToList() : null;
+    }
+
+    /// <summary>True when a multi-edit save should skip this text field.</summary>
+    private static bool SkipMixedTextWrite(MixedField<string> field) =>
+        field.StartedMixed && (field.IsMixed || string.IsNullOrEmpty(field.Value));
+
+    private static void ApplyMixedFieldText(MixedField<string> field, Action<string?> setter)
+    {
+        if (SkipMixedTextWrite(field)) return;
+        setter(NullIfEmpty(field.Value));
+    }
+
+    /// <summary>
+    /// Apply a multi-edit list to every track. Unanimous mode = replace each
+    /// track's list with a fresh copy. Mixed mode = append additions to each
+    /// track's existing list, preserving prior entries.
+    /// </summary>
+    private static void ApplyListMulti<T>(
+        MixedCollection<T>           field,
+        IReadOnlyList<AlbumTrack>    tracks,
+        Func<AlbumTrack, List<T>?>   getter,
+        Action<AlbumTrack, List<T>?> setter,
+        Func<List<T>>                newEmptyList)
+    {
+        if (field.StartedMixed)
+        {
+            if (!field.WasEdited || field.Items.Count == 0) return;
+            foreach (var t in tracks)
+            {
+                var existing = getter(t) ?? newEmptyList();
+                foreach (var item in field.Items) existing.Add(item);
+                setter(t, existing);
+            }
+        }
+        else
+        {
+            foreach (var t in tracks)
+            {
+                var copy = field.Items.Count > 0 ? field.Items.ToList() : null;
+                setter(t, copy);
+            }
+        }
+    }
+
+    private static string? NullIfEmpty(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
