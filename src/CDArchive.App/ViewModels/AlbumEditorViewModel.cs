@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CDArchive.App.Helpers;
 using CDArchive.Core.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -80,6 +81,21 @@ public partial class AlbumEditorViewModel : ObservableObject
     public static string? SparsCodeFromString(string? v) =>
         string.IsNullOrEmpty(v) ? null : v;
 
+    // ── List-shaped fields (slice 3) ──────────────────────────────────────────
+    // Performers and Sessions live as ObservableCollections so the ListView
+    // ItemsSource bindings auto-update on Add/Edit/Remove without manual
+    // ItemsSource = null; ItemsSource = list reset cycles. The Add/Edit/Remove
+    // button handlers stay in the editor's code-behind because they open
+    // modal child dialogs (PerformerEditorWindow / SessionEditorWindow) that
+    // need Window.GetWindow(this) as Owner — a legitimate View concern.
+    //
+    // Both tabs (Performers and Sessions) are hidden in multi-edit (per H18's
+    // ShowPerformersTab / ShowSessionsTab visibility bindings). LoadMulti
+    // leaves these empty; SaveMulti doesn't read them.
+
+    public ObservableCollection<AlbumPerformer>  Performers { get; } = new();
+    public ObservableCollection<RecordingSession> Sessions  { get; } = new();
+
     /// <summary>
     /// Populate from a single album (single-edit mode). Every field becomes
     /// Unanimous with the album's current value; <see cref="MixedField{T}.WasEdited"/>
@@ -99,6 +115,13 @@ public partial class AlbumEditorViewModel : ObservableObject
         Notes.InitUnanimous(album.Notes           ?? "");
         SparsCode.InitUnanimous(SparsCodeToString(album.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(album.IsStereo));
+
+        Performers.Clear();
+        if (album.Performers is { Count: > 0 } perfs)
+            foreach (var p in perfs) Performers.Add(p);
+        Sessions.Clear();
+        if (album.Sessions is { Count: > 0 } sess)
+            foreach (var s in sess) Sessions.Add(s);
     }
 
     /// <summary>
@@ -129,6 +152,13 @@ public partial class AlbumEditorViewModel : ObservableObject
         // string the user would see selected).
         Init(SparsCode, albums.Select(a => SparsCodeToString(a.SparsCode)), SparsCodeMixedSentinel);
         Init(IsStereo,  albums.Select(a => IsStereoToString(a.IsStereo)),  IsStereoMixedSentinel);
+
+        // Performers / Sessions tabs are hidden in multi-edit (H18); leave
+        // the collections empty. SaveMulti's per-album backfill of
+        // track.Performers reads from each album.Performers directly, not
+        // from the VM.
+        Performers.Clear();
+        Sessions.Clear();
     }
 
     private static void Init(MixedField<string> field, IEnumerable<string> values, string mixedPlaceholder)
