@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CDArchive.App.Helpers;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -169,4 +170,160 @@ public partial class AlbumEditorViewModel : ObservableObject
         else
             field.InitMixed(mixedPlaceholder);
     }
+
+    // ── Save (slice 4) ────────────────────────────────────────────────────────
+    // The single- and multi-edit save flows previously lived as `OnSaveClick`
+    // + `SaveMulti` methods on the editor's code-behind, reading directly from
+    // TextBox/ComboBox elements and tracking "did this field start Mixed" via
+    // a per-window HashSet<string> _mixedFields. Slice 4 moves the data-mutation
+    // pass into the VM: SaveSingle / SaveMulti operate on the album(s) directly
+    // using only the VM's MixedField<T> state. The editor's code-behind retains
+    // only the UI-bound bits (Title-required MessageBox + tab focus on
+    // validation failure, DialogResult = true on success).
+    //
+    // The HashSet retires because MixedField<T>.StartedMixed (added in this
+    // slice) covers the same information per-field.
+
+    /// <summary>
+    /// Single-edit validation result. <see cref="None"/> means the album was
+    /// successfully mutated and the caller can close the dialog with success.
+    /// </summary>
+    public enum SaveValidationError
+    {
+        None,
+        /// <summary>Title was empty/whitespace.</summary>
+        MissingTitle,
+    }
+
+    /// <summary>
+    /// H13 slice 4: single-edit save. Validates the Title is non-empty, then
+    /// writes every VM field into <paramref name="album"/>, snapshots the
+    /// Performers + Sessions ObservableCollections into the album's List
+    /// fields, removes empty discs, and runs
+    /// <see cref="AlbumFieldPropagator.Propagate"/> to push inheritable
+    /// album-level fields down to every track.
+    /// <para>Returns <see cref="SaveValidationError.None"/> on success;
+    /// <see cref="SaveValidationError.MissingTitle"/> if the Title is blank
+    /// (the album is then left unmutated and the caller is expected to surface
+    /// a validation message + focus the Title field).</para>
+    /// </summary>
+    public SaveValidationError SaveSingle(CanonAlbum album, AlbumFieldPropagator.InheritableSnapshot originalInheritable)
+    {
+        var title = (Title.Value ?? "").Trim();
+        if (string.IsNullOrEmpty(title)) return SaveValidationError.MissingTitle;
+
+        album.Title           = title;
+        album.Subtitle        = NullIfEmpty(Subtitle.Value);
+        album.Label           = NullIfEmpty(Label.Value);
+        album.CatalogueNumber = NullIfEmpty(CatalogueNumber.Value);
+        album.Barcode         = NullIfEmpty(Barcode.Value);
+        album.ArchiveFolder   = NullIfEmpty(ArchiveFolder.Value);
+        album.SparsCode       = SparsCodeFromString(SparsCode.Value);
+        album.Notes           = NullIfEmpty(Notes.Value);
+        album.IsStereo        = IsStereoFromString(IsStereo.Value);
+
+        // Snapshot the ObservableCollections to List<T> on save — the CanonAlbum
+        // model fields are List<T>?, and storing the ObservableCollection instance
+        // directly would be a type mismatch + would tie the model to a UI-facing
+        // collection type.
+        album.Performers = Performers.Count > 0 ? Performers.ToList() : null;
+        album.Sessions   = Sessions.Count   > 0 ? Sessions.ToList()   : null;
+
+        album.Discs.RemoveAll(d => d.Tracks.Count == 0);
+
+        // Propagate inheritable album-level fields down to every track. The
+        // propagator's snapshot vs current diff implements:
+        //   • field changed → push to every track (overwrites prior overrides)
+        //   • field unchanged → backfill null tracks only.
+        AlbumFieldPropagator.Propagate(album, originalInheritable);
+
+        return SaveValidationError.None;
+    }
+
+    /// <summary>
+    /// H13 slice 4: multi-edit save. For each field, writes only when the user
+    /// actually engaged with it:
+    /// <list type="bullet">
+    ///   <item>Text fields started Unanimous → always write (even empty —
+    ///     the user's clear intent).</item>
+    ///   <item>Text fields started Mixed AND user typed something → write.</item>
+    ///   <item>Text fields started Mixed AND user did NOT type (still showing
+    ///     placeholder, or cleared placeholder without retyping) → skip.
+    ///     Critical: clearing-without-typing must not wipe every album to empty.</item>
+    ///   <item>Combobox fields (SparsCode / IsStereo): started Unanimous or
+    ///     user picked a value (cleared <see cref="MixedField{T}.IsMixed"/>)
+    ///     → write. Started Mixed AND still Mixed → skip.</item>
+    /// </list>
+    /// Performers + Sessions are not editable in multi-edit (those tabs are
+    /// hidden per H18); only the per-track null-backfill semantics apply.
+    /// </summary>
+    public void SaveMulti(IReadOnlyList<CanonAlbum> albums)
+    {
+        ApplyMixedFieldText(Title,           v => { foreach (var a in albums) a.Title           = v; });
+        ApplyMixedFieldText(Subtitle,        v => { foreach (var a in albums) a.Subtitle        = v; });
+        ApplyMixedFieldText(Label,           v => { foreach (var a in albums) a.Label           = v; });
+        ApplyMixedFieldText(CatalogueNumber, v => { foreach (var a in albums) a.CatalogueNumber = v; });
+        ApplyMixedFieldText(Barcode,         v => { foreach (var a in albums) a.Barcode         = v; });
+        ApplyMixedFieldText(ArchiveFolder,   v => { foreach (var a in albums) a.ArchiveFolder   = v; });
+        ApplyMixedFieldText(Notes,           v => { foreach (var a in albums) a.Notes           = v; });
+
+        // SparsCode + IsStereo: write IFF !(started Mixed AND still Mixed). For
+        // a combo started Unanimous, IsMixed is false from the start so this
+        // always passes. For one started Mixed, the SelectionChanged handler
+        // sets the VM value (clearing IsMixed) when the user picks an item.
+        var sparsTouched = !(SparsCode.StartedMixed && SparsCode.IsMixed);
+        string? sparsValue = null;
+        if (sparsTouched)
+        {
+            sparsValue = SparsCodeFromString(SparsCode.Value);
+            foreach (var a in albums) a.SparsCode = sparsValue;
+        }
+
+        var stereoTouched = !(IsStereo.StartedMixed && IsStereo.IsMixed);
+        bool? stereoValue = null;
+        if (stereoTouched)
+        {
+            stereoValue = IsStereoFromString(IsStereo.Value);
+            foreach (var a in albums) a.IsStereo = stereoValue;
+        }
+
+        // Track backfill: push album-level changes down + backfill nulls with
+        // the album's current value. Mirrors AlbumFieldPropagator.Propagate but
+        // here runs per-album in the multi-edit batch. Performers stays
+        // per-album in multi-edit (the Performers tab is hidden) — backfill
+        // nulls from each album's own performer list.
+        foreach (var a in albums)
+        {
+            foreach (var disc in a.Discs)
+            {
+                foreach (var track in disc.Tracks)
+                {
+                    if (sparsTouched || track.SparsCode is null)
+                        track.SparsCode = sparsTouched ? sparsValue : a.SparsCode;
+
+                    if (stereoTouched || track.IsStereo is null)
+                        track.IsStereo  = stereoTouched ? stereoValue : a.IsStereo;
+
+                    if (track.Performers is null)
+                        track.Performers = AlbumFieldPropagator.ClonePerformers(a.Performers);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// VM-side equivalent of the editor's pre-slice-4 <c>ApplyMixedFieldText</c>.
+    /// Skips when the field is in the "user-didn't-engage" state for a
+    /// previously-Mixed field; otherwise writes the trimmed-and-null-if-empty
+    /// value through <paramref name="setter"/>.
+    /// </summary>
+    private static void ApplyMixedFieldText(MixedField<string> field, Action<string?> setter)
+    {
+        if (field.StartedMixed && (field.IsMixed || string.IsNullOrEmpty(field.Value)))
+            return;
+        setter(NullIfEmpty(field.Value));
+    }
+
+    private static string? NullIfEmpty(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
