@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
@@ -40,7 +41,9 @@ public partial class AlbumEditorWindow : Window
 
     private readonly bool _isMixed;                          // true when editing several albums at once
     private readonly IReadOnlyList<CanonAlbum>? _editAlbums; // the albums being bulk-edited
-    private readonly HashSet<string> _mixedFields = [];      // field names whose values differ across albums
+    // H13 slice 4: the per-window HashSet<string> _mixedFields retired — its job
+    // ("which fields started Mixed?") now lives on each MixedField<T> as the
+    // StartedMixed property. SaveMulti on the VM consumes that directly.
 
     // ── Result (single-edit only) ─────────────────────────────────────────────
 
@@ -175,30 +178,29 @@ public partial class AlbumEditorWindow : Window
         // chrome + first-edit-clear keystroke wiring on top of the binding.
         _vm.LoadMulti(albums, MixedPlaceholder.PlaceholderText);
 
-        if (_vm.Title.IsMixed)           { MixedPlaceholder.Apply(TitleBox);           _mixedFields.Add("Title"); }
-        if (_vm.Subtitle.IsMixed)        { MixedPlaceholder.Apply(SubtitleBox);        _mixedFields.Add("Subtitle"); }
-        if (_vm.Label.IsMixed)           { MixedPlaceholder.Apply(LabelBox);           _mixedFields.Add("Label"); }
-        if (_vm.CatalogueNumber.IsMixed) { MixedPlaceholder.Apply(CatalogueNumberBox); _mixedFields.Add("CatalogueNumber"); }
-        if (_vm.Barcode.IsMixed)         { MixedPlaceholder.Apply(BarcodeBox);         _mixedFields.Add("Barcode"); }
-        if (_vm.ArchiveFolder.IsMixed)   { MixedPlaceholder.Apply(ArchiveFolderBox);   _mixedFields.Add("ArchiveFolder"); }
-        if (_vm.Notes.IsMixed)           { MixedPlaceholder.Apply(NotesBox);           _mixedFields.Add("Notes"); }
+        // H13 slice 4: MixedPlaceholder.Apply still owns the gray-italic UI
+        // chrome + first-edit-clear keystroke wiring on TextBox / editable
+        // ComboBox. The "did this field start Mixed?" tracking that was the
+        // _mixedFields HashSet's job now lives on MixedField<T>.StartedMixed,
+        // set inside the VM's LoadMulti via InitMixed.
+        if (_vm.Title.IsMixed)           MixedPlaceholder.Apply(TitleBox);
+        if (_vm.Subtitle.IsMixed)        MixedPlaceholder.Apply(SubtitleBox);
+        if (_vm.Label.IsMixed)           MixedPlaceholder.Apply(LabelBox);
+        if (_vm.CatalogueNumber.IsMixed) MixedPlaceholder.Apply(CatalogueNumberBox);
+        if (_vm.Barcode.IsMixed)         MixedPlaceholder.Apply(BarcodeBox);
+        if (_vm.ArchiveFolder.IsMixed)   MixedPlaceholder.Apply(ArchiveFolderBox);
+        if (_vm.Notes.IsMixed)           MixedPlaceholder.Apply(NotesBox);
 
         // H13 slice 2: SparsCode + IsStereo sync from VM. When the VM loaded
         // them as Mixed, append the "Mixed" sentinel ComboBoxItem and select
-        // it. _mixedFields is still populated for compatibility with the
-        // remaining SaveMulti logic for the combos.
+        // it. The combos' "started Mixed" state is read from
+        // _vm.SparsCode.StartedMixed / _vm.IsStereo.StartedMixed at save time.
         if (_vm.SparsCode.IsMixed)
-        {
             SparsCodeCombo.AppendMixedSentinel(SparsCodeBox);
-            _mixedFields.Add("SparsCode");
-        }
         else
-        {
             SparsCodeCombo.SelectValue(SparsCodeBox, _vm.SparsCode.Value);
-        }
 
         SetStereoComboFromVm();
-        if (_vm.IsStereo.IsMixed) _mixedFields.Add("IsStereo");
     }
 
     /// <summary>
@@ -600,155 +602,50 @@ public partial class AlbumEditorWindow : Window
     }
 
     // ── Save ─────────────────────────────────────────────────────────────────
+    //
+    // H13 slice 4: data-mutation pass moved into the VM. The code-behind
+    // retains only UI-bound bits — validation feedback (MessageBox + tab focus
+    // + Title control focus on the missing-Title case) for single-edit, and
+    // DialogResult = true for both flows. The VM's SaveSingle / SaveMulti are
+    // unit-testable without a WPF host.
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        if (_isMixed) { SaveMulti(); return; }
-
-        // H13 slice 1: text fields read from the VM (TwoWay-bound, so this is
-        // the current TextBox content as the binding propagated it). SparsCode
-        // + IsStereo stay code-behind until a later slice migrates them.
-        var title = (_vm.Title.Value ?? "").Trim();
-        if (string.IsNullOrEmpty(title))
+        if (_isMixed)
         {
-            MessageBox.Show("Title is required.", "Validation",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            MainTabs.SelectedIndex = 0;
-            TitleBox.Focus();
+            _vm.SaveMulti(_editAlbums!);
+            DialogResult = true;
             return;
         }
 
-        _album.Title           = title;
-        _album.Subtitle        = NullIfEmpty(_vm.Subtitle.Value);
-        _album.Label           = NullIfEmpty(_vm.Label.Value);
-        _album.CatalogueNumber = NullIfEmpty(_vm.CatalogueNumber.Value);
-        _album.Barcode         = NullIfEmpty(_vm.Barcode.Value);
-        _album.ArchiveFolder   = NullIfEmpty(_vm.ArchiveFolder.Value);
-        _album.SparsCode       = AlbumEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
-        _album.Notes           = NullIfEmpty(_vm.Notes.Value);
-        _album.IsStereo        = AlbumEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
-
-        // H13 slice 3: snapshot ObservableCollections to List<T> on save — the
-        // CanonAlbum model fields are List<T>?, and storing the ObservableCollection
-        // instance directly would be a type mismatch + would tie the model to a
-        // UI-facing collection type.
-        _album.Performers = _vm.Performers.Count > 0 ? _vm.Performers.ToList() : null;
-        _album.Sessions   = _vm.Sessions.Count   > 0 ? _vm.Sessions.ToList()   : null;
-
-        _album.Discs.RemoveAll(d => d.Tracks.Count == 0);
-
-        // Propagate inheritable album-level fields down to every track when the
-        // user actually changed them in this editor session. This implements the
-        // "set at album level → push to every track" semantic. Track-level edits
-        // (via the Track editor) remain isolated.
-        AlbumFieldPropagator.Propagate(_album, _originalInheritable);
-
-        Result = _album;
-        DialogResult = true;
-    }
-
-    /// <summary>
-    /// Applies only the fields that were changed (i.e. not still showing "Mixed")
-    /// to every album in the bulk-edit set.
-    /// </summary>
-    private void SaveMulti()
-    {
-        // H13 slice 1: text fields source their values from the VM's
-        // MixedField<string> wrappers. ApplyMixedFieldText preserves the
-        // pre-fix semantics: don't write to all albums if the field is still
-        // showing the placeholder, and don't wipe-all-to-empty if the user
-        // cleared a mixed field without typing a replacement.
-        ApplyMixedFieldText("Title",           _vm.Title,           v => { foreach (var a in _editAlbums!) a.Title           = v; });
-        ApplyMixedFieldText("Subtitle",        _vm.Subtitle,        v => { foreach (var a in _editAlbums!) a.Subtitle        = v; });
-        ApplyMixedFieldText("Label",           _vm.Label,           v => { foreach (var a in _editAlbums!) a.Label           = v; });
-        ApplyMixedFieldText("CatalogueNumber", _vm.CatalogueNumber, v => { foreach (var a in _editAlbums!) a.CatalogueNumber = v; });
-        ApplyMixedFieldText("Barcode",         _vm.Barcode,         v => { foreach (var a in _editAlbums!) a.Barcode         = v; });
-        ApplyMixedFieldText("ArchiveFolder",   _vm.ArchiveFolder,   v => { foreach (var a in _editAlbums!) a.ArchiveFolder   = v; });
-        // H13 slice 2: SparsCode + IsStereo read from VM. The
-        // SelectionChanged handlers push every user pick into the VM; if the
-        // user never touched a field that loaded Mixed, _vm.X.IsMixed is
-        // still true (no SelectionChanged fired) and we skip writing.
-        var sparsTouched = !_mixedFields.Contains("SparsCode") || !_vm.SparsCode.IsMixed;
-        var sparsBoxValue = sparsTouched
-            ? AlbumEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value)
-            : null;
-        if (sparsTouched)
-            foreach (var a in _editAlbums!) a.SparsCode = sparsBoxValue;
-        ApplyMixedFieldText("Notes",           _vm.Notes,           v => { foreach (var a in _editAlbums!) a.Notes           = v; });
-
-        // IsStereo via VM. Same shape: only write when not still showing the
-        // Mixed sentinel (i.e. user touched the dropdown).
-        var stereoChanged = !_mixedFields.Contains("IsStereo") || !_vm.IsStereo.IsMixed;
-        bool? stereoNew = null;
-        if (stereoChanged)
+        var error = _vm.SaveSingle(_album, _originalInheritable);
+        switch (error)
         {
-            stereoNew = AlbumEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
-            foreach (var a in _editAlbums!) a.IsStereo = stereoNew;
-        }
-
-        // Propagate to tracks. Two rules per inheritable field:
-        //   • If the user changed the field at the album level (i.e. it's not
-        //     still showing "Mixed"), push the new value down to every track of
-        //     every album, overwriting any prior track-level value.
-        //   • Otherwise, backfill — for each album, any track whose value is
-        //     null receives the album's current value. This keeps the "no
-        //     Inherit" contract for new tracks and legacy null tracks while
-        //     leaving non-null overrides alone.
-        // Performers aren't editable in multi-edit (the Performers tab is hidden),
-        // so we only backfill that field per-album.
-        foreach (var a in _editAlbums!)
-        {
-            foreach (var disc in a.Discs)
-            {
-                foreach (var track in disc.Tracks)
+            case AlbumEditorViewModel.SaveValidationError.MissingTitle:
+                MessageBox.Show("Title is required.", "Validation",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MainTabs.SelectedIndex = 0;
+                // When MessageBox.Show returns, WPF restores focus to the OK
+                // button (the dialog button that opened the MessageBox) via the
+                // dispatcher — AFTER our synchronous call. A direct TitleBox.Focus()
+                // here gets clobbered. Defer the focus through the dispatcher at
+                // Input priority so it runs after WPF's restoration. Also force a
+                // layout pass first because if the Details tab wasn't already
+                // active, TitleBox's container has only just been realised.
+                Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (sparsTouched || track.SparsCode is null)
-                        track.SparsCode = sparsTouched ? sparsBoxValue : a.SparsCode;
+                    TitleBox.UpdateLayout();
+                    TitleBox.Focus();
+                    Keyboard.Focus(TitleBox);
+                    TitleBox.SelectAll();
+                }), DispatcherPriority.Input);
+                return;
 
-                    if (stereoChanged || track.IsStereo is null)
-                        track.IsStereo  = stereoChanged ? stereoNew : a.IsStereo;
-
-                    // Performers are per-album in multi-edit; only backfill nulls.
-                    if (track.Performers is null)
-                        track.Performers = AlbumFieldPropagator.ClonePerformers(a.Performers);
-                }
-            }
+            case AlbumEditorViewModel.SaveValidationError.None:
+            default:
+                Result = _album;
+                DialogResult = true;
+                return;
         }
-
-        DialogResult = true;
     }
-
-    // Propagation lives in CDArchive.Core.Helpers.AlbumFieldPropagator —
-    // tested directly via AlbumFieldPropagatorTests.
-
-    /// <summary>
-    /// H13 slice 1: VM-driven equivalent of the old <c>ApplyText</c>. Preserves
-    /// the pre-fix semantics — for a field that started Mixed:
-    /// <list type="bullet">
-    ///   <item>Still showing the placeholder (<c>field.IsMixed == true</c>) → skip.
-    ///     The user never touched it, so don't propagate to all albums.</item>
-    ///   <item>User cleared the placeholder but typed nothing (<c>Value</c> is
-    ///     empty) → skip. Don't wipe every album to blank as a side effect of
-    ///     clearing chrome.</item>
-    ///   <item>User typed something — apply (via <see cref="NullIfEmpty"/>).</item>
-    /// </list>
-    /// For fields that started Unanimous, the IsMixed check returns false and
-    /// the empty check is suppressed by <c>!_mixedFields.Contains(fieldName)</c>
-    /// — so a unanimous-empty field stays empty across albums (idempotent),
-    /// and a deliberately-emptied unanimous field also writes empty (the user
-    /// wanted to wipe; unanimous wasn't mixed to begin with).
-    /// </summary>
-    private void ApplyMixedFieldText(string fieldName, MixedField<string> field, Action<string?> setter)
-    {
-        if (_mixedFields.Contains(fieldName) &&
-            (field.IsMixed || string.IsNullOrEmpty(field.Value)))
-            return;
-
-        setter(NullIfEmpty(field.Value));
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static string? NullIfEmpty(string? s) =>
-        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

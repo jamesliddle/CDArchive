@@ -95,4 +95,62 @@ public class MixedFieldTests
         Assert.True(f.IsMixed);
         Assert.False(f.WasEdited);
     }
+
+    // ── H13 slice 4: StartedMixed property ───────────────────────────────────
+
+    [Fact]
+    public void InitUnanimous_SetsStartedMixedFalse()
+    {
+        var f = new MixedField<string>();
+        f.InitUnanimous("hi");
+        Assert.False(f.StartedMixed);
+    }
+
+    [Fact]
+    public void InitMixed_SetsStartedMixedTrue()
+    {
+        var f = new MixedField<string>();
+        f.InitMixed("(Mixed)");
+        Assert.True(f.StartedMixed);
+    }
+
+    [Fact]
+    public void StartedMixed_StaysTrue_AfterUserEdits()
+    {
+        // This is the whole point: the editor's SaveMulti needs to know "did
+        // this field start Mixed?" even after the user dismissed the
+        // placeholder and typed something. IsMixed clears on edit; StartedMixed
+        // must not.
+        var f = new MixedField<string>();
+        f.InitMixed("(Mixed)");
+        f.Value = "user typed this";
+
+        Assert.False(f.IsMixed);
+        Assert.True(f.StartedMixed);
+        Assert.True(f.WasEdited);
+    }
+
+    [Fact]
+    public void StartedMixed_ResetsToFalse_OnInitUnanimousAfterMixed()
+    {
+        // Re-initialising must reset StartedMixed — important for the
+        // theoretical re-show flow where the same VM is reused across loads.
+        var f = new MixedField<string>();
+        f.InitMixed("(Mixed)");
+        Assert.True(f.StartedMixed);
+
+        f.InitUnanimous("re-loaded");
+        Assert.False(f.StartedMixed);
+    }
+
+    [Fact]
+    public void StartedMixed_StaysFalse_OnUnanimousFieldThatUserEdits()
+    {
+        var f = new MixedField<string>();
+        f.InitUnanimous("loaded");
+        f.Value = "user edit";
+
+        Assert.False(f.StartedMixed);
+        Assert.True(f.WasEdited);
+    }
 }

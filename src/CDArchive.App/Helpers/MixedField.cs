@@ -42,6 +42,19 @@ public partial class MixedField<T> : ObservableObject
     public bool WasEdited { get; private set; }
 
     /// <summary>
+    /// True iff the field was last initialised via <see cref="InitMixed"/>
+    /// (i.e. the multi-edit selection's values differed at load time).
+    /// Stays true even after the user edits the field — distinguishing
+    /// "this field started Unanimous so an empty user value is intentional"
+    /// from "this field started Mixed so an empty user value is the result
+    /// of clearing the placeholder without typing a replacement and we
+    /// should NOT wipe every selected item to empty as a side effect".
+    /// <para>Used by <c>AlbumEditorViewModel.SaveMulti</c> (H13 slice 4) to
+    /// replace the editor's per-window <c>_mixedFields</c> HashSet.</para>
+    /// </summary>
+    public bool StartedMixed { get; private set; }
+
+    /// <summary>
     /// Suppresses <see cref="WasEdited"/> tracking while the Init* methods set
     /// <see cref="Value"/> and <see cref="IsMixed"/>. Without this the
     /// programmatic load itself would trip <see cref="WasEdited"/>.
@@ -57,8 +70,9 @@ public partial class MixedField<T> : ObservableObject
         _initializing = true;
         try
         {
-            IsMixed = false;
-            Value   = value;
+            IsMixed      = false;
+            StartedMixed = false;
+            Value        = value;
         }
         finally
         {
@@ -78,8 +92,9 @@ public partial class MixedField<T> : ObservableObject
         _initializing = true;
         try
         {
-            Value   = mixedPlaceholder;
-            IsMixed = true;
+            Value        = mixedPlaceholder;
+            IsMixed      = true;
+            StartedMixed = true;
         }
         finally
         {
