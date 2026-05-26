@@ -144,6 +144,33 @@ public partial class TrackEditorViewModel : ObservableObject
     /// </summary>
     internal const int SessionMixedPlaceholder = int.MinValue;
 
+    // ── List-shaped fields (slice 4) ──────────────────────────────────────────
+    // PieceRefs and Performers are observable collections with Mixed/Unanimous
+    // state. Unlike AlbumEditor's Performers + Sessions (slice 3), these lists
+    // ARE editable in the TrackEditor's multi-edit mode — so we need the
+    // StartedMixed + WasEdited contract on the list level too.
+    //
+    // Pre-slice the code-behind tracked each list's state via two parallel
+    // booleans (_pieceRefsUntouched / _performersUntouched) + an entry in the
+    // _mixedFields HashSet. MixedCollection<T> centralises the contract:
+    //   • Unanimous load + user edits → save writes (idempotent rewrite).
+    //   • Mixed load + no user edit → save skips (preserves each track's list).
+    //   • Mixed load + user Add/Remove → save writes (replaces each track's list).
+
+    /// <summary>
+    /// Track-level piece references. <c>Items</c> is the observable list bound
+    /// to the editor's <c>PieceRefList</c>. <see cref="MixedCollection{T}.StartedMixed"/>
+    /// is true when the multi-edit selection's PieceRefs differed;
+    /// <see cref="MixedCollection{T}.WasEdited"/> flips true on the user's
+    /// first Add/Remove. Save writes IFF <c>ShouldWriteOnSave</c>.
+    /// </summary>
+    public MixedCollection<TrackPieceRef> PieceRefs { get; } = new();
+
+    /// <summary>
+    /// Track-level performers. Same shape as <see cref="PieceRefs"/>.
+    /// </summary>
+    public MixedCollection<AlbumPerformer> Performers { get; } = new();
+
     /// <summary>
     /// Populate from a single track (single-edit mode). Every field becomes
     /// Unanimous with the track's current value; <see cref="MixedField{T}.WasEdited"/>
@@ -159,6 +186,8 @@ public partial class TrackEditorViewModel : ObservableObject
         SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
         Session.InitUnanimous(track.SessionIndex);
+        PieceRefs.InitUnanimous(track.PieceRefs   ?? []);
+        Performers.InitUnanimous(track.Performers ?? []);
     }
 
     /// <summary>
@@ -176,6 +205,8 @@ public partial class TrackEditorViewModel : ObservableObject
         SparsCode.InitUnanimous(SparsCodeToString(null));   // "Unknown"
         IsStereo.InitUnanimous(IsStereoToString(null));     // "Unknown"
         Session.InitUnanimous(null);                         // "(no session)"
+        PieceRefs.InitUnanimous([]);
+        Performers.InitUnanimous([]);
     }
 
     /// <summary>
@@ -220,6 +251,31 @@ public partial class TrackEditorViewModel : ObservableObject
             if (distinct.Count == 1) Session.InitUnanimous(distinct[0]);
             else                     Session.InitMixed(SessionMixedPlaceholder);
         }
+
+        // PieceRefs + Performers: compare lists by JSON fingerprint (order
+        // matters; the model's lists are positional). All-equal → load the
+        // shared list as Unanimous; differing → load empty as Mixed and
+        // surface the "Mixed" banner in the View. User's first Add/Remove
+        // flips WasEdited → save writes the new list to every track.
+        InitListMixed(PieceRefs,  tracks.Select(t => t.PieceRefs   as IEnumerable<TrackPieceRef>  ?? []));
+        InitListMixed(Performers, tracks.Select(t => t.Performers as IEnumerable<AlbumPerformer> ?? []));
+    }
+
+    private static void InitListMixed<T>(MixedCollection<T> field, IEnumerable<IEnumerable<T>> trackLists)
+    {
+        var fingerprints = trackLists.Select(l => System.Text.Json.JsonSerializer.Serialize(l.ToList())).Distinct().ToList();
+        if (fingerprints.Count == 1)
+        {
+            // All tracks share the same list — deserialize the single
+            // fingerprint to get an independent copy (the VM owns its own
+            // collection; user Add/Remove should NOT mutate the source).
+            var copy = System.Text.Json.JsonSerializer.Deserialize<List<T>>(fingerprints[0]) ?? [];
+            field.InitUnanimous(copy);
+        }
+        else
+        {
+            field.InitMixed();
+        }
     }
 
     /// <summary>
@@ -237,6 +293,8 @@ public partial class TrackEditorViewModel : ObservableObject
         SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
         Session.InitUnanimous(null);   // loose tracks have no session; UI hidden
+        PieceRefs.InitUnanimous(track.PieceRefs   ?? []);
+        Performers.InitUnanimous(track.Performers ?? []);
     }
 
     private static void Init(MixedField<string> field, IEnumerable<string> values, string mixedPlaceholder)

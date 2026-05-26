@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
@@ -30,14 +29,21 @@ public partial class TrackEditorWindow : Window
     private readonly CanonPickLists           _pickLists;
     private readonly IReadOnlyList<CanonPiece> _allPieces;
 
-    private readonly ObservableCollection<TrackPieceRef>  _pieceRefs       = [];
-    private readonly ObservableCollection<AlbumPerformer> _trackPerformers = [];
+    // H13 TrackEditor slice 4: PieceRefs + TrackPerformers list state moved
+    // onto TrackEditorViewModel as MixedCollection<T>. Reference them via
+    // _vm.PieceRefs.Items / _vm.Performers.Items (same ObservableCollection
+    // instance the ListView ItemsSource binds to).
 
     // ── Multi-edit state ──────────────────────────────────────────────────────
 
     private readonly bool _isMixed;                             // true when editing several tracks at once
     private readonly IReadOnlyList<AlbumTrack>? _editTracks;    // the tracks being bulk-edited
-    private readonly HashSet<string> _mixedFields = [];         // field names whose values differ across tracks
+    // True when every track in _editTracks is a loose track (no owning album).
+    // Hides TrackNumber + Session UI and gates SaveMulti's write of those fields.
+    private readonly bool _allLooseBatch;
+    // H13 TrackEditor slice 4: _mixedFields HashSet retired entirely. All
+    // fields it previously tracked now carry their own StartedMixed/WasEdited
+    // state on the corresponding VM MixedField<T> / MixedCollection<T>.
 
     // ── Loose-track state ─────────────────────────────────────────────────────
     // True when editing a singleton with no owning album. Hides the track-number /
@@ -45,11 +51,8 @@ public partial class TrackEditorWindow : Window
     private readonly bool _isLooseTrack;
     private readonly AlbumTrack? _looseTrack;
 
-    // In multi-edit, collection fields start in the "mixed + untouched" state when their
-    // values differ across the selected tracks. Any user add/remove/toggle clears this
-    // flag, signalling that the new list/state should be applied to every selected track.
-    private bool _pieceRefsUntouched;
-    private bool _performersUntouched;
+    // H13 TrackEditor slice 4: _pieceRefsUntouched / _performersUntouched
+    // retired. The VM's MixedCollection<T>.WasEdited carries this state.
 
     // Position of the SessionBox Mixed-sentinel item (the "Mixed" indicator
     // in multi-edit with mixed values, or the "(multiple albums — cannot edit)"
@@ -119,8 +122,8 @@ public partial class TrackEditorWindow : Window
         _tracksSnapshotForRollback   = DeepClone(disc.Tracks);
         _sessionsSnapshotForRollback = DeepClone(sessions);
 
-        PieceRefList.ItemsSource       = _pieceRefs;
-        TrackPerformerList.ItemsSource = _trackPerformers;
+        PieceRefList.ItemsSource       = _vm.PieceRefs.Items;
+        TrackPerformerList.ItemsSource = _vm.Performers.Items;
 
         Closing += TrackEditorWindow_Closing;
 
@@ -133,27 +136,36 @@ public partial class TrackEditorWindow : Window
     /// Bulk-edit constructor. Pass <paramref name="sessions"/> when all selected tracks
     /// share the same owning album; pass null when the selection spans albums with
     /// different session lists (the Session combo is then disabled).
+    /// <para>
+    /// <paramref name="allLoose"/> = true when every selected track is a loose
+    /// track (no owning album). Hides TrackNumber + Session UI (neither is
+    /// meaningful for loose tracks) and SaveMulti skips writing those fields.
+    /// Pre-fix the bulk-edit ctor blindly showed TrackNumber for loose batches
+    /// and the validation rejected the unanimous "0" sentinel as not-positive.
+    /// </para>
     /// </summary>
     public TrackEditorWindow(
         IReadOnlyList<AlbumTrack> tracks,
         IList<RecordingSession>? sessions,
         CanonPickLists pickLists,
-        IReadOnlyList<CanonPiece> allPieces)
+        IReadOnlyList<CanonPiece> allPieces,
+        bool allLoose = false)
     {
         InitializeComponent();
         DataContext = _vm;
 
-        _disc       = null;
-        _trackIndex = -1;
-        _sessions   = sessions ?? [];
-        _pickLists  = pickLists;
-        _allPieces  = allPieces;
-        _isMixed    = true;
-        _editTracks = tracks;
+        _disc        = null;
+        _trackIndex  = -1;
+        _sessions    = sessions ?? [];
+        _pickLists   = pickLists;
+        _allPieces   = allPieces;
+        _isMixed     = true;
+        _editTracks  = tracks;
+        _allLooseBatch = allLoose;
 
         ShowNavigation  = false;
-        ShowTrackNumber = true;
-        ShowSession     = true;
+        ShowTrackNumber = !allLoose;
+        ShowSession     = !allLoose;
 
         // Rework H22 — snapshot the (possibly caller-owned) session list so
         // OnAddSession appends here can be rolled back on Cancel. Tracks are
@@ -162,8 +174,8 @@ public partial class TrackEditorWindow : Window
         if (sessions != null)
             _sessionsSnapshotForRollback = DeepClone(sessions);
 
-        PieceRefList.ItemsSource       = _pieceRefs;
-        TrackPerformerList.ItemsSource = _trackPerformers;
+        PieceRefList.ItemsSource       = _vm.PieceRefs.Items;
+        TrackPerformerList.ItemsSource = _vm.Performers.Items;
 
         Closing += TrackEditorWindow_Closing;
 
@@ -208,8 +220,8 @@ public partial class TrackEditorWindow : Window
         ShowTrackNumber = false;
         ShowSession     = false;
 
-        PieceRefList.ItemsSource       = _pieceRefs;
-        TrackPerformerList.ItemsSource = _trackPerformers;
+        PieceRefList.ItemsSource       = _vm.PieceRefs.Items;
+        TrackPerformerList.ItemsSource = _vm.Performers.Items;
 
         Title = "Edit Loose Track";
 
@@ -218,14 +230,11 @@ public partial class TrackEditorWindow : Window
 
     private void LoadLooseTrack()
     {
-        var t = _looseTrack!;
-        _pieceRefs.Clear();
-        foreach (var r in t.PieceRefs ?? []) _pieceRefs.Add(r);
-        _trackPerformers.Clear();
-        foreach (var p in t.Performers ?? []) _trackPerformers.Add(p);
-
         // H13 TrackEditor slice 1: text fields load through the VM
         // (TwoWay-bound in XAML). Slice 2: SparsCode + IsStereo also.
+        // Slice 4: PieceRefs + Performers also (via _vm.PieceRefs / Performers
+        // — the editor's ListViews bind to those collections directly).
+        var t = _looseTrack!;
         _vm.LoadLoose(t);
 
         SparsCodeCombo.SelectValue(TrackSparsCodeBox, _vm.SparsCode.Value);
@@ -273,51 +282,17 @@ public partial class TrackEditorWindow : Window
         // ── Session combo ─────────────────────────────────────────────────────
         PopulateMultiSessionCombo(hasSharedSessions);
 
-        // ── Piece References ──────────────────────────────────────────────────
-        var pieceRefFingerprints = tracks
-            .Select(t => JsonSerializer.Serialize(t.PieceRefs ?? []))
-            .Distinct()
-            .ToList();
-
-        if (pieceRefFingerprints.Count == 1)
-        {
-            foreach (var r in tracks[0].PieceRefs ?? [])
-                _pieceRefs.Add(r);
-        }
-        else
-        {
-            // Mixed — leave list empty; first Add/Remove replaces the list for every track
+        // ── Piece References + Performers (H13 TrackEditor slice 4) ──────────
+        // VM's LoadMulti above populated the MixedCollection<T>s as Unanimous
+        // (shared list across tracks) or Mixed (differing; list empty,
+        // StartedMixed=true). The "Mixed" banner stays visible throughout the
+        // Mixed editing session — the additive semantic ("entries you add
+        // here are APPENDED to each track's existing list") needs to remain
+        // clear even after the user starts adding. No auto-hide.
+        if (_vm.PieceRefs.StartedMixed)
             PieceRefsMixedNote.Visibility = Visibility.Visible;
-            _mixedFields.Add("PieceRefs");
-            _pieceRefsUntouched = true;
-            _pieceRefs.CollectionChanged += (_, _) =>
-            {
-                _pieceRefsUntouched = false;
-                PieceRefsMixedNote.Visibility = Visibility.Collapsed;
-            };
-        }
-
-        // ── Performers ────────────────────────────────────────────────────────
-        // Track performers are always shown (no override checkbox). When all
-        // selected tracks share the same list, load it; when they differ, show
-        // a "Mixed" banner that the first add/remove clears.
-        var performerFingerprints = tracks
-            .Select(t => JsonSerializer.Serialize(t.Performers ?? []))
-            .Distinct()
-            .ToList();
-
-        if (performerFingerprints.Count == 1)
-        {
-            foreach (var p in tracks[0].Performers ?? [])
-                _trackPerformers.Add(p);
-        }
-        else
-        {
+        if (_vm.Performers.StartedMixed)
             PerformerMixedNote.Visibility = Visibility.Visible;
-            _mixedFields.Add("Performers");
-            _performersUntouched = true;
-            _trackPerformers.CollectionChanged += (_, _) => MarkPerformersTouched();
-        }
     }
 
     /// <summary>
@@ -383,11 +358,9 @@ public partial class TrackEditorWindow : Window
         }
     }
 
-    private void MarkPerformersTouched()
-    {
-        _performersUntouched = false;
-        PerformerMixedNote.Visibility = Visibility.Collapsed;
-    }
+    // H13 TrackEditor slice 4: MarkPerformersTouched retired — the
+    // OnPerformersWasEditedChanged handler subscribed in PopulateMultiFields
+    // now covers the banner chrome.
 
     // H13 TrackEditor slice 1: SetOrMixed + SetOrMixedEditableCombo retired —
     // the text-field mixed-state machinery now lives on TrackEditorViewModel.
@@ -453,10 +426,6 @@ public partial class TrackEditorWindow : Window
     /// </summary>
     private void LoadTrack()
     {
-        // Copy collections so the UI works on independent data
-        _pieceRefs.Clear();
-        _trackPerformers.Clear();
-
         int? sessionIndexForCombo;
 
         if (IsAddingNew)
@@ -468,11 +437,12 @@ public partial class TrackEditorWindow : Window
         else
         {
             var track = _disc!.Tracks[_trackIndex];
-            foreach (var r in track.PieceRefs ?? []) _pieceRefs.Add(r);
-            foreach (var p in track.Performers ?? []) _trackPerformers.Add(p);
 
             // H13 TrackEditor slice 1: text fields load through the VM
             // (TwoWay-bound in XAML). Slice 2: SparsCode + IsStereo also.
+            // Slice 4: PieceRefs + Performers also (LoadSingle populates the
+            // MixedCollection<T> Items; the ListView ItemsSource binding
+            // re-renders automatically).
             _vm.LoadSingle(track);
 
             sessionIndexForCombo = track.SessionIndex;
@@ -567,11 +537,15 @@ public partial class TrackEditorWindow : Window
         target.Description  = NullIfEmpty(_vm.Description.Value);
         target.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
         target.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
-        target.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
+        // H13 TrackEditor slice 4: PieceRefs + Performers read from VM
+        // collections. Snapshot to List<T> on save (model field is List<T>?,
+        // and storing the VM's ObservableCollection instance directly would
+        // be a type mismatch + would tie the model to a UI-facing type).
+        target.PieceRefs    = _vm.PieceRefs.Items.Count   > 0 ? _vm.PieceRefs.Items.ToList()   : null;
         // H13 TrackEditor slice 3: SessionIndex reads from VM. Single-edit
         // never has a Mixed sentinel so VM Value is always meaningful.
         target.SessionIndex = _vm.Session.Value;
-        target.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
+        target.Performers   = _vm.Performers.Items.Count > 0 ? _vm.Performers.Items.ToList() : null;
     }
 
     // ── File browse handlers for audio overrides ─────────────────────────────
@@ -697,8 +671,8 @@ public partial class TrackEditorWindow : Window
         t.Description  = NullIfEmpty(_vm.Description.Value);
         t.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
         t.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
-        t.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
-        t.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
+        t.PieceRefs    = _vm.PieceRefs.Items.Count   > 0 ? _vm.PieceRefs.Items.ToList()   : null;
+        t.Performers   = _vm.Performers.Items.Count > 0 ? _vm.Performers.Items.ToList() : null;
         t.SessionIndex = null;
     }
 
@@ -710,11 +684,12 @@ public partial class TrackEditorWindow : Window
     {
         // ── Track # ───────────────────────────────────────────────────────────
         // H13 TrackEditor slice 1: read from VM. Skip when:
+        //   • allLoose batch (TrackNumber UI hidden; loose tracks stay at 0), or
         //   • field StartedMixed AND user didn't touch (IsMixed still true), or
         //   • field StartedMixed AND user cleared the placeholder without retyping
         //     (Value is empty — don't wipe every track's TrackNumber).
         // Otherwise validate the integer and write.
-        if (!SkipMixedTextWrite(_vm.TrackNumber))
+        if (!_allLooseBatch && !SkipMixedTextWrite(_vm.TrackNumber))
         {
             var trackNumText = (_vm.TrackNumber.Value ?? "").Trim();
             if (!int.TryParse(trackNumText, out var n) || n <= 0)
@@ -762,25 +737,67 @@ public partial class TrackEditorWindow : Window
             foreach (var t in _editTracks!) t.SessionIndex = _vm.Session.Value;
         }
 
-        // ── Piece References ──────────────────────────────────────────────────
-        // Apply when: not a mixed field (so it's a uniform list the user may have edited),
-        // or the user touched the list (Add/Remove cleared _pieceRefsUntouched).
-        if (!_mixedFields.Contains("PieceRefs") || !_pieceRefsUntouched)
-        {
-            var refs = _pieceRefs.Count > 0 ? _pieceRefs.ToList() : null;
-            foreach (var t in _editTracks!) t.PieceRefs = refs;
-        }
+        // ── Piece References + Performers (H13 TrackEditor slice 4) ──────────
+        // Two save modes per list:
+        //   • Unanimous (!StartedMixed): editor's list is the unified result
+        //     for every selected track. Replace each track's list (idempotent
+        //     rewrite when unchanged). Each track gets a fresh List<T> instance
+        //     so subsequent track-level edits don't bleed across tracks.
+        //   • Mixed (StartedMixed): editor's list is "entries to ADD to every
+        //     selected track's existing list" — the additive semantic the
+        //     banner advertises. Append each editor entry to each track's
+        //     existing list, preserving prior entries. If the user added
+        //     nothing (WasEdited=false), the loop is a no-op.
+        ApplyListMulti(_vm.PieceRefs,
+            t => t.PieceRefs,
+            (t, v) => t.PieceRefs = v,
+            () => new List<TrackPieceRef>());
 
-        // ── Performers ─────────────────────────────────────────────────────────
-        // Apply when: not mixed (i.e. user is editing a known shared list), or
-        // mixed but the user touched the list (Add/Remove cleared the flag).
-        if (!_mixedFields.Contains("Performers") || !_performersUntouched)
-        {
-            var performers = _trackPerformers.Count > 0 ? _trackPerformers.ToList() : null;
-            foreach (var t in _editTracks!) t.Performers = performers;
-        }
+        ApplyListMulti(_vm.Performers,
+            t => t.Performers,
+            (t, v) => t.Performers = v,
+            () => new List<AlbumPerformer>());
 
         DialogResult = true;
+    }
+
+    /// <summary>
+    /// H13 TrackEditor slice 4 (revised): apply a multi-edit list to every
+    /// selected track. Two modes — see SaveMulti for the contract:
+    /// <list type="bullet">
+    ///   <item><b>Unanimous</b> (<c>!StartedMixed</c>): editor's list is the
+    ///     unified result; each track gets its own fresh List copy.</item>
+    ///   <item><b>Mixed</b> (<c>StartedMixed</c>): editor's list is additions
+    ///     to ADD to each track's existing list. Existing entries preserved.</item>
+    /// </list>
+    /// </summary>
+    private void ApplyListMulti<T>(
+        MixedCollection<T>           field,
+        Func<AlbumTrack, List<T>?>   getter,
+        Action<AlbumTrack, List<T>?> setter,
+        Func<List<T>>                newEmptyList)
+    {
+        if (field.StartedMixed)
+        {
+            // Mixed mode — append additions only when user added entries.
+            if (!field.WasEdited || field.Items.Count == 0) return;
+
+            foreach (var t in _editTracks!)
+            {
+                var existing = getter(t) ?? newEmptyList();
+                foreach (var item in field.Items) existing.Add(item);
+                setter(t, existing);
+            }
+        }
+        else
+        {
+            // Unanimous mode — replace each track's list with a fresh copy.
+            foreach (var t in _editTracks!)
+            {
+                var copy = field.Items.Count > 0 ? field.Items.ToList() : null;
+                setter(t, copy);
+            }
+        }
     }
 
     /// <summary>
@@ -810,13 +827,13 @@ public partial class TrackEditorWindow : Window
     {
         var dlg = new PiecePickerWindow(_allPieces) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.SelectedRef == null) return;
-        _pieceRefs.Add(dlg.SelectedRef);
+        _vm.PieceRefs.Items.Add(dlg.SelectedRef);
     }
 
     private void OnRemovePieceRef(object sender, RoutedEventArgs e)
     {
         if (PieceRefList.SelectedItem is TrackPieceRef selected)
-            _pieceRefs.Remove(selected);
+            _vm.PieceRefs.Items.Remove(selected);
     }
 
     private void OnPieceRefSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -835,13 +852,13 @@ public partial class TrackEditorWindow : Window
     /// <summary>
     /// Opens the details dialog for the selected ref so the user can attach a
     /// range and/or marker anchors. The ref is mutated in place; we replace
-    /// it in <see cref="_pieceRefs"/> at the same index so the ListBox
+    /// it in <see cref="_vm"/>'s PieceRefs.Items at the same index so the ListBox
     /// re-evaluates <see cref="TrackPieceRef.DisplaySummary"/>.
     /// </summary>
     private void EditSelectedPieceRefDetails()
     {
         if (PieceRefList.SelectedItem is not TrackPieceRef selected) return;
-        var idx = _pieceRefs.IndexOf(selected);
+        var idx = _vm.PieceRefs.Items.IndexOf(selected);
         if (idx < 0) return;
 
         var dlg = new PieceRefDetailsWindow(selected, _allPieces) { Owner = this };
@@ -851,7 +868,7 @@ public partial class TrackEditorWindow : Window
         // signal the ListBox needs to re-render the row with the updated
         // DisplaySummary. Same instance — same identity — but the binding
         // refreshes.
-        _pieceRefs[idx] = selected;
+        _vm.PieceRefs.Items[idx] = selected;
         PieceRefList.SelectedIndex = idx;
     }
 
@@ -861,13 +878,13 @@ public partial class TrackEditorWindow : Window
     {
         var dlg = new PerformerEditorWindow(null, _pickLists.PerformerRoles) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _trackPerformers.Add(dlg.Result);
+        _vm.Performers.Items.Add(dlg.Result);
     }
 
     private void OnRemoveTrackPerformer(object sender, RoutedEventArgs e)
     {
         if (TrackPerformerList.SelectedItem is AlbumPerformer selected)
-            _trackPerformers.Remove(selected);
+            _vm.Performers.Items.Remove(selected);
     }
 
     private void OnTrackPerformerSelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -259,7 +259,12 @@ public partial class TracksView : UserControl
             }
             else
             {
-                var dlg = new TrackEditorWindow(tracks, sharedSessions, pickLists, pieces)
+                // Loose-batch detection: when every selected row is a loose
+                // track, hide TrackNumber + Session UI in the bulk editor and
+                // skip writing those fields on save (loose tracks have
+                // TrackNumber=0 + SessionIndex=null sentinels).
+                var allLoose = selected.All(r => r.Album is null);
+                var dlg = new TrackEditorWindow(tracks, sharedSessions, pickLists, pieces, allLoose)
                 {
                     Owner = Window.GetWindow(this),
                 };

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
 
@@ -541,5 +542,187 @@ public class TrackEditorViewModelTests
 
         Assert.False(vm.Session.IsMixed);
         Assert.Null(vm.Session.Value);
+    }
+
+    // ── Slice 4: PieceRefs + Performers ──────────────────────────────────────
+
+    [Fact]
+    public void LoadSingle_PopulatesPieceRefsAndPerformers_FromTrack()
+    {
+        var track = new AlbumTrack
+        {
+            TrackNumber = 1,
+            PieceRefs   = new List<TrackPieceRef>
+            {
+                new() { Composer = "Beethoven, Ludwig van", PieceTitle = "Symphony 9" },
+            },
+            Performers  = new List<AlbumPerformer>
+            {
+                new() { Name = "Karajan, Herbert von", Role = "Conductor" },
+            },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadSingle(track);
+
+        Assert.Single(vm.PieceRefs.Items);
+        Assert.Equal("Symphony 9", vm.PieceRefs.Items[0].PieceTitle);
+        Assert.Single(vm.Performers.Items);
+        Assert.Equal("Karajan, Herbert von", vm.Performers.Items[0].Name);
+        Assert.False(vm.PieceRefs.StartedMixed);
+        Assert.False(vm.Performers.StartedMixed);
+    }
+
+    [Fact]
+    public void LoadSingle_NullCollections_LeaveEmpty()
+    {
+        var vm = new TrackEditorViewModel();
+        vm.LoadSingle(new AlbumTrack { TrackNumber = 1 });
+
+        Assert.Empty(vm.PieceRefs.Items);
+        Assert.Empty(vm.Performers.Items);
+    }
+
+    [Fact]
+    public void LoadLoose_PopulatesPieceRefsAndPerformers_FromTrack()
+    {
+        var track = new AlbumTrack
+        {
+            TrackNumber = 0,
+            PieceRefs   = new List<TrackPieceRef>
+            {
+                new() { Composer = "Brendel", PieceTitle = "Interview" },
+            },
+            Performers  = new List<AlbumPerformer> { new() { Name = "Brendel, Alfred" } },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadLoose(track);
+
+        Assert.Single(vm.PieceRefs.Items);
+        Assert.Single(vm.Performers.Items);
+    }
+
+    [Fact]
+    public void LoadMulti_UnanimousLists_LoadAsUnanimous()
+    {
+        var sharedRefs = new List<TrackPieceRef>
+        {
+            new() { Composer = "Beethoven, Ludwig van", PieceTitle = "Sonata 14" },
+        };
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, PieceRefs = JsonSerializer.Deserialize<List<TrackPieceRef>>(JsonSerializer.Serialize(sharedRefs)) },
+            new AlbumTrack { TrackNumber = 2, PieceRefs = JsonSerializer.Deserialize<List<TrackPieceRef>>(JsonSerializer.Serialize(sharedRefs)) },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, "(Mixed)");
+
+        Assert.False(vm.PieceRefs.StartedMixed);
+        Assert.Single(vm.PieceRefs.Items);
+        Assert.Equal("Sonata 14", vm.PieceRefs.Items[0].PieceTitle);
+    }
+
+    [Fact]
+    public void LoadMulti_DifferingLists_LoadAsMixed()
+    {
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, PieceRefs = new List<TrackPieceRef> { new() { PieceTitle = "A" } } },
+            new AlbumTrack { TrackNumber = 2, PieceRefs = new List<TrackPieceRef> { new() { PieceTitle = "B" } } },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, "(Mixed)");
+
+        Assert.True(vm.PieceRefs.StartedMixed);
+        Assert.False(vm.PieceRefs.WasEdited);
+        Assert.Empty(vm.PieceRefs.Items);
+        Assert.False(vm.PieceRefs.ShouldWriteOnSave);   // skip save
+    }
+
+    [Fact]
+    public void LoadMulti_NullVsEmptyLists_TreatedAsSame()
+    {
+        // Both null and an empty list normalise to "[]" — unanimous.
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, PieceRefs = null },
+            new AlbumTrack { TrackNumber = 2, PieceRefs = new List<TrackPieceRef>() },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, "(Mixed)");
+
+        Assert.False(vm.PieceRefs.StartedMixed);
+        Assert.Empty(vm.PieceRefs.Items);
+    }
+
+    [Fact]
+    public void LoadMulti_UserAddsToMixedList_FlipsWasEdited_AndAllowsSave()
+    {
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, Performers = new List<AlbumPerformer> { new() { Name = "A" } } },
+            new AlbumTrack { TrackNumber = 2, Performers = new List<AlbumPerformer> { new() { Name = "B" } } },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, "(Mixed)");
+        Assert.False(vm.Performers.ShouldWriteOnSave);   // started Mixed, untouched → skip
+
+        vm.Performers.Items.Add(new AlbumPerformer { Name = "New shared performer" });
+
+        Assert.True(vm.Performers.WasEdited);
+        Assert.True(vm.Performers.ShouldWriteOnSave);   // touched → write
+        Assert.True(vm.Performers.StartedMixed);        // history bit stays
+    }
+
+    [Fact]
+    public void LoadSingle_ReHydratesAlreadyPopulatedCollections()
+    {
+        // Re-loading the editor with a different track must clear the
+        // previous lists, not append to them.
+        var vm = new TrackEditorViewModel();
+        vm.LoadSingle(new AlbumTrack
+        {
+            TrackNumber = 1,
+            PieceRefs   = new List<TrackPieceRef> { new() { PieceTitle = "First" } },
+        });
+        Assert.Single(vm.PieceRefs.Items);
+
+        vm.LoadSingle(new AlbumTrack
+        {
+            TrackNumber = 2,
+            PieceRefs   = new List<TrackPieceRef> { new() { PieceTitle = "Second" } },
+        });
+
+        Assert.Single(vm.PieceRefs.Items);
+        Assert.Equal("Second", vm.PieceRefs.Items[0].PieceTitle);
+        Assert.False(vm.PieceRefs.WasEdited);   // Init resets
+    }
+
+    [Fact]
+    public void LoadMulti_UnanimousLists_VmOwnsIndependentCopy()
+    {
+        // When all tracks share a list, LoadMulti must NOT bind the VM
+        // collection to the source list — user Add/Remove should not mutate
+        // any track's list directly.
+        var sharedList = new List<AlbumPerformer> { new() { Name = "Karajan" } };
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, Performers = sharedList },
+            new AlbumTrack { TrackNumber = 2, Performers = sharedList },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, "(Mixed)");
+
+        vm.Performers.Items.Add(new AlbumPerformer { Name = "Late add" });
+
+        // Source list unchanged — VM owns its own copy.
+        Assert.Single(sharedList);
+        Assert.Equal(2, vm.Performers.Items.Count);
     }
 }
