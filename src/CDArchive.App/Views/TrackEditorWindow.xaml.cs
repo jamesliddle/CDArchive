@@ -38,6 +38,9 @@ public partial class TrackEditorWindow : Window
 
     private readonly bool _isMixed;                             // true when editing several tracks at once
     private readonly IReadOnlyList<AlbumTrack>? _editTracks;    // the tracks being bulk-edited
+    // True when every track in _editTracks is a loose track (no owning album).
+    // Hides TrackNumber + Session UI and gates SaveMulti's write of those fields.
+    private readonly bool _allLooseBatch;
     // H13 TrackEditor slice 4: _mixedFields HashSet retired entirely. All
     // fields it previously tracked now carry their own StartedMixed/WasEdited
     // state on the corresponding VM MixedField<T> / MixedCollection<T>.
@@ -133,27 +136,36 @@ public partial class TrackEditorWindow : Window
     /// Bulk-edit constructor. Pass <paramref name="sessions"/> when all selected tracks
     /// share the same owning album; pass null when the selection spans albums with
     /// different session lists (the Session combo is then disabled).
+    /// <para>
+    /// <paramref name="allLoose"/> = true when every selected track is a loose
+    /// track (no owning album). Hides TrackNumber + Session UI (neither is
+    /// meaningful for loose tracks) and SaveMulti skips writing those fields.
+    /// Pre-fix the bulk-edit ctor blindly showed TrackNumber for loose batches
+    /// and the validation rejected the unanimous "0" sentinel as not-positive.
+    /// </para>
     /// </summary>
     public TrackEditorWindow(
         IReadOnlyList<AlbumTrack> tracks,
         IList<RecordingSession>? sessions,
         CanonPickLists pickLists,
-        IReadOnlyList<CanonPiece> allPieces)
+        IReadOnlyList<CanonPiece> allPieces,
+        bool allLoose = false)
     {
         InitializeComponent();
         DataContext = _vm;
 
-        _disc       = null;
-        _trackIndex = -1;
-        _sessions   = sessions ?? [];
-        _pickLists  = pickLists;
-        _allPieces  = allPieces;
-        _isMixed    = true;
-        _editTracks = tracks;
+        _disc        = null;
+        _trackIndex  = -1;
+        _sessions    = sessions ?? [];
+        _pickLists   = pickLists;
+        _allPieces   = allPieces;
+        _isMixed     = true;
+        _editTracks  = tracks;
+        _allLooseBatch = allLoose;
 
         ShowNavigation  = false;
-        ShowTrackNumber = true;
-        ShowSession     = true;
+        ShowTrackNumber = !allLoose;
+        ShowSession     = !allLoose;
 
         // Rework H22 — snapshot the (possibly caller-owned) session list so
         // OnAddSession appends here can be rolled back on Cancel. Tracks are
@@ -689,11 +701,12 @@ public partial class TrackEditorWindow : Window
     {
         // ── Track # ───────────────────────────────────────────────────────────
         // H13 TrackEditor slice 1: read from VM. Skip when:
+        //   • allLoose batch (TrackNumber UI hidden; loose tracks stay at 0), or
         //   • field StartedMixed AND user didn't touch (IsMixed still true), or
         //   • field StartedMixed AND user cleared the placeholder without retyping
         //     (Value is empty — don't wipe every track's TrackNumber).
         // Otherwise validate the integer and write.
-        if (!SkipMixedTextWrite(_vm.TrackNumber))
+        if (!_allLooseBatch && !SkipMixedTextWrite(_vm.TrackNumber))
         {
             var trackNumText = (_vm.TrackNumber.Value ?? "").Trim();
             if (!int.TryParse(trackNumText, out var n) || n <= 0)
