@@ -57,6 +57,58 @@ public partial class TrackEditorViewModel : ObservableObject
     /// <summary>Per-track MP3 override (absolute path). Disabled in multi-edit.</summary>
     public MixedField<string> Mp3Path     { get; } = new();
 
+    // ── Combobox fields (slice 2) ─────────────────────────────────────────────
+    // SparsCode + IsStereo use a stable string vocabulary on the VM side; the
+    // editor's code-behind syncs the (non-editable) ComboBox SelectedItems
+    // imperatively because they use a "Mixed" sentinel ComboBoxItem rather
+    // than a placeholder text — different shape from text fields. Same
+    // hybrid pattern AlbumEditor's slice 2 established.
+
+    /// <summary>
+    /// SPARS code. Values: "DDD" / "ADD" / "AAD" / "Unknown" (canonical set
+    /// from the dropdown), or a legacy non-standard code string from existing
+    /// data, or <see cref="SparsCodeMixedSentinel"/> when a multi-edit
+    /// selection has differing values and the user hasn't picked one yet.
+    /// Null / empty maps to "Unknown" on load.
+    /// </summary>
+    public MixedField<string> SparsCode { get; } = new();
+
+    /// <summary>
+    /// Stereo flag, represented as a string for the ComboBox sync. Values:
+    /// "Unknown" / "Stereo" / "Mono" (the dropdown items), or
+    /// <see cref="IsStereoMixedSentinel"/> when multi-edit values differ.
+    /// </summary>
+    public MixedField<string> IsStereo { get; } = new();
+
+    /// <summary>Constant used on the VM side for the multi-edit "Mixed" SparsCode sentinel.</summary>
+    public const string SparsCodeMixedSentinel = "Mixed";
+    /// <summary>Constant used on the VM side for the multi-edit "Mixed" IsStereo sentinel.</summary>
+    public const string IsStereoMixedSentinel = "Mixed";
+
+    // String ↔ bool? translation for IsStereo. Keeps the VM string-typed
+    // (matches the ComboBox vocabulary) and confines the conversion to a
+    // single pair of helpers used at load and save time. Same shape as
+    // AlbumEditorViewModel.
+    public static string IsStereoToString(bool? v) => v switch
+    {
+        true  => "Stereo",
+        false => "Mono",
+        null  => "Unknown",
+    };
+
+    public static bool? IsStereoFromString(string? v) => v switch
+    {
+        "Stereo" => true,
+        "Mono"   => false,
+        _        => null,   // includes "Unknown", "" / null, AND the Mixed sentinel
+    };
+
+    public static string SparsCodeToString(string? v) =>
+        string.IsNullOrEmpty(v) ? "Unknown" : v;
+
+    public static string? SparsCodeFromString(string? v) =>
+        string.IsNullOrEmpty(v) ? null : v;
+
     /// <summary>
     /// Populate from a single track (single-edit mode). Every field becomes
     /// Unanimous with the track's current value; <see cref="MixedField{T}.WasEdited"/>
@@ -69,6 +121,8 @@ public partial class TrackEditorViewModel : ObservableObject
         Description.InitUnanimous(track.Description ?? "");
         FlacPath.InitUnanimous(track.FlacPath       ?? "");
         Mp3Path.InitUnanimous(track.Mp3Path         ?? "");
+        SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
+        IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
     }
 
     /// <summary>
@@ -83,6 +137,8 @@ public partial class TrackEditorViewModel : ObservableObject
         Description.InitUnanimous("");
         FlacPath.InitUnanimous("");
         Mp3Path.InitUnanimous("");
+        SparsCode.InitUnanimous(SparsCodeToString(null));   // "Unknown"
+        IsStereo.InitUnanimous(IsStereoToString(null));     // "Unknown"
     }
 
     /// <summary>
@@ -104,6 +160,12 @@ public partial class TrackEditorViewModel : ObservableObject
         // these properties anyway.
         FlacPath.InitUnanimous(tracks.Count > 0 ? tracks[0].FlacPath ?? "" : "");
         Mp3Path.InitUnanimous (tracks.Count > 0 ? tracks[0].Mp3Path  ?? "" : "");
+
+        // Comboboxes use their own sentinel constants (the ComboBoxItem
+        // sentinel rendering is view-side; the VM just tracks the value
+        // string the user would see selected).
+        Init(SparsCode, tracks.Select(t => SparsCodeToString(t.SparsCode)), SparsCodeMixedSentinel);
+        Init(IsStereo,  tracks.Select(t => IsStereoToString(t.IsStereo)),  IsStereoMixedSentinel);
     }
 
     /// <summary>
@@ -118,6 +180,8 @@ public partial class TrackEditorViewModel : ObservableObject
         Description.InitUnanimous(track.Description ?? "");
         FlacPath.InitUnanimous(track.FlacPath       ?? "");
         Mp3Path.InitUnanimous(track.Mp3Path         ?? "");
+        SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
+        IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
     }
 
     private static void Init(MixedField<string> field, IEnumerable<string> values, string mixedPlaceholder)

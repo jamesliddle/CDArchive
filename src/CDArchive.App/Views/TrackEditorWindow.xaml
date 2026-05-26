@@ -83,6 +83,7 @@
                         <ComboBox Grid.Row="2" Grid.Column="1" x:Name="TrackSparsCodeBox"
                                   Width="100" HorizontalAlignment="Left"
                                   FontSize="13" Margin="0,0,0,8"
+                                  SelectionChanged="OnSparsCodeChanged"
                                   ToolTip="D=digital, A=analogue: recording / mixing / mastering">
                             <ComboBoxItem Content="DDD" />
                             <ComboBoxItem Content="ADD" />
@@ -96,7 +97,8 @@
                                    ToolTip="Track-level stereo setting. Changing the album-level value pushes the new value to every track." />
                         <ComboBox Grid.Row="3" Grid.Column="1" x:Name="TrackStereoBox"
                                   Width="120" HorizontalAlignment="Left"
-                                  FontSize="13" Margin="0,0,0,8">
+                                  FontSize="13" Margin="0,0,0,8"
+                                  SelectionChanged="OnStereoChanged">
                             <ComboBoxItem Content="Unknown" />
                             <ComboBoxItem Content="Stereo" />
                             <ComboBoxItem Content="Mono" />

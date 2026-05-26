@@ -261,4 +261,141 @@ public class TrackEditorViewModelTests
         Assert.False(vm.Duration.IsMixed);
         Assert.False(vm.Duration.StartedMixed);
     }
+
+    // ── Slice 2: SparsCode + IsStereo ────────────────────────────────────────
+
+    [Theory]
+    [InlineData(null,      "Unknown")]
+    [InlineData("",        "Unknown")]
+    [InlineData("DDD",     "DDD")]
+    [InlineData("ADD",     "ADD")]
+    [InlineData("AAD",     "AAD")]
+    [InlineData("Unknown", "Unknown")]
+    [InlineData("DDA",     "DDA")]   // legacy non-standard code passes through verbatim
+    public void LoadSingle_SparsCode_NullAndEmptyMapToUnknown(string? input, string expected)
+    {
+        var vm = new TrackEditorViewModel();
+        vm.LoadSingle(new AlbumTrack { TrackNumber = 1, SparsCode = input });
+        Assert.Equal(expected, vm.SparsCode.Value);
+        Assert.False(vm.SparsCode.IsMixed);
+    }
+
+    [Theory]
+    [InlineData(null,  "Unknown")]
+    [InlineData(true,  "Stereo")]
+    [InlineData(false, "Mono")]
+    public void LoadSingle_IsStereo_ConvertsBoolNullableToStringVocabulary(bool? input, string expected)
+    {
+        var vm = new TrackEditorViewModel();
+        vm.LoadSingle(new AlbumTrack { TrackNumber = 1, IsStereo = input });
+        Assert.Equal(expected, vm.IsStereo.Value);
+        Assert.False(vm.IsStereo.IsMixed);
+    }
+
+    [Fact]
+    public void LoadLoose_SparsCodeAndIsStereo_LoadFromTrack()
+    {
+        var track = new AlbumTrack
+        {
+            TrackNumber = 0,
+            SparsCode   = "ADD",
+            IsStereo    = false,
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadLoose(track);
+
+        Assert.Equal("ADD",  vm.SparsCode.Value);
+        Assert.Equal("Mono", vm.IsStereo.Value);
+    }
+
+    [Fact]
+    public void LoadNew_SparsCodeAndIsStereo_DefaultToUnknown()
+    {
+        var disc = new AlbumDisc { DiscNumber = 1 };
+        var vm = new TrackEditorViewModel();
+        vm.LoadNew(disc);
+
+        Assert.Equal("Unknown", vm.SparsCode.Value);
+        Assert.Equal("Unknown", vm.IsStereo.Value);
+        Assert.False(vm.SparsCode.IsMixed);
+        Assert.False(vm.IsStereo.IsMixed);
+    }
+
+    [Fact]
+    public void LoadMulti_DifferingSparsCodes_LoadAsMixedSentinel()
+    {
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, SparsCode = "DDD" },
+            new AlbumTrack { TrackNumber = 2, SparsCode = "ADD" },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, mixedPlaceholder: "TEXTMIXED");
+
+        // SparsCode uses its OWN sentinel constant, not the text-field one,
+        // so the comboboxes can append their distinct ComboBoxItem.
+        Assert.True(vm.SparsCode.IsMixed);
+        Assert.True(vm.SparsCode.StartedMixed);
+        Assert.Equal(TrackEditorViewModel.SparsCodeMixedSentinel, vm.SparsCode.Value);
+    }
+
+    [Fact]
+    public void LoadMulti_DifferingIsStereo_LoadAsMixedSentinel()
+    {
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, IsStereo = true },
+            new AlbumTrack { TrackNumber = 2, IsStereo = false },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, mixedPlaceholder: "TEXTMIXED");
+
+        Assert.True(vm.IsStereo.IsMixed);
+        Assert.True(vm.IsStereo.StartedMixed);
+        Assert.Equal(TrackEditorViewModel.IsStereoMixedSentinel, vm.IsStereo.Value);
+    }
+
+    [Fact]
+    public void LoadMulti_NullSparsCodeUnanimousWithEmpty_TreatedAsSame()
+    {
+        // Both null and "" map to "Unknown" under SparsCodeToString — so a
+        // multi-edit where one track has null and another has "" SparsCode
+        // shouldn't show as Mixed.
+        var tracks = new[]
+        {
+            new AlbumTrack { TrackNumber = 1, SparsCode = null },
+            new AlbumTrack { TrackNumber = 2, SparsCode = ""   },
+        };
+
+        var vm = new TrackEditorViewModel();
+        vm.LoadMulti(tracks, "(Mixed)");
+
+        Assert.False(vm.SparsCode.IsMixed);
+        Assert.Equal("Unknown", vm.SparsCode.Value);
+    }
+
+    [Theory]
+    [InlineData("DDD",      "DDD")]
+    [InlineData("Unknown",  "Unknown")]   // "Unknown" stores as the literal string
+    [InlineData("",         null)]
+    [InlineData(null,       null)]
+    public void SparsCodeFromString_RoundTripBehaviour(string? input, string? expected)
+    {
+        Assert.Equal(expected, TrackEditorViewModel.SparsCodeFromString(input));
+    }
+
+    [Theory]
+    [InlineData("Stereo",     true)]
+    [InlineData("Mono",       false)]
+    [InlineData("Unknown",    null)]
+    [InlineData("Mixed",      null)]   // sentinel maps to null too (defensive)
+    [InlineData("",           null)]
+    [InlineData(null,         null)]
+    public void IsStereoFromString_RoundTripBehaviour(string? input, bool? expected)
+    {
+        Assert.Equal(expected, TrackEditorViewModel.IsStereoFromString(input));
+    }
 }
