@@ -61,6 +61,7 @@
                         <TextBox Grid.Row="0" Grid.Column="1" x:Name="TrackNumberBox"
                                  Width="60" HorizontalAlignment="Left"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 Text="{Binding TrackNumber.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Visibility="{Binding ShowTrackNumber,
                                                        RelativeSource={RelativeSource AncestorType=Window},
                                                        Converter={StaticResource BoolToVis}}" />
@@ -72,6 +73,7 @@
                         <TextBox Grid.Row="1" Grid.Column="1" x:Name="DurationBox"
                                  Width="100" HorizontalAlignment="Left"
                                  FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 Text="{Binding Duration.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="e.g. 5:32 or 1:02:15" />
 
                         <!-- SPARS Code -->
@@ -144,6 +146,7 @@
                                        VerticalAlignment="Center" Margin="0,0,8,4" />
                             <TextBox Grid.Row="0" Grid.Column="1" x:Name="FlacPathBox"
                                      FontSize="13" Padding="4,3" Margin="0,0,6,4"
+                                     Text="{Binding FlacPath.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      ToolTip="Absolute path to this track's FLAC file." />
                             <Button Grid.Row="0" Grid.Column="2" Content="Browse…"
                                     Padding="8,3" Margin="0,0,0,4"
@@ -153,6 +156,7 @@
                                        VerticalAlignment="Center" Margin="0,0,8,0" />
                             <TextBox Grid.Row="1" Grid.Column="1" x:Name="Mp3PathBox"
                                      FontSize="13" Padding="4,3" Margin="0,0,6,0"
+                                     Text="{Binding Mp3Path.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      ToolTip="Absolute path to this track's MP3 file." />
                             <Button Grid.Row="1" Grid.Column="2" Content="Browse…"
                                     Padding="8,3"
@@ -169,7 +173,8 @@
                                    Margin="0,0,0,6" />
                         <TextBox x:Name="DescriptionBox" Height="50"
                                  TextWrapping="Wrap" AcceptsReturn="True"
-                                 FontSize="13" Padding="4,3" />
+                                 FontSize="13" Padding="4,3"
+                                 Text="{Binding Description.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     </StackPanel>
                 </GroupBox>
 

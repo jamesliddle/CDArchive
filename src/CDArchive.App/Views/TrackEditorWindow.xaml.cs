@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
+using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using Microsoft.Win32;
@@ -67,6 +68,13 @@ public partial class TrackEditorWindow : Window
     // True while adding new tracks (Next stays enabled, OK adds to disc)
     private bool IsAddingNew => !_isMixed && _disc != null && _trackIndex >= _disc.Tracks.Count;
 
+    // ── View-model (H13 TrackEditor slice 1: text fields) ────────────────────
+    // XAML TwoWay-binds the 5 text fields to _vm.X.Value (TrackNumber,
+    // Duration, Description, FlacPath, Mp3Path). The combobox-driven, session
+    // and list-shaped fields stay in code-behind for now — later slices
+    // migrate them.
+    private readonly TrackEditorViewModel _vm = new();
+
     // ── Mode-driven visibility (H18) ──────────────────────────────────────────
     // Bound from XAML via {Binding Show…, RelativeSource={RelativeSource AncestorType=Window}}.
     // Set in each constructor before the visual tree is rendered; never mutated
@@ -88,6 +96,7 @@ public partial class TrackEditorWindow : Window
         IReadOnlyList<CanonPiece> allPieces)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         _disc      = disc;
         _trackIndex = trackIndex;
@@ -132,6 +141,7 @@ public partial class TrackEditorWindow : Window
         IReadOnlyList<CanonPiece> allPieces)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         _disc       = null;
         _trackIndex = -1;
@@ -180,6 +190,7 @@ public partial class TrackEditorWindow : Window
         IReadOnlyList<CanonPiece>  allPieces)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         _disc         = null;
         _trackIndex   = -1;
@@ -213,12 +224,12 @@ public partial class TrackEditorWindow : Window
         _trackPerformers.Clear();
         foreach (var p in t.Performers ?? []) _trackPerformers.Add(p);
 
-        DurationBox.Text             = t.Duration    ?? "";
+        // H13 TrackEditor slice 1: text fields load through the VM
+        // (TwoWay-bound in XAML).
+        _vm.LoadLoose(t);
+
         SparsCodeCombo.SelectValue(TrackSparsCodeBox, t.SparsCode);
         TrackStereoBox.SelectedIndex = t.IsStereo switch { true => 1, false => 2, _ => 0 };
-        DescriptionBox.Text          = t.Description ?? "";
-        FlacPathBox.Text             = t.FlacPath    ?? "";
-        Mp3PathBox.Text              = t.Mp3Path     ?? "";
     }
 
     // ── Multi-edit: populate every field with unanimous value or "Mixed" ─────
@@ -227,12 +238,16 @@ public partial class TrackEditorWindow : Window
     {
         var tracks = _editTracks!;
 
-        // ── Scalar text fields ────────────────────────────────────────────────
-        SetOrMixed(TrackNumberBox, "TrackNumber",
-            tracks.Select(t => t.TrackNumber.ToString()).Distinct());
-
-        SetOrMixed(DurationBox, "Duration",
-            tracks.Select(t => t.Duration ?? "").Distinct());
+        // ── Scalar text fields (H13 TrackEditor slice 1) ─────────────────────
+        // VM owns Mixed/Unanimous state via MixedField<string>. XAML TwoWay-binds
+        // TextBoxes to _vm.X.Value; MixedPlaceholder.Apply below adds the gray-
+        // italic chrome + first-edit-clear keystroke wiring on top of the
+        // binding. The _mixedFields HashSet no longer carries these field names
+        // — MixedField<T>.StartedMixed covers the same information per-field.
+        _vm.LoadMulti(tracks, MixedPlaceholder.PlaceholderText);
+        if (_vm.TrackNumber.IsMixed) MixedPlaceholder.Apply(TrackNumberBox);
+        if (_vm.Duration.IsMixed)    MixedPlaceholder.Apply(DurationBox);
+        if (_vm.Description.IsMixed) MixedPlaceholder.Apply(DescriptionBox);
 
         if (SparsCodeCombo.PopulateMixed(TrackSparsCodeBox, tracks.Select(t => t.SparsCode)))
             _mixedFields.Add("SparsCode");
@@ -255,9 +270,6 @@ public partial class TrackEditorWindow : Window
             TrackStereoBox.SelectedIndex = 3;
             _mixedFields.Add("IsStereo");
         }
-
-        SetOrMixed(DescriptionBox, "Description",
-            tracks.Select(t => t.Description ?? "").Distinct());
 
         // ── Audio file overrides ──────────────────────────────────────────────
         // Per-track absolute paths don't bulk-edit meaningfully — disable the
@@ -382,39 +394,11 @@ public partial class TrackEditorWindow : Window
         PerformerMixedNote.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>
-    /// Populates <paramref name="box"/> with the single unanimous value, or shows the
-    /// "Mixed" placeholder when the values differ across the selected tracks.  See
-    /// <see cref="MixedPlaceholder"/> for the clear-on-first-edit behaviour.
-    /// </summary>
-    private void SetOrMixed(TextBox box, string fieldName, IEnumerable<string> distinctValues)
-    {
-        var vals = distinctValues.ToList();
-        if (vals.Count == 1)
-        {
-            box.Text = vals[0];
-            return;
-        }
-
-        _mixedFields.Add(fieldName);
-        MixedPlaceholder.Apply(box);
-    }
-
-    /// <summary>
-    /// Same as <see cref="SetOrMixed"/> but for an <c>IsEditable</c> ComboBox.
-    /// </summary>
-    private void SetOrMixedEditableCombo(ComboBox box, string fieldName, IEnumerable<string> distinctValues)
-    {
-        var vals = distinctValues.ToList();
-        if (vals.Count == 1)
-        {
-            box.Text = vals[0];
-            return;
-        }
-
-        _mixedFields.Add(fieldName);
-        MixedPlaceholder.Apply(box);
-    }
+    // H13 TrackEditor slice 1: SetOrMixed + SetOrMixedEditableCombo retired —
+    // the text-field mixed-state machinery now lives on TrackEditorViewModel.
+    // The remaining mixed handling for SparsCode / IsStereo / Session combos and
+    // for the PieceRefs / Performers lists is still in PopulateMultiFields above
+    // and is later-slice territory.
 
     // ── Track loading ─────────────────────────────────────────────────────────
 
@@ -424,34 +408,43 @@ public partial class TrackEditorWindow : Window
     /// </summary>
     private void LoadTrack()
     {
-        AlbumTrack track = IsAddingNew
-            ? new AlbumTrack
-              {
-                  TrackNumber = (_disc!.Tracks.Count > 0
-                      ? _disc.Tracks.Max(t => t.TrackNumber) : 0) + 1
-              }
-            : _disc!.Tracks[_trackIndex];
-
         // Copy collections so the UI works on independent data
         _pieceRefs.Clear();
-        foreach (var r in track.PieceRefs ?? [])
-            _pieceRefs.Add(r);
-
         _trackPerformers.Clear();
-        foreach (var p in track.Performers ?? [])
-            _trackPerformers.Add(p);
 
-        // Basic fields
-        TrackNumberBox.Text      = track.TrackNumber.ToString();
-        DurationBox.Text         = track.Duration    ?? "";
-        SparsCodeCombo.SelectValue(TrackSparsCodeBox, track.SparsCode);
-        TrackStereoBox.SelectedIndex = track.IsStereo switch { true => 1, false => 2, _ => 0 };
-        DescriptionBox.Text      = track.Description ?? "";
-        FlacPathBox.Text         = track.FlacPath    ?? "";
-        Mp3PathBox.Text          = track.Mp3Path     ?? "";
+        int? sessionIndexForCombo;
+        string? sparsCodeForCombo;
+        bool? isStereoForCombo;
+
+        if (IsAddingNew)
+        {
+            // New-track mode: defaults only (no source track exists yet).
+            _vm.LoadNew(_disc!);
+            sessionIndexForCombo = null;
+            sparsCodeForCombo    = null;
+            isStereoForCombo     = null;
+        }
+        else
+        {
+            var track = _disc!.Tracks[_trackIndex];
+            foreach (var r in track.PieceRefs ?? []) _pieceRefs.Add(r);
+            foreach (var p in track.Performers ?? []) _trackPerformers.Add(p);
+
+            // H13 TrackEditor slice 1: text fields load through the VM
+            // (TwoWay-bound in XAML).
+            _vm.LoadSingle(track);
+
+            sessionIndexForCombo = track.SessionIndex;
+            sparsCodeForCombo    = track.SparsCode;
+            isStereoForCombo     = track.IsStereo;
+        }
+
+        // Combobox-driven fields stay in code-behind until slice 2.
+        SparsCodeCombo.SelectValue(TrackSparsCodeBox, sparsCodeForCombo);
+        TrackStereoBox.SelectedIndex = isStereoForCombo switch { true => 1, false => 2, _ => 0 };
 
         // Session combo
-        RebuildSessionCombo(track.SessionIndex);
+        RebuildSessionCombo(sessionIndexForCombo);
 
         UpdateTitleAndButtons();
     }
@@ -495,7 +488,8 @@ public partial class TrackEditorWindow : Window
     /// </summary>
     private bool CommitCurrentTrack()
     {
-        if (!int.TryParse(TrackNumberBox.Text.Trim(), out var num) || num <= 0)
+        // H13 TrackEditor slice 1: parse the VM-bound TrackNumber value.
+        if (!int.TryParse((_vm.TrackNumber.Value ?? "").Trim(), out var num) || num <= 0)
         {
             MessageBox.Show("Track number must be a positive integer.", "Validation",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -520,15 +514,17 @@ public partial class TrackEditorWindow : Window
 
     private void ApplyUiToTrack(AlbumTrack target)
     {
-        target.TrackNumber  = int.Parse(TrackNumberBox.Text.Trim());
-        target.Duration     = NullIfEmpty(DurationBox.Text);
+        // H13 TrackEditor slice 1: text fields read from the VM (TwoWay-bound,
+        // so this is the current TextBox content as the binding propagated it).
+        target.TrackNumber  = int.Parse((_vm.TrackNumber.Value ?? "").Trim());
+        target.Duration     = NullIfEmpty(_vm.Duration.Value);
         target.SparsCode    = SparsCodeCombo.GetValue(TrackSparsCodeBox);
         target.IsStereo     = TrackStereoBox.SelectedIndex == 1 ? true
                             : TrackStereoBox.SelectedIndex == 2 ? false
                             : (bool?)null;
-        target.Description  = NullIfEmpty(DescriptionBox.Text);
-        target.FlacPath     = NullIfEmpty(FlacPathBox.Text);
-        target.Mp3Path      = NullIfEmpty(Mp3PathBox.Text);
+        target.Description  = NullIfEmpty(_vm.Description.Value);
+        target.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
+        target.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
         target.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
         // SessionIndexMapping treats anything past the real session list
         // (including the "(no session)" pseudo-item and any negative
@@ -623,16 +619,17 @@ public partial class TrackEditorWindow : Window
     /// </summary>
     private void CommitLooseTrack()
     {
+        // H13 TrackEditor slice 1: text fields read from the VM.
         var t = _looseTrack!;
         t.TrackNumber  = 0;             // sentinel: loose track, no disc position
-        t.Duration     = NullIfEmpty(DurationBox.Text);
+        t.Duration     = NullIfEmpty(_vm.Duration.Value);
         t.SparsCode    = SparsCodeCombo.GetValue(TrackSparsCodeBox);
         t.IsStereo     = TrackStereoBox.SelectedIndex == 1 ? true
                        : TrackStereoBox.SelectedIndex == 2 ? false
                        : (bool?)null;
-        t.Description  = NullIfEmpty(DescriptionBox.Text);
-        t.FlacPath     = NullIfEmpty(FlacPathBox.Text);
-        t.Mp3Path      = NullIfEmpty(Mp3PathBox.Text);
+        t.Description  = NullIfEmpty(_vm.Description.Value);
+        t.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
+        t.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
         t.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
         t.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
         t.SessionIndex = null;
@@ -644,12 +641,15 @@ public partial class TrackEditorWindow : Window
     /// </summary>
     private void SaveMulti()
     {
-        // ── Track # — validate only if the user actually entered a value ──────
-        var trackNumText = TrackNumberBox.Text.Trim();
-        var skipTrackNum = _mixedFields.Contains("TrackNumber") &&
-                           (trackNumText == "Mixed" || string.IsNullOrEmpty(trackNumText));
-        if (!skipTrackNum)
+        // ── Track # ───────────────────────────────────────────────────────────
+        // H13 TrackEditor slice 1: read from VM. Skip when:
+        //   • field StartedMixed AND user didn't touch (IsMixed still true), or
+        //   • field StartedMixed AND user cleared the placeholder without retyping
+        //     (Value is empty — don't wipe every track's TrackNumber).
+        // Otherwise validate the integer and write.
+        if (!SkipMixedTextWrite(_vm.TrackNumber))
         {
+            var trackNumText = (_vm.TrackNumber.Value ?? "").Trim();
             if (!int.TryParse(trackNumText, out var n) || n <= 0)
             {
                 MessageBox.Show("Track number must be a positive integer.", "Validation",
@@ -661,9 +661,9 @@ public partial class TrackEditorWindow : Window
         }
 
         // ── Simple text fields ────────────────────────────────────────────────
-        ApplyText("Duration",    DurationBox.Text.Trim(),
+        ApplyMixedFieldText(_vm.Duration,
             v => { foreach (var t in _editTracks!) t.Duration    = v; });
-        ApplyText("Description", DescriptionBox.Text.Trim(),
+        ApplyMixedFieldText(_vm.Description,
             v => { foreach (var t in _editTracks!) t.Description = v; });
 
         // ── SPARS Code — skip if Mixed sentinel still selected ─────────────────
@@ -722,17 +722,25 @@ public partial class TrackEditorWindow : Window
     }
 
     /// <summary>
-    /// Applies <paramref name="newValue"/> to all tracks via <paramref name="setter"/>
-    /// unless the field was mixed and the user left it as "Mixed" or empty.
+    /// H13 TrackEditor slice 1: VM-driven equivalent of the old <c>ApplyText</c>.
+    /// Same contract as <c>AlbumEditorViewModel.ApplyMixedFieldText</c> — for a
+    /// field that started Mixed:
+    /// <list type="bullet">
+    ///   <item>Still showing the placeholder (<c>field.IsMixed == true</c>) → skip.</item>
+    ///   <item>User cleared the placeholder but typed nothing → skip.</item>
+    ///   <item>User typed something — apply (via <see cref="NullIfEmpty"/>).</item>
+    /// </list>
+    /// For fields that started Unanimous, always apply (intentional clears propagate).
     /// </summary>
-    private void ApplyText(string fieldName, string newValue, Action<string?> setter)
+    private void ApplyMixedFieldText(MixedField<string> field, Action<string?> setter)
     {
-        if (_mixedFields.Contains(fieldName) &&
-            (newValue == "Mixed" || string.IsNullOrEmpty(newValue)))
-            return;
-
-        setter(NullIfEmpty(newValue));
+        if (SkipMixedTextWrite(field)) return;
+        setter(NullIfEmpty(field.Value));
     }
+
+    /// <summary>Returns true when a multi-edit save should skip writing this field.</summary>
+    private static bool SkipMixedTextWrite(MixedField<string> field) =>
+        field.StartedMixed && (field.IsMixed || string.IsNullOrEmpty(field.Value));
 
     // ── Piece refs ────────────────────────────────────────────────────────────
 
