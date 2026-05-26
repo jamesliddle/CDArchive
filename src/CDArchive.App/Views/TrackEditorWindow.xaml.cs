@@ -478,14 +478,14 @@ public partial class TrackEditorWindow : Window
     private void OnPrevClick(object sender, RoutedEventArgs e)
     {
         if (_trackIndex <= 0) return;
-        if (!CommitCurrentTrack()) return;
+        if (!HandleSaveValidationError(_vm.SaveSingle(_disc!, _trackIndex))) return;
         _trackIndex--;
         LoadTrack();
     }
 
     private void OnNextClick(object sender, RoutedEventArgs e)
     {
-        if (!CommitCurrentTrack()) return;
+        if (!HandleSaveValidationError(_vm.SaveSingle(_disc!, _trackIndex))) return;
 
         // If we just added a new track, _disc.Tracks grew — move to the next slot.
         // If we were editing an existing track, move forward one.
@@ -495,57 +495,27 @@ public partial class TrackEditorWindow : Window
 
     // ── Commit ────────────────────────────────────────────────────────────────
 
+    // H13 TrackEditor slice 5: CommitCurrentTrack + ApplyUiToTrack retired —
+    // the single-edit save now routes through TrackEditorViewModel.SaveSingle.
+    // The view-side validation feedback lives in HandleSaveValidationError
+    // (MessageBox + TrackNumberBox focus on InvalidTrackNumber).
+
     /// <summary>
-    /// Validates, then writes UI state to the disc's track list.
-    /// Returns false (and shows a message) if validation fails.
+    /// Surfaces the validation-error MessageBox + focuses TrackNumberBox when
+    /// the VM's Save method returns a failure. Returns true if the save
+    /// succeeded (caller may proceed with DialogResult / navigation); false
+    /// if validation failed (caller should bail out of the OK/navigation flow).
     /// </summary>
-    private bool CommitCurrentTrack()
+    private bool HandleSaveValidationError(TrackEditorViewModel.SaveValidationError error)
     {
-        // H13 TrackEditor slice 1: parse the VM-bound TrackNumber value.
-        if (!int.TryParse((_vm.TrackNumber.Value ?? "").Trim(), out var num) || num <= 0)
+        if (error == TrackEditorViewModel.SaveValidationError.InvalidTrackNumber)
         {
             MessageBox.Show("Track number must be a positive integer.", "Validation",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             TrackNumberBox.Focus();
             return false;
         }
-
-        if (IsAddingNew)
-        {
-            // Create and append the new track
-            var newTrack = new AlbumTrack();
-            ApplyUiToTrack(newTrack);
-            _disc!.Tracks.Add(newTrack);
-        }
-        else
-        {
-            ApplyUiToTrack(_disc!.Tracks[_trackIndex]);
-        }
-
         return true;
-    }
-
-    private void ApplyUiToTrack(AlbumTrack target)
-    {
-        // H13 TrackEditor slice 1: text fields read from the VM (TwoWay-bound,
-        // so this is the current TextBox content as the binding propagated it).
-        // Slice 2: SparsCode + IsStereo also read from the VM via translator helpers.
-        target.TrackNumber  = int.Parse((_vm.TrackNumber.Value ?? "").Trim());
-        target.Duration     = NullIfEmpty(_vm.Duration.Value);
-        target.SparsCode    = TrackEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
-        target.IsStereo     = TrackEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
-        target.Description  = NullIfEmpty(_vm.Description.Value);
-        target.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
-        target.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
-        // H13 TrackEditor slice 4: PieceRefs + Performers read from VM
-        // collections. Snapshot to List<T> on save (model field is List<T>?,
-        // and storing the VM's ObservableCollection instance directly would
-        // be a type mismatch + would tie the model to a UI-facing type).
-        target.PieceRefs    = _vm.PieceRefs.Items.Count   > 0 ? _vm.PieceRefs.Items.ToList()   : null;
-        // H13 TrackEditor slice 3: SessionIndex reads from VM. Single-edit
-        // never has a Mixed sentinel so VM Value is always meaningful.
-        target.SessionIndex = _vm.Session.Value;
-        target.Performers   = _vm.Performers.Items.Count > 0 ? _vm.Performers.Items.ToList() : null;
     }
 
     // ── File browse handlers for audio overrides ─────────────────────────────
@@ -645,181 +615,34 @@ public partial class TrackEditorWindow : Window
     }
 
     // ── OK ────────────────────────────────────────────────────────────────────
+    //
+    // H13 TrackEditor slice 5: data-mutation pass moved into the VM. The
+    // code-behind retains only validation feedback (HandleSaveValidationError)
+    // and DialogResult = true. CommitCurrentTrack / CommitLooseTrack /
+    // SaveMulti / ApplyMixedFieldText / SkipMixedTextWrite / ApplyListMulti
+    // / NullIfEmpty all retired from code-behind — see TrackEditorViewModel
+    // for the moved-in equivalents.
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        if (_isMixed)       { SaveMulti(); return; }
-        if (_isLooseTrack)  { CommitLooseTrack(); DialogResult = true; return; }
-
-        if (!CommitCurrentTrack()) return;
-        DialogResult = true;
-    }
-
-    /// <summary>
-    /// Writes the UI state to the supplied loose track in place. No validation
-    /// for track number / session — those fields are hidden in loose mode.
-    /// </summary>
-    private void CommitLooseTrack()
-    {
-        // H13 TrackEditor slice 1: text fields read from the VM.
-        // Slice 2: SparsCode + IsStereo also read from the VM.
-        var t = _looseTrack!;
-        t.TrackNumber  = 0;             // sentinel: loose track, no disc position
-        t.Duration     = NullIfEmpty(_vm.Duration.Value);
-        t.SparsCode    = TrackEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
-        t.IsStereo     = TrackEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
-        t.Description  = NullIfEmpty(_vm.Description.Value);
-        t.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
-        t.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
-        t.PieceRefs    = _vm.PieceRefs.Items.Count   > 0 ? _vm.PieceRefs.Items.ToList()   : null;
-        t.Performers   = _vm.Performers.Items.Count > 0 ? _vm.Performers.Items.ToList() : null;
-        t.SessionIndex = null;
-    }
-
-    /// <summary>
-    /// Applies only the fields that were changed (i.e. not still showing "Mixed")
-    /// to every track in the bulk-edit set.
-    /// </summary>
-    private void SaveMulti()
-    {
-        // ── Track # ───────────────────────────────────────────────────────────
-        // H13 TrackEditor slice 1: read from VM. Skip when:
-        //   • allLoose batch (TrackNumber UI hidden; loose tracks stay at 0), or
-        //   • field StartedMixed AND user didn't touch (IsMixed still true), or
-        //   • field StartedMixed AND user cleared the placeholder without retyping
-        //     (Value is empty — don't wipe every track's TrackNumber).
-        // Otherwise validate the integer and write.
-        if (!_allLooseBatch && !SkipMixedTextWrite(_vm.TrackNumber))
+        TrackEditorViewModel.SaveValidationError error;
+        if (_isMixed)
         {
-            var trackNumText = (_vm.TrackNumber.Value ?? "").Trim();
-            if (!int.TryParse(trackNumText, out var n) || n <= 0)
-            {
-                MessageBox.Show("Track number must be a positive integer.", "Validation",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                TrackNumberBox.Focus();
-                return;
-            }
-            foreach (var t in _editTracks!) t.TrackNumber = n;
+            error = _vm.SaveMulti(_editTracks!, _allLooseBatch);
         }
-
-        // ── Simple text fields ────────────────────────────────────────────────
-        ApplyMixedFieldText(_vm.Duration,
-            v => { foreach (var t in _editTracks!) t.Duration    = v; });
-        ApplyMixedFieldText(_vm.Description,
-            v => { foreach (var t in _editTracks!) t.Description = v; });
-
-        // ── SPARS Code + Stereo (H13 TrackEditor slice 2) ─────────────────────
-        // Combo contract: write IFF !(started Mixed AND still Mixed). The
-        // SelectionChanged handlers push every user pick into the VM; if the
-        // user never touched a field that loaded Mixed, _vm.X.IsMixed is
-        // still true (no SelectionChanged fired) and we skip writing.
-        if (!(_vm.SparsCode.StartedMixed && _vm.SparsCode.IsMixed))
+        else if (_isLooseTrack)
         {
-            var spars = TrackEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
-            foreach (var t in _editTracks!) t.SparsCode = spars;
-        }
-
-        if (!(_vm.IsStereo.StartedMixed && _vm.IsStereo.IsMixed))
-        {
-            var stereo = TrackEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
-            foreach (var t in _editTracks!) t.IsStereo = stereo;
-        }
-
-        // ── Session (H13 TrackEditor slice 3) ─────────────────────────────────
-        // Combo contract: write IFF !(started Mixed AND still Mixed). The
-        // OnSessionChanged handler pushes user picks into VM.Session.Value
-        // (skipping the sentinel position), so IsMixed clears only when the
-        // user actually picked a real session or "(no session)". The
-        // "(multiple albums — cannot edit)" case loads as IsMixed=true and the
-        // combo is disabled — no user pick possible — so we always skip it.
-        if (!(_vm.Session.StartedMixed && _vm.Session.IsMixed))
-        {
-            foreach (var t in _editTracks!) t.SessionIndex = _vm.Session.Value;
-        }
-
-        // ── Piece References + Performers (H13 TrackEditor slice 4) ──────────
-        // Two save modes per list:
-        //   • Unanimous (!StartedMixed): editor's list is the unified result
-        //     for every selected track. Replace each track's list (idempotent
-        //     rewrite when unchanged). Each track gets a fresh List<T> instance
-        //     so subsequent track-level edits don't bleed across tracks.
-        //   • Mixed (StartedMixed): editor's list is "entries to ADD to every
-        //     selected track's existing list" — the additive semantic the
-        //     banner advertises. Append each editor entry to each track's
-        //     existing list, preserving prior entries. If the user added
-        //     nothing (WasEdited=false), the loop is a no-op.
-        ApplyListMulti(_vm.PieceRefs,
-            t => t.PieceRefs,
-            (t, v) => t.PieceRefs = v,
-            () => new List<TrackPieceRef>());
-
-        ApplyListMulti(_vm.Performers,
-            t => t.Performers,
-            (t, v) => t.Performers = v,
-            () => new List<AlbumPerformer>());
-
-        DialogResult = true;
-    }
-
-    /// <summary>
-    /// H13 TrackEditor slice 4 (revised): apply a multi-edit list to every
-    /// selected track. Two modes — see SaveMulti for the contract:
-    /// <list type="bullet">
-    ///   <item><b>Unanimous</b> (<c>!StartedMixed</c>): editor's list is the
-    ///     unified result; each track gets its own fresh List copy.</item>
-    ///   <item><b>Mixed</b> (<c>StartedMixed</c>): editor's list is additions
-    ///     to ADD to each track's existing list. Existing entries preserved.</item>
-    /// </list>
-    /// </summary>
-    private void ApplyListMulti<T>(
-        MixedCollection<T>           field,
-        Func<AlbumTrack, List<T>?>   getter,
-        Action<AlbumTrack, List<T>?> setter,
-        Func<List<T>>                newEmptyList)
-    {
-        if (field.StartedMixed)
-        {
-            // Mixed mode — append additions only when user added entries.
-            if (!field.WasEdited || field.Items.Count == 0) return;
-
-            foreach (var t in _editTracks!)
-            {
-                var existing = getter(t) ?? newEmptyList();
-                foreach (var item in field.Items) existing.Add(item);
-                setter(t, existing);
-            }
+            _vm.SaveLoose(_looseTrack!);
+            error = TrackEditorViewModel.SaveValidationError.None;
         }
         else
         {
-            // Unanimous mode — replace each track's list with a fresh copy.
-            foreach (var t in _editTracks!)
-            {
-                var copy = field.Items.Count > 0 ? field.Items.ToList() : null;
-                setter(t, copy);
-            }
+            error = _vm.SaveSingle(_disc!, _trackIndex);
         }
-    }
 
-    /// <summary>
-    /// H13 TrackEditor slice 1: VM-driven equivalent of the old <c>ApplyText</c>.
-    /// Same contract as <c>AlbumEditorViewModel.ApplyMixedFieldText</c> — for a
-    /// field that started Mixed:
-    /// <list type="bullet">
-    ///   <item>Still showing the placeholder (<c>field.IsMixed == true</c>) → skip.</item>
-    ///   <item>User cleared the placeholder but typed nothing → skip.</item>
-    ///   <item>User typed something — apply (via <see cref="NullIfEmpty"/>).</item>
-    /// </list>
-    /// For fields that started Unanimous, always apply (intentional clears propagate).
-    /// </summary>
-    private void ApplyMixedFieldText(MixedField<string> field, Action<string?> setter)
-    {
-        if (SkipMixedTextWrite(field)) return;
-        setter(NullIfEmpty(field.Value));
+        if (!HandleSaveValidationError(error)) return;
+        DialogResult = true;
     }
-
-    /// <summary>Returns true when a multi-edit save should skip writing this field.</summary>
-    private static bool SkipMixedTextWrite(MixedField<string> field) =>
-        field.StartedMixed && (field.IsMixed || string.IsNullOrEmpty(field.Value));
 
     // ── Piece refs ────────────────────────────────────────────────────────────
 
@@ -934,8 +757,6 @@ public partial class TrackEditorWindow : Window
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static string? NullIfEmpty(string? s) =>
-        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    // H13 TrackEditor slice 5: NullIfEmpty retired — moved into
+    // TrackEditorViewModel along with the rest of the save orchestration.
 }
