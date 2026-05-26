@@ -225,11 +225,11 @@ public partial class TrackEditorWindow : Window
         foreach (var p in t.Performers ?? []) _trackPerformers.Add(p);
 
         // H13 TrackEditor slice 1: text fields load through the VM
-        // (TwoWay-bound in XAML).
+        // (TwoWay-bound in XAML). Slice 2: SparsCode + IsStereo also.
         _vm.LoadLoose(t);
 
-        SparsCodeCombo.SelectValue(TrackSparsCodeBox, t.SparsCode);
-        TrackStereoBox.SelectedIndex = t.IsStereo switch { true => 1, false => 2, _ => 0 };
+        SparsCodeCombo.SelectValue(TrackSparsCodeBox, _vm.SparsCode.Value);
+        SetStereoComboFromVm();
     }
 
     // ── Multi-edit: populate every field with unanimous value or "Mixed" ─────
@@ -249,27 +249,17 @@ public partial class TrackEditorWindow : Window
         if (_vm.Duration.IsMixed)    MixedPlaceholder.Apply(DurationBox);
         if (_vm.Description.IsMixed) MixedPlaceholder.Apply(DescriptionBox);
 
-        if (SparsCodeCombo.PopulateMixed(TrackSparsCodeBox, tracks.Select(t => t.SparsCode)))
-            _mixedFields.Add("SparsCode");
-
-        // Stereo — non-editable ComboBox; add a "Mixed" sentinel item when needed.
-        // SelectedIndex: 0=Unknown (null), 1=Stereo (true), 2=Mono (false), 3=Mixed sentinel.
-        var stereoDistinct = tracks.Select(t => t.IsStereo).Distinct().ToList();
-        if (stereoDistinct.Count == 1)
-        {
-            TrackStereoBox.SelectedIndex = stereoDistinct[0] switch { true => 1, false => 2, _ => 0 };
-        }
+        // H13 TrackEditor slice 2: SparsCode + IsStereo sync from VM. When
+        // the VM loaded them as Mixed, append the "Mixed" sentinel
+        // ComboBoxItem and select it. The combos' "started Mixed" state is
+        // read from _vm.SparsCode.StartedMixed / _vm.IsStereo.StartedMixed at
+        // save time (no _mixedFields entries any more).
+        if (_vm.SparsCode.IsMixed)
+            SparsCodeCombo.AppendMixedSentinel(TrackSparsCodeBox);
         else
-        {
-            TrackStereoBox.Items.Add(new ComboBoxItem
-            {
-                Content    = "Mixed",
-                Foreground = Brushes.DarkGray,
-                FontStyle  = FontStyles.Italic
-            });
-            TrackStereoBox.SelectedIndex = 3;
-            _mixedFields.Add("IsStereo");
-        }
+            SparsCodeCombo.SelectValue(TrackSparsCodeBox, _vm.SparsCode.Value);
+
+        SetStereoComboFromVm();
 
         // ── Audio file overrides ──────────────────────────────────────────────
         // Per-track absolute paths don't bulk-edit meaningfully — disable the
@@ -396,9 +386,59 @@ public partial class TrackEditorWindow : Window
 
     // H13 TrackEditor slice 1: SetOrMixed + SetOrMixedEditableCombo retired —
     // the text-field mixed-state machinery now lives on TrackEditorViewModel.
-    // The remaining mixed handling for SparsCode / IsStereo / Session combos and
-    // for the PieceRefs / Performers lists is still in PopulateMultiFields above
-    // and is later-slice territory.
+    // The remaining mixed handling for Session combos and for the PieceRefs /
+    // Performers lists is still in PopulateMultiFields above and is later-slice
+    // territory.
+
+    // ── Combobox sync (H13 TrackEditor slice 2) ──────────────────────────────
+
+    /// <summary>
+    /// SelectionChanged handler for SparsCode. Pushes the user's pick back to
+    /// the VM via the translator helper (null/empty maps to "Unknown" in the
+    /// VM's string vocabulary, matching LoadSingle's normalisation). Trips
+    /// <see cref="MixedField{T}.WasEdited"/> and clears <see cref="MixedField{T}.IsMixed"/>
+    /// when the value actually changes (CommunityToolkit's value-equality check
+    /// suppresses spurious trips on programmatic syncs).
+    /// </summary>
+    private void OnSparsCodeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var picked = SparsCodeCombo.GetValue(TrackSparsCodeBox);
+        _vm.SparsCode.Value = string.IsNullOrEmpty(picked) ? "Unknown" : picked;
+    }
+
+    private void OnStereoChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (TrackStereoBox.SelectedItem is not ComboBoxItem cbi) return;
+        _vm.IsStereo.Value = cbi.Content as string ?? "Unknown";
+    }
+
+    /// <summary>
+    /// Sync <c>TrackStereoBox</c> from <c>_vm.IsStereo.Value</c>. The dropdown
+    /// has three fixed items (Unknown / Stereo / Mono) at indexes 0..2. When
+    /// the VM is Mixed, append a "Mixed" sentinel ComboBoxItem at index 3 and
+    /// select it (matches AlbumEditor's slice-2 pattern).
+    /// </summary>
+    private void SetStereoComboFromVm()
+    {
+        if (_vm.IsStereo.IsMixed)
+        {
+            TrackStereoBox.Items.Add(new ComboBoxItem
+            {
+                Content    = TrackEditorViewModel.IsStereoMixedSentinel,
+                Foreground = Brushes.DarkGray,
+                FontStyle  = FontStyles.Italic,
+            });
+            TrackStereoBox.SelectedIndex = 3;
+            return;
+        }
+
+        TrackStereoBox.SelectedIndex = _vm.IsStereo.Value switch
+        {
+            "Stereo" => 1,
+            "Mono"   => 2,
+            _        => 0,   // "Unknown" or anything unexpected
+        };
+    }
 
     // ── Track loading ─────────────────────────────────────────────────────────
 
@@ -413,16 +453,12 @@ public partial class TrackEditorWindow : Window
         _trackPerformers.Clear();
 
         int? sessionIndexForCombo;
-        string? sparsCodeForCombo;
-        bool? isStereoForCombo;
 
         if (IsAddingNew)
         {
             // New-track mode: defaults only (no source track exists yet).
             _vm.LoadNew(_disc!);
             sessionIndexForCombo = null;
-            sparsCodeForCombo    = null;
-            isStereoForCombo     = null;
         }
         else
         {
@@ -431,17 +467,19 @@ public partial class TrackEditorWindow : Window
             foreach (var p in track.Performers ?? []) _trackPerformers.Add(p);
 
             // H13 TrackEditor slice 1: text fields load through the VM
-            // (TwoWay-bound in XAML).
+            // (TwoWay-bound in XAML). Slice 2: SparsCode + IsStereo also.
             _vm.LoadSingle(track);
 
             sessionIndexForCombo = track.SessionIndex;
-            sparsCodeForCombo    = track.SparsCode;
-            isStereoForCombo     = track.IsStereo;
         }
 
-        // Combobox-driven fields stay in code-behind until slice 2.
-        SparsCodeCombo.SelectValue(TrackSparsCodeBox, sparsCodeForCombo);
-        TrackStereoBox.SelectedIndex = isStereoForCombo switch { true => 1, false => 2, _ => 0 };
+        // H13 TrackEditor slice 2: SparsCode + IsStereo also load through
+        // the VM; the code-behind syncs the non-editable ComboBoxes
+        // imperatively below since they use a "Mixed" sentinel ComboBoxItem
+        // rather than a placeholder text and the binding story is awkward
+        // for dynamically-appended items.
+        SparsCodeCombo.SelectValue(TrackSparsCodeBox, _vm.SparsCode.Value);
+        SetStereoComboFromVm();
 
         // Session combo
         RebuildSessionCombo(sessionIndexForCombo);
@@ -516,12 +554,11 @@ public partial class TrackEditorWindow : Window
     {
         // H13 TrackEditor slice 1: text fields read from the VM (TwoWay-bound,
         // so this is the current TextBox content as the binding propagated it).
+        // Slice 2: SparsCode + IsStereo also read from the VM via translator helpers.
         target.TrackNumber  = int.Parse((_vm.TrackNumber.Value ?? "").Trim());
         target.Duration     = NullIfEmpty(_vm.Duration.Value);
-        target.SparsCode    = SparsCodeCombo.GetValue(TrackSparsCodeBox);
-        target.IsStereo     = TrackStereoBox.SelectedIndex == 1 ? true
-                            : TrackStereoBox.SelectedIndex == 2 ? false
-                            : (bool?)null;
+        target.SparsCode    = TrackEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
+        target.IsStereo     = TrackEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
         target.Description  = NullIfEmpty(_vm.Description.Value);
         target.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
         target.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
@@ -620,13 +657,12 @@ public partial class TrackEditorWindow : Window
     private void CommitLooseTrack()
     {
         // H13 TrackEditor slice 1: text fields read from the VM.
+        // Slice 2: SparsCode + IsStereo also read from the VM.
         var t = _looseTrack!;
         t.TrackNumber  = 0;             // sentinel: loose track, no disc position
         t.Duration     = NullIfEmpty(_vm.Duration.Value);
-        t.SparsCode    = SparsCodeCombo.GetValue(TrackSparsCodeBox);
-        t.IsStereo     = TrackStereoBox.SelectedIndex == 1 ? true
-                       : TrackStereoBox.SelectedIndex == 2 ? false
-                       : (bool?)null;
+        t.SparsCode    = TrackEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
+        t.IsStereo     = TrackEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
         t.Description  = NullIfEmpty(_vm.Description.Value);
         t.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
         t.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
@@ -666,20 +702,20 @@ public partial class TrackEditorWindow : Window
         ApplyMixedFieldText(_vm.Description,
             v => { foreach (var t in _editTracks!) t.Description = v; });
 
-        // ── SPARS Code — skip if Mixed sentinel still selected ─────────────────
-        if (!_mixedFields.Contains("SparsCode")
-            || !SparsCodeCombo.IsMixedSentinelSelected(TrackSparsCodeBox))
+        // ── SPARS Code + Stereo (H13 TrackEditor slice 2) ─────────────────────
+        // Combo contract: write IFF !(started Mixed AND still Mixed). The
+        // SelectionChanged handlers push every user pick into the VM; if the
+        // user never touched a field that loaded Mixed, _vm.X.IsMixed is
+        // still true (no SelectionChanged fired) and we skip writing.
+        if (!(_vm.SparsCode.StartedMixed && _vm.SparsCode.IsMixed))
         {
-            var spars = SparsCodeCombo.GetValue(TrackSparsCodeBox);
+            var spars = TrackEditorViewModel.SparsCodeFromString(_vm.SparsCode.Value);
             foreach (var t in _editTracks!) t.SparsCode = spars;
         }
 
-        // ── Stereo — SelectedIndex 3 is the "Mixed" sentinel; skip if still there ─
-        if (!_mixedFields.Contains("IsStereo") || TrackStereoBox.SelectedIndex != 3)
+        if (!(_vm.IsStereo.StartedMixed && _vm.IsStereo.IsMixed))
         {
-            var stereo = TrackStereoBox.SelectedIndex == 1 ? (bool?)true
-                       : TrackStereoBox.SelectedIndex == 2 ? false
-                       : null;
+            var stereo = TrackEditorViewModel.IsStereoFromString(_vm.IsStereo.Value);
             foreach (var t in _editTracks!) t.IsStereo = stereo;
         }
 
