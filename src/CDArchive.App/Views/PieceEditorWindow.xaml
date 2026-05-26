@@ -46,7 +46,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="Version description" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="VersionDescriptionBox" />
+                           x:Name="VersionDescriptionBox"
+                           Text="{Binding VersionDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
 
             <Grid>
@@ -113,20 +114,24 @@
 
                 <TextBlock Grid.Row="3" Text="Title" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="TitleBox" />
+                           x:Name="TitleBox"
+                           Text="{Binding Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="4" Text="Title (English)" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="TitleEnglishBox"
+                           Text="{Binding TitleEnglish, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                            ToolTip="English translation of a non-English title" />
 
                 <TextBlock Grid.Row="5" Text="Subtitle" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="SubtitleBox" />
+                           x:Name="SubtitleBox"
+                           Text="{Binding Subtitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="6" Text="Nickname" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="NicknameBox" />
+                           x:Name="NicknameBox"
+                           Text="{Binding Nickname, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <!-- First-line input lives in the Track-anchor Markers list now
                      (Stage-6 unification): add a kind=FirstLine marker there.
@@ -136,11 +141,13 @@
                 <TextBlock Grid.Row="7" Text="Number" Style="{StaticResource FieldLabel}" />
                 <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal">
                     <TextBox x:Name="NumberBox" Style="{StaticResource FieldBox}"
-                             Width="60" />
+                             Width="60"
+                             Text="{Binding Number, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock Text="Music No." VerticalAlignment="Center"
                                Foreground="#555" FontSize="12" Margin="14,0,8,0" />
                     <TextBox x:Name="MusicNumberBox" Style="{StaticResource FieldBox}"
                              Width="60"
+                             Text="{Binding MusicNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              ToolTip="Visible number shown to the user (e.g. opera number 1, 2 …). Independent of the ordering sequence number." />
                 </StackPanel>
 
@@ -238,11 +245,13 @@
 
                 <TextBlock Grid.Row="13" Text="Pub. Year" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="13" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="PubYearBox" Width="80" HorizontalAlignment="Left" />
+                           x:Name="PubYearBox" Width="80" HorizontalAlignment="Left"
+                           Text="{Binding PubYear, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="14" Text="Comp. Years" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="14" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="CompYearsBox"
+                           Text="{Binding CompYears, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                            ToolTip="Year(s) of composition, e.g. 1803, 1803-1804, c1893" />
 
                 <!-- Notes — free-form text, multi-line -->
@@ -251,7 +260,8 @@
                 <TextBox   Grid.Row="15" Grid.Column="1" x:Name="NotesBox"
                            FontSize="13" Padding="4,3" Margin="0,3"
                            AcceptsReturn="True" TextWrapping="Wrap"
-                           Height="80" VerticalScrollBarVisibility="Auto" />
+                           Height="80" VerticalScrollBarVisibility="Auto"
+                           Text="{Binding Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             </Grid>
 
