@@ -109,6 +109,41 @@ public partial class TrackEditorViewModel : ObservableObject
     public static string? SparsCodeFromString(string? v) =>
         string.IsNullOrEmpty(v) ? null : v;
 
+    // ── Session field (slice 3) ───────────────────────────────────────────────
+    // SessionIndex is int? on the model — a positional FK into the album's
+    // session list, or null = "(no session)". The TrackEditor's session
+    // ComboBox builds items dynamically (real sessions + "(no session)"
+    // pseudo-item ± Mixed sentinel ± "(multiple albums)" disabled state),
+    // so we use the VM as the canonical source of truth for selection.
+    //
+    // <para>
+    // Contract: <see cref="MixedField{T}.IsMixed"/> = true means either the
+    // multi-edit "Mixed" sentinel OR the "(multiple albums — cannot edit)"
+    // disabled state is selected. Save MUST skip writing when IsMixed is
+    // still true. <see cref="MixedField{T}.Value"/> is meaningful only when
+    // IsMixed is false: int? where null is the "(no session)" pseudo-item
+    // and a non-null int is the position into the album's session list.
+    // </para>
+
+    /// <summary>
+    /// Session index. <c>Value</c> = real session index OR null ("(no
+    /// session)"). <c>IsMixed</c> = true when the multi-edit "Mixed" or
+    /// "(multiple albums)" sentinel is selected — save skips the write.
+    /// </summary>
+    public MixedField<int?> Session { get; } = new();
+
+    /// <summary>
+    /// Out-of-band placeholder value for <see cref="Session"/> when loaded as
+    /// Mixed. Distinct from any plausible real session index (positions are
+    /// 0..N) AND from null ("(no session)"), so picking the "(no session)"
+    /// pseudo-item in the UI trips the property-changed setter (value-equality
+    /// check in CommunityToolkit's <c>[ObservableProperty]</c>) and clears
+    /// <see cref="MixedField{T}.IsMixed"/>. Using null as the placeholder
+    /// would silently collapse "user picked (no session)" with "Mixed sentinel
+    /// still selected" — the bug a slice-3 test caught.
+    /// </summary>
+    internal const int SessionMixedPlaceholder = int.MinValue;
+
     /// <summary>
     /// Populate from a single track (single-edit mode). Every field becomes
     /// Unanimous with the track's current value; <see cref="MixedField{T}.WasEdited"/>
@@ -123,6 +158,7 @@ public partial class TrackEditorViewModel : ObservableObject
         Mp3Path.InitUnanimous(track.Mp3Path         ?? "");
         SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
+        Session.InitUnanimous(track.SessionIndex);
     }
 
     /// <summary>
@@ -139,6 +175,7 @@ public partial class TrackEditorViewModel : ObservableObject
         Mp3Path.InitUnanimous("");
         SparsCode.InitUnanimous(SparsCodeToString(null));   // "Unknown"
         IsStereo.InitUnanimous(IsStereoToString(null));     // "Unknown"
+        Session.InitUnanimous(null);                         // "(no session)"
     }
 
     /// <summary>
@@ -147,7 +184,7 @@ public partial class TrackEditorViewModel : ObservableObject
     /// all share one value it loads Unanimous; otherwise it loads Mixed with
     /// the supplied placeholder string.
     /// </summary>
-    public void LoadMulti(IReadOnlyList<AlbumTrack> tracks, string mixedPlaceholder)
+    public void LoadMulti(IReadOnlyList<AlbumTrack> tracks, string mixedPlaceholder, bool hasSharedSessions = true)
     {
         Init(TrackNumber, tracks.Select(t => t.TrackNumber.ToString()), mixedPlaceholder);
         Init(Duration,    tracks.Select(t => t.Duration    ?? ""), mixedPlaceholder);
@@ -166,6 +203,23 @@ public partial class TrackEditorViewModel : ObservableObject
         // string the user would see selected).
         Init(SparsCode, tracks.Select(t => SparsCodeToString(t.SparsCode)), SparsCodeMixedSentinel);
         Init(IsStereo,  tracks.Select(t => IsStereoToString(t.IsStereo)),  IsStereoMixedSentinel);
+
+        // Session: three cases:
+        //   • !hasSharedSessions → "(multiple albums — cannot edit)" disabled
+        //     state in the UI; treat as Mixed so save skips.
+        //   • All tracks share one SessionIndex → Unanimous; that value loads.
+        //   • Differing SessionIndex → "Mixed" sentinel; save skips until user
+        //     picks a real value.
+        if (!hasSharedSessions)
+        {
+            Session.InitMixed(SessionMixedPlaceholder);
+        }
+        else
+        {
+            var distinct = tracks.Select(t => t.SessionIndex).Distinct().ToList();
+            if (distinct.Count == 1) Session.InitUnanimous(distinct[0]);
+            else                     Session.InitMixed(SessionMixedPlaceholder);
+        }
     }
 
     /// <summary>
@@ -182,6 +236,7 @@ public partial class TrackEditorViewModel : ObservableObject
         Mp3Path.InitUnanimous(track.Mp3Path         ?? "");
         SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
+        Session.InitUnanimous(null);   // loose tracks have no session; UI hidden
     }
 
     private static void Init(MixedField<string> field, IEnumerable<string> values, string mixedPlaceholder)

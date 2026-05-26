@@ -118,7 +118,8 @@
                             <Button DockPanel.Dock="Right" Content="Add…"
                                     Padding="8,3" Margin="6,0,0,0"
                                     Click="OnAddSession" />
-                            <ComboBox x:Name="SessionBox" FontSize="13" />
+                            <ComboBox x:Name="SessionBox" FontSize="13"
+                                      SelectionChanged="OnSessionChanged" />
                         </DockPanel>
 
                     </Grid>

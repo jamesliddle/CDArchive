@@ -244,7 +244,10 @@ public partial class TrackEditorWindow : Window
         // italic chrome + first-edit-clear keystroke wiring on top of the
         // binding. The _mixedFields HashSet no longer carries these field names
         // — MixedField<T>.StartedMixed covers the same information per-field.
-        _vm.LoadMulti(tracks, MixedPlaceholder.PlaceholderText);
+        // Slice 3: the Session combo also loads through LoadMulti — pass
+        // hasSharedSessions so the VM can model the "(multiple albums)"
+        // disabled-state via IsMixed=true.
+        _vm.LoadMulti(tracks, MixedPlaceholder.PlaceholderText, hasSharedSessions);
         if (_vm.TrackNumber.IsMixed) MixedPlaceholder.Apply(TrackNumberBox);
         if (_vm.Duration.IsMixed)    MixedPlaceholder.Apply(DurationBox);
         if (_vm.Description.IsMixed) MixedPlaceholder.Apply(DescriptionBox);
@@ -317,6 +320,18 @@ public partial class TrackEditorWindow : Window
         }
     }
 
+    /// <summary>
+    /// H13 TrackEditor slice 3: drive the session combo's items + selection
+    /// from <see cref="TrackEditorViewModel.Session"/> VM state.
+    /// <para>
+    /// The VM's <c>Session.IsMixed</c> flag distinguishes the two skip-write
+    /// cases (single "Mixed" sentinel when selected tracks differ, OR the
+    /// "(multiple albums — cannot edit)" disabled-combo state when sessions
+    /// aren't shared). <see cref="_sessionMixedSentinelIndex"/> is set to the
+    /// item position where that sentinel lives, so <see cref="OnSessionChanged"/>
+    /// can skip pushing it to the VM (which would otherwise clear IsMixed).
+    /// </para>
+    /// </summary>
     private void PopulateMultiSessionCombo(bool hasSharedSessions)
     {
         SessionBox.Items.Clear();
@@ -325,8 +340,7 @@ public partial class TrackEditorWindow : Window
         {
             // Selected tracks span albums with different session lists —
             // can't batch-edit. The single item IS the skip-write sentinel
-            // (Rework H23): treat it like the "Mixed" sentinel so SaveMulti
-            // leaves each track's existing SessionIndex alone.
+            // (Rework H23). VM is loaded as Mixed; save skips the write.
             SessionLabel.IsEnabled = false;
             SessionBox.IsEnabled   = false;
             SessionBox.Items.Add(new ComboBoxItem
@@ -335,46 +349,37 @@ public partial class TrackEditorWindow : Window
                 Foreground = Brushes.DarkGray,
                 FontStyle  = FontStyles.Italic
             });
-            SessionBox.SelectedIndex = 0;
-            _mixedFields.Add("SessionIndex");
             _sessionMixedSentinelIndex = 0;
+            SessionBox.SelectedIndex = 0;
             return;
         }
 
         foreach (var s in _sessions)
             SessionBox.Items.Add(s.DisplaySummary);
 
-        // "(no session)" pseudo-item, same as the single-edit combo. Without
-        // it the "all selected tracks have SessionIndex=null" branch below
-        // pre-fix collapsed to session 0 via "?? 0" — silent data
-        // corruption on Save (Rework H23).
+        // "(no session)" pseudo-item — selectable, maps to SessionIndex=null.
+        // Pre-fix (Rework H23) this fell back to session 0 via "?? 0".
         SessionBox.Items.Add(NoSessionLabel);
 
-        var distinctIndexes = _editTracks!
-            .Select(t => t.SessionIndex)
-            .Distinct()
-            .ToList();
-
-        if (distinctIndexes.Count == 1)
+        if (_vm.Session.IsMixed)
         {
-            // Uniform selection — initialise the combo to the shared value
-            // (real session, or "(no session)" when null).
-            SessionBox.SelectedIndex =
-                SessionIndexMapping.InitialComboIndex(distinctIndexes[0], _sessions.Count);
-        }
-        else
-        {
-            // Append a "Mixed" sentinel at the end; SaveMulti's commit logic
-            // skips the write when this is still selected.
+            // VM was loaded as Mixed (distinct SessionIndexes across selection).
+            // Append the "Mixed" sentinel; OnSessionChanged skips it on save.
             SessionBox.Items.Add(new ComboBoxItem
             {
                 Content    = "Mixed",
                 Foreground = Brushes.DarkGray,
                 FontStyle  = FontStyles.Italic
             });
-            SessionBox.SelectedIndex = SessionBox.Items.Count - 1;
-            _mixedFields.Add("SessionIndex");
             _sessionMixedSentinelIndex = SessionBox.Items.Count - 1;
+            SessionBox.SelectedIndex   = _sessionMixedSentinelIndex;
+        }
+        else
+        {
+            // VM has a unanimous Session.Value (int? — real index or null).
+            _sessionMixedSentinelIndex = -1;
+            SessionBox.SelectedIndex =
+                SessionIndexMapping.InitialComboIndex(_vm.Session.Value, _sessions.Count);
         }
     }
 
@@ -563,13 +568,9 @@ public partial class TrackEditorWindow : Window
         target.FlacPath     = NullIfEmpty(_vm.FlacPath.Value);
         target.Mp3Path      = NullIfEmpty(_vm.Mp3Path.Value);
         target.PieceRefs    = _pieceRefs.Count > 0 ? [.. _pieceRefs] : null;
-        // SessionIndexMapping treats anything past the real session list
-        // (including the "(no session)" pseudo-item and any negative
-        // SelectedIndex) as null — no silent collapse to session 0.
-        // Single-edit never has a Mixed sentinel, so pass -1.
-        target.SessionIndex = SessionIndexMapping.ResolveSelection(
-            SessionBox.SelectedIndex, _sessions.Count,
-            mixedSentinelIndex: -1, out _);
+        // H13 TrackEditor slice 3: SessionIndex reads from VM. Single-edit
+        // never has a Mixed sentinel so VM Value is always meaningful.
+        target.SessionIndex = _vm.Session.Value;
         target.Performers   = _trackPerformers.Count > 0 ? [.. _trackPerformers] : null;
     }
 
@@ -606,20 +607,50 @@ public partial class TrackEditorWindow : Window
 
     // ── Session ───────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Single-edit (and OnAddSession) combo rebuild. Items = real sessions +
+    /// "(no session)" pseudo-item. No Mixed sentinel in single-edit, so
+    /// <see cref="_sessionMixedSentinelIndex"/> is set to -1 to disable the
+    /// sentinel-skip path in <see cref="OnSessionChanged"/>.
+    /// </summary>
     private void RebuildSessionCombo(int? selectedIndex)
     {
         SessionBox.Items.Clear();
         foreach (var s in _sessions)
             SessionBox.Items.Add(s.DisplaySummary);
-
-        // "(no session)" pseudo-item — selectable, maps to SessionIndex=null.
-        // Pre-fix (Rework H23) this fell back to session 0 via "?? 0", so
-        // opening a no-session track and clicking OK silently wrote
-        // SessionIndex = 0. See SessionIndexMapping for the contract.
         SessionBox.Items.Add(NoSessionLabel);
 
+        _sessionMixedSentinelIndex = -1;
         SessionBox.SelectedIndex =
             SessionIndexMapping.InitialComboIndex(selectedIndex, _sessions.Count);
+    }
+
+    /// <summary>
+    /// H13 TrackEditor slice 3: SelectionChanged handler for the session combo.
+    /// Pushes the user's pick to the VM, EXCEPT when the user selected (or
+    /// programmatic code seeded) the skip-write sentinel — that case leaves
+    /// the VM as Mixed so SaveMulti skips writing.
+    /// </summary>
+    private void OnSessionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var idx = SessionBox.SelectedIndex;
+        if (idx < 0) return;
+
+        // Skip the Mixed / "(multiple albums)" sentinel: leave VM as Mixed so
+        // save skips. Single-edit has _sessionMixedSentinelIndex = -1 so this
+        // check is a no-op there.
+        if (_sessionMixedSentinelIndex >= 0 && idx == _sessionMixedSentinelIndex) return;
+
+        // "(no session)" pseudo-item lives at position _sessions.Count.
+        if (idx == _sessions.Count)
+        {
+            _vm.Session.Value = null;
+            return;
+        }
+
+        // Real session at position idx.
+        if (idx < _sessions.Count)
+            _vm.Session.Value = idx;
     }
 
     // The "(no session)" pseudo-item label. Constant so the helper's
@@ -719,21 +750,16 @@ public partial class TrackEditorWindow : Window
             foreach (var t in _editTracks!) t.IsStereo = stereo;
         }
 
-        // ── Session ───────────────────────────────────────────────────────────
-        // ResolveSelection distinguishes three cases:
-        //   • Real session selected → returns the session index.
-        //   • "(no session)" selected → returns null + isMixedSentinel=false.
-        //   • Multi-edit "Mixed" or "(multiple albums)" sentinel still selected
-        //     → isMixedSentinel=true and we SKIP the write entirely.
-        // The "(multiple albums — cannot edit)" combo state populates with
-        // sessions.Count == 0, so the Mixed-sentinel index is correctly
-        // computed at position 1 → also caught by mixedSentinelPresent.
-        var sessionIdx = SessionIndexMapping.ResolveSelection(
-            SessionBox.SelectedIndex, _sessions.Count,
-            _sessionMixedSentinelIndex, out var isSessionMixedSentinel);
-        if (!isSessionMixedSentinel)
+        // ── Session (H13 TrackEditor slice 3) ─────────────────────────────────
+        // Combo contract: write IFF !(started Mixed AND still Mixed). The
+        // OnSessionChanged handler pushes user picks into VM.Session.Value
+        // (skipping the sentinel position), so IsMixed clears only when the
+        // user actually picked a real session or "(no session)". The
+        // "(multiple albums — cannot edit)" case loads as IsMixed=true and the
+        // combo is disabled — no user pick possible — so we always skip it.
+        if (!(_vm.Session.StartedMixed && _vm.Session.IsMixed))
         {
-            foreach (var t in _editTracks!) t.SessionIndex = sessionIdx;
+            foreach (var t in _editTracks!) t.SessionIndex = _vm.Session.Value;
         }
 
         // ── Piece References ──────────────────────────────────────────────────
