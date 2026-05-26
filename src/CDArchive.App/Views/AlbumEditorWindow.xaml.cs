@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
@@ -624,7 +625,20 @@ public partial class AlbumEditorWindow : Window
                 MessageBox.Show("Title is required.", "Validation",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 MainTabs.SelectedIndex = 0;
-                TitleBox.Focus();
+                // When MessageBox.Show returns, WPF restores focus to the OK
+                // button (the dialog button that opened the MessageBox) via the
+                // dispatcher — AFTER our synchronous call. A direct TitleBox.Focus()
+                // here gets clobbered. Defer the focus through the dispatcher at
+                // Input priority so it runs after WPF's restoration. Also force a
+                // layout pass first because if the Details tab wasn't already
+                // active, TitleBox's container has only just been realised.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    TitleBox.UpdateLayout();
+                    TitleBox.Focus();
+                    Keyboard.Focus(TitleBox);
+                    TitleBox.SelectAll();
+                }), DispatcherPriority.Input);
                 return;
 
             case AlbumEditorViewModel.SaveValidationError.None:
