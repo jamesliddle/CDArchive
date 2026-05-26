@@ -186,7 +186,7 @@
                     <DockPanel>
                         <TextBlock x:Name="PieceRefsMixedNote"
                                    DockPanel.Dock="Top"
-                                   Text="Mixed — values differ across selected tracks. Add or remove any entry to replace the list for all selected tracks."
+                                   Text="Mixed — piece references differ across selected tracks. Entries added here are APPENDED to each track's existing list; existing entries are preserved."
                                    Foreground="DarkGray" FontStyle="Italic"
                                    TextWrapping="Wrap" Margin="0,0,0,6"
                                    Visibility="Collapsed" />
@@ -220,7 +220,7 @@
                           Header="Performers" Margin="0,10,0,0" Padding="8">
                     <StackPanel>
                         <TextBlock x:Name="PerformerMixedNote"
-                                   Text="Mixed — performer lists differ across selected tracks. Add or remove any entry to replace the list for all selected tracks."
+                                   Text="Mixed — performer lists differ across selected tracks. Entries added here are APPENDED to each track's existing list; existing entries are preserved."
                                    Foreground="DarkGray" FontStyle="Italic"
                                    TextWrapping="Wrap" Margin="0,0,0,6"
                                    Visibility="Collapsed" />

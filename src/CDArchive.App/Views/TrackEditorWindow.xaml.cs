@@ -285,31 +285,14 @@ public partial class TrackEditorWindow : Window
         // ── Piece References + Performers (H13 TrackEditor slice 4) ──────────
         // VM's LoadMulti above populated the MixedCollection<T>s as Unanimous
         // (shared list across tracks) or Mixed (differing; list empty,
-        // StartedMixed=true). The "Mixed" banner visibility tracks the VM's
-        // StartedMixed + WasEdited state — show while still untouched, hide
-        // on first user Add/Remove.
+        // StartedMixed=true). The "Mixed" banner stays visible throughout the
+        // Mixed editing session — the additive semantic ("entries you add
+        // here are APPENDED to each track's existing list") needs to remain
+        // clear even after the user starts adding. No auto-hide.
         if (_vm.PieceRefs.StartedMixed)
-        {
             PieceRefsMixedNote.Visibility = Visibility.Visible;
-            _vm.PieceRefs.PropertyChanged += OnPieceRefsWasEditedChanged;
-        }
         if (_vm.Performers.StartedMixed)
-        {
             PerformerMixedNote.Visibility = Visibility.Visible;
-            _vm.Performers.PropertyChanged += OnPerformersWasEditedChanged;
-        }
-    }
-
-    private void OnPieceRefsWasEditedChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(MixedCollection<TrackPieceRef>.WasEdited) && _vm.PieceRefs.WasEdited)
-            PieceRefsMixedNote.Visibility = Visibility.Collapsed;
-    }
-
-    private void OnPerformersWasEditedChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(MixedCollection<AlbumPerformer>.WasEdited) && _vm.Performers.WasEdited)
-            PerformerMixedNote.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
@@ -755,23 +738,66 @@ public partial class TrackEditorWindow : Window
         }
 
         // ── Piece References + Performers (H13 TrackEditor slice 4) ──────────
-        // MixedCollection<T>.ShouldWriteOnSave = !StartedMixed || WasEdited.
-        // Unanimous lists always write (idempotent rewrite). Mixed lists write
-        // only if the user touched them (Add/Remove); otherwise skip to
-        // preserve each track's existing list.
-        if (_vm.PieceRefs.ShouldWriteOnSave)
-        {
-            var refs = _vm.PieceRefs.Items.Count > 0 ? _vm.PieceRefs.Items.ToList() : null;
-            foreach (var t in _editTracks!) t.PieceRefs = refs;
-        }
+        // Two save modes per list:
+        //   • Unanimous (!StartedMixed): editor's list is the unified result
+        //     for every selected track. Replace each track's list (idempotent
+        //     rewrite when unchanged). Each track gets a fresh List<T> instance
+        //     so subsequent track-level edits don't bleed across tracks.
+        //   • Mixed (StartedMixed): editor's list is "entries to ADD to every
+        //     selected track's existing list" — the additive semantic the
+        //     banner advertises. Append each editor entry to each track's
+        //     existing list, preserving prior entries. If the user added
+        //     nothing (WasEdited=false), the loop is a no-op.
+        ApplyListMulti(_vm.PieceRefs,
+            t => t.PieceRefs,
+            (t, v) => t.PieceRefs = v,
+            () => new List<TrackPieceRef>());
 
-        if (_vm.Performers.ShouldWriteOnSave)
-        {
-            var performers = _vm.Performers.Items.Count > 0 ? _vm.Performers.Items.ToList() : null;
-            foreach (var t in _editTracks!) t.Performers = performers;
-        }
+        ApplyListMulti(_vm.Performers,
+            t => t.Performers,
+            (t, v) => t.Performers = v,
+            () => new List<AlbumPerformer>());
 
         DialogResult = true;
+    }
+
+    /// <summary>
+    /// H13 TrackEditor slice 4 (revised): apply a multi-edit list to every
+    /// selected track. Two modes — see SaveMulti for the contract:
+    /// <list type="bullet">
+    ///   <item><b>Unanimous</b> (<c>!StartedMixed</c>): editor's list is the
+    ///     unified result; each track gets its own fresh List copy.</item>
+    ///   <item><b>Mixed</b> (<c>StartedMixed</c>): editor's list is additions
+    ///     to ADD to each track's existing list. Existing entries preserved.</item>
+    /// </list>
+    /// </summary>
+    private void ApplyListMulti<T>(
+        MixedCollection<T>           field,
+        Func<AlbumTrack, List<T>?>   getter,
+        Action<AlbumTrack, List<T>?> setter,
+        Func<List<T>>                newEmptyList)
+    {
+        if (field.StartedMixed)
+        {
+            // Mixed mode — append additions only when user added entries.
+            if (!field.WasEdited || field.Items.Count == 0) return;
+
+            foreach (var t in _editTracks!)
+            {
+                var existing = getter(t) ?? newEmptyList();
+                foreach (var item in field.Items) existing.Add(item);
+                setter(t, existing);
+            }
+        }
+        else
+        {
+            // Unanimous mode — replace each track's list with a fresh copy.
+            foreach (var t in _editTracks!)
+            {
+                var copy = field.Items.Count > 0 ? field.Items.ToList() : null;
+                setter(t, copy);
+            }
+        }
     }
 
     /// <summary>
