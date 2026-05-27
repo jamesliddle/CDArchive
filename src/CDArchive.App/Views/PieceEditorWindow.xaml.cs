@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
@@ -31,6 +32,12 @@ public partial class PieceEditorWindow : Window
     private readonly List<InstrumentEntry> _pieceInstruments = [];
     private readonly List<CatalogInfo> _catalogEntries = [];
 
+    // H13 PieceEditor slice 1: 10 simple text fields move to PieceEditorViewModel.
+    // XAML TwoWay-binds to _vm.X (no MixedField — PieceEditor has no multi-edit).
+    // Combobox + checkbox + list-shaped fields stay in code-behind; later slices
+    // migrate them.
+    private readonly PieceEditorViewModel _vm = new();
+
     /// <summary>
     /// The piece being edited (or newly created).
     /// </summary>
@@ -50,6 +57,7 @@ public partial class PieceEditorWindow : Window
         IReadOnlyList<RoleEntry>? ancestorRoles = null)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         _pickLists          = pickLists;
         _mode               = mode;
@@ -94,6 +102,7 @@ public partial class PieceEditorWindow : Window
         IReadOnlyList<RoleEntry>? ancestorRoles = null)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         _pickLists          = pickLists;
         _mode               = PieceEditorMode.Version;
@@ -114,7 +123,8 @@ public partial class PieceEditorWindow : Window
 
         // Show Version Description; hide the Versions section (not applicable)
         VersionDescriptionSection.Visibility = Visibility.Visible;
-        VersionDescriptionBox.Text = _sourceVersion.Description ?? "";
+        // H13 PieceEditor slice 1: VersionDescription lives on the VM.
+        _vm.LoadVersionDescription(_sourceVersion);
         VersionsSectionHeader.Visibility = Visibility.Collapsed;
         VersionsSectionPanel.Visibility  = Visibility.Collapsed;
 
@@ -159,7 +169,8 @@ public partial class PieceEditorWindow : Window
     private void CopyPieceToVersion()
     {
         var v = _sourceVersion!;
-        v.Description = NullIfEmpty(VersionDescriptionBox.Text);
+        // H13 PieceEditor slice 1: VersionDescription lives on the VM.
+        _vm.SaveVersionDescription(v);
         PieceVersionShuttle.IntoVersion(_piece, v);
     }
 
@@ -200,6 +211,10 @@ public partial class PieceEditorWindow : Window
 
     private void LoadFromPiece()
     {
+        // H13 PieceEditor slice 1: text fields load through the VM
+        // (TwoWay-bound in XAML — see VM's LoadFromPiece for the field set).
+        _vm.LoadFromPiece(_piece);
+
         ComposerCombo.Text = _piece.Composer ?? _inheritedComposer ?? "";
 
         // Seed Other contributors from parent if this piece/subpiece/version has none of its own.
@@ -208,23 +223,10 @@ public partial class PieceEditorWindow : Window
         RefreshComposerCreditList();
 
         FormCombo.Text = _piece.Form ?? "";
-        TitleBox.Text = _piece.Title ?? "";
-        TitleEnglishBox.Text = _piece.TitleEnglish ?? "";
-        SubtitleBox.Text = _piece.Subtitle ?? "";
-        NicknameBox.Text = _piece.Nickname ?? "";
-        NumberBox.Text = _piece.Number?.ToString() ?? "";
-        MusicNumberBox.Text = _piece.MusicNumber ?? "";
         KeyTonalityCombo.Text = _piece.KeyTonality ?? "";
         CategoryCombo.Text = _piece.InstrumentationCategory ?? "";
         NumberedSubpiecesCheck.IsChecked = _piece.NumberedSubpieces ?? _piece.EffectiveSubpiecesNumbered;
         SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
-        PubYearBox.Text = _piece.PublicationYear?.ToString() ?? "";
-        NotesBox.Text = _piece.Notes ?? "";
-
-        // Composition years (stored as a JSON string value)
-        CompYearsBox.Text = _piece.CompositionYears?.ValueKind == System.Text.Json.JsonValueKind.String
-            ? _piece.CompositionYears.Value.GetString() ?? ""
-            : _piece.CompositionYears?.ToString() ?? "";
 
         // Key mode combo
         var mode = (_piece.KeyMode ?? "").ToLowerInvariant();
@@ -250,29 +252,19 @@ public partial class PieceEditorWindow : Window
 
     private void SaveToPiece()
     {
+        // H13 PieceEditor slice 1: text fields save through the VM
+        // (Title, TitleEnglish, Subtitle, Nickname, Number, MusicNumber,
+        // PubYear, CompYears, Notes — see VM's SaveToPiece for the field set).
+        _vm.SaveToPiece(_piece);
+
         _piece.Composer = NullIfEmpty(ComposerCombo.Text);
         _piece.Composers = _composers.Count > 0 ? _composers.ToList() : null;
         _piece.Form = NullIfEmpty(FormCombo.Text);
-        _piece.Title = NullIfEmpty(TitleBox.Text);
-        _piece.TitleEnglish = NullIfEmpty(TitleEnglishBox.Text);
-        _piece.Subtitle = NullIfEmpty(SubtitleBox.Text);
-        _piece.Nickname = NullIfEmpty(NicknameBox.Text);
         _piece.InstrumentationCategory = NullIfEmpty(CategoryCombo.Text);
         _piece.KeyTonality = NullIfEmpty(KeyTonalityCombo.Text);
 
-        _piece.Number = int.TryParse(NumberBox.Text.Trim(), out var n) ? n : null;
-        _piece.MusicNumber = NullIfEmpty(MusicNumberBox.Text);
-        _piece.PublicationYear = int.TryParse(PubYearBox.Text.Trim(), out var y) ? y : null;
-        _piece.Notes = NullIfEmpty(NotesBox.Text);
-
         var selectedMode = (KeyModeCombo.SelectedItem as ComboBoxItem)?.Content as string;
         _piece.KeyMode = string.IsNullOrEmpty(selectedMode) ? null : selectedMode;
-
-        // Composition years
-        var compYears = NullIfEmpty(CompYearsBox.Text);
-        _piece.CompositionYears = compYears != null
-            ? System.Text.Json.JsonDocument.Parse($"\"{compYears}\"").RootElement.Clone()
-            : null;
 
 
         // Catalog info — all entries from the list
