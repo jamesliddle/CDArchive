@@ -225,8 +225,8 @@ public partial class PieceEditorWindow : Window
             _composers.AddRange(_inheritedComposers);
         RefreshComposerCreditList();
 
-        NumberedSubpiecesCheck.IsChecked = _piece.NumberedSubpieces ?? _piece.EffectiveSubpiecesNumbered;
-        SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
+        // H13 PieceEditor slice 3: NumberedSubpieces + SubpiecesStart load
+        // through the VM (TwoWay-bound in XAML) — see VM's LoadFromPiece.
 
         // Catalog info — all entries
         if (_piece.CatalogInfo != null)
@@ -255,17 +255,9 @@ public partial class PieceEditorWindow : Window
         // Instrumentation
         _piece.Instrumentation = InstrumentEntry.SerializeInstrumentation(_pieceInstruments);
 
-        // Numbered subpieces — save null when the value matches the category-based default
-        // so the JSON stays clean for the common case.
-        var numbered = NumberedSubpiecesCheck.IsChecked == true;
-        var cat = NullIfEmpty(CategoryCombo.Text);
-        var defaultNumbered = !string.IsNullOrEmpty(cat) &&
-            !string.Equals(cat, "Opera", StringComparison.OrdinalIgnoreCase);
-        _piece.NumberedSubpieces = numbered != defaultNumbered ? numbered : null;
-
-        // Subpieces start — save null when 1 (the default)
-        var start = EffectiveSubpiecesStart;
-        _piece.SubpiecesStart = start == 1 ? null : start;
+        // H13 PieceEditor slice 3: NumberedSubpieces + SubpiecesStart save
+        // through the VM — see VM's SaveToPiece (handles the save-null-when-
+        // matches-default normalisation).
 
         // Subpieces
         _piece.Subpieces = _subpieces.Count > 0 ? _subpieces.ToList() : null;
@@ -350,7 +342,8 @@ public partial class PieceEditorWindow : Window
 
     private void RenumberSubpieces()
     {
-        var start = EffectiveSubpiecesStart;
+        // H13 PieceEditor slice 3: VM owns SubpiecesStart parsing.
+        var start = _vm.EffectiveSubpiecesStart;
         for (var i = 0; i < _subpieces.Count; i++)
             _subpieces[i].Number = start + i;
     }
@@ -358,7 +351,8 @@ public partial class PieceEditorWindow : Window
     private void RefreshSubpieceList()
     {
         RenumberSubpieces();
-        var showNums = NumberedSubpiecesCheck.IsChecked == true;
+        // H13 PieceEditor slice 3: VM owns NumberedSubpieces.
+        var showNums = _vm.NumberedSubpieces;
         var selectedTag = (SubpieceList.SelectedItem as ListBoxItem)?.Tag;
         SubpieceList.Items.Clear();
         foreach (var sp in _subpieces)
@@ -376,8 +370,8 @@ public partial class PieceEditorWindow : Window
     private void OnSubpiecesStartChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) =>
         RefreshSubpieceList();
 
-    private int EffectiveSubpiecesStart =>
-        int.TryParse(SubpiecesStartBox?.Text.Trim(), out var s) ? s : 1;
+    // H13 PieceEditor slice 3: EffectiveSubpiecesStart moved to
+    // PieceEditorViewModel — see _vm.EffectiveSubpiecesStart.
 
     private CanonPiece? SelectedSubpiece =>
         (SubpieceList.SelectedItem as ListBoxItem)?.Tag as CanonPiece;

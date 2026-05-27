@@ -92,6 +92,53 @@ public partial class PieceEditorViewModel : ObservableObject
     /// Editable combo bound to <c>pickLists.Categories</c>.</summary>
     [ObservableProperty] private string _category = "";
 
+    // ── Subpiece numbering controls (slice 3) ─────────────────────────────────
+    // The "Numbered" checkbox + adjacent "Subpieces start at N" TextBox sit
+    // next to the Subpieces list. Together they control whether subpieces
+    // display their number prefix + what the first number is.
+
+    /// <summary>
+    /// Whether subpieces display number prefixes. The model field
+    /// (<c>CanonPiece.NumberedSubpieces</c>) is nullable; null means "use the
+    /// category-based default" (Opera → not numbered, everything else →
+    /// numbered). On load, the VM resolves null to the effective value; on
+    /// save, the VM nullifies the field when it matches the category default
+    /// — keeps the JSON snapshot clean for the common case.
+    /// </summary>
+    [ObservableProperty] private bool _numberedSubpieces;
+
+    /// <summary>
+    /// Starting number for subpiece numbering. Stored as string in the VM
+    /// (TextBox binding); parsed to int via <see cref="EffectiveSubpiecesStart"/>.
+    /// Defaults to "1". On save, 1 normalises to null (the model default).
+    /// </summary>
+    [ObservableProperty] private string _subpiecesStart = "1";
+
+    /// <summary>
+    /// Parses <see cref="SubpiecesStart"/> to int, falling back to 1 on
+    /// non-parseable input. Used by the editor's RenumberSubpieces helper
+    /// and by SaveToPiece's normalisation.
+    /// </summary>
+    public int EffectiveSubpiecesStart =>
+        int.TryParse(SubpiecesStart?.Trim(), out var s) ? s : 1;
+
+    /// <summary>
+    /// The category-based default for NumberedSubpieces. Mirrors the model's
+    /// <c>EffectiveSubpiecesNumbered</c> heuristic: Opera defaults to
+    /// not-numbered (scenes / acts aren't typically labelled "1. ", "2. ");
+    /// everything else defaults to numbered. Used by SaveToPiece to decide
+    /// whether to persist a null or an explicit override.
+    /// </summary>
+    public bool DefaultNumberedForCurrentCategory
+    {
+        get
+        {
+            var cat = NullIfEmpty(Category);
+            return !string.IsNullOrEmpty(cat)
+                && !string.Equals(cat, "Opera", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     /// <summary>
     /// Populate the VM's text fields from a piece. Combobox / checkbox / list
     /// state stays in the editor's code-behind for now — later slices will
@@ -115,6 +162,13 @@ public partial class PieceEditorViewModel : ObservableObject
         KeyTonality    = piece.KeyTonality               ?? "";
         KeyMode        = (piece.KeyMode ?? "").ToLowerInvariant();
         Category       = piece.InstrumentationCategory   ?? "";
+
+        // Subpiece numbering controls (slice 3). NumberedSubpieces is
+        // nullable in the model — resolve null to the effective default via
+        // the model's EffectiveSubpiecesNumbered helper.
+        NumberedSubpieces = piece.NumberedSubpieces ?? piece.EffectiveSubpiecesNumbered;
+        SubpiecesStart    = (piece.SubpiecesStart ?? 1).ToString();
+
         // VersionDescription is populated separately by the version ctor — see
         // LoadVersionDescription. The piece itself has no Description field.
     }
@@ -164,6 +218,17 @@ public partial class PieceEditorViewModel : ObservableObject
         piece.KeyTonality             = NullIfEmpty(KeyTonality);
         piece.KeyMode                 = NullIfEmpty(KeyMode);
         piece.InstrumentationCategory = NullIfEmpty(Category);
+
+        // Subpiece numbering controls (slice 3).
+        // NumberedSubpieces persists null when it matches the category-based
+        // default — keeps JSON snapshots clean for the common case.
+        // SubpiecesStart persists null when it's 1 (the model default).
+        piece.NumberedSubpieces = NumberedSubpieces != DefaultNumberedForCurrentCategory
+            ? NumberedSubpieces
+            : (bool?)null;
+
+        var start = EffectiveSubpiecesStart;
+        piece.SubpiecesStart = start == 1 ? null : start;
     }
 
     /// <summary>Write the version-only Description back to the source version
