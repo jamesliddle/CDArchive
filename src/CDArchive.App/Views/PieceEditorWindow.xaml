@@ -78,6 +78,7 @@
                 <TextBlock Grid.Row="0" Text="Composer" Style="{StaticResource FieldLabel}" />
                 <ComboBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCombo}"
                            x:Name="ComposerCombo"
+                           Text="{Binding Composer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                            ToolTip="Primary composer — determines which composer this piece is grouped under" />
 
                 <!-- Additional composer credits -->
@@ -110,7 +111,8 @@
 
                 <TextBlock Grid.Row="2" Text="Form" Style="{StaticResource FieldLabel}" />
                 <ComboBox  Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCombo}"
-                           x:Name="FormCombo" />
+                           x:Name="FormCombo"
+                           Text="{Binding Form, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="3" Text="Title" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
@@ -153,12 +155,15 @@
 
                 <TextBlock Grid.Row="8" Text="Key Tonality" Style="{StaticResource FieldLabel}" />
                 <ComboBox  Grid.Row="8" Grid.Column="1" Style="{StaticResource FieldCombo}"
-                           x:Name="KeyTonalityCombo" Width="120" HorizontalAlignment="Left" />
+                           x:Name="KeyTonalityCombo" Width="120" HorizontalAlignment="Left"
+                           Text="{Binding KeyTonality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="9" Text="Key Mode" Style="{StaticResource FieldLabel}" />
                 <ComboBox  Grid.Row="9" Grid.Column="1" Width="120" HorizontalAlignment="Left"
                            Margin="0,3" Padding="4,4" FontSize="13"
-                           x:Name="KeyModeCombo">
+                           x:Name="KeyModeCombo"
+                           SelectedValuePath="Content"
+                           SelectedValue="{Binding KeyMode, Mode=TwoWay}">
                     <ComboBoxItem Content="" />
                     <ComboBoxItem Content="major" />
                     <ComboBoxItem Content="minor" />
@@ -196,7 +201,8 @@
 
                 <TextBlock Grid.Row="11" Text="Category" Style="{StaticResource FieldLabel}" />
                 <ComboBox  Grid.Row="11" Grid.Column="1" Style="{StaticResource FieldCombo}"
-                           x:Name="CategoryCombo" Width="160" HorizontalAlignment="Left" />
+                           x:Name="CategoryCombo" Width="160" HorizontalAlignment="Left"
+                           Text="{Binding Category, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="12" Text="Instrumentation" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />

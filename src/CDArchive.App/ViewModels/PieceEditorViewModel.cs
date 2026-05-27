@@ -64,6 +64,34 @@ public partial class PieceEditorViewModel : ObservableObject
     /// Visible only when the editor is in version mode.</summary>
     [ObservableProperty] private string _versionDescription = "";
 
+    // ── Combobox fields (slice 2) ─────────────────────────────────────────────
+    // The four editable combos (Composer, Form, KeyTonality, Category) bind
+    // to `Text` so the user can either pick an existing entry or type a new
+    // one. KeyMode is a non-editable combo with three fixed items
+    // ("" / "major" / "minor") and binds to `SelectedValue` with
+    // SelectedValuePath="Content". ItemsSource for the editable combos stays
+    // in code-behind (it's view-side data — picklist references).
+
+    /// <summary>Primary composer name. Editable combo bound to the
+    /// pickLists-derived list of composer names.</summary>
+    [ObservableProperty] private string _composer = "";
+
+    /// <summary>Musical form (Sonata, Symphony, …). Editable combo bound to
+    /// <c>pickLists.Forms</c>.</summary>
+    [ObservableProperty] private string _form = "";
+
+    /// <summary>Key tonality (C, B-flat, …). Editable combo bound to
+    /// <c>pickLists.KeyTonalities</c>.</summary>
+    [ObservableProperty] private string _keyTonality = "";
+
+    /// <summary>Key mode ("" / "major" / "minor"). Non-editable combo,
+    /// bound via SelectedValue.</summary>
+    [ObservableProperty] private string _keyMode = "";
+
+    /// <summary>Instrumentation category (Chamber, Piano, Orchestra, …).
+    /// Editable combo bound to <c>pickLists.Categories</c>.</summary>
+    [ObservableProperty] private string _category = "";
+
     /// <summary>
     /// Populate the VM's text fields from a piece. Combobox / checkbox / list
     /// state stays in the editor's code-behind for now — later slices will
@@ -80,8 +108,29 @@ public partial class PieceEditorViewModel : ObservableObject
         PubYear        = piece.PublicationYear?.ToString() ?? "";
         CompYears      = CompYearsToString(piece.CompositionYears);
         Notes          = piece.Notes           ?? "";
+
+        // Combobox fields (slice 2).
+        Composer       = piece.Composer                  ?? "";
+        Form           = piece.Form                      ?? "";
+        KeyTonality    = piece.KeyTonality               ?? "";
+        KeyMode        = (piece.KeyMode ?? "").ToLowerInvariant();
+        Category       = piece.InstrumentationCategory   ?? "";
         // VersionDescription is populated separately by the version ctor — see
         // LoadVersionDescription. The piece itself has no Description field.
+    }
+
+    /// <summary>
+    /// LoadFromPiece supports an optional fallback for the Composer field
+    /// (subpieces/versions inherit their parent's Composer when their own is
+    /// blank). The editor's code-behind tracks this as <c>_inheritedComposer</c>
+    /// and supplies it; the VM applies the fallback only when the piece's
+    /// own Composer is empty.
+    /// </summary>
+    public void LoadFromPiece(CanonPiece piece, string? inheritedComposer)
+    {
+        LoadFromPiece(piece);
+        if (string.IsNullOrEmpty(Composer) && !string.IsNullOrEmpty(inheritedComposer))
+            Composer = inheritedComposer!;
     }
 
     /// <summary>Loads the version-only Description field. Called by the
@@ -108,6 +157,13 @@ public partial class PieceEditorViewModel : ObservableObject
         piece.Number          = int.TryParse(Number.Trim(),  out var n) ? n : null;
         piece.PublicationYear = int.TryParse(PubYear.Trim(), out var y) ? y : null;
         piece.CompositionYears = StringToCompYears(CompYears);
+
+        // Combobox fields (slice 2).
+        piece.Composer                = NullIfEmpty(Composer);
+        piece.Form                    = NullIfEmpty(Form);
+        piece.KeyTonality             = NullIfEmpty(KeyTonality);
+        piece.KeyMode                 = NullIfEmpty(KeyMode);
+        piece.InstrumentationCategory = NullIfEmpty(Category);
     }
 
     /// <summary>Write the version-only Description back to the source version

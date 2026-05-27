@@ -300,4 +300,167 @@ public class PieceEditorViewModelTests
         Assert.Equal(JsonValueKind.String, element!.Value.ValueKind);
         Assert.Equal(input, element.Value.GetString());
     }
+
+    // ── Slice 2: Combobox fields ─────────────────────────────────────────────
+
+    [Fact]
+    public void LoadFromPiece_PopulatesAllComboboxFields()
+    {
+        var piece = new CanonPiece
+        {
+            Composer                = "Beethoven, Ludwig van",
+            Form                    = "Sonata",
+            KeyTonality             = "C",
+            KeyMode                 = "Minor",   // pre-fix: mixed-case; loader lowercases
+            InstrumentationCategory = "Piano",
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+
+        Assert.Equal("Beethoven, Ludwig van", vm.Composer);
+        Assert.Equal("Sonata",                vm.Form);
+        Assert.Equal("C",                     vm.KeyTonality);
+        Assert.Equal("minor",                 vm.KeyMode);   // normalised
+        Assert.Equal("Piano",                 vm.Category);
+    }
+
+    [Fact]
+    public void LoadFromPiece_NullComboboxFields_LoadAsEmptyStrings()
+    {
+        var piece = new CanonPiece { Title = "has title" };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+
+        Assert.Equal("", vm.Composer);
+        Assert.Equal("", vm.Form);
+        Assert.Equal("", vm.KeyTonality);
+        Assert.Equal("", vm.KeyMode);
+        Assert.Equal("", vm.Category);
+    }
+
+    [Theory]
+    [InlineData("major", "major")]
+    [InlineData("Major", "major")]   // case-insensitive load
+    [InlineData("MINOR", "minor")]
+    [InlineData("",       "")]
+    [InlineData(null,     "")]
+    public void LoadFromPiece_KeyMode_LowercaseNormalisation(string? input, string expected)
+    {
+        var piece = new CanonPiece { KeyMode = input };
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+        Assert.Equal(expected, vm.KeyMode);
+    }
+
+    [Fact]
+    public void LoadFromPiece_InheritedComposer_AppliedWhenPieceComposerEmpty()
+    {
+        // Subpiece / version inherits parent's Composer when its own is blank.
+        var piece = new CanonPiece { Title = "Movement 1" };   // no Composer
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece, inheritedComposer: "Beethoven, Ludwig van");
+
+        Assert.Equal("Beethoven, Ludwig van", vm.Composer);
+    }
+
+    [Fact]
+    public void LoadFromPiece_InheritedComposer_IgnoredWhenPieceComposerSet()
+    {
+        // Piece's own Composer wins over inherited.
+        var piece = new CanonPiece { Composer = "Schubert, Franz" };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece, inheritedComposer: "Beethoven, Ludwig van");
+
+        Assert.Equal("Schubert, Franz", vm.Composer);
+    }
+
+    [Fact]
+    public void LoadFromPiece_InheritedComposerNull_LeavesPieceValue()
+    {
+        var piece = new CanonPiece();   // no Composer
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece, inheritedComposer: null);
+
+        Assert.Equal("", vm.Composer);
+    }
+
+    [Fact]
+    public void SaveToPiece_WritesAllComboboxFields()
+    {
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel
+        {
+            Title       = "T",
+            Composer    = "Brahms, Johannes",
+            Form        = "Symphony",
+            KeyTonality = "E",
+            KeyMode     = "major",
+            Category    = "Orchestra",
+        };
+
+        vm.SaveToPiece(piece);
+
+        Assert.Equal("Brahms, Johannes", piece.Composer);
+        Assert.Equal("Symphony",         piece.Form);
+        Assert.Equal("E",                piece.KeyTonality);
+        Assert.Equal("major",            piece.KeyMode);
+        Assert.Equal("Orchestra",        piece.InstrumentationCategory);
+    }
+
+    [Fact]
+    public void SaveToPiece_EmptyComboboxFields_NormaliseToNull()
+    {
+        var piece = new CanonPiece
+        {
+            Composer = "old", Form = "old", KeyTonality = "old",
+            KeyMode = "minor", InstrumentationCategory = "old",
+        };
+        var vm = new PieceEditorViewModel
+        {
+            Composer = "",
+            Form = "",
+            KeyTonality = "",
+            KeyMode = "",
+            Category = "",
+        };
+
+        vm.SaveToPiece(piece);
+
+        Assert.Null(piece.Composer);
+        Assert.Null(piece.Form);
+        Assert.Null(piece.KeyTonality);
+        Assert.Null(piece.KeyMode);
+        Assert.Null(piece.InstrumentationCategory);
+    }
+
+    [Fact]
+    public void RoundTrip_AllComboboxFields_Idempotent()
+    {
+        // Loading + saving without VM mutation must leave the piece byte-identical.
+        var original = new CanonPiece
+        {
+            Composer                = "Beethoven, Ludwig van",
+            Form                    = "Sonata",
+            KeyTonality             = "C",
+            KeyMode                 = "minor",
+            InstrumentationCategory = "Piano",
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(original);
+
+        var roundTripped = new CanonPiece();
+        vm.SaveToPiece(roundTripped);
+
+        Assert.Equal(original.Composer,                roundTripped.Composer);
+        Assert.Equal(original.Form,                    roundTripped.Form);
+        Assert.Equal(original.KeyTonality,             roundTripped.KeyTonality);
+        Assert.Equal(original.KeyMode,                 roundTripped.KeyMode);
+        Assert.Equal(original.InstrumentationCategory, roundTripped.InstrumentationCategory);
+    }
 }
