@@ -19,18 +19,16 @@ public partial class PieceEditorWindow : Window
     private readonly IReadOnlyList<ComposerCredit>? _inheritedComposers;
     private readonly IReadOnlyDictionary<string, IReadOnlyList<string>>? _composerCatalogs;
     private readonly IReadOnlyList<RoleEntry>? _ancestorRoles;
-    private readonly List<ComposerCredit> _composers;
-    private readonly List<CanonPiece> _subpieces;
-    private readonly List<CanonPieceVersion> _versions;
-    private readonly List<RoleEntry> _roles;
-    // Markers are reference-shared with _piece — edits in MarkerEditorWindow
-    // mutate the actual MusicalMarker instances so their stable Ids stay
-    // attached to whatever album-track refs already point at them. Add/remove
-    // operations re-bind _piece.Markers via ApplyToPiece on save.
-    private readonly List<MusicalMarker> _markers;
-    private readonly List<VariantInfo> _variants;
-    private readonly List<InstrumentEntry> _pieceInstruments = [];
-    private readonly List<CatalogInfo> _catalogEntries = [];
+    // H13 PieceEditor slice 4: all 8 list-shaped fields moved onto
+    // PieceEditorViewModel as ObservableCollection<T>. Reference them via
+    // _vm.Composers / _vm.CatalogEntries / _vm.PieceInstruments /
+    // _vm.Subpieces / _vm.Versions / _vm.Roles / _vm.Markers / _vm.Variants
+    // throughout the code-behind.
+    //
+    // Markers note (preserved from pre-fix): the items in _vm.Markers are the
+    // actual MusicalMarker instances from the piece, not clones, so stable Ids
+    // stay attached to whatever album-track refs already point at them. The
+    // VM's CloneVariant deep-copy applies ONLY to Variants.
 
     // H13 PieceEditor slice 1: 10 simple text fields move to PieceEditorViewModel.
     // XAML TwoWay-binds to _vm.X (no MixedField — PieceEditor has no multi-edit).
@@ -66,14 +64,10 @@ public partial class PieceEditorWindow : Window
         _composerCatalogs   = composerCatalogs;
         _ancestorRoles      = ancestorRoles;
         _piece      = piece ?? new CanonPiece { Composer = composerName };
-        _composers  = _piece.Composers?.ToList() ?? [];
-        _subpieces  = _piece.Subpieces?.ToList() ?? [];
-        _versions   = _piece.Versions?.ToList() ?? [];
-        _roles      = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
-        // Markers are aliased into _markers (same instances). MarkerEditorWindow
-        // mutates the entries in place so stable Ids stay attached.
-        _markers    = _piece.Markers?.ToList() ?? [];
-        _variants   = _piece.Variants?.Select(CloneVariant).ToList() ?? [];
+        // H13 PieceEditor slice 4: list population moves into the VM via
+        // LoadFromPiece → LoadListsFromPiece. The ctor's 6 list-init lines
+        // (Composers / Subpieces / Versions / Roles / Markers / Variants)
+        // retired here.
 
         Title = BuildTitle(mode, piece == null);
 
@@ -82,11 +76,6 @@ public partial class PieceEditorWindow : Window
 
         PopulateDropdowns();
         LoadFromPiece();
-        RefreshMarkerList();
-        RefreshSubpieceList();
-        RefreshVersionList();
-        RefreshRoleList();
-        RefreshVariantList();
     }
 
     // ── Version constructor ───────────────────────────────────────────────────
@@ -112,12 +101,11 @@ public partial class PieceEditorWindow : Window
         _ancestorRoles      = ancestorRoles;
         _sourceVersion = version ?? new CanonPieceVersion();
         _piece         = VersionToPiece(_sourceVersion, showSubpieceNumbers);
-        _composers     = _piece.Composers?.ToList() ?? [];
-        _subpieces     = _piece.Subpieces?.ToList() ?? [];
-        _versions      = [];  // versions cannot have nested versions
-        _roles         = _piece.Roles.HasValue ? RoleEntry.ParseRoles(_piece.Roles.Value) : [];
-        _markers       = _piece.Markers?.ToList() ?? [];
-        _variants      = _piece.Variants?.Select(CloneVariant).ToList() ?? [];
+        // H13 PieceEditor slice 4: list population moves into the VM via
+        // LoadFromPiece → LoadListsFromPiece. Versions list auto-empties for
+        // a version-mode load because PieceVersionShuttle.FromVersion excludes
+        // CanonPiece.Versions (versions of a version aren't a thing) so the
+        // resulting _piece.Versions is null.
 
         Title = BuildTitle(PieceEditorMode.Version, version == null);
 
@@ -133,11 +121,6 @@ public partial class PieceEditorWindow : Window
 
         PopulateDropdowns();
         LoadFromPiece();
-        RefreshMarkerList();
-        RefreshSubpieceList();
-        RefreshVersionList();
-        RefreshRoleList();
-        RefreshVariantList();
     }
 
     // ── Constructor helpers ───────────────────────────────────────────────────
@@ -218,64 +201,39 @@ public partial class PieceEditorWindow : Window
         // (TwoWay-bound in XAML — see VM's LoadFromPiece for the field set).
         // Slice 2: combobox fields (Composer / Form / KeyTonality / KeyMode /
         // Category) also load through the VM via the inheritedComposer overload.
+        // Slice 3: NumberedSubpieces + SubpiecesStart also.
+        // Slice 4: 8 list-shaped fields (Composers / CatalogEntries /
+        // PieceInstruments / Subpieces / Versions / Roles / Markers /
+        // Variants) populated by VM.LoadListsFromPiece called from LoadFromPiece.
         _vm.LoadFromPiece(_piece, _inheritedComposer);
+        // Seed Other contributors from parent if this piece has none of its own.
+        _vm.SeedInheritedComposers(_inheritedComposers);
 
-        // Seed Other contributors from parent if this piece/subpiece/version has none of its own.
-        if (_composers.Count == 0 && _inheritedComposers != null)
-            _composers.AddRange(_inheritedComposers);
+        // Refresh all 8 ListBoxes once after the VM's load has populated the
+        // collections. Subsequent Add/Edit/Remove handlers re-fire the
+        // appropriate Refresh after mutating the collection.
         RefreshComposerCreditList();
-
-        // H13 PieceEditor slice 3: NumberedSubpieces + SubpiecesStart load
-        // through the VM (TwoWay-bound in XAML) — see VM's LoadFromPiece.
-
-        // Catalog info — all entries
-        if (_piece.CatalogInfo != null)
-            _catalogEntries.AddRange(_piece.CatalogInfo);
         RefreshCatalogList();
-
-        // Instrumentation — parse current instruments into the piece list
-        if (_piece.Instrumentation.HasValue)
-            _pieceInstruments.AddRange(InstrumentEntry.ParseInstrumentation(_piece.Instrumentation.Value));
         RefreshInstrumentList();
+        RefreshMarkerList();
+        RefreshSubpieceList();
+        RefreshVersionList();
+        RefreshRoleList();
+        RefreshVariantList();
     }
 
     private void SaveToPiece()
     {
         // H13 PieceEditor slice 1: text fields save through the VM.
         // Slice 2: combobox fields (Composer / Form / KeyTonality / KeyMode /
-        // Category) also save through the VM — see VM's SaveToPiece.
+        // Category) also save through the VM.
+        // Slice 3: NumberedSubpieces + SubpiecesStart also (handles save-null-
+        // when-matches-default normalisation).
+        // Slice 4: 8 list-shaped fields persist via VM.SaveListsToPiece called
+        // from SaveToPiece. Markers preserve stable Ids (items in
+        // _vm.Markers are the actual MusicalMarker instances from the piece,
+        // not clones).
         _vm.SaveToPiece(_piece);
-
-        _piece.Composers = _composers.Count > 0 ? _composers.ToList() : null;
-
-
-        // Catalog info — all entries from the list
-        _piece.CatalogInfo = _catalogEntries.Count > 0 ? _catalogEntries.ToList() : null;
-
-        // Instrumentation
-        _piece.Instrumentation = InstrumentEntry.SerializeInstrumentation(_pieceInstruments);
-
-        // H13 PieceEditor slice 3: NumberedSubpieces + SubpiecesStart save
-        // through the VM — see VM's SaveToPiece (handles the save-null-when-
-        // matches-default normalisation).
-
-        // Subpieces
-        _piece.Subpieces = _subpieces.Count > 0 ? _subpieces.ToList() : null;
-
-        // Versions
-        _piece.Versions = _versions.Count > 0 ? _versions.ToList() : null;
-
-        // Markers — single anchor list now covers what the legacy Tempos +
-        // FirstLine fields used to. Preserves stable Ids on existing entries
-        // (the items in _markers are the actual MusicalMarker instances from
-        // the piece, not clones) so any track refs anchored to them stay valid.
-        _piece.Markers = _markers.Count > 0 ? _markers.ToList() : null;
-
-        // Roles
-        _piece.Roles = RoleEntry.SerializeRoles(_roles);
-
-        // Variants
-        _piece.Variants = _variants.Count > 0 ? _variants.ToList() : null;
     }
 
     // --- Composer credit management ---
@@ -284,7 +242,7 @@ public partial class PieceEditorWindow : Window
     {
         var selected = (ComposerCreditList.SelectedItem as ListBoxItem)?.Tag;
         ComposerCreditList.Items.Clear();
-        foreach (var credit in _composers)
+        foreach (var credit in _vm.Composers)
         {
             var item = new ListBoxItem { Content = credit.DisplayLabel, Tag = credit };
             ComposerCreditList.Items.Add(item);
@@ -304,7 +262,7 @@ public partial class PieceEditorWindow : Window
         };
         if (editor.ShowDialog() == true)
         {
-            _composers.Add(editor.Credit);
+            _vm.Composers.Add(editor.Credit);
             RefreshComposerCreditList();
         }
     }
@@ -325,8 +283,8 @@ public partial class PieceEditorWindow : Window
         };
         if (editor.ShowDialog() == true)
         {
-            var idx = _composers.IndexOf(credit);
-            _composers[idx] = editor.Credit;
+            var idx = _vm.Composers.IndexOf(credit);
+            _vm.Composers[idx] = editor.Credit;
             RefreshComposerCreditList();
         }
     }
@@ -334,7 +292,7 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveComposerCreditClick(object sender, RoutedEventArgs e)
     {
         if (SelectedComposerCredit is not { } credit) return;
-        _composers.Remove(credit);
+        _vm.Composers.Remove(credit);
         RefreshComposerCreditList();
     }
 
@@ -344,8 +302,8 @@ public partial class PieceEditorWindow : Window
     {
         // H13 PieceEditor slice 3: VM owns SubpiecesStart parsing.
         var start = _vm.EffectiveSubpiecesStart;
-        for (var i = 0; i < _subpieces.Count; i++)
-            _subpieces[i].Number = start + i;
+        for (var i = 0; i < _vm.Subpieces.Count; i++)
+            _vm.Subpieces[i].Number = start + i;
     }
 
     private void RefreshSubpieceList()
@@ -355,7 +313,7 @@ public partial class PieceEditorWindow : Window
         var showNums = _vm.NumberedSubpieces;
         var selectedTag = (SubpieceList.SelectedItem as ListBoxItem)?.Tag;
         SubpieceList.Items.Clear();
-        foreach (var sp in _subpieces)
+        foreach (var sp in _vm.Subpieces)
         {
             var item = new ListBoxItem { Content = sp.BuildSubpieceTitle(showNums), Tag = sp };
             SubpieceList.Items.Add(item);
@@ -378,17 +336,17 @@ public partial class PieceEditorWindow : Window
 
     private void OnAddSubpieceClick(object sender, RoutedEventArgs e)
     {
-        var newSubpiece = new CanonPiece { Number = _subpieces.Count + 1 };
+        var newSubpiece = new CanonPiece { Number = _vm.Subpieces.Count + 1 };
         var editor = new PieceEditorWindow(
             _pickLists, "", newSubpiece,
             ComposerCombo.ItemsSource as IReadOnlyList<string>, PieceEditorMode.Subpiece,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs,
             ancestorRoles: AncestorRolesForChildren()) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _subpieces.Add(editor.Piece);
+            _vm.Subpieces.Add(editor.Piece);
             RefreshSubpieceList();
         }
     }
@@ -410,7 +368,7 @@ public partial class PieceEditorWindow : Window
             _pickLists, sp.Composer ?? "", sp,
             ComposerCombo.ItemsSource as IReadOnlyList<string>, PieceEditorMode.Subpiece,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs,
             ancestorRoles: AncestorRolesForChildren()) { Owner = this };
         if (editor.ShowDialog() == true)
@@ -420,25 +378,25 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveSubpieceClick(object sender, RoutedEventArgs e)
     {
         if (SelectedSubpiece is not { } sp) return;
-        _subpieces.Remove(sp);
+        _vm.Subpieces.Remove(sp);
         RefreshSubpieceList();
     }
 
     private void OnMoveSubpieceUpClick(object sender, RoutedEventArgs e)
     {
         if (SelectedSubpiece is not { } sp) return;
-        var idx = _subpieces.IndexOf(sp);
+        var idx = _vm.Subpieces.IndexOf(sp);
         if (idx <= 0) return;
-        (_subpieces[idx], _subpieces[idx - 1]) = (_subpieces[idx - 1], _subpieces[idx]);
+        (_vm.Subpieces[idx], _vm.Subpieces[idx - 1]) = (_vm.Subpieces[idx - 1], _vm.Subpieces[idx]);
         RefreshSubpieceList();
     }
 
     private void OnMoveSubpieceDownClick(object sender, RoutedEventArgs e)
     {
         if (SelectedSubpiece is not { } sp) return;
-        var idx = _subpieces.IndexOf(sp);
-        if (idx < 0 || idx >= _subpieces.Count - 1) return;
-        (_subpieces[idx], _subpieces[idx + 1]) = (_subpieces[idx + 1], _subpieces[idx]);
+        var idx = _vm.Subpieces.IndexOf(sp);
+        if (idx < 0 || idx >= _vm.Subpieces.Count - 1) return;
+        (_vm.Subpieces[idx], _vm.Subpieces[idx + 1]) = (_vm.Subpieces[idx + 1], _vm.Subpieces[idx]);
         RefreshSubpieceList();
     }
 
@@ -448,7 +406,7 @@ public partial class PieceEditorWindow : Window
     {
         var selectedTag = (RoleList.SelectedItem as ListBoxItem)?.Tag;
         RoleList.Items.Clear();
-        foreach (var r in _roles)
+        foreach (var r in _vm.Roles)
         {
             var item = new ListBoxItem { Content = r.DisplayLabel, Tag = r };
             RoleList.Items.Add(item);
@@ -465,12 +423,12 @@ public partial class PieceEditorWindow : Window
         // picker so the user can select from roles defined in the parent piece.
         if (_ancestorRoles is { Count: > 0 })
         {
-            var picker = new RolePickerWindow(_ancestorRoles, _roles) { Owner = this };
+            var picker = new RolePickerWindow(_ancestorRoles, _vm.Roles) { Owner = this };
             if (picker.ShowDialog() == true && picker.SelectedRoles.Count > 0)
             {
                 // Add as name-only references — the full definition lives on the parent piece.
                 foreach (var r in picker.SelectedRoles)
-                    _roles.Add(new RoleEntry { Name = r.Name });
+                    _vm.Roles.Add(new RoleEntry { Name = r.Name });
                 RefreshRoleList();
             }
             return;
@@ -480,7 +438,7 @@ public partial class PieceEditorWindow : Window
         var editor = new RoleEditorWindow(_pickLists) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _roles.Add(editor.Role);
+            _vm.Roles.Add(editor.Role);
             RefreshRoleList();
         }
     }
@@ -495,8 +453,8 @@ public partial class PieceEditorWindow : Window
         var editor = new RoleEditorWindow(_pickLists, r) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            var idx = _roles.IndexOf(r);
-            _roles[idx] = editor.Role;
+            var idx = _vm.Roles.IndexOf(r);
+            _vm.Roles[idx] = editor.Role;
             RefreshRoleList();
         }
     }
@@ -504,25 +462,25 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveRoleClick(object sender, RoutedEventArgs e)
     {
         if (SelectedRole is not { } r) return;
-        _roles.Remove(r);
+        _vm.Roles.Remove(r);
         RefreshRoleList();
     }
 
     private void OnMoveRoleUpClick(object sender, RoutedEventArgs e)
     {
         if (SelectedRole is not { } r) return;
-        var idx = _roles.IndexOf(r);
+        var idx = _vm.Roles.IndexOf(r);
         if (idx <= 0) return;
-        (_roles[idx], _roles[idx - 1]) = (_roles[idx - 1], _roles[idx]);
+        (_vm.Roles[idx], _vm.Roles[idx - 1]) = (_vm.Roles[idx - 1], _vm.Roles[idx]);
         RefreshRoleList();
     }
 
     private void OnMoveRoleDownClick(object sender, RoutedEventArgs e)
     {
         if (SelectedRole is not { } r) return;
-        var idx = _roles.IndexOf(r);
-        if (idx < 0 || idx >= _roles.Count - 1) return;
-        (_roles[idx], _roles[idx + 1]) = (_roles[idx + 1], _roles[idx]);
+        var idx = _vm.Roles.IndexOf(r);
+        if (idx < 0 || idx >= _vm.Roles.Count - 1) return;
+        (_vm.Roles[idx], _vm.Roles[idx + 1]) = (_vm.Roles[idx + 1], _vm.Roles[idx]);
         RefreshRoleList();
     }
 
@@ -532,7 +490,7 @@ public partial class PieceEditorWindow : Window
     {
         var selectedTag = (VariantList.SelectedItem as ListBoxItem)?.Tag;
         VariantList.Items.Clear();
-        foreach (var v in _variants)
+        foreach (var v in _vm.Variants)
         {
             var item = new ListBoxItem { Content = v.Description, Tag = v };
             VariantList.Items.Add(item);
@@ -548,7 +506,7 @@ public partial class PieceEditorWindow : Window
         var editor = new VariantEditorWindow { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _variants.Add(editor.Variant);
+            _vm.Variants.Add(editor.Variant);
             RefreshVariantList();
         }
     }
@@ -563,8 +521,8 @@ public partial class PieceEditorWindow : Window
         var editor = new VariantEditorWindow(variant) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            var idx = _variants.IndexOf(variant);
-            _variants[idx] = editor.Variant;
+            var idx = _vm.Variants.IndexOf(variant);
+            _vm.Variants[idx] = editor.Variant;
             RefreshVariantList();
         }
     }
@@ -572,37 +530,35 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveVariantClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVariant is not { } variant) return;
-        _variants.Remove(variant);
+        _vm.Variants.Remove(variant);
         RefreshVariantList();
     }
 
     private void OnMoveVariantUpClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVariant is not { } variant) return;
-        var idx = _variants.IndexOf(variant);
+        var idx = _vm.Variants.IndexOf(variant);
         if (idx <= 0) return;
-        (_variants[idx], _variants[idx - 1]) = (_variants[idx - 1], _variants[idx]);
+        (_vm.Variants[idx], _vm.Variants[idx - 1]) = (_vm.Variants[idx - 1], _vm.Variants[idx]);
         RefreshVariantList();
     }
 
     private void OnMoveVariantDownClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVariant is not { } variant) return;
-        var idx = _variants.IndexOf(variant);
-        if (idx < 0 || idx >= _variants.Count - 1) return;
-        (_variants[idx], _variants[idx + 1]) = (_variants[idx + 1], _variants[idx]);
+        var idx = _vm.Variants.IndexOf(variant);
+        if (idx < 0 || idx >= _vm.Variants.Count - 1) return;
+        (_vm.Variants[idx], _vm.Variants[idx + 1]) = (_vm.Variants[idx + 1], _vm.Variants[idx]);
         RefreshVariantList();
     }
 
-    private static VariantInfo CloneVariant(VariantInfo v) => new()
-    {
-        Description     = v.Description,
-        LongDescription = v.LongDescription,
-    };
+    // H13 PieceEditor slice 4: CloneVariant retired — moved to
+    // PieceEditorViewModel as a private static helper used internally by
+    // LoadListsFromPiece.
 
     // --- Marker management ---
     // Markers carry stable Ids that album-track refs depend on, so they're
-    // edited in place rather than cloned. Add/Remove mutate the _markers list
+    // edited in place rather than cloned. Add/Remove mutate the _vm.Markers list
     // (and _piece.Markers via ApplyToPiece on save); Edit mutates the marker
     // instance itself, so the Id never changes through a round-trip.
 
@@ -610,7 +566,7 @@ public partial class PieceEditorWindow : Window
     {
         var keep = SelectedMarker;
         MarkerList.Items.Clear();
-        foreach (var m in _markers)
+        foreach (var m in _vm.Markers)
         {
             MarkerList.Items.Add(new ListBoxItem
             {
@@ -653,7 +609,7 @@ public partial class PieceEditorWindow : Window
         var editor = new MarkerEditorWindow { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _markers.Add(editor.Marker);
+            _vm.Markers.Add(editor.Marker);
             RefreshMarkerList();
             SelectMarkerByRef(editor.Marker);
         }
@@ -674,16 +630,16 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveMarkerClick(object sender, RoutedEventArgs e)
     {
         if (SelectedMarker is not { } marker) return;
-        _markers.Remove(marker);
+        _vm.Markers.Remove(marker);
         RefreshMarkerList();
     }
 
     private void OnMoveMarkerUpClick(object sender, RoutedEventArgs e)
     {
         if (SelectedMarker is not { } marker) return;
-        var idx = _markers.IndexOf(marker);
+        var idx = _vm.Markers.IndexOf(marker);
         if (idx <= 0) return;
-        (_markers[idx], _markers[idx - 1]) = (_markers[idx - 1], _markers[idx]);
+        (_vm.Markers[idx], _vm.Markers[idx - 1]) = (_vm.Markers[idx - 1], _vm.Markers[idx]);
         RefreshMarkerList();
         SelectMarkerByRef(marker);
     }
@@ -691,9 +647,9 @@ public partial class PieceEditorWindow : Window
     private void OnMoveMarkerDownClick(object sender, RoutedEventArgs e)
     {
         if (SelectedMarker is not { } marker) return;
-        var idx = _markers.IndexOf(marker);
-        if (idx < 0 || idx >= _markers.Count - 1) return;
-        (_markers[idx], _markers[idx + 1]) = (_markers[idx + 1], _markers[idx]);
+        var idx = _vm.Markers.IndexOf(marker);
+        if (idx < 0 || idx >= _vm.Markers.Count - 1) return;
+        (_vm.Markers[idx], _vm.Markers[idx + 1]) = (_vm.Markers[idx + 1], _vm.Markers[idx]);
         RefreshMarkerList();
         SelectMarkerByRef(marker);
     }
@@ -715,7 +671,7 @@ public partial class PieceEditorWindow : Window
     private void RefreshCatalogList()
     {
         CatalogList.Items.Clear();
-        foreach (var cat in _catalogEntries)
+        foreach (var cat in _vm.CatalogEntries)
         {
             var label = $"{cat.Catalog} {cat.CatalogNumber}".Trim();
             CatalogList.Items.Add(new ListBoxItem { Content = label, Tag = cat });
@@ -727,7 +683,7 @@ public partial class PieceEditorWindow : Window
         var prefix = CatalogPrefixCombo.Text.Trim();
         var number = CatalogNumberBox.Text.Trim();
         if (string.IsNullOrEmpty(prefix) && string.IsNullOrEmpty(number)) return;
-        _catalogEntries.Add(new CatalogInfo
+        _vm.CatalogEntries.Add(new CatalogInfo
         {
             Catalog = prefix,
             CatalogNumber = string.IsNullOrEmpty(number) ? null : number
@@ -740,7 +696,7 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveCatalogClick(object sender, RoutedEventArgs e)
     {
         if (CatalogList.SelectedItem is not ListBoxItem item || item.Tag is not CatalogInfo cat) return;
-        _catalogEntries.Remove(cat);
+        _vm.CatalogEntries.Remove(cat);
         RefreshCatalogList();
     }
 
@@ -751,7 +707,7 @@ public partial class PieceEditorWindow : Window
     {
         var selectedIdx = InstrumentsList.SelectedIndex;
         InstrumentsList.Items.Clear();
-        foreach (var entry in _pieceInstruments)
+        foreach (var entry in _vm.PieceInstruments)
             InstrumentsList.Items.Add(entry.DisplayLabel);
         if (selectedIdx >= 0 && selectedIdx < InstrumentsList.Items.Count)
             InstrumentsList.SelectedIndex = selectedIdx;
@@ -798,7 +754,7 @@ public partial class PieceEditorWindow : Window
                 if (ensEditor.ShowDialog() != true) return;
                 entry = ensEditor.Entry;
             }
-            _pieceInstruments.Add(entry);
+            _vm.PieceInstruments.Add(entry);
             RefreshInstrumentList();
             InstrumentsList.SelectedIndex = InstrumentsList.Items.Count - 1;
             return;
@@ -808,7 +764,7 @@ public partial class PieceEditorWindow : Window
         var editor = new InstrumentEntryEditorWindow(_pickLists, seed) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _pieceInstruments.Add(editor.Entry);
+            _vm.PieceInstruments.Add(editor.Entry);
             RefreshInstrumentList();
             InstrumentsList.SelectedIndex = InstrumentsList.Items.Count - 1;
         }
@@ -835,11 +791,11 @@ public partial class PieceEditorWindow : Window
                 if (editor.ShowDialog() != true) return;
                 entry = editor.Entry;
             }
-            _pieceInstruments.Add(entry);
+            _vm.PieceInstruments.Add(entry);
         }
         else
         {
-            _pieceInstruments.Add(new InstrumentEntry { Instrument = item });
+            _vm.PieceInstruments.Add(new InstrumentEntry { Instrument = item });
         }
 
         RefreshInstrumentList();
@@ -862,7 +818,7 @@ public partial class PieceEditorWindow : Window
         var idx = InstrumentsList.SelectedIndex;
         if (idx < 0) return;
 
-        var current = _pieceInstruments[idx];
+        var current = _vm.PieceInstruments[idx];
         if (current.IsEnsemble)
         {
             var def = _pickLists.Ensembles?.FirstOrDefault(e =>
@@ -873,7 +829,7 @@ public partial class PieceEditorWindow : Window
             var ensEditor = new EnsembleEntryEditorWindow(_pickLists, current) { Owner = this };
             if (ensEditor.ShowDialog() == true)
             {
-                _pieceInstruments[idx] = ensEditor.Entry;
+                _vm.PieceInstruments[idx] = ensEditor.Entry;
                 RefreshInstrumentList();
                 InstrumentsList.SelectedIndex = idx;
             }
@@ -883,7 +839,7 @@ public partial class PieceEditorWindow : Window
         var editor = new InstrumentEntryEditorWindow(_pickLists, current) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _pieceInstruments[idx] = editor.Entry;
+            _vm.PieceInstruments[idx] = editor.Entry;
             RefreshInstrumentList();
             InstrumentsList.SelectedIndex = idx;
         }
@@ -893,17 +849,17 @@ public partial class PieceEditorWindow : Window
     {
         var idx = InstrumentsList.SelectedIndex;
         if (idx < 0) return;
-        _pieceInstruments.RemoveAt(idx);
+        _vm.PieceInstruments.RemoveAt(idx);
         RefreshInstrumentList();
-        if (_pieceInstruments.Count > 0)
-            InstrumentsList.SelectedIndex = Math.Min(idx, _pieceInstruments.Count - 1);
+        if (_vm.PieceInstruments.Count > 0)
+            InstrumentsList.SelectedIndex = Math.Min(idx, _vm.PieceInstruments.Count - 1);
     }
 
     private void OnMoveInstrumentUpClick(object sender, RoutedEventArgs e)
     {
         var idx = InstrumentsList.SelectedIndex;
         if (idx <= 0) return;
-        (_pieceInstruments[idx], _pieceInstruments[idx - 1]) = (_pieceInstruments[idx - 1], _pieceInstruments[idx]);
+        (_vm.PieceInstruments[idx], _vm.PieceInstruments[idx - 1]) = (_vm.PieceInstruments[idx - 1], _vm.PieceInstruments[idx]);
         RefreshInstrumentList();
         InstrumentsList.SelectedIndex = idx - 1;
     }
@@ -911,8 +867,8 @@ public partial class PieceEditorWindow : Window
     private void OnMoveInstrumentDownClick(object sender, RoutedEventArgs e)
     {
         var idx = InstrumentsList.SelectedIndex;
-        if (idx < 0 || idx >= _pieceInstruments.Count - 1) return;
-        (_pieceInstruments[idx], _pieceInstruments[idx + 1]) = (_pieceInstruments[idx + 1], _pieceInstruments[idx]);
+        if (idx < 0 || idx >= _vm.PieceInstruments.Count - 1) return;
+        (_vm.PieceInstruments[idx], _vm.PieceInstruments[idx + 1]) = (_vm.PieceInstruments[idx + 1], _vm.PieceInstruments[idx]);
         RefreshInstrumentList();
         InstrumentsList.SelectedIndex = idx + 1;
     }
@@ -927,7 +883,7 @@ public partial class PieceEditorWindow : Window
     /// </list>
     /// </summary>
     private IReadOnlyList<RoleEntry>? AncestorRolesForChildren() =>
-        _ancestorRoles ?? (_roles.Count > 0 ? (IReadOnlyList<RoleEntry>)_roles : null);
+        _ancestorRoles ?? (_vm.Roles.Count > 0 ? (IReadOnlyList<RoleEntry>)_vm.Roles : null);
 
     // --- Version management ---
 
@@ -935,7 +891,7 @@ public partial class PieceEditorWindow : Window
     {
         var selectedTag = (VersionList.SelectedItem as ListBoxItem)?.Tag;
         VersionList.Items.Clear();
-        foreach (var v in _versions)
+        foreach (var v in _vm.Versions)
         {
             var item = new ListBoxItem { Content = FormatVersionLabel(v), Tag = v };
             VersionList.Items.Add(item);
@@ -966,11 +922,11 @@ public partial class PieceEditorWindow : Window
             showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true,
             composerNames: ComposerCombo.ItemsSource as IReadOnlyList<string>,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs) { Owner = this };
         if (editor.ShowDialog() == true)
         {
-            _versions.Add(newVersion);
+            _vm.Versions.Add(newVersion);
             RefreshVersionList();
         }
     }
@@ -987,7 +943,7 @@ public partial class PieceEditorWindow : Window
             showSubpieceNumbers: NumberedSubpiecesCheck.IsChecked == true,
             composerNames: ComposerCombo.ItemsSource as IReadOnlyList<string>,
             inheritedComposer: ComposerCombo.Text,
-            inheritedComposers: _composers.Count > 0 ? _composers : null,
+            inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs) { Owner = this };
         if (editor.ShowDialog() == true) RefreshVersionList();
     }
@@ -995,25 +951,25 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveVersionClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVersion is not { } v) return;
-        _versions.Remove(v);
+        _vm.Versions.Remove(v);
         RefreshVersionList();
     }
 
     private void OnMoveVersionUpClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVersion is not { } v) return;
-        var idx = _versions.IndexOf(v);
+        var idx = _vm.Versions.IndexOf(v);
         if (idx <= 0) return;
-        (_versions[idx], _versions[idx - 1]) = (_versions[idx - 1], _versions[idx]);
+        (_vm.Versions[idx], _vm.Versions[idx - 1]) = (_vm.Versions[idx - 1], _vm.Versions[idx]);
         RefreshVersionList();
     }
 
     private void OnMoveVersionDownClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVersion is not { } v) return;
-        var idx = _versions.IndexOf(v);
-        if (idx < 0 || idx >= _versions.Count - 1) return;
-        (_versions[idx], _versions[idx + 1]) = (_versions[idx + 1], _versions[idx]);
+        var idx = _vm.Versions.IndexOf(v);
+        if (idx < 0 || idx >= _vm.Versions.Count - 1) return;
+        (_vm.Versions[idx], _vm.Versions[idx + 1]) = (_vm.Versions[idx + 1], _vm.Versions[idx]);
         RefreshVersionList();
     }
 
