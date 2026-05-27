@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using CDArchive.Core.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -139,6 +140,107 @@ public partial class PieceEditorViewModel : ObservableObject
         }
     }
 
+    // ── List-shaped fields (slice 4) ──────────────────────────────────────────
+    // 8 ObservableCollection<T> properties for the various list editors in
+    // the piece UI. The editor's code-behind retains the Refresh* methods
+    // (custom rendering per list — BuildSubpieceTitle / DisplayLabel / etc.)
+    // and subscribes to each collection's CollectionChanged event to fire
+    // the Refresh at runtime.
+    //
+    // Storage semantics differ per list (preserved from the pre-fix code):
+    //   • Composers / Subpieces / Versions / CatalogEntries: shallow copy on
+    //     load (items shared with the source piece's list).
+    //   • Markers: shared instances by design — track refs depend on stable Ids.
+    //   • Variants: deep-cloned via the static CloneVariant helper so user
+    //     edits in the editor don't bleed back into the source piece.
+    //   • Roles: parsed from the JSON shape via RoleEntry.ParseRoles.
+    //   • PieceInstruments: parsed from JSON via InstrumentEntry.ParseInstrumentation.
+
+    public ObservableCollection<ComposerCredit>    Composers         { get; } = [];
+    public ObservableCollection<CatalogInfo>       CatalogEntries    { get; } = [];
+    public ObservableCollection<InstrumentEntry>   PieceInstruments  { get; } = [];
+    public ObservableCollection<CanonPiece>        Subpieces         { get; } = [];
+    public ObservableCollection<CanonPieceVersion> Versions          { get; } = [];
+    public ObservableCollection<RoleEntry>         Roles             { get; } = [];
+    public ObservableCollection<MusicalMarker>     Markers           { get; } = [];
+    public ObservableCollection<VariantInfo>       Variants          { get; } = [];
+
+    /// <summary>
+    /// Populate every list-shaped field from a piece. Called from
+    /// <see cref="LoadFromPiece"/>. Re-running this clears each
+    /// collection first.
+    /// </summary>
+    public void LoadListsFromPiece(CanonPiece piece)
+    {
+        Composers.Clear();
+        foreach (var c in piece.Composers ?? []) Composers.Add(c);
+
+        CatalogEntries.Clear();
+        foreach (var c in piece.CatalogInfo ?? []) CatalogEntries.Add(c);
+
+        PieceInstruments.Clear();
+        if (piece.Instrumentation.HasValue)
+            foreach (var i in InstrumentEntry.ParseInstrumentation(piece.Instrumentation.Value))
+                PieceInstruments.Add(i);
+
+        Subpieces.Clear();
+        foreach (var sp in piece.Subpieces ?? []) Subpieces.Add(sp);
+
+        Versions.Clear();
+        foreach (var v in piece.Versions ?? []) Versions.Add(v);
+
+        Roles.Clear();
+        if (piece.Roles.HasValue)
+            foreach (var r in RoleEntry.ParseRoles(piece.Roles.Value)) Roles.Add(r);
+
+        Markers.Clear();
+        foreach (var m in piece.Markers ?? []) Markers.Add(m);
+
+        Variants.Clear();
+        foreach (var v in piece.Variants ?? []) Variants.Add(CloneVariant(v));
+    }
+
+    /// <summary>
+    /// Seed Composer credits from a parent piece when this piece has none of
+    /// its own. Used for subpieces / versions that inherit the parent's
+    /// "Other Contributors" list. Call this AFTER <see cref="LoadListsFromPiece"/>;
+    /// it's a no-op when <see cref="Composers"/> already contains entries.
+    /// </summary>
+    public void SeedInheritedComposers(IReadOnlyList<ComposerCredit>? inheritedComposers)
+    {
+        if (Composers.Count > 0) return;
+        if (inheritedComposers is null) return;
+        foreach (var c in inheritedComposers) Composers.Add(c);
+    }
+
+    /// <summary>
+    /// Write every list-shaped field back to a piece. Called from
+    /// <see cref="SaveToPiece"/>. Empty collections write null (keeps JSON
+    /// snapshots clean for the common case of no entries).
+    /// </summary>
+    public void SaveListsToPiece(CanonPiece piece)
+    {
+        piece.Composers   = Composers.Count       > 0 ? Composers.ToList()      : null;
+        piece.CatalogInfo = CatalogEntries.Count  > 0 ? CatalogEntries.ToList() : null;
+        piece.Instrumentation = InstrumentEntry.SerializeInstrumentation(PieceInstruments.ToList());
+        piece.Subpieces   = Subpieces.Count       > 0 ? Subpieces.ToList()      : null;
+        piece.Versions    = Versions.Count        > 0 ? Versions.ToList()       : null;
+        piece.Roles       = RoleEntry.SerializeRoles(Roles.ToList());
+        piece.Markers     = Markers.Count         > 0 ? Markers.ToList()        : null;
+        piece.Variants    = Variants.Count        > 0 ? Variants.ToList()       : null;
+    }
+
+    /// <summary>
+    /// Deep-clone of a <see cref="VariantInfo"/>. Used by
+    /// <see cref="LoadListsFromPiece"/> so user edits in the editor don't
+    /// bleed back into the source piece's variant list until OK is clicked.
+    /// </summary>
+    private static VariantInfo CloneVariant(VariantInfo v) => new()
+    {
+        Description     = v.Description,
+        LongDescription = v.LongDescription,
+    };
+
     /// <summary>
     /// Populate the VM's text fields from a piece. Combobox / checkbox / list
     /// state stays in the editor's code-behind for now — later slices will
@@ -168,6 +270,9 @@ public partial class PieceEditorViewModel : ObservableObject
         // the model's EffectiveSubpiecesNumbered helper.
         NumberedSubpieces = piece.NumberedSubpieces ?? piece.EffectiveSubpiecesNumbered;
         SubpiecesStart    = (piece.SubpiecesStart ?? 1).ToString();
+
+        // List-shaped fields (slice 4).
+        LoadListsFromPiece(piece);
 
         // VersionDescription is populated separately by the version ctor — see
         // LoadVersionDescription. The piece itself has no Description field.
@@ -229,6 +334,9 @@ public partial class PieceEditorViewModel : ObservableObject
 
         var start = EffectiveSubpiecesStart;
         piece.SubpiecesStart = start == 1 ? null : start;
+
+        // List-shaped fields (slice 4).
+        SaveListsToPiece(piece);
     }
 
     /// <summary>Write the version-only Description back to the source version

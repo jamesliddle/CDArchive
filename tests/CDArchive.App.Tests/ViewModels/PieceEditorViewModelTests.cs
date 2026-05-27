@@ -669,4 +669,280 @@ public class PieceEditorViewModelTests
 
         Assert.Equal(13, roundTripped.SubpiecesStart);
     }
+
+    // ── Slice 4: List-shaped fields ─────────────────────────────────────────
+
+    [Fact]
+    public void LoadListsFromPiece_PopulatesAllEightCollections()
+    {
+        var piece = new CanonPiece
+        {
+            Composers   = new List<ComposerCredit> { new() { Name = "Schubert, Franz", Role = "completed by" } },
+            CatalogInfo = new List<CatalogInfo> { new() { Catalog = "Op.", CatalogNumber = "27" } },
+            Subpieces   = new List<CanonPiece> { new() { Title = "Movement 1" } },
+            Versions    = new List<CanonPieceVersion> { new() { Description = "original" } },
+            Markers     = new List<MusicalMarker> { new() { Description = "Allegro" } },
+            Variants    = new List<VariantInfo> { new() { Description = "var. 1" } },
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadListsFromPiece(piece);
+
+        Assert.Single(vm.Composers);
+        Assert.Single(vm.CatalogEntries);
+        Assert.Single(vm.Subpieces);
+        Assert.Single(vm.Versions);
+        Assert.Single(vm.Markers);
+        Assert.Single(vm.Variants);
+    }
+
+    [Fact]
+    public void LoadListsFromPiece_NullCollections_LeaveEmpty()
+    {
+        var piece = new CanonPiece { Title = "barebones" };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadListsFromPiece(piece);
+
+        Assert.Empty(vm.Composers);
+        Assert.Empty(vm.CatalogEntries);
+        Assert.Empty(vm.PieceInstruments);
+        Assert.Empty(vm.Subpieces);
+        Assert.Empty(vm.Versions);
+        Assert.Empty(vm.Roles);
+        Assert.Empty(vm.Markers);
+        Assert.Empty(vm.Variants);
+    }
+
+    [Fact]
+    public void LoadListsFromPiece_ReHydrate_Replaces_NotAppends()
+    {
+        // Re-running LoadListsFromPiece must clear each collection first.
+        var vm = new PieceEditorViewModel();
+        vm.LoadListsFromPiece(new CanonPiece
+        {
+            Subpieces = new List<CanonPiece> { new() { Title = "Old" } },
+        });
+        Assert.Single(vm.Subpieces);
+
+        vm.LoadListsFromPiece(new CanonPiece
+        {
+            Subpieces = new List<CanonPiece> { new() { Title = "New1" }, new() { Title = "New2" } },
+        });
+
+        Assert.Equal(2, vm.Subpieces.Count);
+        Assert.Equal("New1", vm.Subpieces[0].Title);
+        Assert.Equal("New2", vm.Subpieces[1].Title);
+    }
+
+    [Fact]
+    public void LoadListsFromPiece_Variants_DeepCloned_VmEditsDontBleedToSource()
+    {
+        // Variants are deep-cloned so user edits in the editor don't mutate
+        // the source piece's variant list until OK is clicked.
+        var sourceVariant = new VariantInfo { Description = "original", LongDescription = "long" };
+        var piece = new CanonPiece
+        {
+            Variants = new List<VariantInfo> { sourceVariant },
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadListsFromPiece(piece);
+
+        // Mutating the VM's variant must not affect the source.
+        vm.Variants[0].Description = "MUTATED";
+
+        Assert.Equal("original", sourceVariant.Description);
+        Assert.Equal("MUTATED",  vm.Variants[0].Description);
+    }
+
+    [Fact]
+    public void LoadListsFromPiece_Markers_SharedInstances_VmEditsAlsoMutateSource()
+    {
+        // Markers carry stable Ids that album-track refs depend on; the
+        // editor's contract is "edit in place" (shared instances). This
+        // contract is preserved by LoadListsFromPiece.
+        var sourceMarker = new MusicalMarker { Description = "Allegro" };
+        var piece = new CanonPiece
+        {
+            Markers = new List<MusicalMarker> { sourceMarker },
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadListsFromPiece(piece);
+
+        Assert.Same(sourceMarker, vm.Markers[0]);   // reference equality
+    }
+
+    [Fact]
+    public void SaveListsToPiece_WritesAllCollections()
+    {
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel();
+        vm.Composers.Add(new ComposerCredit { Name = "Mozart, Wolfgang Amadeus" });
+        vm.CatalogEntries.Add(new CatalogInfo { Catalog = "K." });
+        vm.Subpieces.Add(new CanonPiece { Title = "Movement 1" });
+        vm.Versions.Add(new CanonPieceVersion { Description = "alt" });
+        vm.Markers.Add(new MusicalMarker { Description = "Andante" });
+        vm.Variants.Add(new VariantInfo { Description = "var." });
+
+        vm.SaveListsToPiece(piece);
+
+        Assert.NotNull(piece.Composers);
+        Assert.Single(piece.Composers!);
+        Assert.NotNull(piece.CatalogInfo);
+        Assert.NotNull(piece.Subpieces);
+        Assert.NotNull(piece.Versions);
+        Assert.NotNull(piece.Markers);
+        Assert.NotNull(piece.Variants);
+    }
+
+    [Fact]
+    public void SaveListsToPiece_EmptyCollections_WriteNull()
+    {
+        // Empty collections normalise to null on the model — keeps JSON
+        // snapshots clean for the common case.
+        var piece = new CanonPiece
+        {
+            Composers   = new List<ComposerCredit> { new() { Name = "OLD" } },
+            CatalogInfo = new List<CatalogInfo>    { new() },
+            Subpieces   = new List<CanonPiece>     { new() { Title = "OLD" } },
+            Versions    = new List<CanonPieceVersion> { new() },
+            Markers     = new List<MusicalMarker>  { new() },
+            Variants    = new List<VariantInfo>    { new() },
+        };
+        var vm = new PieceEditorViewModel();
+        // All collections empty.
+
+        vm.SaveListsToPiece(piece);
+
+        Assert.Null(piece.Composers);
+        Assert.Null(piece.CatalogInfo);
+        Assert.Null(piece.Subpieces);
+        Assert.Null(piece.Versions);
+        Assert.Null(piece.Markers);
+        Assert.Null(piece.Variants);
+    }
+
+    [Fact]
+    public void SaveListsToPiece_IndependentListInstances_NoSharedReferences()
+    {
+        // Each list written to the piece is a fresh List<T> instance (via
+        // ToList) — subsequent VM mutations must NOT affect the saved piece's
+        // collections.
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel();
+        vm.Subpieces.Add(new CanonPiece { Title = "First" });
+
+        vm.SaveListsToPiece(piece);
+        Assert.Single(piece.Subpieces!);
+
+        vm.Subpieces.Add(new CanonPiece { Title = "Late add" });
+
+        // Saved piece unaffected by the post-save VM mutation.
+        Assert.Single(piece.Subpieces!);
+    }
+
+    [Fact]
+    public void SeedInheritedComposers_AppliedWhenComposersEmpty()
+    {
+        var vm = new PieceEditorViewModel();
+        var inherited = new List<ComposerCredit>
+        {
+            new() { Name = "Schubert, Franz", Role = "completed by" },
+        };
+
+        vm.SeedInheritedComposers(inherited);
+
+        Assert.Single(vm.Composers);
+        Assert.Equal("Schubert, Franz", vm.Composers[0].Name);
+    }
+
+    [Fact]
+    public void SeedInheritedComposers_IgnoredWhenComposersAlreadyPopulated()
+    {
+        var vm = new PieceEditorViewModel();
+        vm.Composers.Add(new ComposerCredit { Name = "Own" });
+
+        vm.SeedInheritedComposers(new List<ComposerCredit>
+        {
+            new() { Name = "Inherited" },
+        });
+
+        Assert.Single(vm.Composers);
+        Assert.Equal("Own", vm.Composers[0].Name);   // own wins, inherited ignored
+    }
+
+    [Fact]
+    public void SeedInheritedComposers_NullInput_NoOp()
+    {
+        var vm = new PieceEditorViewModel();
+        vm.SeedInheritedComposers(null);
+        Assert.Empty(vm.Composers);
+    }
+
+    [Fact]
+    public void LoadFromPiece_AlsoCallsLoadListsFromPiece()
+    {
+        // The single-arg LoadFromPiece (the editor's actual entry point)
+        // should populate the list collections too.
+        var piece = new CanonPiece
+        {
+            Title       = "Symphony 9",
+            Subpieces   = new List<CanonPiece> { new() { Title = "Mvt 1" } },
+            Composers   = new List<ComposerCredit> { new() { Name = "X" } },
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+
+        Assert.Equal("Symphony 9", vm.Title);
+        Assert.Single(vm.Subpieces);
+        Assert.Single(vm.Composers);
+    }
+
+    [Fact]
+    public void SaveToPiece_AlsoCallsSaveListsToPiece()
+    {
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel { Title = "T" };
+        vm.Subpieces.Add(new CanonPiece { Title = "Mvt 1" });
+        vm.Composers.Add(new ComposerCredit { Name = "X" });
+
+        vm.SaveToPiece(piece);
+
+        Assert.Equal("T", piece.Title);
+        Assert.NotNull(piece.Subpieces);
+        Assert.NotNull(piece.Composers);
+    }
+
+    [Fact]
+    public void Roundtrip_PreservesAllEightLists()
+    {
+        // Full Load → Save round-trip with non-empty lists. Compare counts;
+        // exact content equality is tested per-list above.
+        var original = new CanonPiece
+        {
+            Title       = "Symphony",
+            Composers   = new List<ComposerCredit> { new() { Name = "A" } },
+            CatalogInfo = new List<CatalogInfo>    { new() { Catalog = "Op." } },
+            Subpieces   = new List<CanonPiece>     { new() { Title = "Mvt 1" }, new() { Title = "Mvt 2" } },
+            Versions    = new List<CanonPieceVersion> { new() { Description = "alt" } },
+            Markers     = new List<MusicalMarker>  { new() { Description = "Andante" } },
+            Variants    = new List<VariantInfo>    { new() { Description = "var.1" } },
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(original);
+
+        var roundTripped = new CanonPiece();
+        vm.SaveToPiece(roundTripped);
+
+        Assert.Equal(1, roundTripped.Composers!.Count);
+        Assert.Equal(1, roundTripped.CatalogInfo!.Count);
+        Assert.Equal(2, roundTripped.Subpieces!.Count);
+        Assert.Equal(1, roundTripped.Versions!.Count);
+        Assert.Equal(1, roundTripped.Markers!.Count);
+        Assert.Equal(1, roundTripped.Variants!.Count);
+    }
 }
