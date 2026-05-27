@@ -189,7 +189,10 @@ public partial class PieceEditorWindow : Window
     /// </summary>
     private void UpdateCatalogPrefixDropdown()
     {
-        var composerName = ComposerCombo.Text?.Trim() ?? "";
+        // H13 PieceEditor slice 2: read from VM (same content as
+        // ComposerCombo.Text via the TwoWay binding, but VM is the canonical
+        // source).
+        var composerName = _vm.Composer.Trim();
         IReadOnlyList<string> prefixes = _pickLists.CatalogPrefixes;
 
         if (_composerCatalogs != null
@@ -213,31 +216,17 @@ public partial class PieceEditorWindow : Window
     {
         // H13 PieceEditor slice 1: text fields load through the VM
         // (TwoWay-bound in XAML — see VM's LoadFromPiece for the field set).
-        _vm.LoadFromPiece(_piece);
-
-        ComposerCombo.Text = _piece.Composer ?? _inheritedComposer ?? "";
+        // Slice 2: combobox fields (Composer / Form / KeyTonality / KeyMode /
+        // Category) also load through the VM via the inheritedComposer overload.
+        _vm.LoadFromPiece(_piece, _inheritedComposer);
 
         // Seed Other contributors from parent if this piece/subpiece/version has none of its own.
         if (_composers.Count == 0 && _inheritedComposers != null)
             _composers.AddRange(_inheritedComposers);
         RefreshComposerCreditList();
 
-        FormCombo.Text = _piece.Form ?? "";
-        KeyTonalityCombo.Text = _piece.KeyTonality ?? "";
-        CategoryCombo.Text = _piece.InstrumentationCategory ?? "";
         NumberedSubpiecesCheck.IsChecked = _piece.NumberedSubpieces ?? _piece.EffectiveSubpiecesNumbered;
         SubpiecesStartBox.Text = (_piece.SubpiecesStart ?? 1).ToString();
-
-        // Key mode combo
-        var mode = (_piece.KeyMode ?? "").ToLowerInvariant();
-        foreach (ComboBoxItem item in KeyModeCombo.Items)
-        {
-            if ((item.Content as string ?? "") == mode)
-            {
-                KeyModeCombo.SelectedItem = item;
-                break;
-            }
-        }
 
         // Catalog info — all entries
         if (_piece.CatalogInfo != null)
@@ -252,19 +241,12 @@ public partial class PieceEditorWindow : Window
 
     private void SaveToPiece()
     {
-        // H13 PieceEditor slice 1: text fields save through the VM
-        // (Title, TitleEnglish, Subtitle, Nickname, Number, MusicNumber,
-        // PubYear, CompYears, Notes — see VM's SaveToPiece for the field set).
+        // H13 PieceEditor slice 1: text fields save through the VM.
+        // Slice 2: combobox fields (Composer / Form / KeyTonality / KeyMode /
+        // Category) also save through the VM — see VM's SaveToPiece.
         _vm.SaveToPiece(_piece);
 
-        _piece.Composer = NullIfEmpty(ComposerCombo.Text);
         _piece.Composers = _composers.Count > 0 ? _composers.ToList() : null;
-        _piece.Form = NullIfEmpty(FormCombo.Text);
-        _piece.InstrumentationCategory = NullIfEmpty(CategoryCombo.Text);
-        _piece.KeyTonality = NullIfEmpty(KeyTonalityCombo.Text);
-
-        var selectedMode = (KeyModeCombo.SelectedItem as ComboBoxItem)?.Content as string;
-        _piece.KeyMode = string.IsNullOrEmpty(selectedMode) ? null : selectedMode;
 
 
         // Catalog info — all entries from the list
