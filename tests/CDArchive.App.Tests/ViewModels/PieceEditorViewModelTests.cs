@@ -463,4 +463,210 @@ public class PieceEditorViewModelTests
         Assert.Equal(original.KeyMode,                 roundTripped.KeyMode);
         Assert.Equal(original.InstrumentationCategory, roundTripped.InstrumentationCategory);
     }
+
+    // ── Slice 3: NumberedSubpieces + SubpiecesStart ──────────────────────────
+
+    [Fact]
+    public void LoadFromPiece_NumberedSubpieces_ExplicitTrue_LoadsTrue()
+    {
+        var piece = new CanonPiece { NumberedSubpieces = true };
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+        Assert.True(vm.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void LoadFromPiece_NumberedSubpieces_ExplicitFalse_LoadsFalse()
+    {
+        var piece = new CanonPiece { NumberedSubpieces = false };
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+        Assert.False(vm.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void LoadFromPiece_NumberedSubpieces_NullWithOperaCategory_LoadsFalse()
+    {
+        // Opera default is "not numbered" (scenes / acts aren't typically
+        // labelled "1. ", "2. ").
+        var piece = new CanonPiece
+        {
+            InstrumentationCategory = "Opera",
+            NumberedSubpieces = null,
+        };
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+        Assert.False(vm.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void LoadFromPiece_NumberedSubpieces_NullWithChamberCategory_LoadsTrue()
+    {
+        // Non-Opera default is "numbered".
+        var piece = new CanonPiece
+        {
+            InstrumentationCategory = "Chamber",
+            NumberedSubpieces = null,
+        };
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+        Assert.True(vm.NumberedSubpieces);
+    }
+
+    [Theory]
+    [InlineData(null, "1")]
+    [InlineData(1,    "1")]
+    [InlineData(13,   "13")]
+    public void LoadFromPiece_SubpiecesStart_LoadsAsString(int? input, string expected)
+    {
+        var piece = new CanonPiece { SubpiecesStart = input };
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(piece);
+        Assert.Equal(expected, vm.SubpiecesStart);
+    }
+
+    [Theory]
+    [InlineData("1",  1)]
+    [InlineData("13", 13)]
+    [InlineData("",   1)]   // empty falls back to 1
+    [InlineData("abc", 1)]  // unparseable falls back to 1
+    public void EffectiveSubpiecesStart_ParsesString_FallsBackToOne(string input, int expected)
+    {
+        var vm = new PieceEditorViewModel { SubpiecesStart = input };
+        Assert.Equal(expected, vm.EffectiveSubpiecesStart);
+    }
+
+    [Fact]
+    public void SaveToPiece_NumberedSubpieces_MatchesDefault_PersistsNull()
+    {
+        // Chamber default = numbered. User has Numbered checked → matches
+        // default → save null (keeps JSON clean).
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel
+        {
+            Category = "Chamber",
+            NumberedSubpieces = true,
+        };
+        vm.SaveToPiece(piece);
+        Assert.Null(piece.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void SaveToPiece_NumberedSubpieces_DiffersFromDefault_PersistsExplicit()
+    {
+        // Chamber default = numbered. User UNchecks → save explicit false.
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel
+        {
+            Category = "Chamber",
+            NumberedSubpieces = false,
+        };
+        vm.SaveToPiece(piece);
+        Assert.Equal(false, piece.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void SaveToPiece_NumberedSubpieces_OperaUnchecked_PersistsNull()
+    {
+        // Opera default = not numbered. User leaves unchecked → matches
+        // default → save null.
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel
+        {
+            Category = "Opera",
+            NumberedSubpieces = false,
+        };
+        vm.SaveToPiece(piece);
+        Assert.Null(piece.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void SaveToPiece_NumberedSubpieces_OperaChecked_PersistsTrue()
+    {
+        // User overrides the Opera default — save explicit true.
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel
+        {
+            Category = "Opera",
+            NumberedSubpieces = true,
+        };
+        vm.SaveToPiece(piece);
+        Assert.Equal(true, piece.NumberedSubpieces);
+    }
+
+    [Theory]
+    [InlineData("1",  null)]   // 1 = model default → save null
+    [InlineData("13", 13)]
+    [InlineData("",   null)]   // empty parses to 1 → save null
+    public void SaveToPiece_SubpiecesStart_OnlyPersistsWhenNonDefault(string input, int? expected)
+    {
+        var piece = new CanonPiece();
+        var vm = new PieceEditorViewModel { SubpiecesStart = input };
+        vm.SaveToPiece(piece);
+        Assert.Equal(expected, piece.SubpiecesStart);
+    }
+
+    [Theory]
+    [InlineData(null,        false)]   // empty category → default false (treated as "no category set")
+    [InlineData("",          false)]
+    [InlineData("Opera",     false)]   // Opera → not numbered
+    [InlineData("opera",     false)]   // case-insensitive
+    [InlineData("OPERA",     false)]
+    [InlineData("Chamber",   true)]
+    [InlineData("Orchestra", true)]
+    [InlineData("Piano",     true)]
+    public void DefaultNumberedForCurrentCategory_VariesByCategory(string? category, bool expected)
+    {
+        var vm = new PieceEditorViewModel { Category = category ?? "" };
+        Assert.Equal(expected, vm.DefaultNumberedForCurrentCategory);
+    }
+
+    [Fact]
+    public void RoundTrip_NumberedSubpieces_NullStaysNull()
+    {
+        // Common case: piece has NumberedSubpieces=null (using category
+        // default) — should remain null after round-trip.
+        var original = new CanonPiece
+        {
+            InstrumentationCategory = "Chamber",
+            NumberedSubpieces = null,
+        };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(original);
+
+        var roundTripped = new CanonPiece { InstrumentationCategory = "Chamber" };
+        vm.SaveToPiece(roundTripped);
+
+        Assert.Null(roundTripped.NumberedSubpieces);
+    }
+
+    [Fact]
+    public void RoundTrip_SubpiecesStart_OneStaysNull()
+    {
+        // SubpiecesStart=1 round-trips to null (model default).
+        var original = new CanonPiece { SubpiecesStart = 1 };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(original);
+
+        var roundTripped = new CanonPiece();
+        vm.SaveToPiece(roundTripped);
+
+        Assert.Null(roundTripped.SubpiecesStart);
+    }
+
+    [Fact]
+    public void RoundTrip_SubpiecesStart_ThirteenStaysThirteen()
+    {
+        var original = new CanonPiece { SubpiecesStart = 13 };
+
+        var vm = new PieceEditorViewModel();
+        vm.LoadFromPiece(original);
+
+        var roundTripped = new CanonPiece();
+        vm.SaveToPiece(roundTripped);
+
+        Assert.Equal(13, roundTripped.SubpiecesStart);
+    }
 }

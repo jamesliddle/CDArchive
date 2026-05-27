@@ -18,7 +18,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **Continue `PieceEditorWindow` VM extraction (slice 3 of N).** Slices 1+2 landed [2026-05-26, 2026-05-27]: slice 1 moved 10 pure text fields to `PieceEditorViewModel`; slice 2 added 5 combobox fields (Composer, Form, KeyTonality, KeyMode, Category) — the four editable combos use `Text="{Binding}"` while KeyMode (non-editable, 3 fixed items) uses `SelectedValue` with `SelectedValuePath="Content"`. The inherited-Composer fallback ("subpiece/version inherits parent's Composer when own is blank") moved into the VM via a `LoadFromPiece(piece, inheritedComposer)` overload. Because PieceEditor has no multi-edit mode, all VM properties stay plain `[ObservableProperty]` strings — no MixedField / MixedCollection. Next slices: (3) NumberedSubpieces checkbox + SubpiecesStart number field + their interplay; (4) List-shaped fields (Composers credits, CatalogEntries, Instruments, Subpieces, Versions, Roles, Markers, Variants) to `ObservableCollection<T>` on the VM; (5) Save orchestration (`LoadFromPiece` + `SaveToPiece` + `CopyPieceToVersion` → VM methods + PieceVersionShuttle integration). Small editors (ComposerEditor, PerformerEditor, RoleEditor, etc.) come after PieceEditor. (H13, PieceEditor slice 3)
+1. **Continue `PieceEditorWindow` VM extraction (slice 4 of N).** Slices 1–3 landed [2026-05-26, 2026-05-27]: slice 1 moved 10 pure text fields; slice 2 added 5 combobox fields; slice 3 added NumberedSubpieces checkbox + SubpiecesStart number field, including the category-based default heuristic (Opera → not numbered, everything else → numbered) and the "save null when matches default" normalisation. Next slices: (4) List-shaped fields (Composers credits, CatalogEntries, Instruments, Subpieces, Versions, Roles, Markers, Variants) to `ObservableCollection<T>` on the VM (no MixedCollection needed — no multi-edit); (5) Save orchestration (`LoadFromPiece` + `SaveToPiece` + `CopyPieceToVersion` → VM methods + PieceVersionShuttle integration). Small editors (ComposerEditor, PerformerEditor, RoleEditor, etc.) come after PieceEditor. (H13, PieceEditor slice 4)
 2. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
 3. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
 4. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
@@ -782,6 +782,42 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H13 (PieceEditor slice 3). PieceEditorViewModel adds subpiece-numbering controls
+[2026-05-27] `rework/piece-editor-vm-subpieces-numbering` — Third slice of the PieceEditor portion of H13. The "Numbered" checkbox + adjacent "Subpieces start at N" number field move onto `PieceEditorViewModel`. Small fields but with non-trivial save-null-when-matches-default logic that's worth its own slice.
+
+VM additions:
+- `[ObservableProperty] private bool _numberedSubpieces` — bound to `NumberedSubpiecesCheck.IsChecked` via TwoWay binding.
+- `[ObservableProperty] private string _subpiecesStart = "1"` — bound to `SubpiecesStartBox.Text` via TwoWay binding with `UpdateSourceTrigger=PropertyChanged`.
+- `int EffectiveSubpiecesStart` — parses `SubpiecesStart` to int, falls back to 1 on non-parseable input. Replaces the code-behind's private property of the same name.
+- `bool DefaultNumberedForCurrentCategory` — mirrors the model's `EffectiveSubpiecesNumbered` heuristic: Opera → not numbered, everything else → numbered. Drives the save normalisation.
+
+LoadFromPiece adds:
+- `NumberedSubpieces = piece.NumberedSubpieces ?? piece.EffectiveSubpiecesNumbered` (resolves the model's nullable to the effective value at load time).
+- `SubpiecesStart = (piece.SubpiecesStart ?? 1).ToString()`.
+
+SaveToPiece adds:
+- `piece.NumberedSubpieces = NumberedSubpieces != DefaultNumberedForCurrentCategory ? NumberedSubpieces : (bool?)null` — persists null when matching the category default (keeps JSON snapshots clean for the common case).
+- `piece.SubpiecesStart = start == 1 ? null : start` — 1 is the model default, persists null.
+
+Code-behind changes:
+- LoadFromPiece's 2 lines (`NumberedSubpiecesCheck.IsChecked = ...` + `SubpiecesStartBox.Text = ...`) retire.
+- SaveToPiece's NumberedSubpieces + SubpiecesStart save blocks (8 lines) retire.
+- `EffectiveSubpiecesStart` private property retires (moved to VM).
+- `RenumberSubpieces` reads `_vm.EffectiveSubpiecesStart`.
+- `RefreshSubpieceList` reads `_vm.NumberedSubpieces`.
+- The `Checked`/`Unchecked` and `TextChanged` event handlers stay wired (they fire `RefreshSubpieceList()` to re-render the ListBox after the user's edit).
+
+29 new tests in `PieceEditorViewModelTests`:
+- LoadFromPiece NumberedSubpieces (4 cases — explicit true/false, null with Opera category → false, null with Chamber → true).
+- LoadFromPiece SubpiecesStart (Theory, 3 cases — null/1/13 → string).
+- EffectiveSubpiecesStart parses (Theory, 4 cases — "1"/"13"/""/"abc").
+- SaveToPiece NumberedSubpieces (4 cases — matches default persists null × 2 categories; differs from default persists explicit × 2).
+- SaveToPiece SubpiecesStart (Theory, 3 cases — "1"/"13"/"" → null/13/null).
+- DefaultNumberedForCurrentCategory (Theory, 8 cases — including case-insensitive Opera matching).
+- 3 round-trip tests: NumberedSubpieces null stays null; SubpiecesStart=1 stays null; SubpiecesStart=13 stays 13.
+
+Lines: PieceEditorWindow.xaml.cs 1038→1032 (-6); VM 209→274 (+65). Total: 855 tests (595 Core + 260 App). H13 stays open (slice 4 of N + small editors). Top-5 #1 reframes to slice 4 (list-shaped fields). **Action item for the user**: smoke-test the Piece editor's subpiece numbering — (1) Open a Chamber piece → "Numbered" checkbox checked by default. (2) Open an Opera → checkbox unchecked. (3) Override the default (uncheck a Chamber piece) → OK → re-open shows unchecked, JSON shows `"numbered_subpieces": false` explicitly. (4) Set Subpieces start to 13 → OK → re-open shows 13. (5) Set to 1 (or leave blank) → OK → re-open shows 1 + JSON has no `subpieces_start` key. (6) Toggle "Numbered" → subpiece list re-renders with/without number prefixes immediately.
 
 ### H13 (PieceEditor slice 2). PieceEditorViewModel adds 5 combobox fields
 [2026-05-27] `rework/piece-editor-vm-comboboxes` — Second slice of the PieceEditor portion of H13. The 5 combobox-driven piece fields (Composer, Form, KeyTonality, KeyMode, InstrumentationCategory) move onto `PieceEditorViewModel` as plain `[ObservableProperty]` strings.

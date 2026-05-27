@@ -308,12 +308,14 @@
                            Foreground="#555" VerticalAlignment="Center" />
                 <CheckBox x:Name="NumberedSubpiecesCheck" Content="Numbered" FontSize="11"
                           Foreground="#666" Margin="14,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding NumberedSubpieces, Mode=TwoWay}"
                           Checked="OnNumberedSubpiecesChanged"
                           Unchecked="OnNumberedSubpiecesChanged" />
                 <TextBlock Text="Start:" FontSize="11" Foreground="#666"
                            Margin="12,0,4,0" VerticalAlignment="Center" />
                 <TextBox x:Name="SubpiecesStartBox" Width="36" FontSize="11" Padding="2,1"
                          VerticalAlignment="Center" Margin="0,2"
+                         Text="{Binding SubpiecesStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          TextChanged="OnSubpiecesStartChanged" />
             </DockPanel>
 
