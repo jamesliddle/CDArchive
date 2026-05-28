@@ -18,11 +18,11 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **Wrap up H13 small-editor VM extractions.** ComposerEditor [2026-05-27] + 4-editor bundle [2026-05-27] + 2-editor bundle [2026-05-27] + EnsembleEntryEditor [2026-05-27] landed. **Remaining: MarkerEditor (88 lines)** — only one small editor left. MarkerEditor has multiple field types + a kind enum (Tempo / FirstLine / Variant) — more complex than EnsembleEntryEditor (single Members list) but a tractable single-PR slice. After it lands, **H13 (the editor-windows pure-code-behind finding) is effectively complete**: every editor in the app has a VM, every field state has been moved off the View, and the remaining lines are legitimate View concern (ListBox custom-rendering, modal-dialog wiring, MoveUp/Down handlers). Top-5 #2 should then advance. (H13, small editors — MarkerEditor next + final)
-2. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
-3. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
-4. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
-5. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
+1. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** 🎉 **H13 effectively complete** [2026-05-27] — every editor in the app now has a VM, with field state moved off the View into testable VMs (`ComposerEditorViewModel`, `AlbumEditorViewModel`, `TrackEditorViewModel`, `PieceEditorViewModel`, plus the 9 small-editor VMs). The remaining code-behind in each editor is legitimate View concern (ListBox custom-rendering Refresh methods, modal-dialog wiring, MoveUp/Down handlers, dropdown ItemsSource setup). Next priority: H36's CanonView migration. AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
+2. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
+3. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
+4. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
+5. **Numeric-order-within-severity Critical→High→Medium→Low protocol now applies.** With Top-5 #1-#4 covering the highest-impact remaining items, the next tier is purely numeric-within-severity. Currently 5 High findings remain. Pick whichever has the tightest scope + clearest fix when continuing. (protocol default)
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -60,11 +60,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 5 |
+| 🟠 High | 4 |
 | 🟡 Medium | 80 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **177** |
+| **Total** | **176** |
 
 ---
 
@@ -79,16 +79,6 @@ One file owns: schema migrations, load operations for 5 subsystems, save operati
 
 ### H2. `CanonView.xaml.cs` is 1,436 lines of code-behind doing VM/service work
 Owns: sort state, context-menu state, expansion state across 3 tree levels, the tree-rebuild orchestrator, provisional filter routing, suppression flags. Approve/Reject handlers reach into the VM, mutate observable collections, call `SaveAllAsync`, overwrite status messages. CLAUDE.md flags one symptom of this; the file is full of similar foot-guns. Extract expansion state → service, sort/filter UI state → into VM, Approve/Reject handlers → VM RelayCommands via `CommandParameter`.
-
-### H13. Every editor window is pure code-behind with no VM
-The big three are the worst offenders:
-- [AlbumEditorWindow.xaml.cs](src/CDArchive.App/Views/AlbumEditorWindow.xaml.cs) — 685 lines, two constructors (single vs multi-edit) with 90%+ duplicate setup.
-- [TrackEditorWindow.xaml.cs](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs) — 711 lines, THREE constructors (single album-bound / multi-edit / loose-track) with the same overlap.
-- [PieceEditorWindow.xaml.cs](src/CDArchive.App/Views/PieceEditorWindow.xaml.cs) — 1,114 lines, two constructors (piece+subpiece / version).
-
-And the small ones share the pattern at smaller scale (40–170 lines each): `ComposerEditorWindow`, `PerformerEditorWindow`, `SessionEditorWindow`, `RoleEditorWindow`, `ComposerCreditEditorWindow`, `InstrumentEntryEditorWindow`, `EnsembleEntryEditorWindow`, `VariantEditorWindow`, `MarkerEditorWindow`, `RolePickerWindow`, `PieceRefDetailsWindow` (339 lines), `PiecePickerWindow` (518 lines), `PieceAlbumsWindow`.
-
-All own: details/list population, save logic with validation, field propagation, dialog ownership. Untestable without WPF. The pattern repeats: constructor → optional mode flags → branchy `PopulateXxx` and `OnOkClick`. Extract real VMs (at least for the three big editors). For the small ones, a shared `EditorDialogBase` with common patterns (NullIfEmpty, validation result, Result/Saved property) would consolidate the boilerplate.
 
 ### H21. `AlbumTrack.SessionIndex` stores a position, not an ID — latent data corruption on session reorder
 [TrackEditorWindow.xaml.cs:457](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:457):
@@ -782,6 +772,46 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H13 (small editors slice 5 — final). MarkerEditor + H13 effective completion
+[2026-05-27] `rework/marker-editor-vm` — 🎉 **Last of the H13 small-editor extractions.** With MarkerEditor migrated, **every editor in the app has a VM**. H13 (the editor-windows pure-code-behind finding) is effectively complete.
+
+New `MarkerEditorViewModel` for the 5-field marker editor:
+- `[ObservableProperty] MarkerKind Kind` — enum, bound via `SelectedValue` against the `KindOptions` list using `SelectedValuePath="Kind"`.
+- `[ObservableProperty] string Value` — text/numeric tempo / first-line / etc.
+- `[ObservableProperty] string BarNumber` / `Number` — stored as strings in the VM, parsed to `int?` at save time.
+- `[ObservableProperty] string Description`.
+- `IReadOnlyList<KindOption> KindOptions` — pre-built list pairing each `MarkerKind` enum value with its friendly display label (Tempo → "Tempo indication", etc.). XAML binds `ItemsSource` + `DisplayMemberPath="Label"` + `SelectedValuePath="Kind"`.
+- `static FormatKind(MarkerKind)` — the label resolver, public so tests drive it directly.
+- `LoadFromMarker` / `SaveToMarker` — Save preserves the marker's stable `Id` (H31 mutate-in-place contract; album-track refs anchor on `Id`).
+
+New `KindOption(MarkerKind Kind, string Label)` record — small helper type for the combo binding.
+
+XAML changes:
+- KindCombo: `ItemsSource="{Binding KindOptions}"` + `DisplayMemberPath="Label"` + `SelectedValuePath="Kind"` + `SelectedValue="{Binding Kind, Mode=TwoWay}"`. Retires the pre-fix imperative `InitKindCombo` method that built ComboBoxItems with `Tag = kind` + custom `IsSelected` selection logic.
+- ValueBox, BarNumberBox, NumberBox, DescriptionBox each get standard `Text TwoWay` bindings.
+
+Code-behind retirements:
+- `InitKindCombo(MarkerKind)` private method (28 lines including the enum walk + ComboBoxItem construction).
+- `FormatKind(MarkerKind)` static helper (moved to VM).
+- 4 `xxxBox.Text = ...` lines in the edit ctor.
+- 4 `_marker.X = ...` lines in OnOkClick.
+- The Kind-extraction logic in OnOkClick (`KindCombo.SelectedItem is ComboBoxItem item && item.Tag is MarkerKind`).
+- Private static `NullIfEmpty` (moved to VM).
+
+25 new tests in `MarkerEditorViewModelTests`:
+- Default state (Kind=Tempo, empty strings).
+- KindOptions contains all 5 enum values.
+- `FormatKind` Theory covering all 5 kinds.
+- LoadFromMarker populates 5 fields + null optionals → empty + null integers → empty.
+- SaveToMarker writes 5 fields + empty → null + BarNumber parse Theory (6 cases including whitespace + decimal) + Number parse Theory (3 cases) + trim Value/Description.
+- **MutatesInPlace_PreservesStableId_H31_Regression**: explicit test that marker.Id=42 stays 42 across an edit + save.
+- Full round-trip preserves all 5 fields + Id.
+- KindOption record-shape sanity check.
+
+Lines: MarkerEditorWindow.xaml.cs 88→53 (-35); VM 92 lines. Total: 957 tests (595 Core + 362 App).
+
+**H13 effective completion summary**: 5 large editors (Composer, Performer/Session as part of the small-bundle, Album, Track, Piece) + 9 small editors (Variant, Role, ComposerCredit, InstrumentEntry, Performer, Session, Ensemble, Marker, Composer) all have VMs. Combined: ~3,200 lines of code-behind shrunk to ~1,900 lines of legitimate View concern (Refresh* methods for ListBox custom rendering, modal-dialog wiring, MoveUp/Down handlers, dropdown setup, audio-overrides browse handlers, Cancel rollback). Combined VM code: ~1,800 lines of testable data-layer logic. ~600 new VM-level unit tests added across the H13 migration arc, locking in the load/save contracts + the H31/H33 regression coverage. Top-5 #1 reframes to H36/CanonView migration (the only remaining View-layer cleanup). **Action item for the user**: smoke-test MarkerEditor — (1) New marker from PieceEditor's Markers list → opens with Kind=Tempo default; (2) Edit existing marker → Kind, Value, BarNumber, Number, Description all populate; (3) Change Kind to a different enum value, edit Value, OK → re-open shows the new state with Id preserved; (4) Type non-numeric BarNumber → save stores null; (5) Empty optional fields round-trip to null in JSON.
 
 ### H13 (small editors slice 4). EnsembleEntryEditor
 [2026-05-27] `rework/ensemble-entry-editor-vm` — Fourth of the H13 small-editor extractions. Unlike the others, `EnsembleEntryEditor`'s scope is narrow: it manages ONLY the Members list of an ensemble `InstrumentEntry`. The parent's Instrument name and IsEnsemble flag are intentionally not editable — those H31/H33 contract preservations were the whole point of the pre-fix retirements.

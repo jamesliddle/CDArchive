@@ -1,4 +1,5 @@
 using System.Windows;
+using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
 
 namespace CDArchive.App.Views;
@@ -16,6 +17,8 @@ namespace CDArchive.App.Views;
 /// </summary>
 public partial class MarkerEditorWindow : Window
 {
+    // H13 small-editors slice 5 (final): field state moved to MarkerEditorViewModel.
+    private readonly MarkerEditorViewModel _vm = new();
     private readonly MusicalMarker _marker;
 
     public MusicalMarker Marker => _marker;
@@ -24,65 +27,27 @@ public partial class MarkerEditorWindow : Window
     public MarkerEditorWindow()
     {
         InitializeComponent();
+        DataContext = _vm;
         _marker = new MusicalMarker();
         Title = "New Marker";
-        InitKindCombo(MarkerKind.Tempo);
+        _vm.LoadFromMarker(_marker);   // sets Kind=Tempo (default) + empty strings
     }
 
     /// <summary>Edit an existing marker in place.</summary>
     public MarkerEditorWindow(MusicalMarker marker)
     {
         InitializeComponent();
+        DataContext = _vm;
         _marker = marker;
         Title = "Edit Marker";
-        InitKindCombo(marker.Kind);
-        ValueBox.Text       = marker.Value ?? "";
-        BarNumberBox.Text   = marker.BarNumber?.ToString() ?? "";
-        NumberBox.Text      = marker.Number?.ToString() ?? "";
-        DescriptionBox.Text = marker.Description ?? "";
+        _vm.LoadFromMarker(marker);
     }
-
-    private void InitKindCombo(MarkerKind selected)
-    {
-        // Bind both the underlying enum value and a friendlier display label.
-        // ComboBox uses the `ToString()` / SelectedValue plumbing — we keep it
-        // simple and store enum values directly on the items.
-        KindCombo.Items.Clear();
-        foreach (MarkerKind kind in Enum.GetValues(typeof(MarkerKind)))
-        {
-            KindCombo.Items.Add(new System.Windows.Controls.ComboBoxItem
-            {
-                Content = FormatKind(kind),
-                Tag = kind,
-                IsSelected = kind == selected,
-            });
-        }
-    }
-
-    private static string FormatKind(MarkerKind kind) => kind switch
-    {
-        MarkerKind.Tempo         => "Tempo indication",
-        MarkerKind.FirstLine     => "First line",
-        MarkerKind.RehearsalMark => "Rehearsal mark",
-        MarkerKind.BarNumber     => "Bar number",
-        MarkerKind.Section       => "Section label",
-        _                        => kind.ToString(),
-    };
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        if (KindCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item &&
-            item.Tag is MarkerKind kind)
-            _marker.Kind = kind;
-
-        _marker.Value       = NullIfEmpty(ValueBox.Text);
-        _marker.BarNumber   = int.TryParse(BarNumberBox.Text.Trim(), out var bar) ? bar : null;
-        _marker.Number      = int.TryParse(NumberBox.Text.Trim(),    out var num) ? num : null;
-        _marker.Description = NullIfEmpty(DescriptionBox.Text);
-
+        // No required-field validation — OK always succeeds. Save mutates the
+        // existing marker in place (H31 contract — preserves stable Id).
+        _vm.SaveToMarker(_marker);
         DialogResult = true;
     }
-
-    private static string? NullIfEmpty(string? s)
-        => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
