@@ -37,31 +37,36 @@
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Dates:"
                        VerticalAlignment="Center" Margin="0,0,8,8" />
             <TextBox Grid.Row="0" Grid.Column="1" x:Name="DatesBox"
-                     FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                     FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                     Text="{Binding Dates, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Venue -->
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Venue:"
                        VerticalAlignment="Center" Margin="0,0,8,8" />
             <TextBox Grid.Row="1" Grid.Column="1" x:Name="VenueBox"
-                     FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                     FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                     Text="{Binding Venue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- City -->
             <TextBlock Grid.Row="2" Grid.Column="0" Text="City:"
                        VerticalAlignment="Center" Margin="0,0,8,8" />
             <TextBox Grid.Row="2" Grid.Column="1" x:Name="CityBox"
-                     FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                     FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                     Text="{Binding City, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Country -->
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Country:"
                        VerticalAlignment="Center" Margin="0,0,8,8" />
             <TextBox Grid.Row="3" Grid.Column="1" x:Name="CountryBox"
-                     FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                     FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                     Text="{Binding Country, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Engineers -->
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Engineers:"
                        VerticalAlignment="Center" Margin="0,0,8,8" />
             <TextBox Grid.Row="4" Grid.Column="1" x:Name="EngineersBox"
                      FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                     Text="{Binding Engineers, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      ToolTip="Separate multiple names with a comma" />
 
             <!-- Producers -->
@@ -69,6 +74,7 @@
                        VerticalAlignment="Center" Margin="0,0,8,0" />
             <TextBox Grid.Row="5" Grid.Column="1" x:Name="ProducersBox"
                      FontSize="13" Padding="4,3"
+                     Text="{Binding Producers, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      ToolTip="Separate multiple names with a comma" />
 
         </Grid>

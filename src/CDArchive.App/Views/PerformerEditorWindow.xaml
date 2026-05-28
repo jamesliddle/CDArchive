@@ -34,19 +34,22 @@
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:"
                        VerticalAlignment="Center" Margin="0,0,8,10" />
             <TextBox Grid.Row="0" Grid.Column="1" x:Name="NameBox"
-                     FontSize="13" Padding="4,3" Margin="0,0,0,10" />
+                     FontSize="13" Padding="4,3" Margin="0,0,0,10"
+                     Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Role -->
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Role:"
                        VerticalAlignment="Center" Margin="0,0,8,10" />
             <ComboBox Grid.Row="1" Grid.Column="1" x:Name="RoleBox"
-                      IsEditable="True" FontSize="13" Margin="0,0,0,10" />
+                      IsEditable="True" FontSize="13" Margin="0,0,0,10"
+                      Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Instrument -->
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Instrument:"
                        VerticalAlignment="Center" Margin="0,0,8,0" />
             <TextBox Grid.Row="2" Grid.Column="1" x:Name="InstrumentBox"
-                     FontSize="13" Padding="4,3" />
+                     FontSize="13" Padding="4,3"
+                     Text="{Binding Instrument, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
         </Grid>
     </DockPanel>
