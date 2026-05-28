@@ -49,15 +49,18 @@
             <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource FieldLabel}" />
             <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldBox}"
                        x:Name="NameBox"
+                       Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="Character name, e.g. Florestan, Chorus of prisoners" />
 
             <TextBlock Grid.Row="1" Text="Voice Type" Style="{StaticResource FieldLabel}" />
             <ComboBox  Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCombo}"
-                       x:Name="VoiceTypeCombo" />
+                       x:Name="VoiceTypeCombo"
+                       Text="{Binding VoiceType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <TextBlock Grid.Row="2" Text="Description" Style="{StaticResource FieldLabel}" />
             <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldBox}"
                        x:Name="DescriptionBox"
+                       Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="Brief character description, e.g. A prisoner, Rocco's daughter" />
         </Grid>
     </DockPanel>

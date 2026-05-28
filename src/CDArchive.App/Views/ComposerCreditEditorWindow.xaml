@@ -48,11 +48,13 @@
             <TextBlock Grid.Row="0" Text="Composer" Style="{StaticResource FieldLabel}" />
             <ComboBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCombo}"
                        x:Name="NameCombo"
+                       Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="Composer name" />
 
             <TextBlock Grid.Row="1" Text="Creative Role" Style="{StaticResource FieldLabel}" />
             <ComboBox  Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCombo}"
                        x:Name="RoleCombo"
+                       Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="Leave blank for the principal composer. Use a role such as &quot;orch.&quot; for orchestrators, &quot;arr.&quot; for arrangers, etc." />
         </Grid>
     </DockPanel>
