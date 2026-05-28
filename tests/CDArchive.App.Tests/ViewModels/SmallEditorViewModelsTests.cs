@@ -231,4 +231,189 @@ public class SmallEditorViewModelsTests
         Assert.True(entry.IsEnsemble);                         // untouched
         Assert.Equal(2, entry.Members?.Count ?? 0);            // untouched
     }
+
+    // ── PerformerEditorViewModel ─────────────────────────────────────────────
+
+    [Fact]
+    public void Performer_LoadAndSave_RoundTrip()
+    {
+        var src = new AlbumPerformer { Name = "Karajan, Herbert von", Role = "Conductor", Instrument = "" };
+        var vm = new PerformerEditorViewModel();
+        vm.LoadFromPerformer(src);
+
+        Assert.Equal("Karajan, Herbert von", vm.Name);
+        Assert.Equal("Conductor",            vm.Role);
+        Assert.Equal("",                     vm.Instrument);
+
+        var dest = new AlbumPerformer();
+        Assert.Equal(PerformerEditorViewModel.SaveValidationError.None,
+            vm.SaveToPerformer(dest));
+        Assert.Equal("Karajan, Herbert von", dest.Name);
+        Assert.Equal("Conductor",            dest.Role);
+        Assert.Null(dest.Instrument);                  // empty → null
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Performer_MissingName_ReturnsValidationError_LeavesPerformerUnmutated(string name)
+    {
+        var performer = new AlbumPerformer { Name = "original" };
+        var vm = new PerformerEditorViewModel { Name = name };
+
+        Assert.Equal(PerformerEditorViewModel.SaveValidationError.MissingName,
+            vm.SaveToPerformer(performer));
+        Assert.Equal("original", performer.Name);
+    }
+
+    [Fact]
+    public void Performer_NullOptionalFields_LoadAsEmpty()
+    {
+        var vm = new PerformerEditorViewModel();
+        vm.LoadFromPerformer(new AlbumPerformer { Name = "X" });
+
+        Assert.Equal("", vm.Role);
+        Assert.Equal("", vm.Instrument);
+    }
+
+    [Fact]
+    public void Performer_MutatesInPlace_PreservesUnsurfacedFields_H31()
+    {
+        // H31 mutate-in-place contract: any field this editor doesn't surface
+        // (e.g. PersonId / EnsembleId if those are exposed at the model level)
+        // must survive a round-trip. We test by setting a recognised optional
+        // field that's also not edited by the editor — the editor only
+        // surfaces Name / Role / Instrument. AlbumPerformer has no such
+        // field today; this test documents the contract — if a new field is
+        // ever added to AlbumPerformer, extend this assertion.
+        var performer = new AlbumPerformer
+        {
+            Name       = "x",
+            Role       = "Conductor",
+            Instrument = "Piano",
+        };
+
+        var vm = new PerformerEditorViewModel();
+        vm.LoadFromPerformer(performer);
+        vm.Name = "Karajan";
+
+        var result = vm.SaveToPerformer(performer);
+        Assert.Equal(PerformerEditorViewModel.SaveValidationError.None, result);
+
+        // Mutate-in-place: same reference returned.
+        Assert.Equal("Karajan",   performer.Name);
+        Assert.Equal("Conductor", performer.Role);    // round-tripped
+        Assert.Equal("Piano",     performer.Instrument);
+    }
+
+    // ── SessionEditorViewModel ───────────────────────────────────────────────
+
+    [Fact]
+    public void Session_LoadAndSave_RoundTrip()
+    {
+        var src = new RecordingSession
+        {
+            Dates     = "1962-Jan",
+            Venue     = "Jesus-Christus-Kirche",
+            City      = "Berlin",
+            Country   = "Germany",
+            Engineers = new List<string> { "Karl-Heinz Schneider", "Otto Gerdes" },
+            Producers = new List<string> { "John Culshaw" },
+        };
+
+        var vm = new SessionEditorViewModel();
+        vm.LoadFromSession(src);
+
+        Assert.Equal("1962-Jan",                                    vm.Dates);
+        Assert.Equal("Jesus-Christus-Kirche",                       vm.Venue);
+        Assert.Equal("Berlin",                                      vm.City);
+        Assert.Equal("Germany",                                     vm.Country);
+        Assert.Equal("Karl-Heinz Schneider, Otto Gerdes",           vm.Engineers);
+        Assert.Equal("John Culshaw",                                vm.Producers);
+
+        var dest = new RecordingSession();
+        vm.SaveToSession(dest);
+
+        Assert.Equal("1962-Jan",              dest.Dates);
+        Assert.Equal("Jesus-Christus-Kirche", dest.Venue);
+        Assert.Equal("Berlin",                dest.City);
+        Assert.Equal("Germany",               dest.Country);
+        Assert.Equal(2, dest.Engineers?.Count ?? 0);
+        Assert.Equal("Karl-Heinz Schneider", dest.Engineers![0]);
+        Assert.Equal("Otto Gerdes",          dest.Engineers[1]);
+        Assert.Single(dest.Producers!);
+        Assert.Equal("John Culshaw", dest.Producers![0]);
+    }
+
+    [Fact]
+    public void Session_NullListsLoadAsEmpty()
+    {
+        var src = new RecordingSession();   // all null
+        var vm = new SessionEditorViewModel();
+        vm.LoadFromSession(src);
+
+        Assert.Equal("", vm.Dates);
+        Assert.Equal("", vm.Venue);
+        Assert.Equal("", vm.City);
+        Assert.Equal("", vm.Country);
+        Assert.Equal("", vm.Engineers);
+        Assert.Equal("", vm.Producers);
+    }
+
+    [Fact]
+    public void Session_EmptyFields_PersistAsNull()
+    {
+        var dest = new RecordingSession
+        {
+            Dates = "OLD", Venue = "OLD",
+            Engineers = new List<string> { "OLD" },
+            Producers = new List<string> { "OLD" },
+        };
+        var vm = new SessionEditorViewModel();
+
+        vm.SaveToSession(dest);
+
+        Assert.Null(dest.Dates);
+        Assert.Null(dest.Venue);
+        Assert.Null(dest.City);
+        Assert.Null(dest.Country);
+        Assert.Null(dest.Engineers);
+        Assert.Null(dest.Producers);
+    }
+
+    [Theory]
+    [InlineData("",                          0)]
+    [InlineData("   ",                        0)]
+    [InlineData("Alice",                      1)]
+    [InlineData("Alice, Bob",                 2)]
+    [InlineData("  Alice  ,  Bob  ",          2)]   // trim each
+    [InlineData("Alice,,Bob",                 2)]   // skip empty
+    [InlineData("Alice, , Bob",               2)]
+    [InlineData(",,,",                        0)]   // all empty
+    public void Session_SplitNames_HandlesEdgeCases(string input, int expectedCount)
+    {
+        var result = SessionEditorViewModel.SplitNames(input);
+        Assert.Equal(expectedCount, result.Count);
+        foreach (var s in result)
+        {
+            Assert.Equal(s.Trim(), s);      // entries are trimmed
+            Assert.NotEmpty(s);             // no empty entries
+        }
+    }
+
+    [Fact]
+    public void Session_NoValidationRequired_EmptySessionPersists()
+    {
+        // Unlike most other small editors, SessionEditor has no required
+        // fields — a fully blank session is allowed (though arguably useless).
+        var dest = new RecordingSession();
+        var vm = new SessionEditorViewModel();
+        // All fields empty in VM.
+
+        vm.SaveToSession(dest);
+        // All persisted as null; no exception.
+
+        Assert.Null(dest.Dates);
+        Assert.Null(dest.Engineers);
+    }
 }
