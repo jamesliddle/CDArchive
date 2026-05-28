@@ -1,49 +1,40 @@
 using System.Windows;
 using System.Windows.Input;
+using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
 
 namespace CDArchive.App.Views;
 
 public partial class EnsembleEntryEditorWindow : Window
 {
-    private readonly List<InstrumentEntry> _members = [];
+    // H13 small-editors slice 4: Members list moved onto
+    // EnsembleEntryEditorViewModel as ObservableCollection<InstrumentEntry>.
+    // The XAML's MembersList binds to it directly; the imperative
+    // RefreshMembersList method retires (CollectionChanged drives the re-render).
+    private readonly EnsembleEntryEditorViewModel _vm = new();
 
     public InstrumentEntry Entry { get; private set; }
 
     public EnsembleEntryEditorWindow(CanonPickLists pickLists, InstrumentEntry entry)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         Entry = entry;
-        EnsembleNameLabel.Text = entry.Instrument;
         Title = $"Edit {entry.Instrument}";
 
-        if (entry.Members != null)
-            _members.AddRange(entry.Members);
+        _vm.LoadFromEntry(entry);
 
-        // Populate available instruments
+        // Populate available instruments (static once loaded — stays in code-behind).
         foreach (var inst in pickLists.Instruments.Order())
             AvailableList.Items.Add(CanonFormat.TitleCase(inst));
-
-        RefreshMembersList();
-    }
-
-    private void RefreshMembersList()
-    {
-        var selectedIdx = MembersList.SelectedIndex;
-        MembersList.Items.Clear();
-        foreach (var m in _members)
-            MembersList.Items.Add(m.DisplayLabel);
-        if (selectedIdx >= 0 && selectedIdx < MembersList.Items.Count)
-            MembersList.SelectedIndex = selectedIdx;
     }
 
     private void OnAddMemberFromAvailableClick(object sender, RoutedEventArgs e)
     {
         if (AvailableList.SelectedItem is not string instrument) return;
-        _members.Add(new InstrumentEntry { Instrument = instrument });
-        RefreshMembersList();
-        MembersList.SelectedIndex = MembersList.Items.Count - 1;
+        _vm.Members.Add(new InstrumentEntry { Instrument = instrument });
+        MembersList.SelectedIndex = _vm.Members.Count - 1;
     }
 
     private void OnAvailableDoubleClick(object sender, MouseButtonEventArgs e) =>
@@ -53,27 +44,28 @@ public partial class EnsembleEntryEditorWindow : Window
     {
         var idx = MembersList.SelectedIndex;
         if (idx < 0) return;
-        _members.RemoveAt(idx);
-        RefreshMembersList();
-        if (_members.Count > 0)
-            MembersList.SelectedIndex = Math.Min(idx, _members.Count - 1);
+        _vm.Members.RemoveAt(idx);
+        if (_vm.Members.Count > 0)
+            MembersList.SelectedIndex = Math.Min(idx, _vm.Members.Count - 1);
     }
 
     private void OnMoveMemberUpClick(object sender, RoutedEventArgs e)
     {
         var idx = MembersList.SelectedIndex;
         if (idx <= 0) return;
-        (_members[idx], _members[idx - 1]) = (_members[idx - 1], _members[idx]);
-        RefreshMembersList();
+        var item = _vm.Members[idx];
+        _vm.Members.RemoveAt(idx);
+        _vm.Members.Insert(idx - 1, item);
         MembersList.SelectedIndex = idx - 1;
     }
 
     private void OnMoveMemberDownClick(object sender, RoutedEventArgs e)
     {
         var idx = MembersList.SelectedIndex;
-        if (idx < 0 || idx >= _members.Count - 1) return;
-        (_members[idx], _members[idx + 1]) = (_members[idx + 1], _members[idx]);
-        RefreshMembersList();
+        if (idx < 0 || idx >= _vm.Members.Count - 1) return;
+        var item = _vm.Members[idx];
+        _vm.Members.RemoveAt(idx);
+        _vm.Members.Insert(idx + 1, item);
         MembersList.SelectedIndex = idx + 1;
     }
 
@@ -81,14 +73,12 @@ public partial class EnsembleEntryEditorWindow : Window
     {
         // Rework H31 + H33: mutate the input Entry in place rather than
         // reconstructing. Pre-fix the OK handler built a new InstrumentEntry
-        // with `IsEnsemble = true` hardcoded, which (a) silently dropped
-        // any other field the editor doesn't know about (H31's general
-        // pattern), and (b) silently flipped IsEnsemble = true even if the
-        // caller had opened the editor on a non-ensemble entry (H33's
-        // specific symptom). Mutating in place preserves Instrument,
-        // IsEnsemble, and every other non-edited field — this editor's
-        // job is the members list, nothing else.
-        Entry.Members = _members.Count > 0 ? new List<InstrumentEntry>(_members) : null;
+        // with `IsEnsemble = true` hardcoded, which (a) silently dropped any
+        // other field the editor doesn't know about (H31), and (b) silently
+        // flipped IsEnsemble = true even if the caller had opened the editor
+        // on a non-ensemble entry (H33). The VM's SaveToEntry preserves the
+        // contract — only the Members list is touched.
+        _vm.SaveToEntry(Entry);
         DialogResult = true;
     }
 }
