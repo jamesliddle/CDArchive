@@ -26,7 +26,8 @@
 
         <StackPanel>
             <TextBlock x:Name="EnsembleNameLabel" FontSize="14" FontWeight="SemiBold"
-                       Margin="0,0,0,8" />
+                       Margin="0,0,0,8"
+                       Text="{Binding EnsembleName, Mode=OneWay}" />
 
             <TextBlock Text="Members" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
 
@@ -50,7 +51,14 @@
                                 Click="OnMoveMemberDownClick" />
                     </StackPanel>
                     <ListBox x:Name="MembersList" FontSize="12"
-                             BorderThickness="1" BorderBrush="#CCC" />
+                             BorderThickness="1" BorderBrush="#CCC"
+                             ItemsSource="{Binding Members}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayLabel}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </DockPanel>
 
                 <!-- Arrow buttons -->

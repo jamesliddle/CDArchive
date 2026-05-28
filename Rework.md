@@ -18,7 +18,7 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **Continue H13 small-editor VM extractions.** ComposerEditor [2026-05-27] + 4-editor bundle (Variant/Role/ComposerCredit/InstrumentEntry) [2026-05-27] + 2-editor bundle (PerformerEditor + SessionEditor) [2026-05-27] landed. **Remaining small editors (2)**: EnsembleEntryEditor (94 lines) and MarkerEditor (88) — both 2x more complex than the bundle just landed. EnsembleEntryEditor edits a parent instrument + its Members list (nested editor) — each member is itself an `InstrumentEntry`. MarkerEditor has multiple field types + a kind enum (Tempo / FirstLine / Variant). Each warrants its own PR. After these 2 land, H13 (the editor-windows pure-code-behind finding) is effectively complete. (H13, small editors — EnsembleEntryEditor next)
+1. **Wrap up H13 small-editor VM extractions.** ComposerEditor [2026-05-27] + 4-editor bundle [2026-05-27] + 2-editor bundle [2026-05-27] + EnsembleEntryEditor [2026-05-27] landed. **Remaining: MarkerEditor (88 lines)** — only one small editor left. MarkerEditor has multiple field types + a kind enum (Tempo / FirstLine / Variant) — more complex than EnsembleEntryEditor (single Members list) but a tractable single-PR slice. After it lands, **H13 (the editor-windows pure-code-behind finding) is effectively complete**: every editor in the app has a VM, every field state has been moved off the View, and the remaining lines are legitimate View concern (ListBox custom-rendering, modal-dialog wiring, MoveUp/Down handlers). Top-5 #2 should then advance. (H13, small editors — MarkerEditor next + final)
 2. **Continue H36's Click-to-RelayCommand migration in `CanonView`.** AlbumsView + TracksView + ItunesImportView slices landed [2026-05-24]. On audit, the other small views' Click handlers turn out to be legitimate modal-dialog ownership (Window.GetWindow for the dialog Owner) — `PickListsView.OnMembersClick`, `RolePickerWindow.OnOkClick`, `PiecesWindow.OnNewPieceClick`/`OnDeletePieceClick`, etc. — same pattern as AlbumsView's New/Edit/Delete that we kept by design. CanonView is the only meaningful remaining target: 10 handlers across its toolbar, action buttons, and context menu, mixing VM-bound action handlers with modal-dialog opens. Worth a dedicated PR. (H36, scoped to CanonView)
 3. **H21 architectural remainder: give `RecordingSession` a stable `Id`.** Bug class fixed [2026-05-24] via the defensive `RemapTracksAfterSessionRemoval` helper — the active "remove a session → tracks point wrong" corruption can no longer happen. The architectural cleanup remains: the model still carries positional FKs (`AlbumTrack.SessionIndex` = int?). Adding a stable `Id` on `RecordingSession` + storing it on tracks (instead of an index) eliminates the positional-FK class entirely. Migration is non-trivial — every existing `SessionIndex` translates to a new `SessionId` on first load; JSON snapshot + SQLite schema + seeder + save path + editor all switch. Multi-PR work; lower priority now that the bug class is gone. (H21 remainder)
 4. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
@@ -782,6 +782,30 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H13 (small editors slice 4). EnsembleEntryEditor
+[2026-05-27] `rework/ensemble-entry-editor-vm` — Fourth of the H13 small-editor extractions. Unlike the others, `EnsembleEntryEditor`'s scope is narrow: it manages ONLY the Members list of an ensemble `InstrumentEntry`. The parent's Instrument name and IsEnsemble flag are intentionally not editable — those H31/H33 contract preservations were the whole point of the pre-fix retirements.
+
+New `EnsembleEntryEditorViewModel`:
+- `[ObservableProperty] string EnsembleName` — read-only display of the parent's instrument name. Bound to the XAML's header label via OneWay binding.
+- `ObservableCollection<InstrumentEntry> Members` — the ensemble's members. Each is itself an InstrumentEntry.
+- `LoadFromEntry(entry)` — populates EnsembleName + Members. Re-runs clear first.
+- `SaveToEntry(entry)` — writes Members (empty → null). **Critically does NOT touch Instrument or IsEnsemble** — H31/H33 contract.
+
+XAML changes:
+- `EnsembleNameLabel.Text` gets `"{Binding EnsembleName, Mode=OneWay}"`.
+- `MembersList` gets `ItemsSource="{Binding Members}"` + an `ItemTemplate` displaying `{Binding DisplayLabel}` on each `InstrumentEntry`. Retires the pre-fix imperative `RefreshMembersList()` method entirely.
+
+Code-behind changes:
+- `_members` private List<InstrumentEntry> retired (now `_vm.Members`).
+- `RefreshMembersList` method retired (ItemsSource binding drives re-render via CollectionChanged).
+- `EnsembleNameLabel.Text = ...` assignment retired (XAML binding handles it).
+- Add/Remove/MoveUp/MoveDown handlers preserved (own ListBox.SelectedIndex bookkeeping — pure view-state). MoveUp/Down now use `RemoveAt + Insert` instead of tuple-swap because `ObservableCollection` doesn't support the in-place swap pattern cleanly with single CollectionChanged events for the ListBox to track selection.
+- `OnOkClick` calls `_vm.SaveToEntry(Entry)` (preserves H31 + H33 contract).
+
+10 new tests in `EnsembleEntryEditorViewModelTests`: LoadFromEntry populates name + members, null Members → empty, re-hydrate replaces; SaveToEntry writes Members, empty Members → null, **DoesNotTouchInstrumentName_H31_H33_Regression**, **PreservesIsEnsembleFalse_H33_Regression** (explicitly tests the bug class fixed by the H33 retirement — opening the editor on a non-ensemble entry must not flip IsEnsemble=true), independent List instances on save, CollectionChanged fires on Add/Remove (drives the WPF binding), full 5-member round-trip with field preservation (Key="B-flat" on a member).
+
+Lines: EnsembleEntryEditorWindow.xaml.cs 94→84 (-10); VM 55 lines. Total: 932 tests (595 Core + 337 App). H13 stays open — **1 small editor remains** (MarkerEditor, 88 lines). Top-5 #1 reframes to wrapping up H13 with MarkerEditor. **Action item for the user**: smoke-test EnsembleEntry — (1) Open an ensemble (e.g. string quartet) → see name in header, Members list populated; (2) Add a member from Available → appears in Members; (3) Remove a member → disappears; (4) Move up/down → reorders; (5) OK → re-open shows persisted state. (6) H33 regression: if you can somehow open the editor on a non-ensemble entry (uncommon in normal use), OK does NOT flip IsEnsemble=true.
 
 ### H13 (small editors slice 3). PerformerEditor + SessionEditor
 [2026-05-27] `rework/small-editors-bundle-2` — Third of the H13 small-editor extractions. Both editors are simple text-field dialogs (3 + 6 fields respectively); same `XxxEditorViewModel` + `LoadFromX` / `SaveToX` pattern as slice 2.
