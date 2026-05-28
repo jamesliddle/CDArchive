@@ -53,50 +53,61 @@
 
                 <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="NameBox" />
+                           x:Name="NameBox"
+                           Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="1" Text="Sort Name" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="SortNameBox" />
+                           x:Name="SortNameBox"
+                           Text="{Binding SortName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="2" Text="Birth Date" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="BirthDateBox" Width="120" HorizontalAlignment="Left" />
+                           x:Name="BirthDateBox" Width="120" HorizontalAlignment="Left"
+                           Text="{Binding BirthDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="3" Text="Birth Place" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="BirthPlaceBox" />
+                           x:Name="BirthPlaceBox"
+                           Text="{Binding BirthPlace, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="4" Text="Birth State" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="BirthStateBox" />
+                           x:Name="BirthStateBox"
+                           Text="{Binding BirthState, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="5" Text="Birth Country" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="BirthCountryBox" />
+                           x:Name="BirthCountryBox"
+                           Text="{Binding BirthCountry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="6" Text="Death Date" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="DeathDateBox" Width="120" HorizontalAlignment="Left" />
+                           x:Name="DeathDateBox" Width="120" HorizontalAlignment="Left"
+                           Text="{Binding DeathDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="7" Text="Death Place" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="7" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="DeathPlaceBox" />
+                           x:Name="DeathPlaceBox"
+                           Text="{Binding DeathPlace, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="8" Text="Death State" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="8" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="DeathStateBox" />
+                           x:Name="DeathStateBox"
+                           Text="{Binding DeathState, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="9" Text="Death Country" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="9" Grid.Column="1" Style="{StaticResource FieldBox}"
-                           x:Name="DeathCountryBox" />
+                           x:Name="DeathCountryBox"
+                           Text="{Binding DeathCountry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="10" Text="Notes" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
                 <TextBox   Grid.Row="10" Grid.Column="1" x:Name="NotesBox"
                            FontSize="13" Padding="4,3" Margin="0,3"
                            AcceptsReturn="True" TextWrapping="Wrap"
-                           Height="60" VerticalScrollBarVisibility="Auto" />
+                           Height="60" VerticalScrollBarVisibility="Auto"
+                           Text="{Binding Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
 
             <!-- Aliases / AKAs section -->
@@ -110,7 +121,8 @@
                                 VerticalAlignment="Top" Margin="2"
                                 ToolTip="Remove selected alias"
                                 Click="OnRemoveAliasClick" />
-                        <ListBox x:Name="AliasList" FontSize="12" BorderThickness="0" />
+                        <ListBox x:Name="AliasList" FontSize="12" BorderThickness="0"
+                                 ItemsSource="{Binding Aliases}" />
                     </DockPanel>
                     <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
                     <DockPanel Margin="4,4,4,4">
@@ -142,7 +154,8 @@
                                     ToolTip="Remove selected prefix"
                                     Click="OnRemoveCatalogClick" />
                         </StackPanel>
-                        <ListBox x:Name="CatalogList" FontSize="12" BorderThickness="0" />
+                        <ListBox x:Name="CatalogList" FontSize="12" BorderThickness="0"
+                                 ItemsSource="{Binding CatalogPrefixes}" />
                     </DockPanel>
                     <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
                     <DockPanel Margin="4,4,4,4">
