@@ -1,94 +1,51 @@
 using System.Windows;
+using CDArchive.App.ViewModels;
 using CDArchive.Core.Models;
 
 namespace CDArchive.App.Views;
 
 public partial class ComposerEditorWindow : Window
 {
+    // H13 small-editors slice 1: all field state moved onto
+    // ComposerEditorViewModel. TwoWay XAML bindings keep the TextBoxes in
+    // sync; the two ListBoxes ItemsSource-bind to ObservableCollections so
+    // Add/Remove operations re-render automatically without the pre-fix
+    // Refresh{Alias|Catalog}List methods.
+    private readonly ComposerEditorViewModel _vm = new();
     private readonly CanonComposer _composer;
-    private readonly List<string> _aliases;
-    private readonly List<string> _catalogPrefixes;
 
-    /// <summary>
-    /// The composer being edited (or newly created).
-    /// </summary>
+    /// <summary>The composer being edited (or newly created).</summary>
     public CanonComposer Composer => _composer;
 
     public ComposerEditorWindow(CanonPickLists pickLists, CanonComposer? composer = null)
     {
         InitializeComponent();
+        DataContext = _vm;
 
         var isNew = composer == null;
         _composer = composer ?? new CanonComposer();
-        _aliases         = _composer.Aliases?.ToList() ?? [];
-        _catalogPrefixes = _composer.CatalogPrefixes?.ToList() ?? [];
 
         Title = isNew ? "New Composer" : "Edit Composer";
 
         CatalogPrefixCombo.ItemsSource = pickLists.CatalogPrefixes;
 
-        LoadFromComposer();
-        RefreshAliasList();
-        RefreshCatalogList();
-    }
-
-    private void LoadFromComposer()
-    {
-        NameBox.Text         = _composer.Name;
-        SortNameBox.Text     = _composer.SortName;
-        BirthDateBox.Text    = _composer.BirthDate ?? "";
-        BirthPlaceBox.Text   = _composer.BirthPlace ?? "";
-        BirthStateBox.Text   = _composer.BirthState ?? "";
-        BirthCountryBox.Text = _composer.BirthCountry ?? "";
-        DeathDateBox.Text    = _composer.DeathDate ?? "";
-        DeathPlaceBox.Text   = _composer.DeathPlace ?? "";
-        DeathStateBox.Text   = _composer.DeathState ?? "";
-        DeathCountryBox.Text = _composer.DeathCountry ?? "";
-        NotesBox.Text        = _composer.Notes ?? "";
-    }
-
-    private void SaveToComposer()
-    {
-        _composer.Name         = NameBox.Text.Trim();
-        _composer.SortName     = SortNameBox.Text.Trim();
-        _composer.BirthDate    = NullIfEmpty(BirthDateBox.Text);
-        _composer.BirthPlace   = NullIfEmpty(BirthPlaceBox.Text);
-        _composer.BirthState   = NullIfEmpty(BirthStateBox.Text);
-        _composer.BirthCountry = NullIfEmpty(BirthCountryBox.Text);
-        _composer.DeathDate    = NullIfEmpty(DeathDateBox.Text);
-        _composer.DeathPlace   = NullIfEmpty(DeathPlaceBox.Text);
-        _composer.DeathState   = NullIfEmpty(DeathStateBox.Text);
-        _composer.DeathCountry = NullIfEmpty(DeathCountryBox.Text);
-        _composer.Notes        = NullIfEmpty(NotesBox.Text);
-        _composer.Aliases        = _aliases.Count > 0 ? _aliases.ToList() : null;
-        _composer.CatalogPrefixes = _catalogPrefixes.Count > 0 ? _catalogPrefixes.ToList() : null;
+        _vm.LoadFromComposer(_composer);
     }
 
     // ── Aliases list ─────────────────────────────────────────────────────────
-
-    private void RefreshAliasList()
-    {
-        var selected = AliasList.SelectedItem as string;
-        AliasList.Items.Clear();
-        foreach (var alias in _aliases)
-            AliasList.Items.Add(alias);
-        if (selected != null && AliasList.Items.Contains(selected))
-            AliasList.SelectedItem = selected;
-    }
 
     private void OnAddAliasClick(object sender, RoutedEventArgs e)
     {
         var alias = AliasEntryBox.Text.Trim();
         if (string.IsNullOrEmpty(alias)) return;
 
-        if (_aliases.Any(a => string.Equals(a, alias, StringComparison.OrdinalIgnoreCase)))
+        if (_vm.Aliases.Any(a => string.Equals(a, alias, StringComparison.OrdinalIgnoreCase)))
         {
             AliasEntryBox.Text = "";
             return;
         }
 
-        _aliases.Add(alias);
-        RefreshAliasList();
+        _vm.Aliases.Add(alias);
         AliasList.SelectedItem = alias;
         AliasEntryBox.Text = "";
         AliasEntryBox.Focus();
@@ -97,21 +54,10 @@ public partial class ComposerEditorWindow : Window
     private void OnRemoveAliasClick(object sender, RoutedEventArgs e)
     {
         if (AliasList.SelectedItem is not string alias) return;
-        _aliases.Remove(alias);
-        RefreshAliasList();
+        _vm.Aliases.Remove(alias);
     }
 
     // ── Catalogue prefix list ────────────────────────────────────────────────
-
-    private void RefreshCatalogList()
-    {
-        var selected = CatalogList.SelectedItem as string;
-        CatalogList.Items.Clear();
-        foreach (var prefix in _catalogPrefixes)
-            CatalogList.Items.Add(prefix);
-        if (selected != null && CatalogList.Items.Contains(selected))
-            CatalogList.SelectedItem = selected;
-    }
 
     private void OnAddCatalogClick(object sender, RoutedEventArgs e)
     {
@@ -119,14 +65,13 @@ public partial class ComposerEditorWindow : Window
         if (string.IsNullOrEmpty(prefix)) return;
 
         // Prevent duplicates (case-insensitive)
-        if (_catalogPrefixes.Any(p => string.Equals(p, prefix, StringComparison.OrdinalIgnoreCase)))
+        if (_vm.CatalogPrefixes.Any(p => string.Equals(p, prefix, StringComparison.OrdinalIgnoreCase)))
         {
             CatalogPrefixCombo.Text = "";
             return;
         }
 
-        _catalogPrefixes.Add(prefix);
-        RefreshCatalogList();
+        _vm.CatalogPrefixes.Add(prefix);
         CatalogList.SelectedItem = prefix;
         CatalogPrefixCombo.Text = "";
     }
@@ -134,25 +79,26 @@ public partial class ComposerEditorWindow : Window
     private void OnRemoveCatalogClick(object sender, RoutedEventArgs e)
     {
         if (CatalogList.SelectedItem is not string prefix) return;
-        _catalogPrefixes.Remove(prefix);
-        RefreshCatalogList();
+        _vm.CatalogPrefixes.Remove(prefix);
     }
 
     private void OnMoveCatalogUpClick(object sender, RoutedEventArgs e)
     {
         var idx = CatalogList.SelectedIndex;
         if (idx <= 0) return;
-        (_catalogPrefixes[idx - 1], _catalogPrefixes[idx]) = (_catalogPrefixes[idx], _catalogPrefixes[idx - 1]);
-        RefreshCatalogList();
+        var item = _vm.CatalogPrefixes[idx];
+        _vm.CatalogPrefixes.RemoveAt(idx);
+        _vm.CatalogPrefixes.Insert(idx - 1, item);
         CatalogList.SelectedIndex = idx - 1;
     }
 
     private void OnMoveCatalogDownClick(object sender, RoutedEventArgs e)
     {
         var idx = CatalogList.SelectedIndex;
-        if (idx < 0 || idx >= _catalogPrefixes.Count - 1) return;
-        (_catalogPrefixes[idx + 1], _catalogPrefixes[idx]) = (_catalogPrefixes[idx], _catalogPrefixes[idx + 1]);
-        RefreshCatalogList();
+        if (idx < 0 || idx >= _vm.CatalogPrefixes.Count - 1) return;
+        var item = _vm.CatalogPrefixes[idx];
+        _vm.CatalogPrefixes.RemoveAt(idx);
+        _vm.CatalogPrefixes.Insert(idx + 1, item);
         CatalogList.SelectedIndex = idx + 1;
     }
 
@@ -160,30 +106,28 @@ public partial class ComposerEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        // Rework H32: pre-fix this method called SaveToComposer() then set
-        // DialogResult = true with zero validation, so a blank Name +
-        // blank SortName could persist. The DB's UNIQUE NOT NULL index on
-        // composers.name then produces an opaque SqliteException on save
-        // for the second blank-name attempt. Validate both before commit.
-        if (string.IsNullOrWhiteSpace(NameBox.Text))
+        // H13 small-editors slice 1: validation lives on the VM. Code-behind
+        // retains the MessageBox + Focus chrome on the relevant TextBox for
+        // each validation case.
+        var error = _vm.SaveToComposer(_composer);
+        switch (error)
         {
-            MessageBox.Show("Name is required.", "Validation",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            NameBox.Focus();
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(SortNameBox.Text))
-        {
-            MessageBox.Show("Sort Name is required.", "Validation",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            SortNameBox.Focus();
-            return;
-        }
+            case ComposerEditorViewModel.SaveValidationError.MissingName:
+                MessageBox.Show("Name is required.", "Validation",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                NameBox.Focus();
+                return;
 
-        SaveToComposer();
-        DialogResult = true;
+            case ComposerEditorViewModel.SaveValidationError.MissingSortName:
+                MessageBox.Show("Sort Name is required.", "Validation",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                SortNameBox.Focus();
+                return;
+
+            case ComposerEditorViewModel.SaveValidationError.None:
+            default:
+                DialogResult = true;
+                return;
+        }
     }
-
-    private static string? NullIfEmpty(string? s) =>
-        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
