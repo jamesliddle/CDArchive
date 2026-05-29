@@ -234,9 +234,28 @@ public class AlbumTrack
     public List<TrackPieceRef>? PieceRefs { get; set; }
 
     /// <summary>
-    /// Zero-based index into <see cref="CanonAlbum.Sessions"/>.
-    /// null means either the album has a single session (index 0 implied) or session
-    /// information is unknown.
+    /// Stable identity reference to a <see cref="RecordingSession"/> on the
+    /// parent album (matches <see cref="RecordingSession.Id"/>). Survives
+    /// session reorders and list mutations — the H21 architectural fix
+    /// (introduced 2026-05-27 alongside the legacy positional
+    /// <see cref="SessionIndex"/>). null = no session.
+    /// <para>Load priority: when both <see cref="SessionId"/> and
+    /// <see cref="SessionIndex"/> are present, <see cref="SessionId"/>
+    /// wins. The save path populates both for forward + backward
+    /// compatibility during the H21 transition; future slices retire
+    /// <see cref="SessionIndex"/> entirely.</para>
+    /// </summary>
+    [JsonPropertyName("session_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? SessionId { get; set; }
+
+    /// <summary>
+    /// LEGACY (H21): zero-based index into <see cref="CanonAlbum.Sessions"/>.
+    /// Pre-H21 this was the only session reference; now it co-exists with
+    /// <see cref="SessionId"/> for backward compatibility. Producers (Save
+    /// paths) populate both; consumers should prefer <see cref="SessionId"/>
+    /// when set and fall back to <see cref="SessionIndex"/> for legacy
+    /// snapshots.
     /// </summary>
     [JsonPropertyName("session_index")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
