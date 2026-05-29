@@ -136,6 +136,47 @@ public class AlbumsViewModelCommandTests
         Assert.Contains(approved, vm.AllAlbums);  // untouched
     }
 
+    [Fact]
+    public async Task ApproveAlbumsCommand_SaveThrows_RollsBackProvisional_ShowsError_DoesNotCrash()
+    {
+        var (vm, dialogs, svc) = Build();
+        var p1 = new CanonAlbum { Title = "Prov 1", IsProvisional = true };
+        var p2 = new CanonAlbum { Title = "Prov 2", IsProvisional = true };
+        SeedAlbums(vm, p1, p2);
+
+        svc.SaveAlbumsAsync(Arg.Any<List<CanonAlbum>>())
+            .Returns<Task>(_ => throw new InvalidOperationException("save failed"));
+
+        await vm.ApproveAlbumsCommand.ExecuteAsync(new ArrayList { p1, p2 });
+
+        // Roll back: both albums should still be provisional.
+        Assert.True(p1.IsProvisional);
+        Assert.True(p2.IsProvisional);
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("Approve cancelled", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task RejectAlbumsCommand_SaveThrows_RestoresAlbums_ShowsError_DoesNotCrash()
+    {
+        var (vm, dialogs, svc) = Build();
+        var p1 = new CanonAlbum { Title = "Doomed 1", IsProvisional = true };
+        var p2 = new CanonAlbum { Title = "Doomed 2", IsProvisional = true };
+        SeedAlbums(vm, p1, p2);
+        dialogs.ConfirmResponse = true;
+
+        svc.SaveAlbumsAsync(Arg.Any<List<CanonAlbum>>())
+            .Returns<Task>(_ => throw new InvalidOperationException("save failed"));
+
+        await vm.RejectAlbumsCommand.ExecuteAsync(new ArrayList { p1, p2 });
+
+        // Both albums restored to AllAlbums.
+        Assert.Contains(p1, vm.AllAlbums);
+        Assert.Contains(p2, vm.AllAlbums);
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("Reject cancelled", vm.StatusMessage);
+    }
+
     // ── CheckReferencesCommand ────────────────────────────────────────────────
 
     [Fact]

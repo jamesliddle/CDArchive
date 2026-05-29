@@ -171,6 +171,30 @@ public class CanonViewModelCommandTests
         Assert.Contains("Sonata 14", vm.StatusMessage);
     }
 
+    [Fact]
+    public async Task DeletePieceCommand_SaveThrows_RestoresPiece_ShowsError_DoesNotCrash()
+    {
+        // Same pattern as the DeleteComposer fix: SaveBatch can throw (e.g.
+        // piece still referenced by album track piece-refs). Pre-fix the
+        // unhandled async exception crashed the dispatcher.
+        var vm = Build(out var dialogs, out var svc);
+        var piece = new CanonPiece { Composer = "X", Title = "Sonata 14" };
+        vm.Pieces.Add(piece);
+
+        svc.SaveBatchAsync(
+                Arg.Any<List<CanonComposer>?>(),
+                Arg.Any<List<CanonPiece>?>(),
+                null, null, null)
+            .Returns<Task>(_ => throw new InvalidOperationException("FK Restrict simulated"));
+
+        await vm.DeletePieceCommand.ExecuteAsync(piece);
+
+        Assert.Contains(piece, vm.Pieces);                      // restored
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("Sonata 14", vm.StatusMessage);
+        Assert.Contains("Delete cancelled", vm.StatusMessage);
+    }
+
     // ── ApproveCanonItemCommand ──────────────────────────────────────────────
 
     [Fact]
@@ -218,6 +242,41 @@ public class CanonViewModelCommandTests
         Assert.False(piece.IsProvisional);
         await svc.Received(1).SavePiecesAsync(Arg.Any<List<CanonPiece>>());
         Assert.Contains("Approved", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task ApproveCanonItem_ComposerSaveThrows_RollsBack_ShowsError_DoesNotCrash()
+    {
+        var vm = Build(out var dialogs, out var svc);
+        var composer = new CanonComposer { Name = "X", IsProvisional = true };
+        vm.Composers.Add(composer);
+        var node = new ComposerTreeNode(composer, Array.Empty<CanonPiece>());
+
+        svc.SaveComposersAsync(Arg.Any<List<CanonComposer>>())
+            .Returns<Task>(_ => throw new InvalidOperationException("save failed"));
+
+        await vm.ApproveCanonItemCommand.ExecuteAsync(node);
+
+        Assert.True(composer.IsProvisional);                    // rolled back
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("Approve cancelled", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task ApproveCanonItem_PieceSaveThrows_RollsBack_ShowsError_DoesNotCrash()
+    {
+        var vm = Build(out var dialogs, out var svc);
+        var piece = new CanonPiece { Composer = "X", Title = "Sonata", IsProvisional = true };
+        vm.Pieces.Add(piece);
+
+        svc.SavePiecesAsync(Arg.Any<List<CanonPiece>>())
+            .Returns<Task>(_ => throw new InvalidOperationException("save failed"));
+
+        await vm.ApproveCanonItemCommand.ExecuteAsync(piece);
+
+        Assert.True(piece.IsProvisional);                        // rolled back
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("Approve cancelled", vm.StatusMessage);
     }
 
     [Fact]
