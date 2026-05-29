@@ -1879,22 +1879,17 @@ public class SqliteCanonDataService : ICanonDataService
                 .ToList();
         }
 
-        // Sessions ordered by Position; their zero-based index is what tracks reference.
+        // Sessions ordered by Position. Tracks reference sessions by their
+        // stable Id (AlbumTrack.SessionId).
         var orderedSessions = ar.Sessions.OrderBy(s => s.Position).ToList();
-        var sessionIndexById = new Dictionary<long, int>();
         if (orderedSessions.Count > 0)
         {
             album.Sessions = new List<RecordingSession>(orderedSessions.Count);
             for (int i = 0; i < orderedSessions.Count; i++)
             {
                 var sr = orderedSessions[i];
-                sessionIndexById[sr.Id] = i;
                 album.Sessions.Add(new RecordingSession
                 {
-                    // H21 slice 1: surface the SQLite row Id on the model so
-                    // the new SessionId on tracks can be resolved without the
-                    // positional lookup. SessionIndex still populated below
-                    // for backward compat.
                     Id        = sr.Id,
                     Dates     = sr.Dates,
                     Venue     = sr.Venue,
@@ -1951,13 +1946,7 @@ public class SqliteCanonDataService : ICanonDataService
                     IsProvisional = tr.IsProvisional,
                     FlacPath      = tr.FlacPath,
                     Mp3Path       = tr.Mp3Path,
-                    // H21 slice 1: SessionId is the new stable reference;
-                    // SessionIndex stays populated for backward compat with
-                    // pre-H21 readers (e.g. older JSON consumers).
                     SessionId     = tr.SessionId,
-                    SessionIndex  = tr.SessionId.HasValue &&
-                                    sessionIndexById.TryGetValue(tr.SessionId.Value, out var si)
-                                    ? si : null,
                 };
 
                 if (trackPerformersByTrackId.TryGetValue(tr.Id, out var tps) && tps.Count > 0)
@@ -2364,8 +2353,7 @@ public class SqliteCanonDataService : ICanonDataService
                 IsProvisional = tr.IsProvisional,
                 FlacPath      = tr.FlacPath,
                 Mp3Path       = tr.Mp3Path,
-                // SessionIndex doesn't apply — loose tracks have no album sessions.
-                SessionIndex  = null,
+                // SessionId is null on loose tracks (no album, no sessions).
             };
 
             if (tr.Performers.Count > 0)
