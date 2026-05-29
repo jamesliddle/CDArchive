@@ -93,7 +93,7 @@ internal static class Program
 
         // ── Build context and schema ─────────────────────────────────────
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
 
         await using var db = new CanonDbContext(options);
@@ -197,7 +197,7 @@ internal static class Program
         }
 
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(dataDir);
@@ -252,7 +252,7 @@ internal static class Program
         }
 
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(dataDir);
@@ -290,7 +290,7 @@ internal static class Program
         }
 
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(dataDir);

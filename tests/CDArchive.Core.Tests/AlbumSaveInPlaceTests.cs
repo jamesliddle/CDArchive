@@ -20,7 +20,7 @@ public class AlbumSaveInPlaceTests
         dbPath = Path.Combine(Path.GetTempPath(),
             $"cdarchive_album_inplace_{Guid.NewGuid():N}.db");
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         factory = new SimpleDbContextFactory(options);
         var json = new CanonDataService(Path.GetTempPath());

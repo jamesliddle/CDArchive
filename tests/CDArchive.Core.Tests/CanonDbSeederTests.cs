@@ -29,7 +29,7 @@ public class CanonDbSeederTests : IDisposable
         _dbPath = Path.Combine(Path.GetTempPath(),
             $"cdarchive_seeder_{Guid.NewGuid():N}.db");
         _options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={_dbPath}")
+            .UseSqlite($"Data Source={_dbPath};Foreign Keys=True")
             .Options;
     }
 
