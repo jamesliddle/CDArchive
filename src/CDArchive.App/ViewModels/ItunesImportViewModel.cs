@@ -212,7 +212,17 @@ public partial class ItunesImportViewModel : ObservableObject
         {
             var title = (album.Title ?? "").Trim().ToLowerInvariant();
             if (title.Length == 0) continue;
-            var performer = NormalisePerformer(album.Performers?.FirstOrDefault()?.Name);
+            // Key on the ENTIRE performer list (joined and normalised), not
+            // just the first entry. Pre-fix the canon side used only
+            // Performers[0].Name; the iTunes side used the whole
+            // AlbumArtist/Artist string. When iTunes "Karajan, Herbert von"
+            // imported into a 2-entry canon list ["Karajan", "Herbert von"],
+            // the canon key was "karajan" while the iTunes key was
+            // "herbertkarajanvon" — they never matched and "Hide already
+            // imported" silently failed on every iTunes-imported album whose
+            // Artist field had a comma.
+            var performer = CDArchive.Core.Helpers.PerformerNormalisation
+                .NormaliseAlbumPerformerList(album.Performers);
             foreach (var disc in album.Discs)
                 foreach (var track in disc.Tracks)
                     _importedKeys.Add((title, performer, disc.DiscNumber, track.TrackNumber));

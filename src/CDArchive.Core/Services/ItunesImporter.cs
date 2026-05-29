@@ -89,7 +89,7 @@ public static class ItunesImporter
         {
             foreach (var a in existingAlbums)
             {
-                var key = TryBuildAlbumDedupKey(a.Title, a.Performers?.FirstOrDefault()?.Name);
+                var key = TryBuildCanonAlbumDedupKey(a);
                 if (key is { } k && !existingAlbumByKey.ContainsKey(k))
                     existingAlbumByKey[k] = a;
             }
@@ -168,7 +168,7 @@ public static class ItunesImporter
                 .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
             CanonAlbum album;
             bool isExistingAlbum = false;
-            var dedupKey = TryBuildAlbumDedupKey(albumTitle, itunesAlbumPerformer);
+            var dedupKey = TryBuildItunesAlbumDedupKey(albumTitle, itunesAlbumPerformer);
             if (dedupKey is { } k && existingAlbumByKey.TryGetValue(k, out var match))
             {
                 album = match;
@@ -303,16 +303,33 @@ public static class ItunesImporter
     }
 
     /// <summary>
-    /// M5: builds the dedup key for an album — <c>(title-trimmed-lower,
-    /// normalised-first-performer)</c>. Returns null when both components
-    /// are empty (no anchor to dedup on; always treat as new). Public via
-    /// <see cref="PerformerNormalisation"/> so the contract is testable.
+    /// M5: builds the dedup key for an iTunes-side album group —
+    /// <c>(title-trimmed-lower, NormalisePerformer(itunesAlbumArtistOrArtist))</c>.
+    /// The whole iTunes Artist/AlbumArtist string is fed into the normaliser
+    /// (the tokenisation handles internal commas / spaces).
     /// </summary>
-    private static (string Title, string Performer)? TryBuildAlbumDedupKey(
-        string? title, string? firstPerformer)
+    private static (string Title, string Performer)? TryBuildItunesAlbumDedupKey(
+        string? title, string? itunesArtist)
     {
         var t = (title ?? "").Trim().ToLowerInvariant();
-        var p = PerformerNormalisation.NormalisePerformer(firstPerformer);
+        var p = PerformerNormalisation.NormalisePerformer(itunesArtist);
+        if (t.Length == 0 && p.Length == 0) return null;
+        return (t, p);
+    }
+
+    /// <summary>
+    /// M5: builds the dedup key for an existing canon album. Joins ALL
+    /// album-level performer names and normalises — produces the same key
+    /// shape as <see cref="TryBuildItunesAlbumDedupKey"/> against the
+    /// equivalent iTunes Artist string. Picking only
+    /// <c>Performers[0].Name</c> (the pre-fix shape) silently desynced from
+    /// the iTunes side because the iTunes importer comma-splits its Artist
+    /// string into multiple AlbumPerformer entries.
+    /// </summary>
+    private static (string Title, string Performer)? TryBuildCanonAlbumDedupKey(CanonAlbum album)
+    {
+        var t = (album.Title ?? "").Trim().ToLowerInvariant();
+        var p = PerformerNormalisation.NormaliseAlbumPerformerList(album.Performers);
         if (t.Length == 0 && p.Length == 0) return null;
         return (t, p);
     }

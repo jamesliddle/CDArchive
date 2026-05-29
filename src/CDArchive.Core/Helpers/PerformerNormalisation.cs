@@ -1,3 +1,5 @@
+using CDArchive.Core.Models;
+
 namespace CDArchive.Core.Helpers;
 
 /// <summary>
@@ -48,5 +50,29 @@ public static class PerformerNormalisation
         // Sort tokens by ordinal so name order doesn't matter.
         tokens.Sort(StringComparer.Ordinal);
         return string.Concat(tokens);
+    }
+
+    /// <summary>
+    /// Normalises a canon album's full performer list to the same key shape
+    /// produced by <see cref="NormalisePerformer"/> over an iTunes
+    /// <c>AlbumArtist</c> / <c>Artist</c> string. Returns the empty string
+    /// for null / empty input.
+    ///
+    /// <para>Why join all performers (not just the first): the iTunes import
+    /// path splits the iTunes <c>Artist</c> comma-separated string into
+    /// multiple <see cref="AlbumPerformer"/> entries — so an iTunes "Karajan,
+    /// Herbert von" becomes a 2-entry canon list <c>[Karajan, Herbert von]</c>.
+    /// Picking just <c>Performers[0].Name</c> on the canon side would key on
+    /// <c>"karajan"</c>, while the iTunes side would key on the whole string
+    /// <c>"herbertkarajanvon"</c>. Joining everything back together restores
+    /// symmetry: both sides produce the same sorted-token output.</para>
+    /// </summary>
+    public static string NormaliseAlbumPerformerList(IEnumerable<AlbumPerformer>? performers)
+    {
+        if (performers is null) return string.Empty;
+        var combined = string.Join(", ", performers
+            .Select(p => p.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n)));
+        return NormalisePerformer(combined);
     }
 }

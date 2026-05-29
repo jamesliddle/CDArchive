@@ -124,6 +124,49 @@ public class ItunesImporterAlbumDedupTests
     }
 
     [Fact]
+    public void RoundTrip_ImportThenReimport_DedupsViaCanonSidePerformerList_BugReportRegression()
+    {
+        // User-reported bug: import iTunes "Symphony 9" (Artist="Karajan, Herbert von"),
+        // re-import the same data — pre-fix M5 didn't detect the match because the
+        // canon side keyed on Performers[0].Name only. The iTunes import split the
+        // Artist comma into TWO AlbumPerformer entries ("Karajan", "Herbert von"),
+        // so the canon-side key was "karajan" while the iTunes-side key was
+        // "herbertkarajanvon". They never matched.
+        //
+        // This test runs the import twice in sequence, mirroring the user's flow:
+        // step 1 builds the canon album as the importer would; step 2 re-imports and
+        // asserts M5 matches.
+        var albums    = new List<CanonAlbum>();
+        var composers = new List<CanonComposer>();
+        var pieces    = new List<CanonPiece>();
+
+        var itunesBatch = new[]
+        {
+            Track(1, "Symphony I", "Symphony 9", "Beethoven, Ludwig van (1770-1827)",
+                  artist: "Karajan, Herbert von", trackNumber: 1),
+            Track(2, "Symphony II", "Symphony 9", "Beethoven, Ludwig van (1770-1827)",
+                  artist: "Karajan, Herbert von", trackNumber: 2),
+        };
+
+        // Step 1: first import — no existing albums, fresh CanonAlbum built.
+        var r1 = ItunesImporter.Import(itunesBatch, composers, pieces, albums);
+        Assert.Single(r1.NewAlbums);
+        Assert.Equal(0, r1.ModifiedAlbums);
+        albums.AddRange(r1.NewAlbums);
+        // Confirm the importer comma-split Artist into TWO AlbumPerformer entries —
+        // the exact configuration that broke the pre-fix dedup.
+        Assert.Equal(2, albums[0].Performers!.Count);
+        Assert.Equal("Karajan",      albums[0].Performers![0].Name);
+        Assert.Equal("Herbert von",  albums[0].Performers![1].Name);
+
+        // Step 2: re-import. M5 must dedup against the canon album from step 1.
+        var r2 = ItunesImporter.Import(itunesBatch, composers, pieces, albums);
+        Assert.Empty(r2.NewAlbums);              // no fresh CanonAlbum
+        Assert.Equal(1, r2.ModifiedAlbums);     // existing matched
+        Assert.Single(albums);                   // still one album in the list
+    }
+
+    [Fact]
     public void MatchingExistingAlbum_PerformerNameFormattingDiffers_StillMatches()
     {
         // Existing album has performer "Karajan, Herbert von"; iTunes Artist
