@@ -82,6 +82,40 @@ public class CanonViewModelCommandTests
     }
 
     [Fact]
+    public async Task DeleteComposerCommand_SaveThrows_RestoresComposer_ShowsError_DoesNotCrash()
+    {
+        // User-reported regression: deleting a composer that still owns pieces
+        // crashed the app. SaveComposersCoreAsync wraps the SQLite FK Restrict
+        // failure in an InvalidOperationException; pre-fix this propagated past
+        // the async RelayCommand and crashed the dispatcher.
+        var vm = Build(out var dialogs, out var svc);
+        var composer = new CanonComposer { Name = "Aatest, Aaron A" };
+        vm.Composers.Add(composer);
+
+        // Simulate the FK Restrict path.
+        svc.SaveComposersAsync(Arg.Any<List<CanonComposer>>())
+            .Returns<Task>(_ => throw new InvalidOperationException(
+                "Cannot delete 1 composer(s) ('Aatest, Aaron A'…) — one or more " +
+                "still owns pieces in the canon. Remove their pieces first."));
+
+        // Must not throw — the catch path restores the composer and shows
+        // an error dialog instead.
+        await vm.DeleteComposerCommand.ExecuteAsync(composer);
+
+        // Composer restored to the in-memory collection so the UI matches DB
+        // reality (where the row still exists).
+        Assert.Contains(composer, vm.Composers);
+
+        // Error dialog surfaced with the helpful message from SaveComposersCoreAsync.
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("still owns pieces", dialogs.ErrorCalls[0].Message);
+
+        // Status reflects the cancelled operation.
+        Assert.Contains("Delete cancelled", vm.StatusMessage);
+        Assert.Contains("Aatest, Aaron A",   vm.StatusMessage);
+    }
+
+    [Fact]
     public async Task DeleteComposerCommand_ClearsSelectedComposer_WhenTargetMatches()
     {
         var vm = Build(out _, out _);
