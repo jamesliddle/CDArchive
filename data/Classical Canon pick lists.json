@@ -38,6 +38,8 @@
     "Trio",
     "Triple Concerto",
     "Variations",
+    "Viola Concerto",
+    "Viola Sonata",
     "Violin Concerto",
     "Violin Sonata"
   ],
@@ -135,6 +137,7 @@
     "Flute",
     "Glass Harmonica",
     "Harp",
+    "Harpsichord",
     "Horn",
     "Male Chorus",
     "Mezzo-soprano",
@@ -220,8 +223,8 @@
         "flute",
         "oboe",
         "clarinet",
-        "horn",
-        "bassoon"
+        "bassoon",
+        "horn"
       ]
     },
     {

@@ -9,6 +9,17 @@
     "name": "Aaatest, Aaron",
     "sort_name": "Aaatest, Aaron",
     "birth_date": "1970",
+    "birth_local_place": "San Jose",
+    "birth_state": "California",
+    "birth_country": "United States",
+    "notes": "Test notes 2",
+    "aliases": [
+      "The Masked Composer"
+    ],
+    "catalog_prefixes": [
+      "Op.",
+      "WoO"
+    ],
     "is_provisional": true
   },
   {
@@ -2596,6 +2607,13 @@
     "death_date": "1881-03-28",
     "death_local_place": "Saint Petersburg",
     "death_country": "Russia",
+    "is_provisional": true
+  },
+  {
+    "name": "Myaskovsky, Nikolai",
+    "sort_name": "Myaskovsky, Nikolai",
+    "birth_date": "1881",
+    "death_date": "1950",
     "is_provisional": true
   },
   {
