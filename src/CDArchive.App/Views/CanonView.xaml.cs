@@ -82,6 +82,16 @@ public partial class CanonView : UserControl
         vm.PropertyChanged -= OnViewModelPropertyChanged;
         vm.PropertyChanged += OnViewModelPropertyChanged;
 
+        // H36 retirement: the new Delete/Approve/Reject RelayCommands raise
+        // DataMutated after the in-memory mutation but before the save's
+        // await. We subscribe here to refresh badge counts + rebuild the
+        // tree synchronously — preserving the pre-fix mutate → rebuild →
+        // suppress → save order (which avoids a WPF rendering glitch where
+        // TreeViewItem expander triangles end up partially-stale when a
+        // rebuild runs after the save's await).
+        vm.DataMutated -= OnVmDataMutated;
+        vm.DataMutated += OnVmDataMutated;
+
         // When the album↔piece cross-reference is rebuilt (e.g. after saving an album),
         // our hit-count badges are stale until the tree re-renders. Force a refresh.
         if (PieceReferenceIndex.Current is { } idx)
@@ -94,6 +104,20 @@ public partial class CanonView : UserControl
         await vm.LoadDataCommand.ExecuteAsync(null);
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
+    }
+
+    /// <summary>
+    /// Subscribed to <see cref="CanonViewModel.DataMutated"/> — fires
+    /// synchronously between the command's mutation and its save's await.
+    /// Refreshes badge counts + rebuilds the tree, then sets the suppress
+    /// flag so the post-save reload's tree-rebuild is a no-op.
+    /// </summary>
+    private void OnVmDataMutated()
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        UpdatePieceCounts(vm);
+        ApplySortedFilter(vm);
+        _suppressAutoRefresh = true;
     }
 
     private void OnIndexRebuilt(object? sender, EventArgs e)
@@ -787,117 +811,21 @@ public partial class CanonView : UserControl
         _ctxTvi.IsExpanded = false;
     }
 
+    // H36 retirement: data work + confirmation + cascade + status lives on
+    // CanonViewModel.ApproveCanonItemCommand / RejectCanonItemCommand. The
+    // View's click handlers are thin shims that forward _ctxTarget — the
+    // right-clicked tree item the context-menu logic stored. Tree rebuild
+    // runs via the DataMutated event subscription (OnVmDataMutated).
     private async void OnContextApprove(object sender, RoutedEventArgs e)
     {
         if (DataContext is not CanonViewModel vm) return;
-        switch (_ctxTarget)
-        {
-            case ComposerTreeNode node:
-                // Match the OnNewComposer pattern: mutate → rebuild tree → suppress → save.
-                // Rebuilding before the save's async await avoids a WPF rendering glitch
-                // where the TreeViewItem containers end up in a partially-stale state
-                // (composer-level expander triangles disappear) when the rebuild happens
-                // after the await completes.
-                node.Composer.IsProvisional = false;
-                UpdatePieceCounts(vm);
-                ApplySortedFilter(vm);
-                _suppressAutoRefresh = true;
-                await vm.SaveComposersCommand.ExecuteAsync(null);
-                vm.StatusMessage = $"Approved {node.Composer.Name}.";
-                break;
-            case CanonPiece piece:
-                piece.IsProvisional = false;
-                UpdatePieceCounts(vm);
-                ApplySortedFilter(vm);
-                _suppressAutoRefresh = true;
-                await vm.SavePiecesCommand.ExecuteAsync(null);
-                vm.StatusMessage = $"Approved {piece.DisplayTitle}.";
-                break;
-        }
+        await vm.ApproveCanonItemCommand.ExecuteAsync(_ctxTarget);
     }
 
     private async void OnContextReject(object sender, RoutedEventArgs e)
     {
         if (DataContext is not CanonViewModel vm) return;
-        switch (_ctxTarget)
-        {
-            case ComposerTreeNode node:
-            {
-                var name = node.Composer.Name;
-                // Album track refs pointing at any of these pieces (and contributor
-                // credits naming the composer on surviving pieces) have to go along
-                // with the composer — FK pieces.composer_id and
-                // piece_composer_credits.composer_id are both OnDelete: Restrict.
-                // The full cascade lives in CanonViewModel.RejectComposerWithCascadeAsync.
-                var ownedPieces = vm.Pieces
-                    .Where(p => string.Equals(p.Composer, name,
-                                              StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                var pieceTail = ownedPieces.Count switch
-                {
-                    0 => "",
-                    1 => $" and 1 piece",
-                    _ => $" and {ownedPieces.Count} pieces",
-                };
-                var confirm = MessageBox.Show(
-                    $"Delete provisional composer '{name}'{pieceTail}?",
-                    "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-                if (confirm != MessageBoxResult.OK) return;
-
-                try
-                {
-                    _suppressAutoRefresh = true;
-                    var result = await vm.RejectComposerWithCascadeAsync(node.Composer);
-                    UpdatePieceCounts(vm);
-                    ApplySortedFilter(vm);
-
-                    var headline = result.PiecesDeleted > 0
-                        ? $"Rejected and deleted {name} and {result.PiecesDeleted} piece(s)"
-                        : $"Rejected and deleted {name}";
-                    var extras = new List<string>();
-                    if (result.RefsStripped    > 0) extras.Add($"{result.RefsStripped} album track ref(s)");
-                    if (result.CreditsStripped > 0) extras.Add($"{result.CreditsStripped} contributor credit(s)");
-                    vm.StatusMessage = extras.Count > 0
-                        ? $"{headline} (also removed {string.Join(", ", extras)})."
-                        : $"{headline}.";
-                }
-                catch (Exception ex)
-                {
-                    vm.StatusMessage = $"Could not delete {name}: {ex.Message}";
-                    MessageBox.Show(vm.StatusMessage, "Reject Composer",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                break;
-            }
-            case CanonPiece piece:
-            {
-                var title = piece.DisplayTitle;
-                var confirm = MessageBox.Show(
-                    $"Delete provisional piece '{title}'?",
-                    "Confirm Rejection", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-                if (confirm != MessageBoxResult.OK) return;
-
-                try
-                {
-                    _suppressAutoRefresh = true;
-                    var result = await vm.RejectPieceWithCascadeAsync(piece);
-                    UpdatePieceCounts(vm);
-                    ApplySortedFilter(vm);
-
-                    vm.StatusMessage = result.RefsStripped > 0
-                        ? $"Rejected and deleted {title} (also removed {result.RefsStripped} album track ref(s))."
-                        : $"Rejected and deleted {title}.";
-                }
-                catch (Exception ex)
-                {
-                    vm.StatusMessage = $"Could not delete {title}: {ex.Message}";
-                    MessageBox.Show(vm.StatusMessage, "Reject Piece",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                break;
-            }
-        }
+        await vm.RejectCanonItemCommand.ExecuteAsync(_ctxTarget);
     }
 
     // ── Expand / collapse helpers ─────────────────────────────────────────────
@@ -1171,29 +1099,17 @@ public partial class CanonView : UserControl
     }
 
     // ── Toolbar: Delete Composer ─────────────────────────────────────────────
-
+    // H36 retirement: data work + confirmation + save lives on
+    // CanonViewModel.DeleteComposerCommand. The View's click handler is a
+    // thin shim that forwards the active selection — view-side state that the
+    // VM can't see directly. UpdatePieceCounts + ApplySortedFilter run via
+    // the DataMutated event subscription (OnVmDataMutated).
     private async void OnDeleteComposerClick(object sender, RoutedEventArgs e)
     {
         if (DataContext is not CanonViewModel vm) return;
         if (_activeComposer == null) return;
-
-        var name = _activeComposer.Name;
-        var result = MessageBox.Show(
-            $"Delete composer \"{name}\"?\n\nThis cannot be undone.",
-            "Delete Composer",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Warning,
-            MessageBoxResult.Cancel);
-
-        if (result != MessageBoxResult.OK) return;
-
-        vm.Composers.Remove(_activeComposer);
+        await vm.DeleteComposerCommand.ExecuteAsync(_activeComposer);
         _activeComposer = null;
-        UpdatePieceCounts(vm);
-        ApplySortedFilter(vm);
-        _suppressAutoRefresh = true;
-        await vm.SaveComposersCommand.ExecuteAsync(null);
-        vm.StatusMessage = $"Deleted {name}.";
     }
 
     // ── Toolbar: New Piece ───────────────────────────────────────────────────
@@ -1223,30 +1139,14 @@ public partial class CanonView : UserControl
     }
 
     // ── Toolbar: Delete Piece ────────────────────────────────────────────────
-
+    // H36 retirement: see DeleteComposer above.
     private async void OnDeletePieceClick(object sender, RoutedEventArgs e)
     {
         if (DataContext is not CanonViewModel vm) return;
         if (_activePiece == null) return;
-
-        var title = _activePiece.DisplayTitle;
-        var result = MessageBox.Show(
-            $"Delete \"{title}\"?\n\nThis cannot be undone.",
-            "Delete Piece",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Warning,
-            MessageBoxResult.Cancel);
-
-        if (result != MessageBoxResult.OK) return;
-
-        vm.Pieces.Remove(_activePiece);
+        await vm.DeletePieceCommand.ExecuteAsync(_activePiece);
         _activePiece = null;
         DeletePieceButton.IsEnabled = false;
-        UpdatePieceCounts(vm);
-        ApplySortedFilter(vm);
-        _suppressAutoRefresh = true;
-        await SaveAllAsync(vm);
-        vm.StatusMessage = $"Deleted: {title}.";
     }
 
     // ── Shared helpers ───────────────────────────────────────────────────────

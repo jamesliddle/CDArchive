@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.App.Services;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,7 +18,19 @@ public partial class CanonViewModel : ObservableObject
     private readonly PieceReferenceIndex _refIndex;
     private readonly AlbumsViewModel _albumsVm;
     private readonly TracksViewModel _tracksVm;
+    private readonly IDialogService _dialogs;
     private readonly ILogger<CanonViewModel> _logger;
+
+    /// <summary>
+    /// Raised after a command mutates VM state (Composers / Pieces collections)
+    /// but BEFORE the save's async await completes. <c>CanonView</c> subscribes
+    /// to this to refresh badge counts + rebuild the tree synchronously,
+    /// matching the pre-fix "mutate → rebuild → suppress → save" order. The
+    /// pre-await timing is critical: a rebuild after the await produces a
+    /// WPF rendering glitch where TreeViewItem expander triangles end up in
+    /// a partially-stale state. H36 retirement preserves this contract.
+    /// </summary>
+    public event Action? DataMutated;
 
     /// <summary>
     /// Exposed so <c>CanonView.xaml.cs</c>'s "edit album from Canon" path
@@ -82,6 +95,7 @@ public partial class CanonViewModel : ObservableObject
         AlbumsViewModel albumsVm,
         TracksViewModel tracksVm,
         PlayerViewModel player,
+        IDialogService dialogs,
         ILogger<CanonViewModel>? logger = null)
     {
         _canonDataService = canonDataService;
@@ -89,6 +103,7 @@ public partial class CanonViewModel : ObservableObject
         _albumsVm = albumsVm;
         _tracksVm = tracksVm;
         Player = player;
+        _dialogs = dialogs;
         _logger = logger ?? NullLogger<CanonViewModel>.Instance;
     }
 
@@ -260,16 +275,11 @@ public partial class CanonViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private void DeleteComposer()
-    {
-        if (SelectedComposer == null) return;
-        var name = SelectedComposer.Name;
-        Composers.Remove(SelectedComposer);
-        ApplyComposerFilter();
-        SelectedComposer = null;
-        StatusMessage = $"Deleted {name}. Save to persist.";
-    }
+    // (Pre-fix this section had an unwired parameterless DeleteComposerCommand
+    // tied to SelectedComposer; retired in the H36/CanonView slice in favour
+    // of the new parameterized DeleteComposerCommand below — which the
+    // CanonView toolbar handler actually calls, with the active selection
+    // from the tree click handler.)
 
     [RelayCommand]
     private void ApplyComposerFilter()
@@ -409,16 +419,10 @@ public partial class CanonViewModel : ObservableObject
     }
 
     // ── Approval / rejection — Pieces ─────────────────────────────────────────
-
-    [RelayCommand]
-    private async Task ApprovePieceAsync()
-    {
-        if (SelectedPiece == null) return;
-        SelectedPiece.IsProvisional = false;
-        await _canonDataService.SavePiecesAsync(Pieces.ToList());
-        ApplyPiecesFilter();
-        StatusMessage = $"Approved {SelectedPiece.DisplayTitle}.";
-    }
+    // (Pre-fix this section had an unwired parameterless ApprovePieceCommand
+    // tied to SelectedPiece; retired here in favour of the H36
+    // ApproveCanonItemCommand below which takes the right-clicked target as a
+    // parameter — matches the actual CanonView context-menu invocation site.)
 
     /// <summary>
     /// Runs the FK-aware reject cascade for <paramref name="piece"/>: strips
@@ -464,7 +468,168 @@ public partial class CanonViewModel : ObservableObject
         }
     }
 
-    // Reject is handled via Reject*WithCascadeAsync above, invoked from the
-    // CanonView context menu. The cascade itself lives in
-    // CDArchive.Core.Services.CanonRejectCascade so it's unit-testable.
+    // Reject is handled via Reject*WithCascadeAsync above. The cascade itself
+    // lives in CDArchive.Core.Services.CanonRejectCascade so it's unit-testable.
+
+    // ── H36: Click-handler retirement RelayCommands ──────────────────────────
+    //
+    // The CanonView slice of H36 surfaces four new RelayCommands so the
+    // toolbar Delete buttons + context-menu Approve/Reject items have testable
+    // VM-side homes for their confirmation dialog + data mutation + save +
+    // status-message logic. The View's click handlers shrink to thin shims
+    // that look up the target object and call `Command.ExecuteAsync(target)`.
+    //
+    // Each command fires <see cref="DataMutated"/> after mutating the VM's
+    // observable collections but BEFORE awaiting the save. CanonView
+    // subscribes to that event and runs its tree-rebuild + badge-count
+    // refresh synchronously — preserving the pre-fix "mutate → rebuild →
+    // suppress → save" order (the rendering-glitch fix in OnContextApprove).
+
+    /// <summary>
+    /// Toolbar Delete Composer. Confirms via <see cref="IDialogService"/>,
+    /// removes the composer from the observable collection, fires
+    /// <see cref="DataMutated"/>, saves, sets status.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteComposerAsync(CanonComposer? composer)
+    {
+        if (composer is null) return;
+
+        var name = composer.Name;
+        if (!_dialogs.Confirm(
+                $"Delete composer \"{name}\"?\n\nThis cannot be undone.",
+                "Delete Composer")) return;
+
+        Composers.Remove(composer);
+        if (ReferenceEquals(SelectedComposer, composer)) SelectedComposer = null;
+        DataMutated?.Invoke();
+        await _canonDataService.SaveComposersAsync(Composers.ToList());
+        StatusMessage = $"Deleted {name}.";
+    }
+
+    /// <summary>
+    /// Toolbar Delete Piece. Confirms via <see cref="IDialogService"/>,
+    /// removes the piece from the observable collection, fires
+    /// <see cref="DataMutated"/>, persists (composers + pieces in one
+    /// transaction via SaveBatch), sets status.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeletePieceAsync(CanonPiece? piece)
+    {
+        if (piece is null) return;
+
+        var title = piece.DisplayTitle;
+        if (!_dialogs.Confirm(
+                $"Delete \"{title}\"?\n\nThis cannot be undone.",
+                "Delete Piece")) return;
+
+        Pieces.Remove(piece);
+        if (ReferenceEquals(SelectedPiece, piece)) SelectedPiece = null;
+        DataMutated?.Invoke();
+        // SaveBatch (composers + pieces in one transaction) matches the
+        // pre-fix SaveAllAsync the View invoked for piece deletes.
+        await _canonDataService.SaveBatchAsync(
+            Composers.ToList(), Pieces.ToList(), null, null, null);
+        StatusMessage = $"Deleted: {title}.";
+    }
+
+    /// <summary>
+    /// Context-menu Approve. The right-clicked item arrives as
+    /// <paramref name="target"/>; we dispatch based on type. Flips
+    /// <c>IsProvisional</c> to false, fires <see cref="DataMutated"/>, saves
+    /// the corresponding subsystem, sets status.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApproveCanonItemAsync(object? target)
+    {
+        switch (target)
+        {
+            case ComposerTreeNode node when node.Composer.IsProvisional:
+                node.Composer.IsProvisional = false;
+                DataMutated?.Invoke();
+                await _canonDataService.SaveComposersAsync(Composers.ToList());
+                StatusMessage = $"Approved {node.Composer.Name}.";
+                break;
+            case CanonPiece piece when piece.IsProvisional:
+                piece.IsProvisional = false;
+                DataMutated?.Invoke();
+                await _canonDataService.SavePiecesAsync(Pieces.ToList());
+                StatusMessage = $"Approved {piece.DisplayTitle}.";
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Context-menu Reject. Dispatches based on <paramref name="target"/>
+    /// type and routes through the existing FK-aware
+    /// <see cref="RejectComposerWithCascadeAsync"/> /
+    /// <see cref="RejectPieceWithCascadeAsync"/> cascade methods. Confirmation
+    /// surfaces via <see cref="IDialogService"/>; on cascade failure the
+    /// error is shown via <c>ShowError</c>.
+    /// </summary>
+    [RelayCommand]
+    private async Task RejectCanonItemAsync(object? target)
+    {
+        switch (target)
+        {
+            case ComposerTreeNode node:
+            {
+                var name = node.Composer.Name;
+                var ownedPiecesCount = Pieces
+                    .Count(p => string.Equals(p.Composer, name, StringComparison.OrdinalIgnoreCase));
+                var pieceTail = ownedPiecesCount switch
+                {
+                    0 => "",
+                    1 => " and 1 piece",
+                    _ => $" and {ownedPiecesCount} pieces",
+                };
+                if (!_dialogs.Confirm(
+                        $"Delete provisional composer '{name}'{pieceTail}?",
+                        "Confirm Rejection")) return;
+
+                try
+                {
+                    var result = await RejectComposerWithCascadeAsync(node.Composer);
+                    DataMutated?.Invoke();
+                    var headline = result.PiecesDeleted > 0
+                        ? $"Rejected and deleted {name} and {result.PiecesDeleted} piece(s)"
+                        : $"Rejected and deleted {name}";
+                    var extras = new List<string>();
+                    if (result.RefsStripped    > 0) extras.Add($"{result.RefsStripped} album track ref(s)");
+                    if (result.CreditsStripped > 0) extras.Add($"{result.CreditsStripped} contributor credit(s)");
+                    StatusMessage = extras.Count > 0
+                        ? $"{headline} (also removed {string.Join(", ", extras)})."
+                        : $"{headline}.";
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = $"Could not delete {name}: {ex.Message}";
+                    _dialogs.ShowError(StatusMessage, "Reject Composer");
+                }
+                break;
+            }
+            case CanonPiece piece:
+            {
+                var title = piece.DisplayTitle;
+                if (!_dialogs.Confirm(
+                        $"Delete provisional piece '{title}'?",
+                        "Confirm Rejection")) return;
+
+                try
+                {
+                    var result = await RejectPieceWithCascadeAsync(piece);
+                    DataMutated?.Invoke();
+                    StatusMessage = result.RefsStripped > 0
+                        ? $"Rejected and deleted {title} (also removed {result.RefsStripped} album track ref(s))."
+                        : $"Rejected and deleted {title}.";
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = $"Could not delete {title}: {ex.Message}";
+                    _dialogs.ShowError(StatusMessage, "Reject Piece");
+                }
+                break;
+            }
+        }
+    }
 }
