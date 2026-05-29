@@ -18,21 +18,21 @@ public partial class ItunesImportViewModel : ObservableObject
 
     /// <summary>
     /// Composite identity for an iTunes-or-canon track within an album:
-    /// <c>(album-title, normalised-performer, disc#, track#)</c>. Built from
-    /// the canon's albums once at load time; used by <see cref="ApplyFilter"/>
+    /// <c>(album-title-trimmed-lower, disc#, track#)</c>. Built from the
+    /// canon's albums once at load time; used by <see cref="ApplyFilter"/>
     /// to hide iTunes tracks whose key already exists in the canon.
     ///
-    /// <para>H24: pre-fix the key was just <c>(album, disc, track)</c>, so
-    /// two genuinely different albums sharing a title (Karajan's Beethoven 9
-    /// and Bernstein's Beethoven 9 are both "Symphony No. 9") collided —
-    /// after importing one, the other's tracks looked already-imported and
-    /// were silently hidden. <see cref="NormalisePerformer"/> normalises the
-    /// canon's first <see cref="AlbumPerformer.Name"/> (or iTunes's
-    /// <c>AlbumArtist</c> / <c>Artist</c>) into a token-sorted ASCII form so
-    /// "Karajan, Herbert von" matches "Herbert von Karajan". Albums with no
-    /// performer info dedup as before (empty performer string).</para>
+    /// <para>The user's workflow names albums uniquely (Karajan vs
+    /// Bernstein's Beethoven 9 don't share a title in practice), so title
+    /// alone is a sufficient anchor. Pre-fix the key included a normalised
+    /// performer (H24 regression), but that key shape silently desynced from
+    /// the iTunes side whenever <see cref="ItunesImporter"/> comma-split a
+    /// "Karajan, Herbert von" Artist into two canon AlbumPerformer entries.
+    /// Title-only avoids that fragility — if two albums ever do share a
+    /// title, the collision will be visible (one's tracks hide the other's)
+    /// and the user can rename one.</para>
     /// </summary>
-    private HashSet<(string album, string performer, int disc, int track)> _importedKeys = new();
+    private HashSet<(string album, int disc, int track)> _importedKeys = new();
 
     [ObservableProperty]
     private ObservableCollection<ItunesTrack> _tracks = [];
@@ -149,8 +149,13 @@ public partial class ItunesImportViewModel : ObservableObject
             var albums      = (await _data.LoadAlbumsAsync()).ToList();
             var looseTracks = (await _data.LoadLooseTracksAsync()).ToList();
 
-            // Run inference + entity creation (mutates composers + pieces in place).
-            var result = ItunesImporter.Import(selected, composers, pieces);
+            // Run inference + entity creation (mutates composers + pieces in
+            // place). M5: also pass `albums` so re-imports of the same iTunes
+            // data merge into existing canon albums instead of creating
+            // duplicates. NewAlbums in the result is now only the genuinely
+            // new ones — existing-album merges mutated `albums` instances in
+            // place.
+            var result = ItunesImporter.Import(selected, composers, pieces, albums);
 
             // Append the new albums + loose tracks and persist everything that changed.
             foreach (var newAlbum in result.NewAlbums)
@@ -174,6 +179,7 @@ public partial class ItunesImportViewModel : ObservableObject
             StatusMessage =
                 $"Imported {result.TracksImported} tracks: "
                 + $"{result.NewAlbums.Count} new album(s), "
+                + $"{result.ModifiedAlbums} merged into existing album(s), "
                 + $"{result.NewLooseTracks.Count} loose track(s), "
                 + $"{result.NewComposers} composer(s), "
                 + $"{result.NewPieces} piece(s), "
@@ -201,59 +207,27 @@ public partial class ItunesImportViewModel : ObservableObject
     /// </summary>
     private void RebuildImportedKeys(IEnumerable<CanonAlbum> canonAlbums)
     {
-        _importedKeys = new HashSet<(string, string, int, int)>();
+        _importedKeys = new HashSet<(string, int, int)>();
         foreach (var album in canonAlbums)
         {
             var title = (album.Title ?? "").Trim().ToLowerInvariant();
             if (title.Length == 0) continue;
-            var performer = NormalisePerformer(album.Performers?.FirstOrDefault()?.Name);
             foreach (var disc in album.Discs)
                 foreach (var track in disc.Tracks)
-                    _importedKeys.Add((title, performer, disc.DiscNumber, track.TrackNumber));
+                    _importedKeys.Add((title, disc.DiscNumber, track.TrackNumber));
         }
     }
 
     /// <summary>
-    /// Normalises a performer string for the dedup key: lowercases, strips
-    /// non-alphanumeric characters, then sorts the resulting tokens by length+ordinal
-    /// so name-ordering differences ("Karajan, Herbert von" vs
-    /// "Herbert von Karajan") don't cause spurious mismatches. Returns
-    /// empty string for null / whitespace input.
-    ///
-    /// <para>Public so the App.Tests project can verify the contract
-    /// directly — H24's regression tests assert that two same-title,
-    /// different-performer canon albums no longer collide.</para>
+    /// Normalises a performer string for the dedup key. Thin forwarder to
+    /// the Core helper introduced for M5 (so the iTunes importer can use the
+    /// same key shape without taking an App-project dependency). Public so
+    /// the App.Tests project can verify the contract directly — H24's
+    /// regression tests assert that two same-title, different-performer
+    /// canon albums no longer collide.
     /// </summary>
-    public static string NormalisePerformer(string? performer)
-    {
-        if (string.IsNullOrWhiteSpace(performer)) return string.Empty;
-
-        // Lowercase, then strip everything that isn't an alphanumeric ASCII
-        // letter or digit. This drops commas, periods, spaces, etc. and
-        // collapses "von" / "van" / "de" intra-token punctuation.
-        var lower = performer.Trim().ToLowerInvariant();
-        var sb = new System.Text.StringBuilder(lower.Length);
-        bool prevWasSeparator = true;
-        var tokens = new List<string>();
-        foreach (var ch in lower)
-        {
-            if (ch >= 'a' && ch <= 'z' || ch >= '0' && ch <= '9')
-            {
-                sb.Append(ch);
-                prevWasSeparator = false;
-            }
-            else if (!prevWasSeparator)
-            {
-                if (sb.Length > 0) { tokens.Add(sb.ToString()); sb.Clear(); }
-                prevWasSeparator = true;
-            }
-        }
-        if (sb.Length > 0) tokens.Add(sb.ToString());
-
-        // Sort tokens by ordinal so name order doesn't matter.
-        tokens.Sort(StringComparer.Ordinal);
-        return string.Concat(tokens);
-    }
+    public static string NormalisePerformer(string? performer) =>
+        CDArchive.Core.Helpers.PerformerNormalisation.NormalisePerformer(performer);
 
     private void ApplyFilter()
     {
@@ -276,13 +250,10 @@ public partial class ItunesImportViewModel : ObservableObject
             filtered = filtered.Where(t =>
             {
                 if (string.IsNullOrWhiteSpace(t.Album)) return true;
-                // H24: include the iTunes album's primary performer in the
-                // key so two same-title canon albums (Karajan vs Bernstein
-                // Beethoven 9) don't collide. Prefer AlbumArtist (the iTunes
-                // concept) over Artist (often the per-track soloist).
-                var performer = NormalisePerformer(t.AlbumArtist ?? t.Artist);
+                // Title-only match: canon Title == iTunes Album (case- and
+                // whitespace-insensitive), plus disc & track. See the
+                // comment on `_importedKeys` for the rationale.
                 var key = (t.Album.Trim().ToLowerInvariant(),
-                           performer,
                            t.DiscNumber ?? 1,
                            t.TrackNumber ?? 0);
                 if (_importedKeys.Contains(key))

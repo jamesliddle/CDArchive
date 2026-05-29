@@ -19,10 +19,9 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
 1. **H21 architectural remainder: retire `SessionIndex` once consumers all use SessionId.** **Slice 3 landed [2026-05-28]** via `rework/session-stable-id-3` — `SessionIndexMapping.RemapTracksAfterSessionRemoval` is stable-Id-aware; tracks carrying `SessionId` get re-anchored by Id (resilient to reorders), tracks without one fall back to positional. Slice 2 [2026-05-28]: `TrackEditorViewModel` writes both `track.SessionId` and `track.SessionIndex` on save. Slice 1 [2026-05-28]: stable-Id reference exists on model + JSON + save path. **Next slices**: (a) audit other readers (`ItunesImporter` resolves track-piece-refs but doesn't currently set SessionId; the SeedDb `--export` flow already writes SessionId via the model). (b) Once all paths are migrated and a migration window has passed in the user's data, retire `AlbumTrack.SessionIndex` from the model + JSON + SQLite schema entirely. (H21 remainder)
-2. **iTunes import path: no album-level dedup on re-import.** [M5](src/CDArchive.Core/Services/ItunesImporter.cs) — `ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group, so re-importing the same iTunes XML data after a partial cancel / earlier import creates duplicate albums. H24 fixed the "already imported" *filter* (so iTunes tracks already in the canon are correctly hidden in the preview grid), but the actual *import* flow doesn't try to find an existing canon album by `(title, performer, label?, catnum?)` before creating a new one. Natural follow-up to H24 — same problem domain, same key shape now extracted via `NormalisePerformer`. (M5)
-3. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
-4. **Numeric-order-within-severity protocol applies.** With Top-5 #1-#3 covering the highest-impact remaining items, the next tier is purely numeric-within-severity. Currently 3 High findings remain (H1 SqliteCanonDataService split, H2 CanonView extraction, H21 remainder). Pick whichever has the tightest scope + clearest fix when continuing. (protocol default)
-5. *(Top-5 reduced to 4 — the H13/H36 retirement arc closed out enough items that the prior #5 (`protocol default` placeholder) is the natural cutoff. Promote a Medium item when the next slice picks something tactical.)*
+2. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
+3. **Numeric-order-within-severity protocol applies.** With Top-5 #1-#2 covering the highest-impact remaining items, the next tier is purely numeric-within-severity. Currently 3 High findings remain (H1 SqliteCanonDataService split, H2 CanonView extraction, H21 remainder). Pick whichever has the tightest scope + clearest fix when continuing. (protocol default)
+4. *(Top-5 reduced to 3 — the H13/H36/M5 retirement arc closed out enough items that the natural cutoff is 3. Promote a Medium item when the next slice picks something tactical.)*
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -61,10 +60,10 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 |---|---|
 | 🔴 Critical | 0 |
 | 🟠 High | 3 |
-| 🟡 Medium | 80 |
+| 🟡 Medium | 79 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **175** |
+| **Total** | **174** |
 
 ---
 
@@ -110,9 +109,6 @@ The track's session reference is an `int?` position into `CanonAlbum.Sessions`. 
 
 ### M3. `PieceRow.AlbumRefs` inverse navigation exists but `EndPiece` has none
 [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` won't be detected by `Composer.Pieces` walk. Reject cascade hits FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error. Add an inverse or pre-check in `CanonRejectCascade.RejectPieceAsync`.
-
-### M5. iTunes import has no album dedup
-`ItunesImporter` creates a fresh `CanonAlbum` for every iTunes Album group. Re-importing the same data creates duplicates. Dedup by `(Title, Label, CatalogueNumber)` or surface duplicates in the import preview.
 
 ### M6. `PieceRow.Title` and several "logical key" columns lack `.IsRequired()` and no min-identity CHECK
 [CanonDbContext.cs:229](src/CDArchive.Core/Data/CanonDbContext.cs:229) — pieces with null Title are intentional (structured-form). But the schema would silently accept `Title=null AND Form=null AND CatalogInfo=null AND Composers=null` — an identity-less row. A `CHECK at_least_one_identity` would be cheap insurance.
@@ -774,6 +770,22 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### M5. iTunes import: no album dedup on re-import — M5 retired
+[2026-05-28] `rework/itunes-album-dedup` — `ItunesImporter.Import` gained an `existingAlbums` parameter and now dedups iTunes album groups against the existing canon. The dedup key matches H24's "already imported" filter shape: `(album-title.Trim().ToLowerInvariant(), PerformerNormalisation.NormalisePerformer(AlbumArtist ?? Artist))`. Re-importing the same data now merges new tracks into the matching existing album instead of building a parallel duplicate.
+
+**Key normalisation extracted to Core.** Pre-fix the `NormalisePerformer` static lived on `ItunesImportViewModel` (App project). Moved its body into `CDArchive.Core.Helpers.PerformerNormalisation` so the importer (Core) can reuse it; the VM keeps a thin forwarder for back-compat with H24's regression tests.
+
+**Merge semantics**:
+- Match found → mutate the existing album in place: new tracks append to the matching disc (by `DiscNumber`); a new disc appended when iTunes brings a previously-unseen disc number; track numbers renumber when they'd collide with curated tracks (next-free position starting from `max(existing) + 1`).
+- Existing album's scalar fields (`Title`, `Subtitle`, `Label`, `CatalogueNumber`, `IsProvisional`), `Performers`, and `Sessions` are NOT modified — the user's curation wins.
+- Match not found → fresh `CanonAlbum` as before.
+
+**`ImportResult` gained `ModifiedAlbums`** (count of existing albums merged into). Status message surfaces it. `NewAlbums` is now only genuinely new instances; existing-album merges mutate the caller's `albums` list (passed as `existingAlbums`) in place.
+
+9 new tests in `ItunesImporterAlbumDedupTests`: no-existing baseline, back-compat null parameter, basic merge, formatting-drift performer match (Karajan, Herbert von / Herbert von Karajan), same-title-different-performer doesn't collide, append preserves existing tracks, new-disc append on existing album, track-number-collision renumbers to next free, scalar/Performers preservation regression. Total: 1004 tests (617 Core + 387 App). Counts: Medium 80 → 79, Total 175 → 174.
+
+**Action item for the user**: smoke-test by importing one iTunes album → tracks land in a fresh canon album. Then re-import the SAME iTunes data while the H24 filter is OFF — the duplicate tracks should land back in the original canon album (not a parallel duplicate). Status line should mention "merged into 1 existing album(s)".
 
 ### H36. CanonView Click-to-RelayCommand migration — H36 retired
 [2026-05-27] `rework/canonview-relay-commands` — Final H36 slice: CanonView's toolbar Delete + context-menu Approve/Reject migrated to VM RelayCommands. Pre-fix the View's 4 click handlers (`OnDeleteComposerClick`, `OnDeletePieceClick`, `OnContextApprove`, `OnContextReject`) bundled confirmation MessageBoxes + observable-collection mutation + save + status into 130 lines of code-behind. Post-fix the data work lives on `CanonViewModel` as four `[RelayCommand]`s — `DeleteComposerCommand`, `DeletePieceCommand`, `ApproveCanonItemCommand`, `RejectCanonItemCommand` — each routed through `IDialogService` for confirmation chrome (matches the H3 pattern). The View's click handlers shrink to 4-line shims: look up the active selection (`_activeComposer` / `_activePiece` / `_ctxTarget` — view-side state the VM can't see directly), call `Command.ExecuteAsync(target)`, clear local selection. Two dead pre-fix RelayCommands (`DeleteComposerCommand` parameterless + `ApprovePieceCommand` parameterless, both tied to `SelectedX` but never wired in XAML) are retired as part of the slice.

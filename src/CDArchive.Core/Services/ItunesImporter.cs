@@ -1,3 +1,4 @@
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
 namespace CDArchive.Core.Services;
@@ -21,7 +22,10 @@ public static class ItunesImporter
         int NewComposers,
         int NewPieces,
         int NewSubpieces,
-        int TracksImported);
+        int TracksImported,
+        // M5: number of existing canon albums into which the importer merged
+        // new tracks (rather than creating a duplicate). 0 in the all-new case.
+        int ModifiedAlbums = 0);
 
     /// <summary>
     /// Imports <paramref name="tracks"/> into the canon model. Mutates
@@ -38,7 +42,8 @@ public static class ItunesImporter
     public static ImportResult Import(
         IReadOnlyList<ItunesTrack> tracks,
         IList<CanonComposer> composers,
-        IList<CanonPiece> pieces)
+        IList<CanonPiece> pieces,
+        IList<CanonAlbum>? existingAlbums = null)
     {
         var composerByName = new Dictionary<string, CanonComposer>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in composers)
@@ -71,6 +76,23 @@ public static class ItunesImporter
         var counters = new Counters();
         var newAlbums      = new List<CanonAlbum>();
         var newLooseTracks = new List<AlbumTrack>();
+        int modifiedAlbums = 0;
+
+        // M5: build an existing-album lookup keyed on the album title (trimmed,
+        // lowercased). Re-imports of the same iTunes data then route new
+        // tracks into the existing album instead of creating a parallel
+        // duplicate. Title-only matches the H24 filter's key shape — both
+        // sides rely on unique album naming, which is the user's workflow.
+        var existingAlbumByKey = new Dictionary<string, CanonAlbum>();
+        if (existingAlbums is { Count: > 0 })
+        {
+            foreach (var a in existingAlbums)
+            {
+                var key = TryBuildAlbumDedupKey(a.Title);
+                if (key is { } k && !existingAlbumByKey.ContainsKey(k))
+                    existingAlbumByKey[k] = a;
+            }
+        }
 
         // Partition by whether iTunes gave the track an Album. Albumless rows
         // become loose tracks (no synthetic wrapping); the rest are grouped by
@@ -108,12 +130,6 @@ public static class ItunesImporter
         {
             var albumTitle = albumGroup.Key;
 
-            var album = new CanonAlbum
-            {
-                Title         = albumTitle,
-                IsProvisional = true,
-            };
-
             // Parse each track's Artist field. iTunes encodes the performer list
             // as a comma-separated string ("Soloist, Ensemble, Conductor"); we
             // split on commas and trim each part. Performers that appear in EVERY
@@ -137,15 +153,40 @@ public static class ItunesImporter
                     commonPerformers.IntersectWith(perfs);
             }
 
-            if (commonPerformers.Count > 0)
+            // M5 dedup: candidate key is the title alone (trimmed, lowercased).
+            // Matches the H24 filter's key shape — albums that survive the
+            // "already imported" filter line up against the same logical key
+            // here. When a matching existing album is found, MERGE new tracks
+            // into it rather than creating a fresh CanonAlbum. The existing
+            // album's scalar fields / Performers / Sessions / IsProvisional
+            // are intentionally not modified — the user's curation wins.
+            CanonAlbum album;
+            bool isExistingAlbum = false;
+            var dedupKey = TryBuildAlbumDedupKey(albumTitle);
+            if (dedupKey is { } k && existingAlbumByKey.TryGetValue(k, out var match))
             {
-                // Preserve the order the common names appeared in the first track.
-                var orderedCommon = trackArtists[0].Performers
-                    .Where(commonPerformers.Contains)
-                    .ToList();
-                album.Performers = orderedCommon
-                    .Select(name => new AlbumPerformer { Name = name })
-                    .ToList();
+                album = match;
+                isExistingAlbum = true;
+                modifiedAlbums++;
+            }
+            else
+            {
+                album = new CanonAlbum
+                {
+                    Title         = albumTitle,
+                    IsProvisional = true,
+                };
+
+                if (commonPerformers.Count > 0)
+                {
+                    // Preserve the order the common names appeared in the first track.
+                    var orderedCommon = trackArtists[0].Performers
+                        .Where(commonPerformers.Contains)
+                        .ToList();
+                    album.Performers = orderedCommon
+                        .Select(name => new AlbumPerformer { Name = name })
+                        .ToList();
+                }
             }
 
             // Build a per-track lookup so the inner loop can decide on overrides.
@@ -155,7 +196,28 @@ public static class ItunesImporter
             var byDisc = albumGroup.GroupBy(t => t.DiscNumber ?? 1).OrderBy(g => g.Key);
             foreach (var discGroup in byDisc)
             {
-                var disc = new AlbumDisc { DiscNumber = discGroup.Key };
+                // M5: when merging into an existing album, find or create the
+                // matching disc by DiscNumber rather than always appending a
+                // fresh one. New-album path is unchanged (always a fresh disc).
+                AlbumDisc disc;
+                bool isExistingDisc = false;
+                if (isExistingAlbum)
+                {
+                    var existingDisc = album.Discs.FirstOrDefault(d => d.DiscNumber == discGroup.Key);
+                    if (existingDisc is not null)
+                    {
+                        disc = existingDisc;
+                        isExistingDisc = true;
+                    }
+                    else
+                    {
+                        disc = new AlbumDisc { DiscNumber = discGroup.Key };
+                    }
+                }
+                else
+                {
+                    disc = new AlbumDisc { DiscNumber = discGroup.Key };
+                }
 
                 // Defensive renumber: the album_tracks table has UNIQUE(disc_id,
                 // track_number), so two iTunes tracks sharing a (disc, track#)
@@ -166,12 +228,22 @@ public static class ItunesImporter
                 // If either condition holds — duplicates within the disc OR any
                 // missing / non-positive number — renumber the whole disc
                 // sequentially 1..N, preserving iTunes order.
+                // When merging into an existing disc, also include the existing
+                // tracks in the collision check so we don't clobber them.
                 var orderedTracks = discGroup.OrderBy(t => t.TrackNumber ?? 0).ToList();
                 var rawNumbers = orderedTracks.Select(t => t.TrackNumber ?? 0).ToList();
                 var anyNonPositive = rawNumbers.Any(n => n < 1);
+                var existingNumbers = isExistingDisc
+                    ? new HashSet<int>(disc.Tracks.Select(t => t.TrackNumber))
+                    : new HashSet<int>();
                 var distinctCount = rawNumbers.Distinct().Count();
-                var renumber = anyNonPositive || distinctCount != orderedTracks.Count;
-                int seq = 1;
+                var collidesWithExisting = isExistingDisc && rawNumbers.Any(existingNumbers.Contains);
+                var renumber = anyNonPositive || distinctCount != orderedTracks.Count || collidesWithExisting;
+                // When renumbering inside an existing disc, start from
+                // max(existing) + 1 so we never collide with curated tracks.
+                int seq = isExistingDisc && disc.Tracks.Count > 0
+                    ? disc.Tracks.Max(t => t.TrackNumber) + 1
+                    : 1;
 
                 foreach (var track in orderedTracks)
                 {
@@ -204,14 +276,36 @@ public static class ItunesImporter
                     disc.Tracks.Add(albumTrack);
                 }
 
-                album.Discs.Add(disc);
+                // M5: when merging into an existing disc, the tracks were
+                // already appended to the existing instance — don't re-add it.
+                // For a new disc (existing-album-but-new-disc, OR brand-new
+                // album), add the disc to the album.
+                if (!isExistingDisc)
+                    album.Discs.Add(disc);
             }
 
-            newAlbums.Add(album);
+            // M5: only append to NewAlbums when we built a fresh CanonAlbum.
+            // Existing-album merges mutate in place; the caller's `albums`
+            // list (passed as existingAlbums) already contains the instance.
+            if (!isExistingAlbum)
+                newAlbums.Add(album);
         }
 
         return new ImportResult(newAlbums, newLooseTracks,
-                                counters.Composers, counters.Pieces, counters.Subpieces, tracks.Count);
+                                counters.Composers, counters.Pieces, counters.Subpieces, tracks.Count,
+                                modifiedAlbums);
+    }
+
+    /// <summary>
+    /// M5: builds the dedup key for an album — trimmed, lowercased title.
+    /// Same shape on both sides (iTunes-side `t.Album` and canon-side
+    /// `album.Title`). Returns null when the title is empty (no anchor to
+    /// dedup on; always treat as new).
+    /// </summary>
+    private static string? TryBuildAlbumDedupKey(string? title)
+    {
+        var t = (title ?? "").Trim().ToLowerInvariant();
+        return t.Length == 0 ? null : t;
     }
 
     /// <summary>
