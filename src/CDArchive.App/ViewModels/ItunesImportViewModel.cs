@@ -18,21 +18,21 @@ public partial class ItunesImportViewModel : ObservableObject
 
     /// <summary>
     /// Composite identity for an iTunes-or-canon track within an album:
-    /// <c>(album-title, normalised-performer, disc#, track#)</c>. Built from
-    /// the canon's albums once at load time; used by <see cref="ApplyFilter"/>
+    /// <c>(album-title-trimmed-lower, disc#, track#)</c>. Built from the
+    /// canon's albums once at load time; used by <see cref="ApplyFilter"/>
     /// to hide iTunes tracks whose key already exists in the canon.
     ///
-    /// <para>H24: pre-fix the key was just <c>(album, disc, track)</c>, so
-    /// two genuinely different albums sharing a title (Karajan's Beethoven 9
-    /// and Bernstein's Beethoven 9 are both "Symphony No. 9") collided —
-    /// after importing one, the other's tracks looked already-imported and
-    /// were silently hidden. <see cref="NormalisePerformer"/> normalises the
-    /// canon's first <see cref="AlbumPerformer.Name"/> (or iTunes's
-    /// <c>AlbumArtist</c> / <c>Artist</c>) into a token-sorted ASCII form so
-    /// "Karajan, Herbert von" matches "Herbert von Karajan". Albums with no
-    /// performer info dedup as before (empty performer string).</para>
+    /// <para>The user's workflow names albums uniquely (Karajan vs
+    /// Bernstein's Beethoven 9 don't share a title in practice), so title
+    /// alone is a sufficient anchor. Pre-fix the key included a normalised
+    /// performer (H24 regression), but that key shape silently desynced from
+    /// the iTunes side whenever <see cref="ItunesImporter"/> comma-split a
+    /// "Karajan, Herbert von" Artist into two canon AlbumPerformer entries.
+    /// Title-only avoids that fragility — if two albums ever do share a
+    /// title, the collision will be visible (one's tracks hide the other's)
+    /// and the user can rename one.</para>
     /// </summary>
-    private HashSet<(string album, string performer, int disc, int track)> _importedKeys = new();
+    private HashSet<(string album, int disc, int track)> _importedKeys = new();
 
     [ObservableProperty]
     private ObservableCollection<ItunesTrack> _tracks = [];
@@ -207,25 +207,14 @@ public partial class ItunesImportViewModel : ObservableObject
     /// </summary>
     private void RebuildImportedKeys(IEnumerable<CanonAlbum> canonAlbums)
     {
-        _importedKeys = new HashSet<(string, string, int, int)>();
+        _importedKeys = new HashSet<(string, int, int)>();
         foreach (var album in canonAlbums)
         {
             var title = (album.Title ?? "").Trim().ToLowerInvariant();
             if (title.Length == 0) continue;
-            // Key on the ENTIRE performer list (joined and normalised), not
-            // just the first entry. Pre-fix the canon side used only
-            // Performers[0].Name; the iTunes side used the whole
-            // AlbumArtist/Artist string. When iTunes "Karajan, Herbert von"
-            // imported into a 2-entry canon list ["Karajan", "Herbert von"],
-            // the canon key was "karajan" while the iTunes key was
-            // "herbertkarajanvon" — they never matched and "Hide already
-            // imported" silently failed on every iTunes-imported album whose
-            // Artist field had a comma.
-            var performer = CDArchive.Core.Helpers.PerformerNormalisation
-                .NormaliseAlbumPerformerList(album.Performers);
             foreach (var disc in album.Discs)
                 foreach (var track in disc.Tracks)
-                    _importedKeys.Add((title, performer, disc.DiscNumber, track.TrackNumber));
+                    _importedKeys.Add((title, disc.DiscNumber, track.TrackNumber));
         }
     }
 
@@ -261,13 +250,10 @@ public partial class ItunesImportViewModel : ObservableObject
             filtered = filtered.Where(t =>
             {
                 if (string.IsNullOrWhiteSpace(t.Album)) return true;
-                // H24: include the iTunes album's primary performer in the
-                // key so two same-title canon albums (Karajan vs Bernstein
-                // Beethoven 9) don't collide. Prefer AlbumArtist (the iTunes
-                // concept) over Artist (often the per-track soloist).
-                var performer = NormalisePerformer(t.AlbumArtist ?? t.Artist);
+                // Title-only match: canon Title == iTunes Album (case- and
+                // whitespace-insensitive), plus disc & track. See the
+                // comment on `_importedKeys` for the rationale.
                 var key = (t.Album.Trim().ToLowerInvariant(),
-                           performer,
                            t.DiscNumber ?? 1,
                            t.TrackNumber ?? 0);
                 if (_importedKeys.Contains(key))

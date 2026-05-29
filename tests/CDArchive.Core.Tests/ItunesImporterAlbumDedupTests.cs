@@ -5,16 +5,14 @@ namespace CDArchive.Core.Tests;
 
 /// <summary>
 /// M5: <see cref="ItunesImporter"/> should not create duplicate canon albums
-/// on re-import. When the importer sees an iTunes album whose <c>(Title,
-/// normalised first performer)</c> matches an existing canon album, it
-/// merges new tracks into the existing album instead of building a fresh
-/// <see cref="CanonAlbum"/>.
+/// on re-import. When the importer sees an iTunes album whose Title matches
+/// an existing canon album (trimmed, lowercased), it merges new tracks into
+/// the existing album instead of building a fresh <see cref="CanonAlbum"/>.
 ///
-/// <para>H24 was the symmetric fix on the preview-pane "already imported"
-/// filter — keying that filter on the same <c>(album, performer, disc,
-/// track)</c> tuple stopped two same-titled albums (e.g. Karajan vs
-/// Bernstein's Beethoven 9) from colliding. M5 closes the loop in the
-/// import pipeline so the same key shape governs both halves.</para>
+/// <para>The dedup key is title-only — the user's workflow names albums
+/// uniquely, so title is a sufficient anchor. The earlier H24 performer
+/// component was dropped (it silently desynced when the importer comma-split
+/// the iTunes Artist field into multiple canon AlbumPerformer entries).</para>
 /// </summary>
 public class ItunesImporterAlbumDedupTests
 {
@@ -167,11 +165,10 @@ public class ItunesImporterAlbumDedupTests
     }
 
     [Fact]
-    public void MatchingExistingAlbum_PerformerNameFormattingDiffers_StillMatches()
+    public void MatchingExistingAlbum_TitleCaseAndWhitespaceDiffers_StillMatches()
     {
-        // Existing album has performer "Karajan, Herbert von"; iTunes Artist
-        // is "Herbert von Karajan". H24's NormalisePerformer collapses both
-        // to the same key — dedup should match.
+        // Title comparison is trim + lowercase. "Symphony 9" matches
+        // "  symphony 9  " under the dedup key.
         var existing = new CanonAlbum
         {
             Title      = "Symphony 9",
@@ -184,7 +181,8 @@ public class ItunesImporterAlbumDedupTests
 
         var newTracks = new[]
         {
-            Track(1, "Symphony I", "Symphony 9", "Beethoven, Ludwig van (1770-1827)",
+            Track(1, "Symphony I", "  symphony 9  ",
+                  "Beethoven, Ludwig van (1770-1827)",
                   artist: "Herbert von Karajan", trackNumber: 1),
         };
 
@@ -197,14 +195,14 @@ public class ItunesImporterAlbumDedupTests
     }
 
     [Fact]
-    public void SameTitleDifferentPerformer_TreatedAsDifferentAlbum()
+    public void DifferentTitle_TreatedAsDifferentAlbum()
     {
-        // The H24 motivating case: Karajan's Beethoven 9 should NOT collide
-        // with Bernstein's Beethoven 9 — they're different albums even though
-        // they share a Title.
+        // Title-only dedup: distinct titles are distinct albums regardless of
+        // performer. The user's workflow names albums uniquely so this is the
+        // only differentiator.
         var existing = new CanonAlbum
         {
-            Title      = "Symphony 9",
+            Title      = "Karajan Beethoven Symphony 9",
             Performers = new List<AlbumPerformer> { new() { Name = "Karajan, Herbert von" } },
             Discs      = new List<AlbumDisc>
             {
@@ -214,7 +212,8 @@ public class ItunesImporterAlbumDedupTests
 
         var newTracks = new[]
         {
-            Track(1, "Symphony I", "Symphony 9", "Beethoven, Ludwig van (1770-1827)",
+            Track(1, "Symphony I", "Bernstein Beethoven Symphony 9",
+                  "Beethoven, Ludwig van (1770-1827)",
                   artist: "Bernstein, Leonard", trackNumber: 1),
         };
 
@@ -223,7 +222,7 @@ public class ItunesImporterAlbumDedupTests
             newTracks, new List<CanonComposer>(), new List<CanonPiece>(),
             existingAlbums: albums);
 
-        Assert.Single(result.NewAlbums);   // fresh album for Bernstein
+        Assert.Single(result.NewAlbums);
         Assert.Equal(0, result.ModifiedAlbums);
     }
 

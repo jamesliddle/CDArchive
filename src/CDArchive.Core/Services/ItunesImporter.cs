@@ -78,18 +78,17 @@ public static class ItunesImporter
         var newLooseTracks = new List<AlbumTrack>();
         int modifiedAlbums = 0;
 
-        // M5: build an existing-album lookup keyed on (album title, normalised
-        // first-performer). Re-imports of the same iTunes data after an
-        // earlier partial cancel / import then route new tracks into the
-        // existing album instead of creating a parallel duplicate. The key
-        // shape matches H24's "already imported" filter so the dedup behaves
-        // consistently between the preview pane and the import pipeline.
-        var existingAlbumByKey = new Dictionary<(string Title, string Performer), CanonAlbum>();
+        // M5: build an existing-album lookup keyed on the album title (trimmed,
+        // lowercased). Re-imports of the same iTunes data then route new
+        // tracks into the existing album instead of creating a parallel
+        // duplicate. Title-only matches the H24 filter's key shape — both
+        // sides rely on unique album naming, which is the user's workflow.
+        var existingAlbumByKey = new Dictionary<string, CanonAlbum>();
         if (existingAlbums is { Count: > 0 })
         {
             foreach (var a in existingAlbums)
             {
-                var key = TryBuildCanonAlbumDedupKey(a);
+                var key = TryBuildAlbumDedupKey(a.Title);
                 if (key is { } k && !existingAlbumByKey.ContainsKey(k))
                     existingAlbumByKey[k] = a;
             }
@@ -154,21 +153,16 @@ public static class ItunesImporter
                     commonPerformers.IntersectWith(perfs);
             }
 
-            // M5 dedup: build a candidate (Title, Performer) key from any
-            // track's iTunes AlbumArtist (or Artist as fallback). The whole
-            // string is fed into PerformerNormalisation — matches the H24
-            // filter's key shape, so albums that survive the H24 "already
-            // imported" filter line up against the same logical key here.
-            // When a matching existing album is found, we MERGE new tracks
+            // M5 dedup: candidate key is the title alone (trimmed, lowercased).
+            // Matches the H24 filter's key shape — albums that survive the
+            // "already imported" filter line up against the same logical key
+            // here. When a matching existing album is found, MERGE new tracks
             // into it rather than creating a fresh CanonAlbum. The existing
             // album's scalar fields / Performers / Sessions / IsProvisional
             // are intentionally not modified — the user's curation wins.
-            var itunesAlbumPerformer = trackArtists
-                .Select(x => x.Track.AlbumArtist ?? x.Track.Artist)
-                .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
             CanonAlbum album;
             bool isExistingAlbum = false;
-            var dedupKey = TryBuildItunesAlbumDedupKey(albumTitle, itunesAlbumPerformer);
+            var dedupKey = TryBuildAlbumDedupKey(albumTitle);
             if (dedupKey is { } k && existingAlbumByKey.TryGetValue(k, out var match))
             {
                 album = match;
@@ -303,35 +297,15 @@ public static class ItunesImporter
     }
 
     /// <summary>
-    /// M5: builds the dedup key for an iTunes-side album group —
-    /// <c>(title-trimmed-lower, NormalisePerformer(itunesAlbumArtistOrArtist))</c>.
-    /// The whole iTunes Artist/AlbumArtist string is fed into the normaliser
-    /// (the tokenisation handles internal commas / spaces).
+    /// M5: builds the dedup key for an album — trimmed, lowercased title.
+    /// Same shape on both sides (iTunes-side `t.Album` and canon-side
+    /// `album.Title`). Returns null when the title is empty (no anchor to
+    /// dedup on; always treat as new).
     /// </summary>
-    private static (string Title, string Performer)? TryBuildItunesAlbumDedupKey(
-        string? title, string? itunesArtist)
+    private static string? TryBuildAlbumDedupKey(string? title)
     {
         var t = (title ?? "").Trim().ToLowerInvariant();
-        var p = PerformerNormalisation.NormalisePerformer(itunesArtist);
-        if (t.Length == 0 && p.Length == 0) return null;
-        return (t, p);
-    }
-
-    /// <summary>
-    /// M5: builds the dedup key for an existing canon album. Joins ALL
-    /// album-level performer names and normalises — produces the same key
-    /// shape as <see cref="TryBuildItunesAlbumDedupKey"/> against the
-    /// equivalent iTunes Artist string. Picking only
-    /// <c>Performers[0].Name</c> (the pre-fix shape) silently desynced from
-    /// the iTunes side because the iTunes importer comma-splits its Artist
-    /// string into multiple AlbumPerformer entries.
-    /// </summary>
-    private static (string Title, string Performer)? TryBuildCanonAlbumDedupKey(CanonAlbum album)
-    {
-        var t = (album.Title ?? "").Trim().ToLowerInvariant();
-        var p = PerformerNormalisation.NormaliseAlbumPerformerList(album.Performers);
-        if (t.Length == 0 && p.Length == 0) return null;
-        return (t, p);
+        return t.Length == 0 ? null : t;
     }
 
     /// <summary>
