@@ -144,6 +144,52 @@ public partial class TrackEditorViewModel : ObservableObject
     /// </summary>
     internal const int SessionMixedPlaceholder = int.MinValue;
 
+    // ── Sessions list backing (H21 slice 2) ───────────────────────────────────
+    // The VM holds a reference to the album's sessions list so the save path
+    // can translate the VM's positional <see cref="Session"/> value to the
+    // stable <see cref="RecordingSession.Id"/> for the model write. Loose-mode
+    // and multi-edit-across-albums leave this null; saves then write null
+    // SessionId / SessionIndex.
+    private IList<RecordingSession>? _sessions;
+
+    /// <summary>
+    /// H21 slice 2: resolve a positional session index (as held in
+    /// <see cref="Session"/>) to its stable <see cref="RecordingSession.Id"/>.
+    /// Returns null when the position is null, out of bounds, or the sessions
+    /// list isn't attached (loose mode / multiple-albums multi-edit).
+    /// </summary>
+    private long? ResolveSessionId(int? position)
+    {
+        if (position is not int i || _sessions is null) return null;
+        if (i < 0 || i >= _sessions.Count) return null;
+        var sid = _sessions[i].Id;
+        // Id stays 0 for freshly-added sessions not yet persisted; treat as
+        // unknown so the save path's positional fallback covers them.
+        return sid == 0 ? null : sid;
+    }
+
+    /// <summary>
+    /// H21 slice 2: find a session position by stable Id. Used at load time to
+    /// honour <see cref="AlbumTrack.SessionId"/> in preference to the legacy
+    /// positional <see cref="AlbumTrack.SessionIndex"/> when both are present.
+    /// </summary>
+    private int? IndexOfSessionId(long? id)
+    {
+        if (id is not long sid || sid == 0 || _sessions is null) return null;
+        for (int i = 0; i < _sessions.Count; i++)
+            if (_sessions[i].Id == sid) return i;
+        return null;
+    }
+
+    /// <summary>
+    /// H21 slice 2: pick the VM's combo position from a track. Prefer the
+    /// stable <see cref="AlbumTrack.SessionId"/> when it resolves against the
+    /// attached sessions list; fall back to the legacy positional
+    /// <see cref="AlbumTrack.SessionIndex"/> otherwise.
+    /// </summary>
+    private int? ResolveTrackSessionPosition(AlbumTrack track) =>
+        IndexOfSessionId(track.SessionId) ?? track.SessionIndex;
+
     // ── List-shaped fields (slice 4) ──────────────────────────────────────────
     // PieceRefs and Performers are observable collections with Mixed/Unanimous
     // state. Unlike AlbumEditor's Performers + Sessions (slice 3), these lists
@@ -175,9 +221,15 @@ public partial class TrackEditorViewModel : ObservableObject
     /// Populate from a single track (single-edit mode). Every field becomes
     /// Unanimous with the track's current value; <see cref="MixedField{T}.WasEdited"/>
     /// resets to false.
+    /// <para>H21 slice 2: <paramref name="sessions"/> is the album's sessions
+    /// list. When supplied, the VM stores it for save-time SessionId resolution
+    /// and uses <see cref="AlbumTrack.SessionId"/> (stable) over
+    /// <see cref="AlbumTrack.SessionIndex"/> (positional) to pick the combo
+    /// position. Pass null for loose-track mode (no sessions concept).</para>
     /// </summary>
-    public void LoadSingle(AlbumTrack track)
+    public void LoadSingle(AlbumTrack track, IList<RecordingSession>? sessions = null)
     {
+        _sessions = sessions;
         TrackNumber.InitUnanimous(track.TrackNumber.ToString());
         Duration.InitUnanimous(track.Duration       ?? "");
         Description.InitUnanimous(track.Description ?? "");
@@ -185,7 +237,7 @@ public partial class TrackEditorViewModel : ObservableObject
         Mp3Path.InitUnanimous(track.Mp3Path         ?? "");
         SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
-        Session.InitUnanimous(track.SessionIndex);
+        Session.InitUnanimous(ResolveTrackSessionPosition(track));
         PieceRefs.InitUnanimous(track.PieceRefs   ?? []);
         Performers.InitUnanimous(track.Performers ?? []);
     }
@@ -193,9 +245,13 @@ public partial class TrackEditorViewModel : ObservableObject
     /// <summary>
     /// Populate for adding a new track within a disc. TrackNumber gets the
     /// next-available position (max + 1); the rest are blank.
+    /// <para>H21 slice 2: <paramref name="sessions"/> attaches the album's
+    /// sessions list so a user-picked session on the new track translates to
+    /// a stable SessionId on save.</para>
     /// </summary>
-    public void LoadNew(AlbumDisc disc)
+    public void LoadNew(AlbumDisc disc, IList<RecordingSession>? sessions = null)
     {
+        _sessions = sessions;
         var next = (disc.Tracks.Count > 0 ? disc.Tracks.Max(t => t.TrackNumber) : 0) + 1;
         TrackNumber.InitUnanimous(next.ToString());
         Duration.InitUnanimous("");
@@ -215,8 +271,12 @@ public partial class TrackEditorViewModel : ObservableObject
     /// all share one value it loads Unanimous; otherwise it loads Mixed with
     /// the supplied placeholder string.
     /// </summary>
-    public void LoadMulti(IReadOnlyList<AlbumTrack> tracks, string mixedPlaceholder, bool hasSharedSessions = true)
+    public void LoadMulti(IReadOnlyList<AlbumTrack> tracks, string mixedPlaceholder, bool hasSharedSessions = true, IList<RecordingSession>? sessions = null)
     {
+        // H21 slice 2: store the shared sessions list when present so SaveMulti
+        // can translate Session.Value (position) to a stable SessionId. Null
+        // when !hasSharedSessions (multi-album selection) or loose-only batch.
+        _sessions = sessions;
         Init(TrackNumber, tracks.Select(t => t.TrackNumber.ToString()), mixedPlaceholder);
         Init(Duration,    tracks.Select(t => t.Duration    ?? ""), mixedPlaceholder);
         Init(Description, tracks.Select(t => t.Description ?? ""), mixedPlaceholder);
@@ -238,16 +298,20 @@ public partial class TrackEditorViewModel : ObservableObject
         // Session: three cases:
         //   • !hasSharedSessions → "(multiple albums — cannot edit)" disabled
         //     state in the UI; treat as Mixed so save skips.
-        //   • All tracks share one SessionIndex → Unanimous; that value loads.
-        //   • Differing SessionIndex → "Mixed" sentinel; save skips until user
+        //   • All tracks share one session → Unanimous; that value loads.
+        //   • Differing session → "Mixed" sentinel; save skips until user
         //     picks a real value.
+        // H21 slice 2: comparison is now on the resolved combo position (which
+        // prefers SessionId over SessionIndex). Tracks that share a stable
+        // SessionId but happen to differ in positional SessionIndex still load
+        // as Unanimous — survives session reorders across the selection.
         if (!hasSharedSessions)
         {
             Session.InitMixed(SessionMixedPlaceholder);
         }
         else
         {
-            var distinct = tracks.Select(t => t.SessionIndex).Distinct().ToList();
+            var distinct = tracks.Select(ResolveTrackSessionPosition).Distinct().ToList();
             if (distinct.Count == 1) Session.InitUnanimous(distinct[0]);
             else                     Session.InitMixed(SessionMixedPlaceholder);
         }
@@ -285,6 +349,7 @@ public partial class TrackEditorViewModel : ObservableObject
     /// </summary>
     public void LoadLoose(AlbumTrack track)
     {
+        _sessions = null;   // loose tracks have no album, no sessions list
         TrackNumber.InitUnanimous("0");   // sentinel — UI hidden, save forces 0
         Duration.InitUnanimous(track.Duration       ?? "");
         Description.InitUnanimous(track.Description ?? "");
@@ -372,6 +437,8 @@ public partial class TrackEditorViewModel : ObservableObject
         track.Mp3Path      = NullIfEmpty(Mp3Path.Value);
         track.PieceRefs    = PieceRefs.Items.Count   > 0 ? PieceRefs.Items.ToList()   : null;
         track.Performers   = Performers.Items.Count > 0 ? Performers.Items.ToList() : null;
+        // H21 slice 2: loose tracks have no session — clear BOTH fields.
+        track.SessionId    = null;
         track.SessionIndex = null;
     }
 
@@ -429,9 +496,18 @@ public partial class TrackEditorViewModel : ObservableObject
         // Session — same contract. The "(multiple albums — cannot edit)" case
         // loads as IsMixed=true so this skips; the !allLoose check above
         // doesn't apply because for allLoose Session also loads as Mixed.
+        // H21 slice 2: write BOTH stable SessionId (post-H21 readers) AND
+        // legacy positional SessionIndex (pre-H21 fallback). The SQLite save
+        // path prefers SessionId; the parallel SessionIndex write keeps JSON
+        // snapshots back-compat during the H21 transition.
         if (!(Session.StartedMixed && Session.IsMixed))
         {
-            foreach (var t in tracks) t.SessionIndex = Session.Value;
+            var sid = ResolveSessionId(Session.Value);
+            foreach (var t in tracks)
+            {
+                t.SessionId    = sid;
+                t.SessionIndex = Session.Value;
+            }
         }
 
         // Lists — branch on Unanimous (replace) vs Mixed (append).
@@ -459,6 +535,12 @@ public partial class TrackEditorViewModel : ObservableObject
         target.FlacPath     = NullIfEmpty(FlacPath.Value);
         target.Mp3Path      = NullIfEmpty(Mp3Path.Value);
         target.PieceRefs    = PieceRefs.Items.Count   > 0 ? PieceRefs.Items.ToList()   : null;
+        // H21 slice 2: write BOTH the stable SessionId (preferred by post-H21
+        // readers / the SQLite save path) and the legacy positional
+        // SessionIndex. Slice 1 made the save path tolerate either; this
+        // slice ensures we always emit the stable Id when the sessions list
+        // resolves it (i.e. session has been persisted at least once).
+        target.SessionId    = ResolveSessionId(Session.Value);
         target.SessionIndex = Session.Value;
         target.Performers   = Performers.Items.Count > 0 ? Performers.Items.ToList() : null;
     }
