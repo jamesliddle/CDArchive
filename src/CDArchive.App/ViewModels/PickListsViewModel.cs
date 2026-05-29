@@ -362,56 +362,19 @@ public partial class PickListsViewModel : ObservableObject
         if (_renames.Values.All(d => d.Count == 0))
             return 0;
 
+        // PieceFieldRenamer walks each piece (with subpieces) AND every
+        // version's same renamable surface (with version-subpieces too).
+        // The pre-extraction in-VM walker recursed into subpieces only —
+        // version-bearing pieces silently lost the rename propagation.
         var count = 0;
         foreach (var piece in _canonVm.Pieces)
-            count += ApplyRenamesToPiece(piece);
-
-        return count;
-    }
-
-    private int ApplyRenamesToPiece(CanonPiece piece)
-    {
-        var count = 0;
-        var formRenames       = _renames[PickListKind.Forms];
-        var categoryRenames   = _renames[PickListKind.Categories];
-        var catalogRenames    = _renames[PickListKind.Catalogues];
-        var keyRenames        = _renames[PickListKind.Keys];
-        var instrumentRenames = _renames[PickListKind.Instruments];
-
-        if (piece.Form != null && formRenames.TryGetValue(piece.Form, out var nf))
-        { piece.Form = nf; count++; }
-
-        if (piece.InstrumentationCategory != null &&
-            categoryRenames.TryGetValue(piece.InstrumentationCategory, out var nc))
-        { piece.InstrumentationCategory = nc; count++; }
-
-        if (piece.KeyTonality != null && keyRenames.TryGetValue(piece.KeyTonality, out var nk))
-        { piece.KeyTonality = nk; count++; }
-
-        if (piece.CatalogInfo != null)
-        {
-            foreach (var ci in piece.CatalogInfo)
-            {
-                if (ci.Catalog != null && catalogRenames.TryGetValue(ci.Catalog, out var ncat))
-                { ci.Catalog = ncat; count++; }
-            }
-        }
-
-        // Walk piece.Instrumentation (JsonElement?) and rewrite every
-        // matching instrument name in every supported shape (top-level
-        // string elements, instrument / alternate_instrument / section
-        // fields, orchestra arrays).
-        if (instrumentRenames.Count > 0)
-        {
-            piece.Instrumentation = InstrumentationRenamer.ApplyRenames(
-                piece.Instrumentation, instrumentRenames, out var instCount);
-            count += instCount;
-        }
-
-        // Recurse into subpieces
-        if (piece.Subpieces != null)
-            foreach (var sub in piece.Subpieces)
-                count += ApplyRenamesToPiece(sub);
+            count += PieceFieldRenamer.ApplyToPiece(
+                piece,
+                _renames[PickListKind.Forms],
+                _renames[PickListKind.Categories],
+                _renames[PickListKind.Catalogues],
+                _renames[PickListKind.Keys],
+                _renames[PickListKind.Instruments]);
 
         return count;
     }
