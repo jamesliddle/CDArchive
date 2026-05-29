@@ -551,13 +551,37 @@ public partial class CanonViewModel : ObservableObject
                 $"Delete \"{title}\"?\n\nThis cannot be undone.",
                 "Delete Piece")) return;
 
+        // Snapshot for in-memory rollback if the save fails. The save can
+        // throw because the piece may still be referenced by album track
+        // piece-refs (FK Restrict), or for any other persistence-layer
+        // reason. Pre-fix an unhandled async exception here crashed the
+        // dispatcher.
+        var indexBefore    = Pieces.IndexOf(piece);
+        var selectedBefore = SelectedPiece;
+
         Pieces.Remove(piece);
         if (ReferenceEquals(SelectedPiece, piece)) SelectedPiece = null;
         DataMutated?.Invoke();
-        // SaveBatch (composers + pieces in one transaction) matches the
-        // pre-fix SaveAllAsync the View invoked for piece deletes.
-        await _canonDataService.SaveBatchAsync(
-            Composers.ToList(), Pieces.ToList(), null, null, null);
+        try
+        {
+            // SaveBatch (composers + pieces in one transaction) matches the
+            // pre-fix SaveAllAsync the View invoked for piece deletes.
+            await _canonDataService.SaveBatchAsync(
+                Composers.ToList(), Pieces.ToList(), null, null, null);
+        }
+        catch (Exception ex)
+        {
+            if (indexBefore >= 0)
+                Pieces.Insert(Math.Min(indexBefore, Pieces.Count), piece);
+            else
+                Pieces.Add(piece);
+            SelectedPiece = selectedBefore;
+            DataMutated?.Invoke();
+
+            _dialogs.ShowError(ex.Message, "Cannot delete piece");
+            StatusMessage = $"Delete cancelled: {title}.";
+            return;
+        }
         StatusMessage = $"Deleted: {title}.";
     }
 
@@ -575,14 +599,35 @@ public partial class CanonViewModel : ObservableObject
             case ComposerTreeNode node when node.Composer.IsProvisional:
                 node.Composer.IsProvisional = false;
                 DataMutated?.Invoke();
-                await _canonDataService.SaveComposersAsync(Composers.ToList());
-                StatusMessage = $"Approved {node.Composer.Name}.";
+                try
+                {
+                    await _canonDataService.SaveComposersAsync(Composers.ToList());
+                    StatusMessage = $"Approved {node.Composer.Name}.";
+                }
+                catch (Exception ex)
+                {
+                    // Roll back so the UI matches DB reality.
+                    node.Composer.IsProvisional = true;
+                    DataMutated?.Invoke();
+                    _dialogs.ShowError(ex.Message, "Cannot approve composer");
+                    StatusMessage = $"Approve cancelled: {node.Composer.Name}.";
+                }
                 break;
             case CanonPiece piece when piece.IsProvisional:
                 piece.IsProvisional = false;
                 DataMutated?.Invoke();
-                await _canonDataService.SavePiecesAsync(Pieces.ToList());
-                StatusMessage = $"Approved {piece.DisplayTitle}.";
+                try
+                {
+                    await _canonDataService.SavePiecesAsync(Pieces.ToList());
+                    StatusMessage = $"Approved {piece.DisplayTitle}.";
+                }
+                catch (Exception ex)
+                {
+                    piece.IsProvisional = true;
+                    DataMutated?.Invoke();
+                    _dialogs.ShowError(ex.Message, "Cannot approve piece");
+                    StatusMessage = $"Approve cancelled: {piece.DisplayTitle}.";
+                }
                 break;
         }
     }

@@ -182,7 +182,19 @@ public partial class AlbumsViewModel : ObservableObject
 
         foreach (var a in albums)
             a.IsProvisional = false;
-        await SaveAsync();
+        try
+        {
+            await SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            // Roll back the IsProvisional flips so the UI matches DB reality.
+            foreach (var a in albums)
+                a.IsProvisional = true;
+            _dialogs.ShowError(ex.Message, "Cannot approve album(s)");
+            StatusMessage = $"Approve cancelled: {albums.Count} album(s).";
+            return;
+        }
         ApplyFilter();
         StatusMessage = albums.Count == 1
             ? $"Approved {albums[0].DisplayTitle}."
@@ -225,9 +237,35 @@ public partial class AlbumsViewModel : ObservableObject
             : $"Delete {albums.Count} provisional album(s)?";
         if (!_dialogs.Confirm(prompt, "Confirm Rejection")) return;
 
+        // Snapshot positions so we can restore them if the save fails.
+        var positions = albums
+            .Select(a => (Album: a, Index: _allAlbums.IndexOf(a)))
+            .ToList();
+
         foreach (var a in albums)
             _allAlbums.Remove(a);
-        await SaveAsync();
+        try
+        {
+            await SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            // Restore in original order so the indexes line up.
+            foreach (var (album, index) in positions.OrderBy(p => p.Index))
+            {
+                if (index >= 0)
+                    _allAlbums.Insert(Math.Min(index, _allAlbums.Count), album);
+                else
+                    _allAlbums.Add(album);
+            }
+            // ApplyFilter overwrites StatusMessage (filter / count chrome),
+            // so set the status AFTER ApplyFilter so the user sees the
+            // cancellation message.
+            ApplyFilter();
+            _dialogs.ShowError(ex.Message, "Cannot reject album(s)");
+            StatusMessage = $"Reject cancelled: {albums.Count} album(s).";
+            return;
+        }
         ApplyFilter();
         StatusMessage = albums.Count == 1
             ? $"Rejected and deleted {albums[0].DisplayTitle}."
