@@ -177,6 +177,182 @@ public class SessionStableIdTests
     }
 
     [Fact]
+    public async Task Save_AddSessionToExistingAlbum_BackPropagatesIdsToInMemoryModel()
+    {
+        // Without back-propagation, the post-save in-memory model still has
+        // newSession.Id = 0 and Track2.SessionId = null. The next operation
+        // that touches the model (e.g. the AlbumEditor JSON-cloning the album
+        // for a second edit pass) loses the session reference because
+        // SessionIndex is [JsonIgnore] and SessionId is null/0.
+        //
+        // The data service must update the in-memory model after SaveChanges
+        // so the next pass sees the persistent state.
+        var svc = NewService(out _, out _);
+
+        var initial = new CanonAlbum
+        {
+            Title = "Box set",
+            Sessions = new List<RecordingSession>
+            {
+                new() { Dates = "Session A" },
+            },
+            Discs = new List<AlbumDisc>
+            {
+                new()
+                {
+                    DiscNumber = 1,
+                    Tracks = new List<AlbumTrack>
+                    {
+                        new() { TrackNumber = 1, SessionIndex = 0 },
+                        new() { TrackNumber = 2 },
+                    },
+                },
+            },
+        };
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { initial });
+
+        var loaded = (await svc.LoadAlbumsAsync()).Single();
+        loaded.Sessions!.Add(new RecordingSession { Dates = "Session B" });
+        var track2 = loaded.Discs[0].Tracks.Single(t => t.TrackNumber == 2);
+        track2.SessionId    = null;
+        track2.SessionIndex = 1;
+
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { loaded });
+
+        // After save, the IN-MEMORY model must reflect the persistent state.
+        var newSessionInMemory = loaded.Sessions[1];
+        Assert.NotEqual(0L, newSessionInMemory.Id);    // Id allocated by SQLite
+        Assert.Equal(newSessionInMemory.Id, track2.SessionId);   // track points at it
+        Assert.Null(track2.SessionIndex);              // transient handle cleared
+    }
+
+    [Fact]
+    public async Task Save_AddSessionToExistingAlbum_ViaJsonClone_PreservesLinkAcrossReload()
+    {
+        // Closer to the actual editor flow: the AlbumEditor JSON-clones the
+        // input album at open time, the user edits the clone, the clone is
+        // substituted back into AllAlbums on OK. The clone is a different
+        // CanonAlbum instance from the original, so the data service's CWT
+        // identity tracking misses and falls back to IdentityKey lookup.
+        var svc = NewService(out _, out _);
+
+        var initial = new CanonAlbum
+        {
+            Title = "Box set",
+            Sessions = new List<RecordingSession>
+            {
+                new() { Dates = "Session A" },
+            },
+            Discs = new List<AlbumDisc>
+            {
+                new()
+                {
+                    DiscNumber = 1,
+                    Tracks = new List<AlbumTrack>
+                    {
+                        new() { TrackNumber = 1, SessionIndex = 0 },
+                        new() { TrackNumber = 2 },
+                    },
+                },
+            },
+        };
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { initial });
+
+        // Step 1: load the album (this is what AlbumsViewModel.LoadDataAsync does).
+        var loaded = (await svc.LoadAlbumsAsync()).Single();
+
+        // Step 2: JSON-clone the album, simulating the AlbumEditor's open-time clone.
+        var json  = System.Text.Json.JsonSerializer.Serialize(loaded);
+        var clone = System.Text.Json.JsonSerializer.Deserialize<CanonAlbum>(json)!;
+
+        // Step 3: simulate the editor flow on the clone.
+        clone.Sessions!.Add(new RecordingSession { Dates = "Session B" /* Id=0 */ });
+        var cloneTrack2 = clone.Discs[0].Tracks.Single(t => t.TrackNumber == 2);
+        cloneTrack2.SessionId    = null;
+        cloneTrack2.SessionIndex = 1;
+
+        // Step 4: save the clone (this is what happens after AlbumsView substitutes
+        // vm.AllAlbums[idx] = result).
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { clone });
+
+        // Step 5: reload.
+        var reloaded = (await svc.LoadAlbumsAsync()).Single();
+
+        Assert.Equal(2, reloaded.Sessions!.Count);
+        var sessionB = reloaded.Sessions[1];
+        Assert.Equal("Session B", sessionB.Dates);
+
+        var reloadedTrack2 = reloaded.Discs[0].Tracks.Single(t => t.TrackNumber == 2);
+        Assert.Equal(sessionB.Id, reloadedTrack2.SessionId);   // THE REGRESSION
+    }
+
+    [Fact]
+    public async Task Save_AddSessionToExistingAlbum_LinkTrackToIt_PreservesLinkAcrossReload()
+    {
+        // User-reported regression scenario:
+        //   1. Open an existing album that already has sessions.
+        //   2. Add a new session via the AlbumEditor.
+        //   3. Pick the new session for a track in the TrackEditor.
+        //   4. Save the album.
+        //   5. Re-open it — the track's link to the new session should
+        //      survive. Pre-fix it didn't.
+        var svc = NewService(out _, out _);
+
+        // Step 1: pre-existing album with one session and one session-bearing
+        // track.
+        var initial = new CanonAlbum
+        {
+            Title = "Box set",
+            Sessions = new List<RecordingSession>
+            {
+                new() { Dates = "Session A" },
+            },
+            Discs = new List<AlbumDisc>
+            {
+                new()
+                {
+                    DiscNumber = 1,
+                    Tracks = new List<AlbumTrack>
+                    {
+                        new() { TrackNumber = 1, SessionIndex = 0 },
+                        new() { TrackNumber = 2 },   // no session yet
+                    },
+                },
+            },
+        };
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { initial });
+
+        // Step 2: simulate the editor flow — load, then add a new session,
+        // then link track 2 to it.
+        var loaded = (await svc.LoadAlbumsAsync()).Single();
+        loaded.Sessions!.Add(new RecordingSession { Dates = "Session B" /* Id=0 */ });
+        var track2 = loaded.Discs[0].Tracks.Single(t => t.TrackNumber == 2);
+        // VM behaviour: SessionId stays null (Id=0 isn't a real Id) and
+        // SessionIndex carries the in-memory position of the new session.
+        track2.SessionId    = null;
+        track2.SessionIndex = 1;
+
+        // Step 3: save.
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { loaded });
+
+        // Step 4: reload — the new session should exist AND track 2 should
+        // still point at it.
+        var reloaded = (await svc.LoadAlbumsAsync()).Single();
+
+        Assert.Equal(2, reloaded.Sessions!.Count);
+        var sessionA = reloaded.Sessions[0];
+        var sessionB = reloaded.Sessions[1];
+        Assert.Equal("Session A", sessionA.Dates);
+        Assert.Equal("Session B", sessionB.Dates);
+
+        var reloadedTrack1 = reloaded.Discs[0].Tracks.Single(t => t.TrackNumber == 1);
+        var reloadedTrack2 = reloaded.Discs[0].Tracks.Single(t => t.TrackNumber == 2);
+
+        Assert.Equal(sessionA.Id, reloadedTrack1.SessionId);
+        Assert.Equal(sessionB.Id, reloadedTrack2.SessionId);   // ← the regression
+    }
+
+    [Fact]
     public async Task Save_FreshlyAddedSessionWithoutId_StillResolvesViaSessionIndex()
     {
         // A user-added session in the editor has Id = 0 until SQLite assigns

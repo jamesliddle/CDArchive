@@ -2268,23 +2268,39 @@ public class SqliteCanonDataService : ICanonDataService
 
         var inserted = new List<(CanonAlbum, AlbumRow)>();
         var matched = new Dictionary<CanonAlbum, AlbumRow>(ReferenceEqualityComparer.Instance);
+        // H21: capture the position→sessionRow map per album so we can
+        // back-propagate the freshly-allocated row Ids into the in-memory
+        // model after SaveChanges flushes. Without this the model's
+        // RecordingSession.Id stays 0 and AlbumTrack.SessionId stays null for
+        // sessions added in-editor — the next operation (e.g. AlbumEditor
+        // reopening) JSON-clones a track that points at nothing.
+        var sessionMapsByAlbum = new Dictionary<CanonAlbum, Dictionary<int, AlbumSessionRow>>(ReferenceEqualityComparer.Instance);
         foreach (var album in albums)
         {
             if (matchedRowIdByModel.TryGetValue(album, out var rowId) &&
                 matchedRows.TryGetValue(rowId, out var row))
             {
-                MergeAlbumIntoRow(album, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+                var sessionMap = MergeAlbumIntoRow(album, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
                 matched[album] = row;
+                sessionMapsByAlbum[album] = sessionMap;
             }
             else
             {
-                var newRow = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
+                var (newRow, sessionMap) = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
                 db.Albums.Add(newRow);
                 inserted.Add((album, newRow));
+                sessionMapsByAlbum[album] = sessionMap;
             }
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
+
+        // H21 back-propagation: now that every AlbumSessionRow has an Id
+        // (assigned during SaveChanges), copy those Ids into the in-memory
+        // model so subsequent operations see SessionId instead of the stale
+        // SessionIndex transient handle.
+        foreach (var (album, sessionMap) in sessionMapsByAlbum)
+            BackPropagateSessionIds(album, sessionMap);
 
         return () =>
         {
@@ -2722,7 +2738,7 @@ public class SqliteCanonDataService : ICanonDataService
     // Position) come straight from the schema's existing UNIQUE indexes.
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static void MergeAlbumIntoRow(
+    private static Dictionary<int, AlbumSessionRow> MergeAlbumIntoRow(
         CanonAlbum album,
         AlbumRow row,
         PieceReferenceIndex resolver,
@@ -2757,6 +2773,11 @@ public class SqliteCanonDataService : ICanonDataService
 
         foreach (var v in orphanVolumes) db.AlbumVolumes.Remove(v);
         foreach (var s in orphanSessions) db.AlbumSessions.Remove(s);
+
+        // Return the position→row map so SaveAlbumsCoreAsync can back-propagate
+        // freshly-allocated session Ids into the in-memory model after
+        // SaveChangesAsync flushes (H21 transient handle cleanup).
+        return sessionMap;
     }
 
     /// <summary>
@@ -3031,6 +3052,51 @@ public class SqliteCanonDataService : ICanonDataService
     }
 
     /// <summary>
+    /// H21 back-propagation: after <c>SaveChangesAsync</c> flushes (allocating
+    /// row Ids for any newly-inserted sessions), copy those Ids back into the
+    /// in-memory model so subsequent operations see the persistent reference.
+    /// Without this, a session added in the AlbumEditor in the same app
+    /// session as the save retains <c>RecordingSession.Id = 0</c>, and tracks
+    /// pointing at it via the transient positional <see cref="AlbumTrack.SessionIndex"/>
+    /// handle have <see cref="AlbumTrack.SessionId"/> = null. Re-opening the
+    /// AlbumEditor JSON-clones such a track, losing the session reference
+    /// entirely (the positional handle isn't serialized).
+    /// </summary>
+    private static void BackPropagateSessionIds(
+        CanonAlbum album,
+        Dictionary<int, AlbumSessionRow> sessionMap)
+    {
+        if (album.Sessions is not { Count: > 0 }) return;
+
+        // Step 1: assign newly-allocated row Ids onto the in-memory
+        // RecordingSession instances.
+        for (int i = 0; i < album.Sessions.Count; i++)
+        {
+            if (album.Sessions[i].Id == 0 &&
+                sessionMap.TryGetValue(i, out var row) && row.Id != 0)
+            {
+                album.Sessions[i].Id = row.Id;
+            }
+        }
+
+        // Step 2: walk all tracks. Where the track was using the SessionIndex
+        // transient handle (SessionId null, SessionIndex set), look up the
+        // session's now-allocated Id and populate SessionId. Clear the
+        // transient handle since SessionId is now authoritative.
+        foreach (var disc in album.Discs)
+        foreach (var track in disc.Tracks)
+        {
+            if (track.SessionId is null && track.SessionIndex is int si &&
+                si >= 0 && si < album.Sessions.Count &&
+                album.Sessions[si].Id != 0)
+            {
+                track.SessionId    = album.Sessions[si].Id;
+                track.SessionIndex = null;
+            }
+        }
+    }
+
+    /// <summary>
     /// H21: pick the right <see cref="AlbumSessionRow"/> for a track being
     /// saved. Priority order:
     ///   1. <see cref="AlbumTrack.SessionId"/> against the stable-Id map
@@ -3229,7 +3295,7 @@ public class SqliteCanonDataService : ICanonDataService
         return $"{l}|{cn}|{t}|{st}";
     }
 
-    private static AlbumRow MapAlbumModelToRow(
+    private static (AlbumRow Row, Dictionary<int, AlbumSessionRow> SessionMap) MapAlbumModelToRow(
         CanonAlbum album,
         PieceReferenceIndex resolver,
         Dictionary<CanonPiece, long> rowIdByPieceModel,
@@ -3392,7 +3458,7 @@ public class SqliteCanonDataService : ICanonDataService
             row.Discs.Add(dr);
         }
 
-        return row;
+        return (row, sessionRowByIndex);
     }
 
     private static AlbumPerformerRow MapPerformerModelToRow(AlbumPerformer p, int position) => new()
