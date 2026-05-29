@@ -1,4 +1,5 @@
 using CDArchive.Core.Helpers;
+using CDArchive.Core.Models;
 
 namespace CDArchive.Core.Tests.Helpers;
 
@@ -164,19 +165,27 @@ public class SessionIndexMappingTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // RemapTracksAfterSessionRemoval — H21 first slice
+    // RemapTracksAfterSessionRemoval — H21 slice 1 (positional fallback)
     // ─────────────────────────────────────────────────────────────────────────
+    //
+    // These tests exercise the positional fallback path (track.SessionId is
+    // null). The session list is a placeholder of the right size — every
+    // session has Id=0 so the helper routes through the positional branch.
+
+    private static List<RecordingSession> PositionalSessions(int count) =>
+        Enumerable.Range(0, count).Select(_ => new RecordingSession { Id = 0 }).ToList();
 
     [Fact]
     public void Remap_TrackPointingAtRemovedSession_BecomesNull()
     {
+        var sessions = PositionalSessions(2);
         var tracks = new[]
         {
-            new Models.AlbumTrack { TrackNumber = 1, SessionIndex = 1 },  // → removed
-            new Models.AlbumTrack { TrackNumber = 2, SessionIndex = 1 },  // → removed
+            new AlbumTrack { TrackNumber = 1, SessionIndex = 1 },  // → removed
+            new AlbumTrack { TrackNumber = 2, SessionIndex = 1 },  // → removed
         };
 
-        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
 
         Assert.Equal(2, changed);
         Assert.Null(tracks[0].SessionIndex);
@@ -188,13 +197,14 @@ public class SessionIndexMappingTests
     {
         // Sessions [0, 1, 2, 3]; removing index 1. Tracks at indices 2, 3
         // should move to 1, 2 (same logical sessions, new positions).
+        var sessions = PositionalSessions(4);
         var tracks = new[]
         {
-            new Models.AlbumTrack { SessionIndex = 2 },  // → 1
-            new Models.AlbumTrack { SessionIndex = 3 },  // → 2
+            new AlbumTrack { SessionIndex = 2 },  // → 1
+            new AlbumTrack { SessionIndex = 3 },  // → 2
         };
 
-        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
 
         Assert.Equal(2, changed);
         Assert.Equal(1, tracks[0].SessionIndex);
@@ -204,12 +214,13 @@ public class SessionIndexMappingTests
     [Fact]
     public void Remap_TrackPointingAtEarlierSession_Unchanged()
     {
+        var sessions = PositionalSessions(3);
         var tracks = new[]
         {
-            new Models.AlbumTrack { SessionIndex = 0 },  // stays 0 — earlier than removed (1)
+            new AlbumTrack { SessionIndex = 0 },  // stays 0 — earlier than removed (1)
         };
 
-        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
 
         Assert.Equal(0, changed);
         Assert.Equal(0, tracks[0].SessionIndex);
@@ -218,12 +229,13 @@ public class SessionIndexMappingTests
     [Fact]
     public void Remap_TrackWithNullSession_Unchanged()
     {
+        var sessions = PositionalSessions(1);
         var tracks = new[]
         {
-            new Models.AlbumTrack { SessionIndex = null },
+            new AlbumTrack { SessionIndex = null },
         };
 
-        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(0, tracks);
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(0, sessions, tracks);
 
         Assert.Equal(0, changed);
         Assert.Null(tracks[0].SessionIndex);
@@ -237,15 +249,16 @@ public class SessionIndexMappingTests
         // - SessionIndex=1 → null (removed session itself)
         // - SessionIndex=2 → 1 (later than removed)
         // - SessionIndex=null → unchanged (no session)
+        var sessions = PositionalSessions(3);
         var tracks = new[]
         {
-            new Models.AlbumTrack { TrackNumber = 1, SessionIndex = 0 },
-            new Models.AlbumTrack { TrackNumber = 2, SessionIndex = 1 },
-            new Models.AlbumTrack { TrackNumber = 3, SessionIndex = 2 },
-            new Models.AlbumTrack { TrackNumber = 4, SessionIndex = null },
+            new AlbumTrack { TrackNumber = 1, SessionIndex = 0 },
+            new AlbumTrack { TrackNumber = 2, SessionIndex = 1 },
+            new AlbumTrack { TrackNumber = 3, SessionIndex = 2 },
+            new AlbumTrack { TrackNumber = 4, SessionIndex = null },
         };
 
-        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, tracks);
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
 
         Assert.Equal(2, changed);  // tracks 2 and 3 changed
         Assert.Equal(0, tracks[0].SessionIndex);
@@ -258,16 +271,221 @@ public class SessionIndexMappingTests
     public void Remap_NegativeRemovedIndex_NoOp()
     {
         // Defensive: caller passed a "session not found" signal (-1).
+        var sessions = PositionalSessions(2);
         var tracks = new[]
         {
-            new Models.AlbumTrack { SessionIndex = 0 },
-            new Models.AlbumTrack { SessionIndex = 1 },
+            new AlbumTrack { SessionIndex = 0 },
+            new AlbumTrack { SessionIndex = 1 },
         };
 
-        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(-1, tracks);
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(-1, sessions, tracks);
 
         Assert.Equal(0, changed);
         Assert.Equal(0, tracks[0].SessionIndex);
         Assert.Equal(1, tracks[1].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_OutOfRangeRemovedIndex_NoOp()
+    {
+        var sessions = PositionalSessions(2);
+        var tracks = new[]
+        {
+            new AlbumTrack { SessionIndex = 0 },
+            new AlbumTrack { SessionIndex = 1 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(5, sessions, tracks);
+
+        Assert.Equal(0, changed);
+        Assert.Equal(0, tracks[0].SessionIndex);
+        Assert.Equal(1, tracks[1].SessionIndex);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RemapTracksAfterSessionRemoval — H21 slice 3 (stable-Id path)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Remap_StableId_TrackPointingAtRemovedSession_ClearsBothFields()
+    {
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 100 },
+            new() { Id = 200 },   // ← removed
+            new() { Id = 300 },
+        };
+        var tracks = new[]
+        {
+            new AlbumTrack { SessionId = 200, SessionIndex = 1 },
+            new AlbumTrack { SessionId = 200, SessionIndex = 1 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
+
+        Assert.Equal(2, changed);
+        foreach (var t in tracks)
+        {
+            Assert.Null(t.SessionId);
+            Assert.Null(t.SessionIndex);
+        }
+    }
+
+    [Fact]
+    public void Remap_StableId_SurvivingSession_KeepsSessionIdAndUpdatesIndex()
+    {
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 100 },   // ← removed
+            new() { Id = 200 },
+            new() { Id = 300 },
+        };
+        var tracks = new[]
+        {
+            // Pre: position 1 → session Id=200.
+            new AlbumTrack { SessionId = 200, SessionIndex = 1 },
+            // Pre: position 2 → session Id=300.
+            new AlbumTrack { SessionId = 300, SessionIndex = 2 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(0, sessions, tracks);
+
+        Assert.Equal(2, changed);
+        // Both tracks keep their stable Id; SessionIndex shifts down by 1.
+        Assert.Equal(200, tracks[0].SessionId);
+        Assert.Equal(0,   tracks[0].SessionIndex);
+        Assert.Equal(300, tracks[1].SessionId);
+        Assert.Equal(1,   tracks[1].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_StableId_OrphanSessionId_ClearsBothFields()
+    {
+        // Track references SessionId=999 which doesn't appear in the sessions
+        // list (data corruption / stale ref). The helper clears both fields.
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 100 },
+            new() { Id = 200 },
+        };
+        var tracks = new[]
+        {
+            new AlbumTrack { SessionId = 999, SessionIndex = 0 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(0, sessions, tracks);
+
+        Assert.Equal(1, changed);
+        Assert.Null(tracks[0].SessionId);
+        Assert.Null(tracks[0].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_StableId_NoChangeNeeded_DoesNotMutate()
+    {
+        // Removing the LAST session; the surviving session is at position 0
+        // both before and after. A track pointing at it should not be marked
+        // as changed.
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 100 },
+            new() { Id = 200 },   // ← removed
+        };
+        var tracks = new[]
+        {
+            new AlbumTrack { SessionId = 100, SessionIndex = 0 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
+
+        Assert.Equal(0, changed);
+        Assert.Equal(100, tracks[0].SessionId);
+        Assert.Equal(0,   tracks[0].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_StableId_AfterListReorder_PointersFollowTheLogicalSession()
+    {
+        // The headline H21 motivator: tracks anchored on SessionId survive
+        // arbitrary reorders of the album's sessions list. Here we reorder
+        // BEFORE invoking the helper (simulating editing flow); the helper
+        // still re-anchors correctly to the right surviving sessions.
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 300 },   // logical "C" — moved to position 0
+            new() { Id = 100 },   // logical "A" — moved to position 1
+            new() { Id = 200 },   // logical "B" — ← removed
+        };
+        var tracks = new[]
+        {
+            // Track originally pointed at logical "A" (whatever position).
+            new AlbumTrack { SessionId = 100, SessionIndex = 1 },
+            // Track originally pointed at logical "C".
+            new AlbumTrack { SessionId = 300, SessionIndex = 0 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(2, sessions, tracks);
+
+        // Track[0] was SessionIndex=1, pointing at A (id=100). After removal
+        // A is still at position 1 (sessions[1]). No change.
+        // Track[1] was SessionIndex=0, pointing at C (id=300). After removal
+        // C is still at position 0 (sessions[0]). No change.
+        Assert.Equal(0, changed);
+        Assert.Equal(100, tracks[0].SessionId);
+        Assert.Equal(1,   tracks[0].SessionIndex);
+        Assert.Equal(300, tracks[1].SessionId);
+        Assert.Equal(0,   tracks[1].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_StableId_TrackWithoutSessionId_FallsBackToPositional()
+    {
+        // Mixed batch: one pre-H21 track (SessionId null), one slice-2+ track.
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 100 },   // ← removed
+            new() { Id = 200 },
+        };
+        var tracks = new[]
+        {
+            // Pre-H21 track: SessionId null, SessionIndex 1. Positional path:
+            // removed=0, si=1 → decrement to 0.
+            new AlbumTrack { SessionId = null, SessionIndex = 1 },
+            // Slice-2 track: stable-Id path; survives at new position 0.
+            new AlbumTrack { SessionId = 200, SessionIndex = 1 },
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(0, sessions, tracks);
+
+        Assert.Equal(2, changed);
+        Assert.Null(tracks[0].SessionId);
+        Assert.Equal(0, tracks[0].SessionIndex);
+        Assert.Equal(200, tracks[1].SessionId);
+        Assert.Equal(0, tracks[1].SessionIndex);
+    }
+
+    [Fact]
+    public void Remap_StableId_FreshlyAddedSessionRemoved_PositionalPathRunsForOthers()
+    {
+        // Edge case: removed session has Id=0 (freshly added, never saved).
+        // Stable-Id path can't match anything against removedId=0 (since
+        // tracks won't have SessionId=0). Positional fallback handles
+        // affected tracks.
+        var sessions = new List<RecordingSession>
+        {
+            new() { Id = 100 },
+            new() { Id = 0   },   // ← fresh, removed
+            new() { Id = 300 },
+        };
+        var tracks = new[]
+        {
+            new AlbumTrack { SessionId = 300, SessionIndex = 2 },   // survives, shifts to 1
+        };
+
+        var changed = SessionIndexMapping.RemapTracksAfterSessionRemoval(1, sessions, tracks);
+
+        Assert.Equal(1, changed);
+        Assert.Equal(300, tracks[0].SessionId);
+        Assert.Equal(1,   tracks[0].SessionIndex);
     }
 }

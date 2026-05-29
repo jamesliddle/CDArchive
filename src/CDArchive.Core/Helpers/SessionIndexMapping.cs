@@ -108,48 +108,114 @@ public static class SessionIndexMapping
 
     /// <summary>
     /// Defensive translation for when a session is removed from an album's
-    /// <see cref="CanonAlbum.Sessions"/> list — every track's positional
-    /// <see cref="AlbumTrack.SessionIndex"/> needs to be re-anchored to point
-    /// at the same logical session it pointed at before the removal.
+    /// <see cref="CanonAlbum.Sessions"/> list — every track's session
+    /// reference needs to be re-anchored to point at the same logical session
+    /// it pointed at before the removal.
     ///
-    /// <para>This is the "first slice" of H21: SessionIndex is still a
-    /// positional reference (not a stable Id), but the editor can no longer
-    /// silently mis-point existing tracks when the user removes a session.
-    /// The full fix (stable Id on RecordingSession + a one-shot migration)
-    /// is the larger remaining H21 work.</para>
+    /// <para>H21 slice 3: stable-Id-aware. Tracks that carry
+    /// <see cref="AlbumTrack.SessionId"/> are re-anchored by Id (resilient to
+    /// list reorders); tracks without a stable Id (pre-H21 snapshots or
+    /// freshly-added sessions that haven't been persisted) fall back to the
+    /// pre-H21 positional walk.</para>
     ///
     /// <list type="bullet">
-    ///   <item>A track pointing AT the removed session — its referenced
-    ///     session no longer exists. The most conservative outcome is
-    ///     <c>null</c> ("no session"), which the user can then re-assign.</item>
-    ///   <item>A track pointing at a session AFTER the removed one
-    ///     (higher index) — its index must decrement by 1 so the link
-    ///     continues to address the same logical session.</item>
-    ///   <item>A track pointing at a session BEFORE the removed one
-    ///     (lower index) — unaffected, the underlying session keeps its
-    ///     position.</item>
+    ///   <item><b>Stable-Id path</b> (track.SessionId is set and non-zero):
+    ///     <list type="bullet">
+    ///       <item>SessionId matches the removed session's Id → both fields
+    ///         clear to null ("no session").</item>
+    ///       <item>SessionId matches a surviving session → SessionIndex
+    ///         updates to the survivor's new position; SessionId stays
+    ///         pointed at the same logical session.</item>
+    ///       <item>SessionId matches no current session (orphan ref) → both
+    ///         fields clear to null.</item>
+    ///     </list>
+    ///   </item>
+    ///   <item><b>Positional fallback</b> (track.SessionId is null/0):
+    ///     <list type="bullet">
+    ///       <item>SessionIndex == removedIndex → null.</item>
+    ///       <item>SessionIndex &gt; removedIndex → decrement by 1.</item>
+    ///       <item>SessionIndex &lt; removedIndex → unchanged.</item>
+    ///     </list>
+    ///   </item>
     /// </list>
     ///
-    /// <para>The walk is destructive: each track's <c>SessionIndex</c> is
-    /// mutated in place. Call BEFORE removing the session from the list,
-    /// so the index parameter is still meaningful relative to the input.</para>
+    /// <para>The walk is destructive: each track's session fields are
+    /// mutated in place. Call BEFORE removing the session from the list, so
+    /// <paramref name="removedSessionIndex"/> still indexes into
+    /// <paramref name="sessionsBeforeRemoval"/>.</para>
     /// </summary>
     /// <param name="removedSessionIndex">The position of the session about
-    /// to be removed in the album's session list.</param>
+    /// to be removed within <paramref name="sessionsBeforeRemoval"/>.</param>
+    /// <param name="sessionsBeforeRemoval">The album's session list at the
+    /// moment of the call — i.e. still containing the session about to be
+    /// removed. Used to look up the removed session's stable Id and to
+    /// compute the post-removal positions of surviving sessions.</param>
     /// <param name="tracks">Every track on every disc of the album — the
     /// caller should flatten <c>album.Discs.SelectMany(d => d.Tracks)</c>.</param>
     /// <returns>
-    /// The number of tracks whose <c>SessionIndex</c> was actually changed
+    /// The number of tracks whose session reference was actually changed
     /// — used by the editor for status messages.
     /// </returns>
     public static int RemapTracksAfterSessionRemoval(
         int removedSessionIndex,
+        IReadOnlyList<RecordingSession> sessionsBeforeRemoval,
         IEnumerable<AlbumTrack> tracks)
     {
-        if (removedSessionIndex < 0) return 0;
+        if (removedSessionIndex < 0 || removedSessionIndex >= sessionsBeforeRemoval.Count)
+            return 0;
+
+        var removedSession = sessionsBeforeRemoval[removedSessionIndex];
+        var removedId = removedSession.Id;   // 0 if not persisted
+
+        // Build the post-removal position map for surviving sessions, keyed
+        // by stable Id. Sessions with Id=0 (freshly-added, not yet saved) are
+        // skipped: tracks pointing at them have no stable handle so they
+        // route through the positional fallback below.
+        var newPositionById = new Dictionary<long, int>();
+        for (int i = 0; i < sessionsBeforeRemoval.Count; i++)
+        {
+            if (i == removedSessionIndex) continue;
+            var s = sessionsBeforeRemoval[i];
+            if (s.Id == 0) continue;
+            var newPos = i < removedSessionIndex ? i : i - 1;
+            newPositionById[s.Id] = newPos;
+        }
+
         int changed = 0;
         foreach (var t in tracks)
         {
+            // Stable-Id path: prefer the SessionId reference where present.
+            if (t.SessionId is long sid && sid != 0)
+            {
+                if (sid == removedId)
+                {
+                    t.SessionId    = null;
+                    t.SessionIndex = null;
+                    changed++;
+                }
+                else if (newPositionById.TryGetValue(sid, out var newPos))
+                {
+                    // The session survives; update SessionIndex to its new
+                    // position. SessionId is already correct (unchanged).
+                    if (t.SessionIndex != newPos)
+                    {
+                        t.SessionIndex = newPos;
+                        changed++;
+                    }
+                }
+                else
+                {
+                    // Orphan SessionId not in the current list — clear both.
+                    t.SessionId    = null;
+                    t.SessionIndex = null;
+                    changed++;
+                }
+                continue;
+            }
+
+            // Positional fallback: pre-H21 tracks, or tracks that reference a
+            // freshly-added session (Id=0). Same logic as the pre-slice-3
+            // implementation, retained for back-compat.
             if (t.SessionIndex is not int si) continue;
             if (si == removedSessionIndex)
             {
@@ -161,8 +227,6 @@ public static class SessionIndexMapping
                 t.SessionIndex = si - 1;
                 changed++;
             }
-            // si < removedSessionIndex: unaffected, the lower-positioned
-            // session keeps its slot.
         }
         return changed;
     }
