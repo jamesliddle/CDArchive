@@ -149,8 +149,13 @@ public partial class ItunesImportViewModel : ObservableObject
             var albums      = (await _data.LoadAlbumsAsync()).ToList();
             var looseTracks = (await _data.LoadLooseTracksAsync()).ToList();
 
-            // Run inference + entity creation (mutates composers + pieces in place).
-            var result = ItunesImporter.Import(selected, composers, pieces);
+            // Run inference + entity creation (mutates composers + pieces in
+            // place). M5: also pass `albums` so re-imports of the same iTunes
+            // data merge into existing canon albums instead of creating
+            // duplicates. NewAlbums in the result is now only the genuinely
+            // new ones — existing-album merges mutated `albums` instances in
+            // place.
+            var result = ItunesImporter.Import(selected, composers, pieces, albums);
 
             // Append the new albums + loose tracks and persist everything that changed.
             foreach (var newAlbum in result.NewAlbums)
@@ -174,6 +179,7 @@ public partial class ItunesImportViewModel : ObservableObject
             StatusMessage =
                 $"Imported {result.TracksImported} tracks: "
                 + $"{result.NewAlbums.Count} new album(s), "
+                + $"{result.ModifiedAlbums} merged into existing album(s), "
                 + $"{result.NewLooseTracks.Count} loose track(s), "
                 + $"{result.NewComposers} composer(s), "
                 + $"{result.NewPieces} piece(s), "
@@ -214,46 +220,15 @@ public partial class ItunesImportViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Normalises a performer string for the dedup key: lowercases, strips
-    /// non-alphanumeric characters, then sorts the resulting tokens by length+ordinal
-    /// so name-ordering differences ("Karajan, Herbert von" vs
-    /// "Herbert von Karajan") don't cause spurious mismatches. Returns
-    /// empty string for null / whitespace input.
-    ///
-    /// <para>Public so the App.Tests project can verify the contract
-    /// directly — H24's regression tests assert that two same-title,
-    /// different-performer canon albums no longer collide.</para>
+    /// Normalises a performer string for the dedup key. Thin forwarder to
+    /// the Core helper introduced for M5 (so the iTunes importer can use the
+    /// same key shape without taking an App-project dependency). Public so
+    /// the App.Tests project can verify the contract directly — H24's
+    /// regression tests assert that two same-title, different-performer
+    /// canon albums no longer collide.
     /// </summary>
-    public static string NormalisePerformer(string? performer)
-    {
-        if (string.IsNullOrWhiteSpace(performer)) return string.Empty;
-
-        // Lowercase, then strip everything that isn't an alphanumeric ASCII
-        // letter or digit. This drops commas, periods, spaces, etc. and
-        // collapses "von" / "van" / "de" intra-token punctuation.
-        var lower = performer.Trim().ToLowerInvariant();
-        var sb = new System.Text.StringBuilder(lower.Length);
-        bool prevWasSeparator = true;
-        var tokens = new List<string>();
-        foreach (var ch in lower)
-        {
-            if (ch >= 'a' && ch <= 'z' || ch >= '0' && ch <= '9')
-            {
-                sb.Append(ch);
-                prevWasSeparator = false;
-            }
-            else if (!prevWasSeparator)
-            {
-                if (sb.Length > 0) { tokens.Add(sb.ToString()); sb.Clear(); }
-                prevWasSeparator = true;
-            }
-        }
-        if (sb.Length > 0) tokens.Add(sb.ToString());
-
-        // Sort tokens by ordinal so name order doesn't matter.
-        tokens.Sort(StringComparer.Ordinal);
-        return string.Concat(tokens);
-    }
+    public static string NormalisePerformer(string? performer) =>
+        CDArchive.Core.Helpers.PerformerNormalisation.NormalisePerformer(performer);
 
     private void ApplyFilter()
     {
