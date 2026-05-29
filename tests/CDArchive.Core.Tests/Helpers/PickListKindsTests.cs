@@ -78,13 +78,13 @@ public class PickListKindsTests
     [InlineData(PickListKind.Categories,     true)]
     [InlineData(PickListKind.Catalogues,     true)]
     [InlineData(PickListKind.Keys,           true)]
-    [InlineData(PickListKind.Instruments,    false)]
+    [InlineData(PickListKind.Instruments,    true)]
     [InlineData(PickListKind.CreativeRoles,  false)]
     [InlineData(PickListKind.Ensembles,      false)]
     [InlineData(PickListKind.VoiceTypes,     false)]
     [InlineData(PickListKind.PerformerRoles, false)]
     [InlineData(PickListKind.Labels,         false)]
-    public void IsRenamable_TracksTheFourPieceFieldKinds(PickListKind kind, bool expected)
+    public void IsRenamable_TracksRenamablePieceFieldKinds(PickListKind kind, bool expected)
     {
         Assert.Equal(expected, PickListKinds.IsRenamable(kind));
     }

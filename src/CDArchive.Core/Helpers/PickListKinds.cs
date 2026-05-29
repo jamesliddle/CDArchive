@@ -130,5 +130,6 @@ public static class PickListKinds
         kind is PickListKind.Forms
              or PickListKind.Categories
              or PickListKind.Catalogues
-             or PickListKind.Keys;
+             or PickListKind.Keys
+             or PickListKind.Instruments;
 }

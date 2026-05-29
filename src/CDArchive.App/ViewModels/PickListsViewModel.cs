@@ -78,10 +78,11 @@ public partial class PickListsViewModel : ObservableObject
 
         _renames = new Dictionary<PickListKind, Dictionary<string, string>>
         {
-            [PickListKind.Forms]      = new(),
-            [PickListKind.Categories] = new(),
-            [PickListKind.Catalogues] = new(),
-            [PickListKind.Keys]       = new(),
+            [PickListKind.Forms]       = new(),
+            [PickListKind.Categories]  = new(),
+            [PickListKind.Catalogues]  = new(),
+            [PickListKind.Keys]        = new(),
+            [PickListKind.Instruments] = new(),
         };
     }
 
@@ -371,10 +372,11 @@ public partial class PickListsViewModel : ObservableObject
     private int ApplyRenamesToPiece(CanonPiece piece)
     {
         var count = 0;
-        var formRenames     = _renames[PickListKind.Forms];
-        var categoryRenames = _renames[PickListKind.Categories];
-        var catalogRenames  = _renames[PickListKind.Catalogues];
-        var keyRenames      = _renames[PickListKind.Keys];
+        var formRenames       = _renames[PickListKind.Forms];
+        var categoryRenames   = _renames[PickListKind.Categories];
+        var catalogRenames    = _renames[PickListKind.Catalogues];
+        var keyRenames        = _renames[PickListKind.Keys];
+        var instrumentRenames = _renames[PickListKind.Instruments];
 
         if (piece.Form != null && formRenames.TryGetValue(piece.Form, out var nf))
         { piece.Form = nf; count++; }
@@ -393,6 +395,17 @@ public partial class PickListsViewModel : ObservableObject
                 if (ci.Catalog != null && catalogRenames.TryGetValue(ci.Catalog, out var ncat))
                 { ci.Catalog = ncat; count++; }
             }
+        }
+
+        // Walk piece.Instrumentation (JsonElement?) and rewrite every
+        // matching instrument name in every supported shape (top-level
+        // string elements, instrument / alternate_instrument / section
+        // fields, orchestra arrays).
+        if (instrumentRenames.Count > 0)
+        {
+            piece.Instrumentation = InstrumentationRenamer.ApplyRenames(
+                piece.Instrumentation, instrumentRenames, out var instCount);
+            count += instCount;
         }
 
         // Recurse into subpieces
