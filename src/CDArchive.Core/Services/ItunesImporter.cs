@@ -410,7 +410,7 @@ public static class ItunesImporter
             target.PieceRefs = new List<TrackPieceRef>(parsedName.SubpieceRefs.Count);
             foreach (var subRef in parsedName.SubpieceRefs)
             {
-                EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, counters);
+                EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, subRef.Tempos, counters);
                 target.PieceRefs.Add(new TrackPieceRef
                 {
                     Composer     = composer.Name,
@@ -534,19 +534,26 @@ public static class ItunesImporter
     /// Walks <paramref name="path"/> from <paramref name="root"/> down, creating any
     /// missing subpieces. The <paramref name="musicNumberForLeaf"/>, if provided, is
     /// applied to the leaf (only when the leaf doesn't already carry one).
+    /// <para>When <paramref name="temposForLeaf"/> has more than one entry and
+    /// the leaf has no markers yet, populates the leaf's <see cref="CanonPiece.Markers"/>
+    /// with numbered <see cref="MarkerKind.Tempo"/> entries — one per tempo, in
+    /// order. Lets an iTunes "1. Lento - Allegro agitato" import as a single
+    /// movement carrying two distinct tempo markers.</para>
     /// </summary>
     private static void EnsureSubpiecePath(
         CanonPiece root,
         IReadOnlyList<string> path,
         string? musicNumberForLeaf,
+        IReadOnlyList<string>? temposForLeaf,
         Counters counters)
     {
         var current = root;
         for (int i = 0; i < path.Count; i++)
         {
             var segment = path[i];
+            var isLeaf = i == path.Count - 1;
             // Leaf number applies only to the final segment of the path.
-            var parsedNumber = i == path.Count - 1 ? musicNumberForLeaf : null;
+            var parsedNumber = isLeaf ? musicNumberForLeaf : null;
 
             current.Subpieces ??= new List<CanonPiece>();
             var existing = FindMatchingSubpiece(current.Subpieces, segment, parsedNumber);
@@ -575,10 +582,30 @@ public static class ItunesImporter
                 if (string.IsNullOrEmpty(existing.Title) && !string.IsNullOrWhiteSpace(segment))
                     existing.Title = segment;
                 // Also fill in a missing music number when iTunes provided one.
-                if (i == path.Count - 1 &&
+                if (isLeaf &&
                     !string.IsNullOrEmpty(parsedNumber) &&
                     string.IsNullOrEmpty(existing.MusicNumber))
                     existing.MusicNumber = parsedNumber;
+            }
+
+            // At the leaf: when a multi-tempo group was parsed, populate the
+            // subpiece's Markers list with one Tempo marker per tempo. Only
+            // happens when the subpiece doesn't already carry markers — an
+            // existing canon entry with its own (possibly user-curated) markers
+            // is left alone.
+            if (isLeaf && temposForLeaf is { Count: > 1 } &&
+                (existing.Markers is null || existing.Markers.Count == 0))
+            {
+                existing.Markers = new List<MusicalMarker>(temposForLeaf.Count);
+                for (int j = 0; j < temposForLeaf.Count; j++)
+                {
+                    existing.Markers.Add(new MusicalMarker
+                    {
+                        Kind   = MarkerKind.Tempo,
+                        Value  = temposForLeaf[j],
+                        Number = j + 1,
+                    });
+                }
             }
 
             current = existing;

@@ -130,7 +130,15 @@ public static class ItunesImportInference
 
     /// <param name="MusicNumber">e.g. "1", "2b", "02c" — applies to the leaf (last) path component.</param>
     /// <param name="Path">Ordered list of subpiece titles from outermost down to leaf.</param>
-    public record ParsedSubpieceRef(string? MusicNumber, IReadOnlyList<string> Path);
+    /// <param name="Tempos">When set (count &gt; 1), the leaf subpiece is a multi-tempo
+    ///   movement — each entry is one tempo description in order. The leaf path
+    ///   component is the joined tempi (e.g. <c>"Lento - Allegro agitato"</c>).
+    ///   Null or single-element means a regular single-tempo subpiece (the
+    ///   leaf's title is its only tempo, conventionally implicit).</param>
+    public record ParsedSubpieceRef(
+        string? MusicNumber,
+        IReadOnlyList<string> Path,
+        IReadOnlyList<string>? Tempos = null);
 
     public record ParsedTrackName(string PieceTitle, IReadOnlyList<ParsedSubpieceRef> SubpieceRefs);
 
@@ -154,6 +162,19 @@ public static class ItunesImportInference
     ///   <item>SubpieceRefs[0] = (MusicNumber="2b", Path=["Dies irae","Tuba mirum"])</item>
     ///   <item>SubpieceRefs[1] = (MusicNumber="02c", Path=["Dies irae","Mors stupebit"])
     ///         — parent "Dies irae" inherited from previous</item>
+    /// </list>
+    ///
+    /// <para><b>Tempo continuation:</b> when an unnumbered segment follows a
+    /// numbered single-component segment, it's treated as an additional tempo
+    /// of the same movement rather than a sibling. The leaf path component
+    /// becomes the joined tempi (matching the canon convention for
+    /// multi-tempo movements like Chopin's "Winter Wind").</para>
+    ///
+    /// <para>Example: <c>"Symphony #11 in B-flat, Op. 34 - 1. Lento - Allegro agitato"</c></para>
+    /// <list type="bullet">
+    ///   <item>PieceTitle = "Symphony #11 in B-flat, Op. 34"</item>
+    ///   <item>SubpieceRefs[0] = (MusicNumber="1", Path=["Lento - Allegro agitato"],
+    ///         Tempos=["Lento","Allegro agitato"])</item>
     /// </list>
     ///
     /// <para><b>Known limitation:</b> the <c>. </c> split is naive — a path component containing
@@ -188,6 +209,30 @@ public static class ItunesImportInference
                 .Select(s => s.Trim())
                 .Where(s => s.Length > 0)
                 .ToList();
+
+            // Tempo continuation: an unnumbered single-component segment
+            // following a numbered single-component movement gets folded into
+            // the previous ref as an additional tempo, rather than becoming a
+            // sibling. Matches the iTunes convention
+            //   "Piece - 1. Lento - Allegro agitato"
+            // describing ONE movement (#1) with two consecutive tempi.
+            if (musicNumber is null && components.Count == 1 &&
+                refs.Count > 0 && refs[^1].MusicNumber is not null &&
+                refs[^1].Path.Count == 1)
+            {
+                var prev = refs[^1];
+                // Seed Tempos with the previous leaf's title when this is the
+                // first continuation; subsequent ones append.
+                var existing = prev.Tempos is { Count: > 0 }
+                    ? new List<string>(prev.Tempos)
+                    : new List<string> { prev.Path[0] };
+                existing.Add(components[0]);
+                var joined = string.Join(" - ", existing);
+                var newPath = new List<string> { joined };
+                refs[^1] = new ParsedSubpieceRef(prev.MusicNumber, newPath, existing);
+                previousPath = newPath;
+                continue;
+            }
 
             IReadOnlyList<string> path;
             if (components.Count == 1 && previousPath is { Count: >= 1 })

@@ -278,6 +278,55 @@ public class ItunesImporterTests
     }
 
     /// <summary>
+    /// End-to-end: an iTunes track like
+    /// <c>"Symphony #11 in B-flat, Op. 34 - 1. Lento - Allegro agitato"</c>
+    /// should produce ONE subpiece (movement #1) with TWO tempo markers,
+    /// not two sibling subpieces. The leaf subpiece's Title is the joined
+    /// tempi (matching the canon convention) and its Markers list carries
+    /// the two tempi as numbered Tempo entries.
+    /// </summary>
+    [Fact]
+    public void MultiTempoMovement_ImportsAsSingleSubpieceWithTempoMarkers()
+    {
+        var tracks = new[]
+        {
+            Track(1,
+                  "Symphony #11 in B-flat, Op. 34 - 1. Lento - Allegro agitato",
+                  album: "Test",
+                  trackNumber: 1,
+                  composer: "Beethoven, Ludwig van (1770-1827)"),
+        };
+        var composers = new List<CanonComposer>();
+        var pieces    = new List<CanonPiece>();
+
+        var result = ItunesImporter.Import(tracks, composers, pieces);
+
+        var piece = Assert.Single(pieces);
+        Assert.Equal("Symphony #11 in B-flat, Op. 34", piece.Title);
+
+        var sub = Assert.Single(piece.Subpieces!);
+        Assert.Equal("Lento - Allegro agitato", sub.Title);
+        Assert.Equal("1", sub.MusicNumber);
+
+        // Two Tempo markers, numbered 1 and 2, in order.
+        Assert.NotNull(sub.Markers);
+        Assert.Equal(2, sub.Markers!.Count);
+        Assert.Equal(MarkerKind.Tempo, sub.Markers[0].Kind);
+        Assert.Equal("Lento",          sub.Markers[0].Value);
+        Assert.Equal(1,                sub.Markers[0].Number);
+        Assert.Equal(MarkerKind.Tempo, sub.Markers[1].Kind);
+        Assert.Equal("Allegro agitato", sub.Markers[1].Value);
+        Assert.Equal(2,                sub.Markers[1].Number);
+
+        // The track gets ONE piece-ref pointing at the multi-tempo movement,
+        // not two refs pointing at two separate movements.
+        var album = Assert.Single(result.NewAlbums);
+        var albumTrack = album.Discs[0].Tracks[0];
+        var pieceRef = Assert.Single(albumTrack.PieceRefs!);
+        Assert.Equal(new[] { "Lento - Allegro agitato" }, pieceRef.SubpiecePath);
+    }
+
+    /// <summary>
     /// Existing simple composer fields still parse — no contributors, no
     /// Composers list on the resulting piece. Regression guard for the
     /// pre-existing parse path.
