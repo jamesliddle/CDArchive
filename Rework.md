@@ -18,10 +18,9 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **H21 architectural remainder: retire `SessionIndex` once consumers all use SessionId.** **Slice 3 landed [2026-05-28]** via `rework/session-stable-id-3` — `SessionIndexMapping.RemapTracksAfterSessionRemoval` is stable-Id-aware; tracks carrying `SessionId` get re-anchored by Id (resilient to reorders), tracks without one fall back to positional. Slice 2 [2026-05-28]: `TrackEditorViewModel` writes both `track.SessionId` and `track.SessionIndex` on save. Slice 1 [2026-05-28]: stable-Id reference exists on model + JSON + save path. **Next slices**: (a) audit other readers (`ItunesImporter` resolves track-piece-refs but doesn't currently set SessionId; the SeedDb `--export` flow already writes SessionId via the model). (b) Once all paths are migrated and a migration window has passed in the user's data, retire `AlbumTrack.SessionIndex` from the model + JSON + SQLite schema entirely. (H21 remainder)
-2. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
-3. **Numeric-order-within-severity protocol applies.** With Top-5 #1-#2 covering the highest-impact remaining items, the next tier is purely numeric-within-severity. Currently 3 High findings remain (H1 SqliteCanonDataService split, H2 CanonView extraction, H21 remainder). Pick whichever has the tightest scope + clearest fix when continuing. (protocol default)
-4. *(Top-5 reduced to 3 — the H13/H36/M5 retirement arc closed out enough items that the natural cutoff is 3. Promote a Medium item when the next slice picks something tactical.)*
+1. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
+2. **Numeric-order-within-severity protocol applies.** With H21 retired, the High section is down to 2 findings (H1 SqliteCanonDataService split, H2 CanonView extraction) — both are large structural refactors. Pick whichever has the tightest scope + clearest fix when continuing. (protocol default)
+3. *(Top-5 reduced to 2 — the H13/H36/M5/H21 retirement arc closed out enough items that the natural cutoff is 2. Promote a Medium item when the next slice picks something tactical.)*
 
 The next tier (after those five) is the structural work: extract `AlbumEditorViewModel` and `PieceEditorViewModel`, split `SqliteCanonDataService`, dedupe the `SimpleDbContextFactory` boilerplate. Higher-effort; cap the ceiling on how fast future features land.
 
@@ -59,11 +58,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 3 |
+| 🟠 High | 2 |
 | 🟡 Medium | 79 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **174** |
+| **Total** | **173** |
 
 ---
 
@@ -78,30 +77,6 @@ One file owns: schema migrations, load operations for 5 subsystems, save operati
 
 ### H2. `CanonView.xaml.cs` is 1,436 lines of code-behind doing VM/service work
 Owns: sort state, context-menu state, expansion state across 3 tree levels, the tree-rebuild orchestrator, provisional filter routing, suppression flags. Approve/Reject handlers reach into the VM, mutate observable collections, call `SaveAllAsync`, overwrite status messages. CLAUDE.md flags one symptom of this; the file is full of similar foot-guns. Extract expansion state → service, sort/filter UI state → into VM, Approve/Reject handlers → VM RelayCommands via `CommandParameter`.
-
-### H21. `AlbumTrack.SessionIndex` stores a position, not an ID — latent data corruption on session reorder
-[TrackEditorWindow.xaml.cs:457](src/CDArchive.App/Views/TrackEditorWindow.xaml.cs:457):
-```csharp
-target.SessionIndex = SessionBox.SelectedIndex < 0 ? null : SessionBox.SelectedIndex;
-```
-The track's session reference is an `int?` position into `CanonAlbum.Sessions`. If the user reorders or deletes sessions in `AlbumEditorWindow`'s Sessions tab, every `SessionIndex` on the album's tracks now points at the wrong session — silently. CLAUDE.md describes it as "FK into the parent album's sessions" but it's actually positional. This is a model-level design issue surfaced by the editor.
-
-**Status: bug class fixed [2026-05-24] via `rework/sessionindex-defensive-remap`** — `SessionIndexMapping.RemapTracksAfterSessionRemoval` re-anchors every track's positional index when a session is removed (tracks at the removed slot → null; tracks at later slots → decrement by 1). Wired into `AlbumEditorWindow.OnRemoveSession`. The active corruption case no longer exists.
-
-**Remaining**: the architectural cleanup. Give `RecordingSession` a stable `Id` (or string `Key`) and store that on tracks instead of an index, so the model stops carrying positional FKs entirely. Migration: every existing `AlbumTrack.SessionIndex` value needs translating to the new key on first load. JSON snapshot format gains a `session_id` field; SQLite schema gains a corresponding column; the seeder + save path + editor + `SessionIndexMapping` all switch. Multi-PR work; lower priority now that the bug class is gone.
-
-**Slice 3 landed [2026-05-28]** via `rework/session-stable-id-3` — `SessionIndexMapping.RemapTracksAfterSessionRemoval` is now stable-Id-aware. The helper signature gained a third parameter (the album's sessions list at the moment of the call) so the stable-Id path can compute the removed session's Id and look up surviving sessions by Id. Tracks carrying `SessionId` are re-anchored by Id (resilient to arbitrary reorder); tracks without one (pre-H21 snapshots, freshly-added sessions with Id=0) route through the unchanged positional fallback. Headline behaviour change: a track pointing at a SURVIVING session via stable Id keeps its `SessionId` unchanged and only updates `SessionIndex` to the new position. Orphan SessionId references (track points at a session not in the list — data corruption / stale ref) now clear both fields. The AlbumEditorWindow's `OnRemoveSession` caller passes `_vm.Sessions.ToList()`. 7 new tests covering the stable-Id path. Existing positional-only tests updated to pass a synthetic Id=0 sessions list. Total: 995 tests (608 Core + 387 App).
-
-**Slice 2 landed [2026-05-28]** via `rework/session-stable-id-2` — TrackEditor's VM now writes `track.SessionId` on save (alongside `track.SessionIndex`), so the user's session pick sticks to a stable identity rather than a position that can shift. Slice 1's SQLite save path was already preferring SessionId; this slice closes the loop on the producer side so the hand-off is correct end-to-end. **Changes**: `TrackEditorViewModel` now holds an `IList<RecordingSession>? _sessions` reference attached via load methods (LoadSingle, LoadNew, LoadMulti) + new `ResolveSessionId(position)` / `IndexOfSessionId(id)` helpers. `LoadSingle` and `LoadMulti` prefer `track.SessionId` over `track.SessionIndex` to pick the combo position — a track loaded after a session reorder still highlights the right session. `LoadMulti` now treats tracks sharing a stable SessionId but with stale-positional SessionIndex values as Unanimous (was Mixed). `ApplyToTrack`, `SaveLoose`, and `SaveMulti`'s Session branch all write both `track.SessionId` (resolved via `_sessions[i].Id`) AND `track.SessionIndex` (the position). Loose tracks explicitly clear both. The View's `LoadTrack` and `PopulateMultiFields` pass `_sessions` through to the VM; LoadTrack reads `_vm.Session.Value` for the combo position instead of `track.SessionIndex`. 11 new tests in `TrackEditorViewModelSessionStableIdTests` covering load prefers SessionId, load falls back to SessionIndex when SessionId is null or unknown, save writes both fields, the reorder regression (track loaded with SessionId 200, sessions reversed, save still writes SessionId 200), multi-edit writes to all tracks, multi-edit with shared-Id-but-stale-Index loads Unanimous. Total: 987 tests (600 Core + 387 App).
-
-**Slice 1 landed [2026-05-28]** via `rework/session-stable-id-1` — the stable-Id reference now exists on the model + JSON + save path **alongside** the legacy positional index (non-breaking parallel data):
-- `RecordingSession.Id` (long) — populated from `AlbumSessionRow.Id` on load; round-trips through JSON via `session_id` (omitted when 0).
-- `AlbumTrack.SessionId` (long?) — populated from `AlbumTrackRow.SessionId` on load alongside the existing `SessionIndex` translation; round-trips through JSON via `session_id` (omitted when null).
-- Save path: new `ResolveSessionRow` helper picks the right `AlbumSessionRow` for a track — stable `SessionId` first (via per-album `Dictionary<long, AlbumSessionRow>`), legacy positional `SessionIndex` as fallback. Applies to both `MergeTracks` (load-mutate-save path) and `MapAlbumModelToRow` (fresh-insert path).
-- 5 new tests in `SessionStableIdTests` cover: load populates both fields, round-trip preserves stable Ids, save prefers SessionId when both set, falls back to SessionIndex for pre-H21 snapshots, falls back to SessionIndex for freshly-added in-memory sessions (Id=0).
-
-**Slice 1 deliberately stops here** — no consumers were switched yet. Pre-H21 readers (the editor's session combobox, multi-edit Mixed sentinel positioning, the `SessionIndexMapping` helper) still read `SessionIndex`, so the legacy field has to stay populated. Future slices: (a) switch the AlbumEditor's session combo + `TrackEditorViewModel.Session` to prefer SessionId; (b) switch `SessionIndexMapping` to read SessionId directly (and rename); (c) once all readers are migrated, retire `SessionIndex` from the model + JSON + SQLite. Each is a separate small PR.
-
 
 ---
 
@@ -770,6 +745,23 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H21. AlbumTrack.SessionIndex stores a position, not an ID — H21 retired
+[2026-05-29] `rework/retire-session-index` — 🎉 closes the H21 architectural arc that began with slice 1 [2026-05-28]. After slices 1-3 made the model + JSON + SQLite + VM all stable-Id-aware, this retirement PR drops `AlbumTrack.SessionIndex` from the persistence surface entirely.
+
+**What was retired**:
+- `AlbumTrack.SessionIndex` JSON serialization (the `[JsonPropertyName("session_index")]` attribute is gone; `[JsonIgnore]` replaces it). Existing JSON snapshots' `session_index` keys are silently ignored on deserialization.
+- `SqliteCanonDataService.LoadAlbumsAsync`: the load path no longer populates `track.SessionIndex` from the positional-by-id translation. Only `SessionId` is hydrated.
+- `SqliteCanonDataService.LoadLooseTracksAsync`: the redundant `SessionIndex = null` assignment retired (no field to clear when it's never populated).
+- All `session_index` entries removed from `data/Classical Canon albums.json` by re-running the seeder's `--export`.
+
+**What stays as a transient in-memory handle**:
+- `AlbumTrack.SessionIndex` still exists as a public `int?` property on the model. It's the documented fallback channel for the in-editor flow where a user adds a brand-new `RecordingSession` (Id=0, not yet allocated by SQLite) and assigns it to a track in the same edit. The TrackEditor VM writes the positional handle alongside `SessionId=null`; the save path's `ResolveSessionRow` consults `sessionMap` (positional) only when `sessionMapById` (stable-Id) fails. Once the save flushes and the row gets an Id, the next load populates `SessionId` and the transient handle becomes irrelevant.
+- `CanonDbSeeder` keeps a `sessionByIndex` positional fallback alongside the new `sessionById` map — defensive cover for any historical pre-H21 JSON that might still carry `session_index` only.
+
+**Test updates**: 2 tests in `SessionStableIdTests` updated to reflect that the load path no longer hydrates `SessionIndex` (`Load_PopulatesSessionIdOnRecordingSessionAndOnTrack` asserts SessionIndex stays null; `Save_FallsBackToSessionIndex_WhenSessionIdNotSet` asserts the post-reload state). All 1030 tests pass (643 Core + 387 App). Counts: High 3→2, Total 174→173.
+
+**Action item for the user**: smoke-test (1) load an album that previously held tracks with `SessionId` set — sessions still associated correctly; (2) in the AlbumEditor, click Add Session, then in the TrackEditor pick the new session for a track, then OK both → save succeeds, re-open the album, the track still points at the newly-added session.
 
 ### M5. iTunes import: no album dedup on re-import — M5 retired
 [2026-05-28] `rework/itunes-album-dedup` — `ItunesImporter.Import` gained an `existingAlbums` parameter and now dedups iTunes album groups against the existing canon. The dedup key matches H24's "already imported" filter shape: `(album-title.Trim().ToLowerInvariant(), PerformerNormalisation.NormalisePerformer(AlbumArtist ?? Artist))`. Re-importing the same data now merges new tracks into the matching existing album instead of building a parallel duplicate.

@@ -80,9 +80,11 @@ public class SessionStableIdTests
         Assert.Equal(album.Sessions[0].Id, tracks[0].SessionId);
         Assert.Equal(album.Sessions[1].Id, tracks[1].SessionId);
 
-        // SessionIndex still populated (backward-compat dual write).
-        Assert.Equal(0, tracks[0].SessionIndex);
-        Assert.Equal(1, tracks[1].SessionIndex);
+        // SessionIndex is no longer populated by the load path — the model's
+        // SessionIndex field is now a transient in-memory handle for the
+        // in-editor unsaved-session case only.
+        Assert.Null(tracks[0].SessionIndex);
+        Assert.Null(tracks[1].SessionIndex);
     }
 
     [Fact]
@@ -167,7 +169,10 @@ public class SessionStableIdTests
         var loaded = (await svc.LoadAlbumsAsync()).Single();
         var track  = loaded.Discs[0].Tracks[0];
 
-        Assert.Equal(1, track.SessionIndex);
+        // Pre-H21 input → SessionIndex resolved on save → reload populates
+        // SessionId (the canonical post-H21 reference). SessionIndex is not
+        // populated by load anymore.
+        Assert.Null(track.SessionIndex);
         Assert.Equal(loaded.Sessions![1].Id, track.SessionId);
     }
 

@@ -5,9 +5,7 @@ namespace CDArchive.Core.Models;
 /// <summary>
 /// One recording session contributing to an album.
 /// Defined at album level; individual tracks reference a session via
-/// <see cref="AlbumTrack.SessionId"/> (stable identity) — or via the legacy
-/// positional <see cref="AlbumTrack.SessionIndex"/> for snapshots that
-/// pre-date H21's stable-Id introduction.
+/// <see cref="AlbumTrack.SessionId"/> (stable identity).
 /// Most albums have exactly one session (no track-level reference needed).
 /// </summary>
 public class RecordingSession

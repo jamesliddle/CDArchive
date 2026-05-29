@@ -570,8 +570,12 @@ public class CanonDbSeeder
             }
 
             // ── Sessions ─────────────────────────────────────────────────────
-            // Build index-keyed map since tracks reference sessions by zero-based index.
+            // H21: tracks reference sessions by stable Id (RecordingSession.Id ↔
+            // AlbumTrack.SessionId). Build a by-Id map for the track wire-up
+            // below; a per-position map remains as a fallback for pre-H21 JSON
+            // snapshots that still carry the legacy positional SessionIndex.
             var sessionByIndex = new Dictionary<int, AlbumSessionRow>();
+            var sessionById    = new Dictionary<long, AlbumSessionRow>();
             if (album.Sessions is { Count: > 0 })
             {
                 for (int i = 0; i < album.Sessions.Count; i++)
@@ -589,6 +593,7 @@ public class CanonDbSeeder
                     };
                     albumRow.Sessions.Add(sr);
                     sessionByIndex[i] = sr;
+                    if (s.Id != 0) sessionById[s.Id] = sr;
                 }
             }
 
@@ -620,7 +625,11 @@ public class CanonDbSeeder
                         // Rework H42: preserve JSON IsProvisional. See SeedComposers.
                         IsProvisional = track.IsProvisional,
                     };
-                    if (track.SessionIndex is int si && sessionByIndex.TryGetValue(si, out var sessRow))
+                    // H21: prefer the stable SessionId; fall back to positional
+                    // SessionIndex only for pre-H21 JSON snapshots.
+                    if (track.SessionId is long sid && sessionById.TryGetValue(sid, out var sessRowById))
+                        trackRow.Session = sessRowById;
+                    else if (track.SessionIndex is int si && sessionByIndex.TryGetValue(si, out var sessRow))
                         trackRow.Session = sessRow;
 
                     // Track-level performers need both album_id (required FK) and track_id.

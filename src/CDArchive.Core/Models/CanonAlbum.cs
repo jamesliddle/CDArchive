@@ -86,7 +86,7 @@ public class CanonAlbum
 
     /// <summary>
     /// Recording sessions.  Most albums have one entry that covers all tracks.
-    /// Tracks reference a session by index via <see cref="AlbumTrack.SessionIndex"/>.
+    /// Tracks reference a session by stable Id via <see cref="AlbumTrack.SessionId"/>.
     /// </summary>
     [JsonPropertyName("sessions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -236,29 +236,27 @@ public class AlbumTrack
     /// <summary>
     /// Stable identity reference to a <see cref="RecordingSession"/> on the
     /// parent album (matches <see cref="RecordingSession.Id"/>). Survives
-    /// session reorders and list mutations — the H21 architectural fix
-    /// (introduced 2026-05-27 alongside the legacy positional
-    /// <see cref="SessionIndex"/>). null = no session.
-    /// <para>Load priority: when both <see cref="SessionId"/> and
-    /// <see cref="SessionIndex"/> are present, <see cref="SessionId"/>
-    /// wins. The save path populates both for forward + backward
-    /// compatibility during the H21 transition; future slices retire
-    /// <see cref="SessionIndex"/> entirely.</para>
+    /// session reorders and list mutations — the H21 architectural fix.
+    /// null = no session.
     /// </summary>
     [JsonPropertyName("session_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? SessionId { get; set; }
 
     /// <summary>
-    /// LEGACY (H21): zero-based index into <see cref="CanonAlbum.Sessions"/>.
-    /// Pre-H21 this was the only session reference; now it co-exists with
-    /// <see cref="SessionId"/> for backward compatibility. Producers (Save
-    /// paths) populate both; consumers should prefer <see cref="SessionId"/>
-    /// when set and fall back to <see cref="SessionIndex"/> for legacy
-    /// snapshots.
+    /// <b>Transient in-memory handle.</b> Zero-based index into
+    /// <see cref="CanonAlbum.Sessions"/>, populated only by the AlbumEditor
+    /// VM while a track is referencing a freshly-added session that hasn't
+    /// yet received a SQLite-allocated Id (so <see cref="SessionId"/> is null
+    /// during the in-flight save). The data service's save path consults this
+    /// as a fallback when <see cref="SessionId"/> doesn't resolve, then the
+    /// post-save reload backfills <see cref="SessionId"/> with the row's
+    /// assigned Id and this field stops mattering.
+    /// <para>NOT serialized to JSON. NOT populated by the load path. NOT a
+    /// persistent reference. Treat as an implementation detail of the
+    /// in-editor flow.</para>
     /// </summary>
-    [JsonPropertyName("session_index")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonIgnore]
     public int? SessionIndex { get; set; }
 
     /// <summary>

@@ -122,8 +122,25 @@
   },
   {
     "composer": "Aaatest, Aaron",
+    "composers": [
+      {
+        "name": "Zwillich, Ellen Taaffe",
+        "role": "arr."
+      }
+    ],
     "title": "Test Piece",
-    "is_provisional": true,
+    "subtitle": "Testiness",
+    "instrumentation": [
+      "Soprano",
+      {
+        "ensemble": "Orchestra",
+        "members": [
+          "Winds",
+          "Strings"
+        ]
+      }
+    ],
+    "is_provisional": false,
     "subpieces": [
       {
         "title": "Act I",
@@ -197,6 +214,51 @@
         "title": "Act II",
         "number": 2,
         "is_provisional": true
+      }
+    ],
+    "roles": [
+      {
+        "name": "Sadie",
+        "voice_type": "Soprano",
+        "description": "Heroine"
+      }
+    ]
+  },
+  {
+    "composer": "Aaatest, Aaron",
+    "form": "Piano Sonata",
+    "number": 2,
+    "key_tonality": "C♯",
+    "key_mode": "minor",
+    "catalog_info": [
+      {
+        "catalog": "Op.",
+        "catalog_number": "13"
+      }
+    ],
+    "instrumentation": [
+      "Piano"
+    ],
+    "instrumentation_category": "Piano",
+    "is_provisional": true,
+    "numbered_subpieces": false,
+    "composition_years": "c1893's revision",
+    "versions": [
+      {
+        "description": "Version for harpsichord",
+        "instrumentation": [
+          "Harpsichord"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "description": "Variant one",
+        "long_description": "Variant one description"
+      },
+      {
+        "description": "Variant two",
+        "long_description": "Variant two description"
       }
     ]
   },
@@ -3124,6 +3186,46 @@
   },
   {
     "composer": "Beethoven, Ludwig van",
+    "title": "Sonatina in G, Anh. 5 #1",
+    "is_provisional": true,
+    "subpieces": [
+      {
+        "title": "Moderato",
+        "is_provisional": true,
+        "music_number": "1"
+      },
+      {
+        "title": "Romanze",
+        "is_provisional": true,
+        "music_number": "2"
+      }
+    ]
+  },
+  {
+    "composer": "Beethoven, Ludwig van",
+    "title": "Sonatina in F, Anh. 5 #2",
+    "is_provisional": true,
+    "subpieces": [
+      {
+        "title": "Allegro assai",
+        "is_provisional": true,
+        "music_number": "1"
+      },
+      {
+        "title": "Rondo",
+        "is_provisional": true,
+        "subpieces": [
+          {
+            "title": "Allegro",
+            "is_provisional": true,
+            "music_number": "2"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "composer": "Beethoven, Ludwig van",
     "title": "Piano Sonata in E-flat, WoO 47 #1",
     "is_provisional": true,
     "subpieces": [
@@ -3209,46 +3311,6 @@
             "title": "Allegretto, ma non troppo",
             "is_provisional": true,
             "music_number": "3"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "composer": "Beethoven, Ludwig van",
-    "title": "Sonatina in G, Anh. 5 #1",
-    "is_provisional": true,
-    "subpieces": [
-      {
-        "title": "Moderato",
-        "is_provisional": true,
-        "music_number": "1"
-      },
-      {
-        "title": "Romanze",
-        "is_provisional": true,
-        "music_number": "2"
-      }
-    ]
-  },
-  {
-    "composer": "Beethoven, Ludwig van",
-    "title": "Sonatina in F, Anh. 5 #2",
-    "is_provisional": true,
-    "subpieces": [
-      {
-        "title": "Allegro assai",
-        "is_provisional": true,
-        "music_number": "1"
-      },
-      {
-        "title": "Rondo",
-        "is_provisional": true,
-        "subpieces": [
-          {
-            "title": "Allegro",
-            "is_provisional": true,
-            "music_number": "2"
           }
         ]
       }
@@ -5200,7 +5262,7 @@
             ]
           },
           {
-            "form": "Tema Con Variazioni",
+            "form": "Tema con Variazioni",
             "number": 2,
             "is_provisional": true,
             "markers": [
@@ -5920,8 +5982,10 @@
     "publication_year": 1824,
     "subpieces": [
       {
+        "title": "Allegro ma non troppo, un poco maestoso",
         "number": 1,
         "is_provisional": true,
+        "music_number": "1",
         "markers": [
           {
             "id": 169,
@@ -5932,8 +5996,10 @@
         ]
       },
       {
+        "title": "Molto vivace",
         "number": 2,
         "is_provisional": true,
+        "music_number": "2",
         "markers": [
           {
             "id": 170,
@@ -5962,8 +6028,10 @@
         ]
       },
       {
+        "title": "Adagio molto e cantabile",
         "number": 3,
         "is_provisional": true,
+        "music_number": "3",
         "markers": [
           {
             "id": 174,
@@ -6060,6 +6128,58 @@
             "kind": "Tempo",
             "value": "Prestissimo",
             "number": 9
+          }
+        ]
+      },
+      {
+        "title": "Presto",
+        "is_provisional": true,
+        "music_number": "4a"
+      },
+      {
+        "title": "Andante moderato",
+        "is_provisional": true
+      },
+      {
+        "title": "Tempo I",
+        "is_provisional": true
+      },
+      {
+        "title": "Adagio",
+        "is_provisional": true
+      },
+      {
+        "title": "Lo stesso tempo",
+        "is_provisional": true
+      },
+      {
+        "title": "Allegro assai",
+        "is_provisional": true,
+        "music_number": "4b"
+      },
+      {
+        "title": "Alla marcia",
+        "is_provisional": true,
+        "subpieces": [
+          {
+            "title": "Allegro assai vivace",
+            "is_provisional": true
+          },
+          {
+            "title": "Andante maestoso",
+            "is_provisional": true
+          },
+          {
+            "title": "Allegro energico, sempre ben marcato",
+            "is_provisional": true
+          },
+          {
+            "title": "Allegro ma non tanto",
+            "is_provisional": true
+          },
+          {
+            "title": "Prestissimo",
+            "is_provisional": true
           }
         ]
       }
@@ -12121,8 +12241,10 @@
     "publication_year": 1805,
     "subpieces": [
       {
+        "title": "Allegro moderato",
         "number": 1,
         "is_provisional": true,
+        "music_number": "1",
         "markers": [
           {
             "id": 462,
@@ -12133,8 +12255,10 @@
         ]
       },
       {
+        "title": "Andante con moto",
         "number": 2,
         "is_provisional": true,
+        "music_number": "2",
         "markers": [
           {
             "id": 463,
@@ -12154,6 +12278,17 @@
             "kind": "Tempo",
             "value": "Vivace",
             "number": 1
+          }
+        ]
+      },
+      {
+        "title": "Rondo",
+        "is_provisional": true,
+        "subpieces": [
+          {
+            "title": "Vivace",
+            "is_provisional": true,
+            "music_number": "3"
           }
         ]
       }
@@ -13753,8 +13888,10 @@
     "publication_year": 1809,
     "subpieces": [
       {
+        "title": "Allegro",
         "number": 1,
         "is_provisional": true,
+        "music_number": "1",
         "markers": [
           {
             "id": 501,
@@ -13765,8 +13902,10 @@
         ]
       },
       {
+        "title": "Adagio un poco moto",
         "number": 2,
         "is_provisional": true,
+        "music_number": "2",
         "markers": [
           {
             "id": 502,
@@ -13798,6 +13937,25 @@
             "kind": "Tempo",
             "value": "Più allegro",
             "number": 3
+          }
+        ]
+      },
+      {
+        "title": "Rondo",
+        "is_provisional": true,
+        "subpieces": [
+          {
+            "title": "Allegro, ma non troppo",
+            "is_provisional": true,
+            "music_number": "3"
+          },
+          {
+            "title": "Adagio",
+            "is_provisional": true
+          },
+          {
+            "title": "Più allegro",
+            "is_provisional": true
           }
         ]
       }
@@ -67544,6 +67702,63 @@
             "contribution_role": "orchestrated"
           }
         ]
+      }
+    ]
+  },
+  {
+    "composer": "Myaskovsky, Nikolai",
+    "title": "Symphony #5 in D, Op. 18",
+    "is_provisional": true,
+    "subpieces": [
+      {
+        "title": "Allegro amabile",
+        "is_provisional": true,
+        "music_number": "1"
+      },
+      {
+        "title": "Lento (quasi andante)",
+        "is_provisional": true,
+        "music_number": "2"
+      },
+      {
+        "title": "Allegro burlando",
+        "is_provisional": true,
+        "music_number": "3"
+      },
+      {
+        "title": "Allegro risoluto e con brio",
+        "is_provisional": true,
+        "music_number": "4"
+      }
+    ]
+  },
+  {
+    "composer": "Myaskovsky, Nikolai",
+    "title": "Symphony #11 in B-flat, Op. 34",
+    "is_provisional": true,
+    "subpieces": [
+      {
+        "title": "Lento",
+        "is_provisional": true,
+        "music_number": "1"
+      },
+      {
+        "title": "Allegro agitato",
+        "is_provisional": true
+      },
+      {
+        "title": "Andante",
+        "is_provisional": true,
+        "music_number": "2"
+      },
+      {
+        "title": "Precipitato",
+        "is_provisional": true,
+        "music_number": "3"
+      },
+      {
+        "title": "Allegro",
+        "is_provisional": true
       }
     ]
   },
