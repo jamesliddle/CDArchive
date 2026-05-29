@@ -41,7 +41,7 @@ public class MigrationSelfHealingTests : IDisposable
     private SqliteCanonDataService NewService()
     {
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={_dbPath}")
+            .UseSqlite($"Data Source={_dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(_tempDir);
@@ -127,7 +127,7 @@ public class MigrationSelfHealingTests : IDisposable
 
         // Run the cleanup directly (the helper is internal).
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={_dbPath}")
+            .UseSqlite($"Data Source={_dbPath};Foreign Keys=True")
             .Options;
         await using (var db = new CanonDbContext(options))
         {
@@ -159,7 +159,7 @@ public class MigrationSelfHealingTests : IDisposable
         // ApplySchemaUpgradesAsync). Run it explicitly a second time — it
         // should still find nothing and leave every table intact.
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={_dbPath}")
+            .UseSqlite($"Data Source={_dbPath};Foreign Keys=True")
             .Options;
         await using (var db = new CanonDbContext(options))
         {

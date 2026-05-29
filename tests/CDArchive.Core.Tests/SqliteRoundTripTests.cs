@@ -34,7 +34,7 @@ public class SqliteRoundTripTests
     {
         var dbPath = Path.Combine(dataDir, "ClassicalCanon.db");
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(dataDir);

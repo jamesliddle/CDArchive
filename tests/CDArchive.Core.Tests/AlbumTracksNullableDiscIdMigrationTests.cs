@@ -37,7 +37,7 @@ public class AlbumTracksNullableDiscIdMigrationTests : IDisposable
         _dbPath = Path.Combine(_tempDir, "ClassicalCanon.db");
 
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={_dbPath}")
+            .UseSqlite($"Data Source={_dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(_tempDir);
@@ -57,7 +57,7 @@ public class AlbumTracksNullableDiscIdMigrationTests : IDisposable
     private SqliteCanonDataService CreateFreshService()
     {
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={_dbPath}")
+            .UseSqlite($"Data Source={_dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(_tempDir);

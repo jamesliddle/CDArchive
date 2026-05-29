@@ -78,7 +78,15 @@ public static class ServiceCollectionExtensions
             var json    = sp.GetRequiredService<CanonDataService>();
             var dataDir = Path.GetDirectoryName(json.ComposersFilePath)!;
             var dbPath  = Path.Combine(dataDir, "ClassicalCanon.db");
-            options.UseSqlite($"Data Source={dbPath}");
+            // Foreign Keys=True enables SQLite's FK enforcement at the
+            // connection level. Without it, Microsoft.Data.Sqlite defaults
+            // FK enforcement to OFF — meaning every OnDelete(Restrict)
+            // configured in CanonDbContext (e.g. blocking a piece delete
+            // when album_track_piece_refs still point at it) silently
+            // succeeded at the DB level, leaving orphaned rows. The
+            // try/catch around the orphan delete in SavePiecesCoreAsync
+            // never fired because SaveChangesAsync never threw.
+            options.UseSqlite($"Data Source={dbPath};Foreign Keys=True");
         });
         services.AddSingleton<ICanonDataService, SqliteCanonDataService>();
         services.AddSingleton<PieceReferenceIndex>();

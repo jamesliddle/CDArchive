@@ -27,7 +27,7 @@ public class SessionStableIdTests
         dbPath = Path.Combine(Path.GetTempPath(),
             $"cdarchive_session_stableid_{Guid.NewGuid():N}.db");
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         factory = new SimpleDbContextFactory(options);
         var json = new CanonDataService(Path.GetTempPath());

@@ -21,7 +21,7 @@ public class AlbumTrackIsStereoTests
         dbPath = Path.Combine(Path.GetTempPath(),
             $"cdarchive_track_stereo_{Guid.NewGuid():N}.db");
         var options = new DbContextOptionsBuilder<CanonDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
+            .UseSqlite($"Data Source={dbPath};Foreign Keys=True")
             .Options;
         var factory = new SimpleDbContextFactory(options);
         var json    = new CanonDataService(Path.GetTempPath());
