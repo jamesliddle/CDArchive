@@ -256,7 +256,11 @@ public partial class TrackEditorWindow : Window
         // Slice 3: the Session combo also loads through LoadMulti — pass
         // hasSharedSessions so the VM can model the "(multiple albums)"
         // disabled-state via IsMixed=true.
-        _vm.LoadMulti(tracks, MixedPlaceholder.PlaceholderText, hasSharedSessions);
+        // H21 slice 2: pass _sessions when the selection IS within a single
+        // album (hasSharedSessions). Across-album selections leave the list
+        // null — save skips the Session write anyway via the IsMixed contract.
+        _vm.LoadMulti(tracks, MixedPlaceholder.PlaceholderText, hasSharedSessions,
+                      hasSharedSessions ? _sessions : null);
         if (_vm.TrackNumber.IsMixed) MixedPlaceholder.Apply(TrackNumberBox);
         if (_vm.Duration.IsMixed)    MixedPlaceholder.Apply(DurationBox);
         if (_vm.Description.IsMixed) MixedPlaceholder.Apply(DescriptionBox);
@@ -431,7 +435,9 @@ public partial class TrackEditorWindow : Window
         if (IsAddingNew)
         {
             // New-track mode: defaults only (no source track exists yet).
-            _vm.LoadNew(_disc!);
+            // H21 slice 2: pass _sessions so a user-picked session on the new
+            // track translates to a stable SessionId on save.
+            _vm.LoadNew(_disc!, _sessions);
             sessionIndexForCombo = null;
         }
         else
@@ -443,9 +449,15 @@ public partial class TrackEditorWindow : Window
             // Slice 4: PieceRefs + Performers also (LoadSingle populates the
             // MixedCollection<T> Items; the ListView ItemsSource binding
             // re-renders automatically).
-            _vm.LoadSingle(track);
+            // H21 slice 2: pass _sessions so the VM can resolve stable
+            // SessionId for save, and so it prefers SessionId over the legacy
+            // positional SessionIndex when picking the combo position on load.
+            _vm.LoadSingle(track, _sessions);
 
-            sessionIndexForCombo = track.SessionIndex;
+            // H21 slice 2: pull the resolved position from the VM (which
+            // already prefers SessionId), not from the legacy positional
+            // SessionIndex on the model.
+            sessionIndexForCombo = _vm.Session.Value;
         }
 
         // H13 TrackEditor slice 2: SparsCode + IsStereo also load through
