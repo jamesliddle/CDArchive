@@ -848,8 +848,9 @@ public partial class CanonView : UserControl
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        // Snapshot the catalog-prefix preference before the dialog so we can
-        // detect order changes and reapply them to the composer's pieces.
+        // Snapshot the name + catalog-prefix preference before the dialog so
+        // we can detect changes after the edit dialog returns.
+        var nameBefore     = composer.Name;
         var prefixesBefore = composer.CatalogPrefixes?.ToList() ?? [];
 
         var window = new ComposerEditorWindow(vm.PickLists, composer)
@@ -858,6 +859,23 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) != true) return;
+
+        // Propagate any composer-name rename to every in-memory piece +
+        // contributor credit + album/loose-track piece-ref before the tree
+        // rebuild below — otherwise the UI groups pieces by the OLD name
+        // and the renamed composer would display as having no pieces until
+        // the next app restart loads everything fresh from SQLite.
+        if (!string.Equals(composer.Name, nameBefore, StringComparison.Ordinal))
+        {
+            var albumsVmForRename = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+            var tracksVmForRename = App.ServiceProvider.GetRequiredService<TracksViewModel>();
+            ComposerRenamePropagator.Propagate(
+                nameBefore,
+                composer.Name,
+                vm.Pieces,
+                albumsVmForRename.HasLoaded ? albumsVmForRename.AllAlbums : null,
+                tracksVmForRename.HasLoaded ? tracksVmForRename.LooseTracks : null);
+        }
 
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
