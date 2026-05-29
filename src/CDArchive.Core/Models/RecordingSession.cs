@@ -4,12 +4,26 @@ namespace CDArchive.Core.Models;
 
 /// <summary>
 /// One recording session contributing to an album.
-/// Defined at album level; individual tracks reference a session by its zero-based
-/// index in <see cref="CanonAlbum.Sessions"/> via <see cref="AlbumTrack.SessionIndex"/>.
-/// Most albums have exactly one session (no track-level index needed).
+/// Defined at album level; individual tracks reference a session via
+/// <see cref="AlbumTrack.SessionId"/> (stable identity) — or via the legacy
+/// positional <see cref="AlbumTrack.SessionIndex"/> for snapshots that
+/// pre-date H21's stable-Id introduction.
+/// Most albums have exactly one session (no track-level reference needed).
 /// </summary>
 public class RecordingSession
 {
+    /// <summary>
+    /// Stable identity, allocated by SQLite on first save and persisted in
+    /// JSON snapshots thereafter. 0 means "not yet assigned" (a newly-added
+    /// in-memory session before its first save). The Id stays valid across
+    /// session reorders, list mutations, and round-trips — replacing the
+    /// pre-H21 positional reference. See <see cref="AlbumTrack.SessionId"/>.
+    /// </summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Id { get; set; }
+
+
     /// <summary>
     /// Freeform date string, e.g. "March 3–7, 1967", "1955", "c.1963", "June 1981".
     /// </summary>
