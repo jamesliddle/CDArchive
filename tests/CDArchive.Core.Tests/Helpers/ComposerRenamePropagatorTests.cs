@@ -95,8 +95,8 @@ public class ComposerRenamePropagatorTests
         Assert.Equal(4, updated);
         Assert.Equal("Y", pieces[0].Composer);
         Assert.Equal("Y", pieces[0].Subpieces![0].Composer);
-        Assert.Equal("Y", pieces[0].Subpieces[0].Subpieces![0].Composer);
-        Assert.Equal("Y", pieces[0].Subpieces[1].Composer);
+        Assert.Equal("Y", pieces[0].Subpieces![0].Subpieces![0].Composer);
+        Assert.Equal("Y", pieces[0].Subpieces![1].Composer);
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class ComposerRenamePropagatorTests
 
         Assert.Equal(2, updated);
         Assert.Equal("Y", albums[0].Discs[0].Tracks[0].PieceRefs![0].Composer);
-        Assert.Equal("Other", albums[0].Discs[0].Tracks[0].PieceRefs[1].Composer);
+        Assert.Equal("Other", albums[0].Discs[0].Tracks[0].PieceRefs![1].Composer);
         Assert.Equal("Y", albums[0].Discs[0].Tracks[1].PieceRefs![0].Composer);
     }
 
