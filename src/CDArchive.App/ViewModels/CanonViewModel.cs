@@ -500,10 +500,38 @@ public partial class CanonViewModel : ObservableObject
                 $"Delete composer \"{name}\"?\n\nThis cannot be undone.",
                 "Delete Composer")) return;
 
+        // Snapshot for in-memory rollback if SQLite refuses the delete
+        // (composer still owns pieces — pieces.composer_id is FK Restrict).
+        // Pre-fix the InvalidOperationException SaveComposersCoreAsync throws
+        // propagated past this async RelayCommand and crashed the dispatcher.
+        var indexBefore = Composers.IndexOf(composer);
+        var selectedBefore = SelectedComposer;
+
         Composers.Remove(composer);
         if (ReferenceEquals(SelectedComposer, composer)) SelectedComposer = null;
         DataMutated?.Invoke();
-        await _canonDataService.SaveComposersAsync(Composers.ToList());
+        try
+        {
+            await _canonDataService.SaveComposersAsync(Composers.ToList());
+        }
+        catch (InvalidOperationException ex)
+        {
+            // SQLite's FK Restrict blocked the delete — composer still owns
+            // pieces in the canon. Restore the in-memory state so the UI
+            // matches DB reality, and surface the message via the dialog
+            // service. The user is expected to use Reject Composer (which
+            // cascades through pieces + album refs) for non-orphan composers.
+            if (indexBefore >= 0)
+                Composers.Insert(Math.Min(indexBefore, Composers.Count), composer);
+            else
+                Composers.Add(composer);
+            SelectedComposer = selectedBefore;
+            DataMutated?.Invoke();
+
+            _dialogs.ShowError(ex.Message, "Cannot delete composer");
+            StatusMessage = $"Delete cancelled: {name} still owns pieces.";
+            return;
+        }
         StatusMessage = $"Deleted {name}.";
     }
 
