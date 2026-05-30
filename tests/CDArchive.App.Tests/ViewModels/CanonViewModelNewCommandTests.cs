@@ -91,23 +91,76 @@ public class CanonViewModelNewCommandTests
     [Fact]
     public async Task NewComposerCommand_SaveThrows_RollsBack_ShowsError_DoesNotCrash()
     {
-        // Mirror of DeleteComposerCommand's FK-Restrict rollback test. Live
-        // failure mode for NewComposer: a UNIQUE-constraint violation on
-        // Name (the user typed an existing composer's exact name).
+        // Generic save-throws rollback contract — mirror of
+        // DeleteComposerCommand's FK-Restrict rollback test. Live failure
+        // modes for NewComposer at the SQLite layer: disk full, lock
+        // contention, schema-migration mid-flight, etc. The duplicate-Name
+        // case is now handled by a pre-save check (see DuplicateName tests
+        // below) and never reaches the save path.
         var vm = Build(out var dialogs, out var svc);
-        var composer = new CanonComposer { Name = "Duplicate", SortName = "Duplicate" };
+        var composer = new CanonComposer { Name = "UniqueName", SortName = "UniqueName" };
 
         svc.SaveComposersAsync(Arg.Any<List<CanonComposer>>())
-            .Returns<Task>(_ => throw new InvalidOperationException(
-                "Composer name 'Duplicate' already exists."));
+            .Returns<Task>(_ => throw new InvalidOperationException("disk full"));
 
         // Must not throw — the catch path rolls back and shows an error.
         await vm.NewComposerCommand.ExecuteAsync(composer);
 
         Assert.DoesNotContain(composer, vm.Composers);
         Assert.Single(dialogs.ErrorCalls);
-        Assert.Contains("Duplicate", dialogs.ErrorCalls[0].Message);
+        Assert.Contains("disk full", dialogs.ErrorCalls[0].Message);
         Assert.Contains("Add cancelled", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task NewComposerCommand_DuplicateName_RejectedBeforeSave_NoMutation()
+    {
+        // User-reported regression: a second composer with the same Name as
+        // an existing one silently upserted into the existing row at the
+        // SQLite layer (the save's byName merge), leaving the in-memory
+        // collection with two entries pointing at one DB row. The pre-save
+        // duplicate check rejects the duplicate upfront, so neither the
+        // collection nor the DB sees the change.
+        var vm = Build(out var dialogs, out var svc);
+        var existing = new CanonComposer { Name = "Beethoven, Ludwig van", SortName = "Beethoven" };
+        vm.Composers.Add(existing);
+
+        var duplicate = new CanonComposer { Name = "Beethoven, Ludwig van", SortName = "Beethoven" };
+
+        await vm.NewComposerCommand.ExecuteAsync(duplicate);
+
+        // Duplicate never reached the collection — the existing instance is
+        // the only one present.
+        Assert.Single(vm.Composers);
+        Assert.Same(existing, vm.Composers[0]);
+
+        // Save was never called — the rejection happens before any mutation.
+        await svc.DidNotReceive().SaveComposersAsync(Arg.Any<List<CanonComposer>>());
+
+        // User sees a friendly error dialog and a helpful status message.
+        Assert.Single(dialogs.ErrorCalls);
+        Assert.Contains("already exists", dialogs.ErrorCalls[0].Message);
+        Assert.Equal("Cannot add composer", dialogs.ErrorCalls[0].Title);
+        Assert.Contains("Add cancelled", vm.StatusMessage);
+        Assert.Contains("Beethoven, Ludwig van", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task NewComposerCommand_DuplicateName_CaseInsensitive()
+    {
+        // Composer names are matched case-insensitively to mirror the
+        // SqliteCanonDataService's byName dictionary (StringComparer.
+        // OrdinalIgnoreCase). A different-case duplicate would silently
+        // upsert at the DB layer same as an exact-case duplicate.
+        var vm = Build(out var dialogs, out var svc);
+        vm.Composers.Add(new CanonComposer { Name = "Beethoven, Ludwig van", SortName = "Beethoven" });
+
+        await vm.NewComposerCommand.ExecuteAsync(
+            new CanonComposer { Name = "BEETHOVEN, LUDWIG VAN", SortName = "Beethoven" });
+
+        Assert.Single(vm.Composers);
+        await svc.DidNotReceive().SaveComposersAsync(Arg.Any<List<CanonComposer>>());
+        Assert.Single(dialogs.ErrorCalls);
     }
 
     [Fact]

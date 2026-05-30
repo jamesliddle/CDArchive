@@ -651,18 +651,39 @@ public partial class CanonViewModel : ObservableObject
     /// Toolbar New Composer (the post-dialog half). Caller hands in the
     /// dialog-built composer; this adds it to <see cref="Composers"/>, fires
     /// <see cref="DataMutated"/>, persists, sets status.
+    /// <para>
+    /// Pre-save duplicate check: <see cref="SqliteCanonDataService.SaveComposersCoreAsync"/>
+    /// silently upserts on <see cref="CanonComposer.Name"/> match (the byName
+    /// lookup in the merge path). Without an upfront check, two composers
+    /// with the same Name would land in the in-memory <see cref="Composers"/>
+    /// collection but only one row in the DB — incoherent state that
+    /// resolves to "one composer" only on the next refresh. So we reject the
+    /// duplicate up front with an error dialog, never mutating either store.
+    /// </para>
     /// </summary>
     [RelayCommand]
     private async Task NewComposerAsync(CanonComposer? composer)
     {
         if (composer is null) return;
 
+        if (Composers.Any(c => string.Equals(c.Name, composer.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            _dialogs.ShowError(
+                $"A composer named \"{composer.Name}\" already exists. " +
+                "Each composer must have a unique name.",
+                "Cannot add composer");
+            StatusMessage = $"Add cancelled: \"{composer.Name}\" already exists.";
+            return;
+        }
+
         Composers.Add(composer);
         DataMutated?.Invoke();
 
         // Snapshot for in-memory rollback if the save fails — same shape as
-        // DeleteComposerAsync's recovery path. Unique-constraint violations
-        // on Name + SortName are the live failure mode here.
+        // DeleteComposerAsync's recovery path. Save throws on any persistence
+        // error (FK constraints further down the line, disk-full, etc.); the
+        // duplicate-Name case is handled by the pre-check above so it doesn't
+        // reach the save at all.
         try
         {
             await _canonDataService.SaveComposersAsync(Composers.ToList());
