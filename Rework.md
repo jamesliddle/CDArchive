@@ -18,7 +18,9 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical findings retired.** The list below is the next tier of High-priority items selected for impact + tractability; numeric-order-within-severity is the protocol default once these are gone (see *Working through this document*).
 
-1. **H2. `CanonView.xaml.cs` god-class split — multi-PR slice arc.** **Slice 4 landed [2026-05-30]** via `rework/h2-new-delete-commands` — Post-dialog orchestration for New Composer + New Piece migrated off the View onto `CanonViewModel`: new `NewComposerCommand` / `NewPieceCommand`. The View's click handlers shrink to "open modal → forward result". Both commands follow the H36 `DataMutated`-before-await contract; `NewPieceCommand` uses `SaveBatchAsync` for atomic pieces + pick-list save (closes the pre-fix two-call window). Each has a rollback-on-save-failure path with error dialog + status-message. 9 new tests in `CanonViewModelNewCommandTests`. CanonView shrank 1,116 → 1,105 (-11 — modest since dialog-launch shims kept the bulk of lines). **Slice 3 landed [2026-05-30]** via `rework/h2-piece-sort-filter-vm` — Piece sort + Show (-18). **Slice 2 landed [2026-05-30]** via `rework/h2-composer-sort-filter-vm` — Composer sort + filter + Show (-33). **Slice 1 landed [2026-05-30]** via `rework/h2-extract-expansion-state` — Expansion-state ownership extracted (-171). **Cumulative H2 shrinkage so far: 1,338 → 1,105 (-233).** Remaining: (5) Edit-flow orchestration → VM helpers (the four `EditXxxAsync` methods + their pick-list rename propagation + `UpdatePieceCounts` + `SaveAllAsync`). (H2)
+🎉 **Both High findings (H1 + H2) retired across 2026-05-29 + 2026-05-30.** The Top-5 list is now empty of Highs; the surviving entry is a tractable Medium that's been opportunistically held back. Default protocol (numeric-within-severity, Medium first) applies after this.
+
+1. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deleting a piece referenced as `end_piece_id` doesn't surface in `Composer.Pieces` walks. Reject cascade hits FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
 2. **🎉 H1. `SqliteCanonDataService` god-class split — multi-PR slice arc, ALL SLICES LANDED.** **Slice 6 (final) landed [2026-05-29]** via `rework/h1-extract-migrations` — Schema migrations subsystem (~380 lines: `ApplySchemaUpgradesAsync` + `EnsureColumnAsync` + `EnsureColumnNullableAsync` + `DropOrphanRecreateTablesAsync` + the `RecreateXxx` recipe family + `WithForeignKeysOffAsync` + `ExecAsync`) extracted to `SqliteCanonDataService.Migrations.cs`. Main file shrank 594 → 223 lines — now just ctor, public surface stitching, `EnsureInitializedAsync` orchestrator, and `SaveBatchAsync`. **Slice 5 landed [2026-05-29]** via `rework/h1-extract-albums` — Albums (1,440 lines). **Slice 4 [2026-05-29]** via `rework/h1-extract-loosetracks` — Loose tracks (219 lines). **Slice 3 [2026-05-29]** via `rework/h1-extract-pieces` — Pieces (1,050 lines). **Slice 2 [2026-05-29]** via `rework/h1-extract-picklists`. **Slice 1 [2026-05-29]** via `rework/h1-extract-composers`. **Cumulative shrinkage: 3,474 → 223** (-3,251 lines redistributed across 6 partial-class files, one per subsystem). H1 retires once slice 6 merges. (H1)
 3. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but the consequence is: deleting a piece that some marker uses as its `end_piece_id` doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. Tactical promotion: useful if appetite favours a small win between H1 / H2 slices. (M3)
 4. *(Top-5 reduced to 3. The High section has H1 + H2; M3 is included as a tractable Medium that can slot in opportunistically.)*
@@ -59,11 +61,11 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 | Severity | Count |
 |---|---|
 | 🔴 Critical | 0 |
-| 🟠 High | 2 |
+| 🟠 High | 0 |
 | 🟡 Medium | 79 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **173** |
+| **Total** | **171** |
 
 ---
 
@@ -73,11 +75,7 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 ## 🟠 High
 
-### H1. `SqliteCanonDataService` is a 3,072-line god class
-One file owns: schema migrations, load operations for 5 subsystems, save operations for 5 subsystems, the load-mutate-save merge for albums, all row↔model mapping, JSON column (de)serialization, identity tracking. Reading the file requires holding the whole architecture in your head. Split by subsystem (`Composers/`, `Pieces/`, `Albums/`, `Migrations/`, `Mapping/`), then split Save and Load into separate partial classes per subsystem.
-
-### H2. `CanonView.xaml.cs` is 1,436 lines of code-behind doing VM/service work
-Owns: sort state, context-menu state, expansion state across 3 tree levels, the tree-rebuild orchestrator, provisional filter routing, suppression flags. Approve/Reject handlers reach into the VM, mutate observable collections, call `SaveAllAsync`, overwrite status messages. CLAUDE.md flags one symptom of this; the file is full of similar foot-guns. Extract expansion state → service, sort/filter UI state → into VM, Approve/Reject handlers → VM RelayCommands via `CommandParameter`.
+🎉 **All High findings retired.** Both H1 (`SqliteCanonDataService` god-class split) and H2 (`CanonView.xaml.cs` god-class split) landed as multi-PR arcs across 2026-05-29 and 2026-05-30. See the ✅ Retired section.
 
 ---
 
@@ -746,6 +744,23 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### H2. `CanonView.xaml.cs` is 1,436 lines of code-behind doing VM/service work — H2 retired
+[2026-05-30] `rework/h2-edit-flow-orchestration` — 🎉 closes the multi-PR H2 arc. Five slices across one day shrank the file 1,338 → 951 lines (-387, -28.9%). What moved:
+- **Slice 1** (`rework/h2-extract-expansion-state`): four expansion-state HashSets + the two ~80-line recursive WPF walks moved to `CanonTreeExpansionState` helper class (-171).
+- **Slice 2** (`rework/h2-composer-sort-filter-vm`): Composer Sort + Filter + Show state → VM `[ObservableProperty]`; XAML rebinds via `SelectedValue`; the `ApplyComposerSort` helper moves to VM (-33).
+- **Slice 3** (`rework/h2-piece-sort-filter-vm`): Piece Sort + Show state → VM (mirror of slice 2) (-18). Toolbar fully migrated — no more `SelectionChanged`/`TextChanged` event handlers on the View.
+- **Slice 4** (`rework/h2-new-delete-commands`): New Composer + New Piece post-dialog orchestration → VM `[RelayCommand]`s with the H36 DataMutated-before-await contract; `NewPieceCommand` uses `SaveBatchAsync` for atomic pieces+pick-lists save. Post-merge fix added a pre-save duplicate-Name check after the user reported the silent-upsert bug.
+- **Slice 5** (`rework/h2-edit-flow-orchestration`): Four `EditXxxAsync` methods' post-dialog orchestration → four `Complete*EditAsync` VM methods + `CaptureComposerSnapshot` snapshot helper + the two pure helpers (`ApplyCatalogPreference`, `StripNickAndSub`) that moved with them. Dead `SaveAllAsync` View helper retired. Two `App.ServiceProvider.GetRequiredService` service-locator anti-pattern sites retired (the VM uses its DI-injected fields).
+
+What stays in the View by design: visual-tree walkers (`OnExpanderBorderMouseDown`, `OnTreeRequestBringIntoView`, `OnComposerTreeSelectionChanged`, `SetExpandedRecursive`), modal-dialog ownership (`Window.GetWindow(this)` for Owner + `ShowDialogWithExpansionGuard` + the four `EditXxxAsync` shims that handle composer-context computation + `BuildComposerCatalogDict` + `ParseAncestorRoles`), context-menu target tracking (`_ctxTarget`/`_ctxTvi` with the documented WPF mouse-handler defensiveness), the `OnVmDataMutated` subscription that synchronises tree rebuilds with VM mutations.
+
+**Test coverage added across the arc**: 6 (slice 1: `CanonTreeExpansionStateTests`) + 7 (slice 2: `CanonViewModelComposerSortTests`) + 8 (slice 3: `CanonViewModelPieceSortTests`) + 11 (slice 4: `CanonViewModelNewCommandTests`, including the post-merge duplicate-Name fix tests) + 10 (slice 5: `CanonViewModelEditFlowTests`) = **42 new App.Tests**.
+
+**Counts**: High 2→1 (slice 5 closing); Total 173→172 (after H2's retirement); then H1 retires alongside (see below): High 1→0; Total 172→171. Top-5 reshuffles: H1 + H2 both retired; M3 (PieceRow EndPiece inverse-nav) promotes to #1.
+
+### H1. `SqliteCanonDataService` is a 3,072-line god class — H1 retired
+[2026-05-29] `rework/h1-extract-migrations` — 🎉 closes the multi-PR H1 arc. Six slices shrank the file 3,474 → 223 lines (-3,251, -93.6%) redistributed across six per-subsystem partial-class files: Composers (185), PickLists (137), Pieces (1,050), LooseTracks (219), Albums (1,440), Migrations (380). Each slice was no-behaviour-change; partial-class shared state preserved every private CWT, EF context factory, JSON option, identity-handle nested type. Main file is now ctor + dependency fields + public path-property surface + `EnsureInitializedAsync` orchestrator + `SaveBatchAsync` cross-subsystem orchestrator only. **Counts at retirement**: High 3→2; Total 174→173.
 
 ### H21. AlbumTrack.SessionIndex stores a position, not an ID — H21 retired
 [2026-05-29] `rework/retire-session-index` — 🎉 closes the H21 architectural arc that began with slice 1 [2026-05-28]. After slices 1-3 made the model + JSON + SQLite + VM all stable-Id-aware, this retirement PR drops `AlbumTrack.SessionIndex` from the persistence surface entirely.
