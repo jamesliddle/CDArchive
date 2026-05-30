@@ -64,6 +64,18 @@ public partial class CanonViewModel : ObservableObject
     [ObservableProperty]
     private string _composerSortColumn = "Pieces";
 
+    /// <summary>
+    /// The currently-selected piece-sort column label, matching the
+    /// ComboBoxItem.Content strings: "Catalogue" / "Title" / "Category" /
+    /// "Year" / "Recordings". H2 slice 3: lives on the VM (mirror of slice 2's
+    /// <see cref="ComposerSortColumn"/>). <see cref="PieceSorting.ParseField"/>
+    /// turns the label into the typed field; the tree rebuild then runs the
+    /// sort through that field via the same orchestrator that handles
+    /// composer sort.
+    /// </summary>
+    [ObservableProperty]
+    private string _pieceSortColumn = "Catalogue";
+
     [ObservableProperty]
     private ObservableCollection<CanonComposer> _filteredComposers = [];
 

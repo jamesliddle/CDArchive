@@ -20,8 +20,9 @@ public partial class CanonView : UserControl
     // via OnViewModelPropertyChanged to call ApplySortedFilter on change.
 
     // ── Piece sort state ─────────────────────────────────────────────────────
-
-    private string _pieceSortField = "Catalogue";
+    // Migrated to CanonViewModel.PieceSortColumn (H2 slice 3). The XAML
+    // SelectedValue-binds it to the Sort Pieces dropdown; the View reacts
+    // via OnViewModelPropertyChanged to call ApplySortedFilter on change.
 
     // ── Current selection ────────────────────────────────────────────────────
 
@@ -131,14 +132,14 @@ public partial class CanonView : UserControl
     {
         if (sender is not CanonViewModel vm) return;
 
-        // Sort + filter + Show changes all trigger a tree rebuild. H2 slice 2
-        // migrated ComposerSortColumn + the existing ComposerFilter into VM
-        // observable properties — the View no longer carries event handlers
-        // for the toolbar controls; instead WPF property change notifications
-        // bubble through here. The piece-side equivalents migrate in slice 3.
+        // Sort + filter + Show changes all trigger a tree rebuild. H2 slices
+        // 2 and 3 migrated every toolbar control into VM observable properties
+        // — the View no longer carries event handlers for them; WPF property
+        // change notifications bubble through here instead.
         if (e.PropertyName is nameof(CanonViewModel.ComposerProvisionalFilter)
                            or nameof(CanonViewModel.PieceProvisionalFilter)
                            or nameof(CanonViewModel.ComposerSortColumn)
+                           or nameof(CanonViewModel.PieceSortColumn)
                            or nameof(CanonViewModel.ComposerFilter))
         {
             ApplySortedFilter(vm);
@@ -157,30 +158,11 @@ public partial class CanonView : UserControl
     }
 
     // ── Toolbar handlers ─────────────────────────────────────────────────────
-    // Composer Sort + Composer Filter + Composer Show now drive directly off
-    // VM observable properties (H2 slice 2): ComposerSortColumn / ComposerFilter /
-    // ComposerProvisionalFilter. XAML bindings push user changes onto the VM;
-    // the View reacts through OnViewModelPropertyChanged above to rebuild the
-    // tree. The Piece Sort / Show / filter handlers below stay until H2 slice 3.
-
-    private void OnPieceShowFilterChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (DataContext is not CanonViewModel vm) return;
-        vm.PieceProvisionalFilter = PieceShowCombo.SelectedIndex switch
-        {
-            1 => ProvisionalFilter.Provisional,
-            2 => ProvisionalFilter.Accepted,
-            _ => ProvisionalFilter.All,
-        };
-    }
-
-    private void OnPieceSortChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (PieceSortCombo.SelectedItem is not ComboBoxItem item) return;
-        _pieceSortField = item.Content?.ToString() ?? "Catalogue";
-        if (DataContext is CanonViewModel vm)
-            ApplySortedFilter(vm);
-    }
+    // Every toolbar control (Composer Sort / Composer Filter / Composer Show /
+    // Piece Sort / Piece Show) now drives directly off VM observable
+    // properties (H2 slices 2 + 3). XAML bindings push user changes onto the
+    // VM; the View reacts through OnViewModelPropertyChanged above to rebuild
+    // the tree. No more SelectionChanged / TextChanged handlers here.
 
     // ── Tree: build / refresh ─────────────────────────────────────────────────
 
@@ -213,7 +195,7 @@ public partial class CanonView : UserControl
         // The walk is O(pieces) and the dictionary lookup is O(1), so this is
         // cheaper than redoing the scan inside GetSortedPieces per composer.
         var crossComposerByName = CrossComposerSubpieceFinder.Find(vm.Pieces);
-        var sortField           = PieceSorting.ParseField(_pieceSortField);
+        var sortField           = PieceSorting.ParseField(vm.PieceSortColumn);
         var idx                 = PieceReferenceIndex.Current;
         // Adapter that lets the UI-free PieceSorting helper query album-hit
         // counts without depending on PieceReferenceIndex directly.

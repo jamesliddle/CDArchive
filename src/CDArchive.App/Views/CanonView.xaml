@@ -121,9 +121,9 @@
                            Text="Sort Pieces:" FontSize="12" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="2" Grid.Column="7"
-                          x:Name="PieceSortCombo" FontSize="12" Height="23"
-                          SelectedIndex="0"
-                          SelectionChanged="OnPieceSortChanged">
+                          FontSize="12" Height="23"
+                          SelectedValuePath="Content"
+                          SelectedValue="{Binding PieceSortColumn}">
                     <ComboBoxItem Content="Catalogue" />
                     <ComboBoxItem Content="Title" />
                     <ComboBoxItem Content="Category" />
@@ -135,12 +135,12 @@
                            Text="Show:" FontSize="12" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="2" Grid.Column="13"
-                          x:Name="PieceShowCombo" FontSize="12" Height="23"
-                          SelectedIndex="0"
-                          SelectionChanged="OnPieceShowFilterChanged">
-                    <ComboBoxItem Content="All" />
-                    <ComboBoxItem Content="Provisional" />
-                    <ComboBoxItem Content="Accepted" />
+                          FontSize="12" Height="23"
+                          SelectedValuePath="Tag"
+                          SelectedValue="{Binding PieceProvisionalFilter}">
+                    <ComboBoxItem Content="All"         Tag="{x:Static vm:ProvisionalFilter.All}" />
+                    <ComboBoxItem Content="Provisional" Tag="{x:Static vm:ProvisionalFilter.Provisional}" />
+                    <ComboBoxItem Content="Accepted"    Tag="{x:Static vm:ProvisionalFilter.Accepted}" />
                 </ComboBox>
             </Grid>
 
