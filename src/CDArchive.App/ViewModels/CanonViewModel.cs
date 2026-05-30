@@ -53,6 +53,17 @@ public partial class CanonViewModel : ObservableObject
     [ObservableProperty]
     private ProvisionalFilter _composerProvisionalFilter = ProvisionalFilter.All;
 
+    /// <summary>
+    /// The currently-selected composer-sort column label, matching the
+    /// ComboBoxItem.Content strings: "Pieces" / "Recordings" / "Name" / "Born" /
+    /// "Died". H2 slice 2: lives on the VM so XAML binds <c>SelectedValue</c>
+    /// directly and the tree re-sorts via <c>CanonView.OnViewModelPropertyChanged</c>
+    /// when the user picks a new column. <see cref="ComposerSorting.ParseField"/>
+    /// turns the label into the typed field + default direction.
+    /// </summary>
+    [ObservableProperty]
+    private string _composerSortColumn = "Pieces";
+
     [ObservableProperty]
     private ObservableCollection<CanonComposer> _filteredComposers = [];
 
@@ -280,6 +291,30 @@ public partial class CanonViewModel : ObservableObject
     // of the new parameterized DeleteComposerCommand below — which the
     // CanonView toolbar handler actually calls, with the active selection
     // from the tree click handler.)
+
+    /// <summary>
+    /// Applies the currently-selected composer sort (per
+    /// <see cref="ComposerSortColumn"/>) to the input sequence. The
+    /// "Recordings" field needs the runtime <see cref="PieceReferenceIndex"/>;
+    /// for every other field the count delegate is ignored. When the index
+    /// hasn't been built yet (e.g. data still loading) the delegate falls
+    /// back to zero so we degrade to a stable name-sorted view.
+    /// <para>
+    /// H2 slice 2: moved off <c>CanonView</c>'s code-behind onto the VM so the
+    /// sort field has one source of truth (the observable property) and the
+    /// pure-logic part is unit-testable. The tree-build orchestrator still
+    /// lives in the View for now — moving it across is H2 slice 5's job.
+    /// </para>
+    /// </summary>
+    public IEnumerable<CanonComposer> ApplyComposerSort(IEnumerable<CanonComposer> composers)
+    {
+        var (field, ascending) = ComposerSorting.ParseField(ComposerSortColumn);
+        var idx = PieceReferenceIndex.Current;
+        Func<CanonComposer, int>? recordingCount = idx is null
+            ? null
+            : c => idx.CountForComposer(c.Name);
+        return ComposerSorting.Sort(composers, field, ascending, recordingCount);
+    }
 
     [RelayCommand]
     private void ApplyComposerFilter()

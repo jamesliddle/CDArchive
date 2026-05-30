@@ -75,9 +75,9 @@
                            Text="Sort Composers:" FontSize="12" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="0" Grid.Column="7"
-                          x:Name="ComposerSortCombo" FontSize="12" Height="23"
-                          SelectedIndex="0"
-                          SelectionChanged="OnComposerSortChanged">
+                          FontSize="12" Height="23"
+                          SelectedValuePath="Content"
+                          SelectedValue="{Binding ComposerSortColumn}">
                     <ComboBoxItem Content="Pieces" />
                     <ComboBoxItem Content="Recordings" />
                     <ComboBoxItem Content="Name" />
@@ -90,19 +90,18 @@
                            VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Grid.Row="0" Grid.Column="10"
                          Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
-                         FontSize="13" Padding="6,4"
-                         TextChanged="OnFilterTextChanged" />
+                         FontSize="13" Padding="6,4" />
 
                 <TextBlock Grid.Row="0" Grid.Column="12"
                            Text="Show:" FontSize="12" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="0" Grid.Column="13"
-                          x:Name="ComposerShowCombo" FontSize="12" Height="23"
-                          SelectedIndex="0"
-                          SelectionChanged="OnComposerShowFilterChanged">
-                    <ComboBoxItem Content="All" />
-                    <ComboBoxItem Content="Provisional" />
-                    <ComboBoxItem Content="Accepted" />
+                          FontSize="12" Height="23"
+                          SelectedValuePath="Tag"
+                          SelectedValue="{Binding ComposerProvisionalFilter}">
+                    <ComboBoxItem Content="All"         Tag="{x:Static vm:ProvisionalFilter.All}" />
+                    <ComboBoxItem Content="Provisional" Tag="{x:Static vm:ProvisionalFilter.Provisional}" />
+                    <ComboBoxItem Content="Accepted"    Tag="{x:Static vm:ProvisionalFilter.Accepted}" />
                 </ComboBox>
 
                 <!-- ── Row 2: New Piece · Delete Piece · Sort Pieces ── -->

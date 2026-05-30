@@ -15,11 +15,9 @@ namespace CDArchive.App.Views;
 public partial class CanonView : UserControl
 {
     // ── Composer sort state ──────────────────────────────────────────────────
-
-    // Holds the raw combo label (e.g. "Pieces", "Name", "Born", "Died",
-    // "Recordings"). ComposerSorting.ParseField turns it into the typed
-    // field + default direction.
-    private string _sortColumn = "Pieces";
+    // Migrated to CanonViewModel.ComposerSortColumn (H2 slice 2). The XAML
+    // SelectedValue-binds it to the Sort Composers dropdown; the View reacts
+    // via OnViewModelPropertyChanged to call ApplySortedFilter on change.
 
     // ── Piece sort state ─────────────────────────────────────────────────────
 
@@ -133,8 +131,15 @@ public partial class CanonView : UserControl
     {
         if (sender is not CanonViewModel vm) return;
 
+        // Sort + filter + Show changes all trigger a tree rebuild. H2 slice 2
+        // migrated ComposerSortColumn + the existing ComposerFilter into VM
+        // observable properties — the View no longer carries event handlers
+        // for the toolbar controls; instead WPF property change notifications
+        // bubble through here. The piece-side equivalents migrate in slice 3.
         if (e.PropertyName is nameof(CanonViewModel.ComposerProvisionalFilter)
-                           or nameof(CanonViewModel.PieceProvisionalFilter))
+                           or nameof(CanonViewModel.PieceProvisionalFilter)
+                           or nameof(CanonViewModel.ComposerSortColumn)
+                           or nameof(CanonViewModel.ComposerFilter))
         {
             ApplySortedFilter(vm);
             return;
@@ -152,23 +157,11 @@ public partial class CanonView : UserControl
     }
 
     // ── Toolbar handlers ─────────────────────────────────────────────────────
-
-    private void OnFilterTextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (DataContext is CanonViewModel vm)
-            ApplySortedFilter(vm);
-    }
-
-    private void OnComposerShowFilterChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (DataContext is not CanonViewModel vm) return;
-        vm.ComposerProvisionalFilter = ComposerShowCombo.SelectedIndex switch
-        {
-            1 => ProvisionalFilter.Provisional,
-            2 => ProvisionalFilter.Accepted,
-            _ => ProvisionalFilter.All,
-        };
-    }
+    // Composer Sort + Composer Filter + Composer Show now drive directly off
+    // VM observable properties (H2 slice 2): ComposerSortColumn / ComposerFilter /
+    // ComposerProvisionalFilter. XAML bindings push user changes onto the VM;
+    // the View reacts through OnViewModelPropertyChanged above to rebuild the
+    // tree. The Piece Sort / Show / filter handlers below stay until H2 slice 3.
 
     private void OnPieceShowFilterChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -187,18 +180,6 @@ public partial class CanonView : UserControl
         _pieceSortField = item.Content?.ToString() ?? "Catalogue";
         if (DataContext is CanonViewModel vm)
             ApplySortedFilter(vm);
-    }
-
-    private void OnComposerSortChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (ComposerSortCombo.SelectedItem is not ComboBoxItem item) return;
-        if (DataContext is not CanonViewModel vm) return;
-
-        // Single source of truth for label → (field, default direction)
-        // mapping lives in ComposerSorting.ParseField; the view just stashes
-        // the selected label so ApplyComposerSort can re-parse on rebuild.
-        _sortColumn = item.Content?.ToString() ?? "Pieces";
-        ApplySortedFilter(vm);
     }
 
     // ── Tree: build / refresh ─────────────────────────────────────────────────
@@ -225,7 +206,7 @@ public partial class CanonView : UserControl
             _                             => filtered,
         };
 
-        filtered = ApplyComposerSort(filtered);
+        filtered = vm.ApplyComposerSort(filtered);
 
         // Cross-composer detection runs once over the full piece tree per
         // tree-rebuild, then we hand each composer's slice to their node.
@@ -260,20 +241,6 @@ public partial class CanonView : UserControl
 
         ComposerTree.ItemsSource = nodes;
         _expansionState.Restore(ComposerTree, nodes);
-    }
-
-    private IEnumerable<CanonComposer> ApplyComposerSort(IEnumerable<CanonComposer> composers)
-    {
-        var (field, ascending) = ComposerSorting.ParseField(_sortColumn);
-        // Recordings sort needs the runtime PieceReferenceIndex; for every
-        // other field the count delegate is ignored. When the index hasn't
-        // been built yet (e.g. data still loading) the delegate falls back
-        // to zero so we degrade to a stable name-sorted view.
-        var idx = PieceReferenceIndex.Current;
-        Func<CanonComposer, int>? recordingCount = idx is null
-            ? null
-            : c => idx.CountForComposer(c.Name);
-        return ComposerSorting.Sort(composers, field, ascending, recordingCount);
     }
 
     /// <summary>
