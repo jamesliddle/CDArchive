@@ -61,6 +61,17 @@ public partial class TrackEditorWindow : Window
     // can skip writes when the user left the sentinel selected.
     private int _sessionMixedSentinelIndex = -1;
 
+    // ── Audio-file duration sync ──────────────────────────────────────────────
+    // When at least one of FlacPath / Mp3Path resolves to an actual file, the
+    // Duration field becomes read-only and displays the file's length. When
+    // both resolve and their lengths disagree (>1s), saving is blocked until
+    // the user fixes one of the paths. Skipped entirely in multi-edit mode
+    // (audio overrides are disabled there anyway).
+    private TimeSpan? _flacFileDuration;
+    private TimeSpan? _mp3FileDuration;
+    private bool      _audioDurationMismatch;
+    private static readonly TimeSpan DurationAgreementTolerance = TimeSpan.FromSeconds(1);
+
     // Rework H22 — snapshots taken in the ctor so OnClosing can roll back
     // disc/session mutations when the user clicks Cancel or close-X. JSON
     // deep-clones (matches the AlbumEditorWindow pattern); null means the
@@ -126,8 +137,10 @@ public partial class TrackEditorWindow : Window
         TrackPerformerList.ItemsSource = _vm.Performers.Items;
 
         Closing += TrackEditorWindow_Closing;
+        SubscribeAudioPathChanges();
 
         LoadTrack();
+        RefreshDurationFromAudioFiles();
     }
 
     // ── Constructor: multiple tracks (bulk edit) ──────────────────────────────
@@ -185,6 +198,8 @@ public partial class TrackEditorWindow : Window
         // NavigationPanel.Visibility via XAML binding (H18).
 
         PopulateMultiFields(sessions != null);
+        // No SubscribeAudioPathChanges in multi-edit: the audio-overrides
+        // group is disabled outright, so the paths can't change from here.
     }
 
     // ── Constructor: loose track (no owning album) ────────────────────────────
@@ -223,9 +238,12 @@ public partial class TrackEditorWindow : Window
         PieceRefList.ItemsSource       = _vm.PieceRefs.Items;
         TrackPerformerList.ItemsSource = _vm.Performers.Items;
 
+        SubscribeAudioPathChanges();
+
         Title = "Edit Loose Track";
 
         LoadLooseTrack();
+        RefreshDurationFromAudioFiles();
     }
 
     private void LoadLooseTrack()
@@ -490,19 +508,23 @@ public partial class TrackEditorWindow : Window
     private void OnPrevClick(object sender, RoutedEventArgs e)
     {
         if (_trackIndex <= 0) return;
+        if (!CheckAudioDurationConsistency()) return;
         if (!HandleSaveValidationError(_vm.SaveSingle(_disc!, _trackIndex))) return;
         _trackIndex--;
         LoadTrack();
+        RefreshDurationFromAudioFiles();
     }
 
     private void OnNextClick(object sender, RoutedEventArgs e)
     {
+        if (!CheckAudioDurationConsistency()) return;
         if (!HandleSaveValidationError(_vm.SaveSingle(_disc!, _trackIndex))) return;
 
         // If we just added a new track, _disc.Tracks grew — move to the next slot.
         // If we were editing an existing track, move forward one.
         _trackIndex++;
         LoadTrack();
+        RefreshDurationFromAudioFiles();
     }
 
     // ── Commit ────────────────────────────────────────────────────────────────
@@ -637,6 +659,8 @@ public partial class TrackEditorWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
+        if (!CheckAudioDurationConsistency()) return;
+
         TrackEditorViewModel.SaveValidationError error;
         if (_isMixed)
         {
@@ -654,6 +678,90 @@ public partial class TrackEditorWindow : Window
 
         if (!HandleSaveValidationError(error)) return;
         DialogResult = true;
+    }
+
+    // ── Audio-file duration sync ──────────────────────────────────────────────
+
+    private void SubscribeAudioPathChanges()
+    {
+        _vm.FlacPath.PropertyChanged += OnAudioPathChanged;
+        _vm.Mp3Path.PropertyChanged  += OnAudioPathChanged;
+    }
+
+    private void OnAudioPathChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MixedField<string>.Value)) return;
+        RefreshDurationFromAudioFiles();
+    }
+
+    /// <summary>
+    /// Re-reads both override audio files and updates the Duration field:
+    ///   • 0 files: editable, no constraint.
+    ///   • 1 file: shows that file's length, read-only.
+    ///   • 2 files within 1s of each other: shows FLAC length, read-only.
+    ///   • 2 files differing by &gt;1s: shows FLAC length, read-only, with a
+    ///     red-tinted background; saving is blocked until one path is fixed.
+    /// Skipped in multi-edit (overrides group is disabled there).
+    /// </summary>
+    private void RefreshDurationFromAudioFiles()
+    {
+        if (_isMixed) return;
+
+        _flacFileDuration = AudioFileDuration.Read(_vm.FlacPath.Value);
+        _mp3FileDuration  = AudioFileDuration.Read(_vm.Mp3Path.Value);
+        _audioDurationMismatch = false;
+
+        if (_flacFileDuration is null && _mp3FileDuration is null)
+        {
+            DurationBox.IsReadOnly = false;
+            DurationBox.Background = Brushes.White;
+            DurationBox.ToolTip    = "e.g. 5:32 or 1:02:15";
+            return;
+        }
+
+        DurationBox.IsReadOnly = true;
+
+        if (_flacFileDuration is { } f && _mp3FileDuration is { } m)
+        {
+            var diff = (f - m).Duration();
+            _vm.Duration.Value = AudioFileDuration.Format(f);
+            if (diff <= DurationAgreementTolerance)
+            {
+                DurationBox.Background = Brushes.WhiteSmoke;
+                DurationBox.ToolTip    = $"Read from FLAC ({AudioFileDuration.Format(f)}); MP3 length {AudioFileDuration.Format(m)} agrees within tolerance.";
+            }
+            else
+            {
+                DurationBox.Background = Brushes.MistyRose;
+                DurationBox.ToolTip    = $"Mismatch — FLAC: {AudioFileDuration.Format(f)}  •  MP3: {AudioFileDuration.Format(m)}. Saving is blocked until one of the paths is fixed.";
+                _audioDurationMismatch = true;
+            }
+        }
+        else
+        {
+            var only = _flacFileDuration ?? _mp3FileDuration!.Value;
+            var which = _flacFileDuration is not null ? "FLAC" : "MP3";
+            _vm.Duration.Value = AudioFileDuration.Format(only);
+            DurationBox.Background = Brushes.WhiteSmoke;
+            DurationBox.ToolTip    = $"Read from the {which} audio file.";
+        }
+    }
+
+    /// <summary>
+    /// Returns false (and surfaces a MessageBox) when the FLAC and MP3
+    /// overrides both resolve and report incompatible lengths. Called before
+    /// every save / navigation step that would commit the current edit.
+    /// </summary>
+    private bool CheckAudioDurationConsistency()
+    {
+        if (!_audioDurationMismatch) return true;
+        var f = AudioFileDuration.Format(_flacFileDuration!.Value);
+        var m = AudioFileDuration.Format(_mp3FileDuration!.Value);
+        MessageBox.Show(this,
+            $"The FLAC and MP3 files for this track have different lengths " +
+            $"(FLAC: {f}, MP3: {m}). Fix one of the paths before saving.",
+            "Audio length mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+        return false;
     }
 
     // ── Piece refs ────────────────────────────────────────────────────────────

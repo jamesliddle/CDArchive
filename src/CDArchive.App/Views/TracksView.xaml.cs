@@ -79,13 +79,56 @@ public partial class TracksView : UserControl
     /// <summary>
     /// Enables Approve only when at least one selected row is still provisional.
     /// Reject is always enabled when there's a selection (the command shows a
-    /// confirmation dialog before deleting).
+    /// confirmation dialog before deleting). Edit follows the toolbar Edit
+    /// button (any selection); Play Track is single-selection only since the
+    /// player loads exactly one file at a time.
     /// </summary>
     private void OnTrackContextMenuOpened(object sender, RoutedEventArgs e)
     {
         var selected = TrackList.SelectedItems.Cast<AlbumTrackRow>().ToList();
+        CtxEditTrack.IsEnabled    = selected.Count > 0;
+        CtxPlayTrack.IsEnabled    = selected.Count == 1;
         CtxApproveTrack.IsEnabled = selected.Any(r => r.IsProvisional);
         CtxRejectTrack.IsEnabled  = selected.Count > 0;
+    }
+
+    // ── Context-menu handlers ─────────────────────────────────────────────────
+
+    private void OnContextEditTrack(object sender, RoutedEventArgs e) =>
+        OnEditTracksClick(sender, e);
+
+    private void OnContextPlayTrack(object sender, RoutedEventArgs e)
+    {
+        if (TrackList.SelectedItem is not AlbumTrackRow row) return;
+        if (DataContext is not TracksViewModel vm) return;
+
+        // Loose tracks bypass the locator's convention path (no album/disc to
+        // compute folders from) and play directly off their override paths.
+        var result = row.Album is null
+            ? vm.Player.PlayLooseTrack(row.Track)
+            : vm.Player.PlaySingleTrack(row.Album, row.Disc!, row.Track);
+
+        if (result == PlayRequestResult.Playing) return;
+        ShowPlaybackError(row, result);
+    }
+
+    private static void ShowPlaybackError(AlbumTrackRow row, PlayRequestResult result)
+    {
+        var reason = result switch
+        {
+            PlayRequestResult.NoAudioFile when row.Album is null =>
+                "No audio file could be located. Loose tracks play from their " +
+                "FlacPath / Mp3Path override — set one in the track editor.",
+            PlayRequestResult.NoAudioFile =>
+                "No audio file could be located. Check the album's Archive " +
+                "Folder field, or set this track's FlacPath / Mp3Path override.",
+            PlayRequestResult.TrackNotInAlbum =>
+                "Track is not part of its album. (Save your edits first?)",
+            _ => result.ToString(),
+        };
+        MessageBox.Show(
+            $"Can't play \"{row.Piece}\":\n\n{reason}",
+            "Playback", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     // ── Column-header sort ────────────────────────────────────────────────────

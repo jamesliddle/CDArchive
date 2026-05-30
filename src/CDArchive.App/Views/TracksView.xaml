@@ -98,6 +98,13 @@
                      from a ContextMenu (ContextMenu lives outside the visual
                      tree, so ElementName won't reach back to the ListView). -->
                 <ContextMenu Opened="OnTrackContextMenuOpened">
+                    <MenuItem x:Name="CtxEditTrack"
+                              Header="Edit"
+                              Click="OnContextEditTrack" />
+                    <MenuItem x:Name="CtxPlayTrack"
+                              Header="Play Track"
+                              Click="OnContextPlayTrack" />
+                    <Separator />
                     <MenuItem x:Name="CtxApproveTrack"
                               Header="Approve"
                               Command="{Binding PlacementTarget.DataContext.ApproveTracksCommand,
