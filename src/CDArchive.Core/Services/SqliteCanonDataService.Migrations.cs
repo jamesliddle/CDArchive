@@ -106,6 +106,15 @@ public partial class SqliteCanonDataService
         await EnsureColumnNullableAsync(db, "album_performers", "album_id",
             recreate: RecreateAlbumPerformersWithNullableAlbumIdAsync)
             .ConfigureAwait(false);
+
+        // M6: ensure every piece carries at least one human-visible identifying
+        // field (Title, Form, Nickname, Number, or a Catalogue entry — proxied
+        // by non-empty catalog_sort_prefix). EF Core's EnsureCreatedAsync adds
+        // the CHECK to fresh DBs; for existing DBs the recreate dance below
+        // brings them up to date too. No-ops once the CHECK is present.
+        await EnsureCheckConstraintAsync(db, "pieces", "ck_pieces_has_identity",
+            recreate: RecreatePiecesWithIdentityCheckAsync)
+            .ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(
@@ -170,6 +179,45 @@ public partial class SqliteCanonDataService
         }
 
         if (alreadyNullable) return;
+        await recreate(conn).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Idempotently ensures <paramref name="constraintName"/> is present on
+    /// <paramref name="table"/>. SQLite stores the table's CREATE statement
+    /// verbatim in <c>sqlite_master.sql</c>; this helper scans that text for
+    /// the constraint name and runs <paramref name="recreate"/> (the standard
+    /// CREATE-COPY-DROP-RENAME recipe) when the name isn't present. No-ops on
+    /// a healthy DB.
+    /// <para>
+    /// The match is on the constraint name as a substring of the CREATE
+    /// statement. SQLite stores CHECK constraints inline within the CREATE
+    /// statement, so this is a reliable way to detect their presence without
+    /// parsing.
+    /// </para>
+    /// </summary>
+    private static async Task EnsureCheckConstraintAsync(
+        CanonDbContext db, string table, string constraintName,
+        Func<System.Data.Common.DbConnection, Task> recreate)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        string? createSql = null;
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name=@name";
+            var p = cmd.CreateParameter();
+            p.ParameterName = "@name";
+            p.Value = table;
+            cmd.Parameters.Add(p);
+            createSql = (string?)await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        }
+
+        if (createSql is not null && createSql.Contains(constraintName, StringComparison.Ordinal))
+            return;
+
         await recreate(conn).ConfigureAwait(false);
     }
 
@@ -304,6 +352,140 @@ public partial class SqliteCanonDataService
         if (tx != null) cmd.Transaction = tx;
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Recreates <c>pieces</c> with the <c>ck_pieces_has_identity</c> CHECK
+    /// constraint added (alongside the existing <c>ck_pieces_single_parent</c>).
+    /// The CHECK enforces "every piece must carry at least one human-visible
+    /// identifying field" — Title, Form, Nickname, Number, or a non-empty
+    /// catalog_sort_prefix (proxy for at least one Catalogue entry). Same
+    /// recipe as the album_tracks / album_performers migrations:
+    /// <list type="number">
+    ///   <item>PRAGMA foreign_keys=OFF.</item>
+    ///   <item>Transaction. CREATE TABLE <c>pieces_new</c> with the desired
+    ///     schema — both CHECK constraints, FK to composers (Restrict), FK
+    ///     self-reference for parent_piece_id (Cascade), FK to piece_versions
+    ///     for parent_version_id (Cascade).</item>
+    ///   <item>INSERT SELECT with explicit column list so the migration is
+    ///     stable against future column-order changes.</item>
+    ///   <item>DROP pieces; RENAME pieces_new → pieces. The self-FK in
+    ///     pieces_new stored the literal "pieces" — once the table is renamed
+    ///     in place, the reference becomes self-referential as intended.</item>
+    ///   <item>Recreate the 5 indexes EF declared (composer, parent-piece+pos,
+    ///     parent-version+pos, composer+title, composer+catalog-sort).</item>
+    ///   <item>PRAGMA foreign_key_check sanity gate inside the txn; any
+    ///     orphaned child row surfaces here.</item>
+    ///   <item>COMMIT, then turn FKs back on.</item>
+    /// </list>
+    /// See Rework M6.
+    /// </summary>
+    private static Task RecreatePiecesWithIdentityCheckAsync(
+        System.Data.Common.DbConnection conn) =>
+        WithForeignKeysOffAsync(conn, async () =>
+        {
+        await using (var tx = await conn.BeginTransactionAsync().ConfigureAwait(false))
+        {
+            await ExecAsync(conn, """
+                CREATE TABLE pieces_new (
+                    id                       INTEGER NOT NULL CONSTRAINT PK_pieces PRIMARY KEY AUTOINCREMENT,
+                    composer_id              INTEGER NOT NULL,
+                    parent_piece_id          INTEGER     NULL,
+                    parent_version_id        INTEGER     NULL,
+                    position                 INTEGER NOT NULL,
+                    title                    TEXT        NULL,
+                    title_english            TEXT        NULL,
+                    subtitle                 TEXT        NULL,
+                    nickname                 TEXT        NULL,
+                    form                     TEXT        NULL,
+                    number                   INTEGER     NULL,
+                    music_number             TEXT        NULL,
+                    key_tonality             TEXT        NULL,
+                    key_mode                 TEXT        NULL,
+                    publication_year         INTEGER     NULL,
+                    instrumentation_category TEXT        NULL,
+                    numbered_subpieces       INTEGER     NULL,
+                    subpieces_start          INTEGER     NULL,
+                    notes                    TEXT        NULL,
+                    is_provisional           INTEGER NOT NULL,
+                    instrumentation_json     TEXT        NULL,
+                    composition_years_json   TEXT        NULL,
+                    text_author_json         TEXT        NULL,
+                    roles_json               TEXT        NULL,
+                    arrangements_json        TEXT        NULL,
+                    cadenza_json             TEXT        NULL,
+                    title_number_json        TEXT        NULL,
+                    catalog_sort_prefix      TEXT    NOT NULL,
+                    catalog_sort_number      INTEGER NOT NULL,
+                    catalog_sort_suffix      TEXT    NOT NULL,
+                    CONSTRAINT ck_pieces_single_parent
+                        CHECK ((parent_piece_id IS NULL) OR (parent_version_id IS NULL)),
+                    CONSTRAINT ck_pieces_has_identity
+                        CHECK (title IS NOT NULL OR form IS NOT NULL OR nickname IS NOT NULL OR
+                               number IS NOT NULL OR catalog_sort_prefix != ''),
+                    CONSTRAINT FK_pieces_composers_composer_id
+                        FOREIGN KEY (composer_id)       REFERENCES composers      (id) ON DELETE RESTRICT,
+                    CONSTRAINT FK_pieces_piece_versions_parent_version_id
+                        FOREIGN KEY (parent_version_id) REFERENCES piece_versions (id) ON DELETE CASCADE,
+                    CONSTRAINT FK_pieces_pieces_parent_piece_id
+                        FOREIGN KEY (parent_piece_id)   REFERENCES pieces         (id) ON DELETE CASCADE
+                )
+                """, tx);
+
+            await ExecAsync(conn, """
+                INSERT INTO pieces_new
+                    (id, composer_id, parent_piece_id, parent_version_id, position,
+                     title, title_english, subtitle, nickname, form,
+                     number, music_number, key_tonality, key_mode, publication_year,
+                     instrumentation_category, numbered_subpieces, subpieces_start, notes, is_provisional,
+                     instrumentation_json, composition_years_json, text_author_json, roles_json,
+                     arrangements_json, cadenza_json, title_number_json,
+                     catalog_sort_prefix, catalog_sort_number, catalog_sort_suffix)
+                SELECT
+                     id, composer_id, parent_piece_id, parent_version_id, position,
+                     title, title_english, subtitle, nickname, form,
+                     number, music_number, key_tonality, key_mode, publication_year,
+                     instrumentation_category, numbered_subpieces, subpieces_start, notes, is_provisional,
+                     instrumentation_json, composition_years_json, text_author_json, roles_json,
+                     arrangements_json, cadenza_json, title_number_json,
+                     catalog_sort_prefix, catalog_sort_number, catalog_sort_suffix
+                FROM pieces
+                """, tx);
+
+            await ExecAsync(conn, "DROP TABLE pieces", tx);
+            await ExecAsync(conn, "ALTER TABLE pieces_new RENAME TO pieces", tx);
+
+            // Recreate indexes EF declared (names preserved so future
+            // migrations can reference them without surprise).
+            await ExecAsync(conn,
+                "CREATE INDEX ix_pieces_composer_catalog_sort " +
+                "ON pieces (composer_id, catalog_sort_prefix, catalog_sort_number, catalog_sort_suffix)", tx);
+            await ExecAsync(conn,
+                "CREATE INDEX IX_pieces_composer_id ON pieces (composer_id)", tx);
+            await ExecAsync(conn,
+                "CREATE INDEX IX_pieces_composer_id_title ON pieces (composer_id, title)", tx);
+            await ExecAsync(conn,
+                "CREATE INDEX IX_pieces_parent_piece_id_position " +
+                "ON pieces (parent_piece_id, position)", tx);
+            await ExecAsync(conn,
+                "CREATE INDEX IX_pieces_parent_version_id_position " +
+                "ON pieces (parent_version_id, position)", tx);
+
+            await using (var check = conn.CreateCommand())
+            {
+                check.Transaction = tx;
+                check.CommandText = "PRAGMA foreign_key_check";
+                await using var reader = await check.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await reader.ReadAsync().ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "Foreign-key check failed after recreating pieces. " +
+                        "Migration aborted; the transaction will roll back.");
+                }
+            }
+
+            await tx.CommitAsync().ConfigureAwait(false);
+        }
+        });
 
     /// <summary>
     /// Recreates <c>album_performers</c> with a nullable <c>album_id</c> column,

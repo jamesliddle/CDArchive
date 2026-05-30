@@ -19,10 +19,10 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 🎉 **All Critical and High findings retired** (Critical: across the rework arc; High: H1 + H2 retired across 2026-05-29 + 2026-05-30). The Top-5 list is now seeded with the most-impactful Mediums. The default protocol (numeric-within-severity, Medium first) applies after these are addressed.
 
 1. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` (a range-end marker) doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
-2. **`PieceRow.Title` and several "logical key" columns lack `.IsRequired()` and there's no min-identity CHECK.** [CanonDbContext.cs:229](src/CDArchive.Core/Data/CanonDbContext.cs:229) — pieces with null Title are intentional (structured-form pieces represented by their Form + Catalogue). But the schema would also silently accept `Title=null AND Form=null AND CatalogInfo=null AND Composers=null` — an identity-less row that would never be reachable in the UI. A `CHECK at_least_one_identity` constraint would be cheap insurance against a buggy importer or seed file. (M6)
-3. **Bare `ObservableCollection` reassignment causes UI flicker on filter/sort.** Throughout the VMs — `Albums = new ObservableCollection<CanonAlbum>(sorted)` wipes the collection and re-attaches every item. For 3k+ items this is a perceivable scroll-reset/flicker. Particularly bad in [ItunesImportViewModel.cs:218](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:218) where `ApplyFilter` runs on every keystroke (`partial void OnFilterChanged → ApplyFilter`), rebuilding a potentially-large collection per typed character. Use clear-and-re-add or `CollectionView`/`ICollectionView` with `Refresh()`. Debounce the filter text update. (M7)
-4. **`BuildSequence` ordering uses `VolumeNumber ?? 0` which collapses null volumes.** [PlayerViewModel.cs:255-257](src/CDArchive.App/ViewModels/PlayerViewModel.cs:255) — null-volume discs sort as 0, ahead of `Vol 1` discs. A mixed album would interleave oddly. Pick null-volumes-last (`?? int.MaxValue`) or document. (M8)
-5. **`PreferredAudioFormat` is `enum?` in SettingsData but `enum` on the interface.** [ArchiveSettings.cs:73](src/CDArchive.Core/Services/ArchiveSettings.cs:73) — a `settings.json` containing `"PreferredAudioFormat": "Wma"` throws `JsonException` (caught silently) and reverts to default with no log. Use `[JsonConverter(typeof(JsonStringEnumConverter))]` + a permissive default + a log warning so the user can see why their setting didn't take. (M10)
+2. **Bare `ObservableCollection` reassignment causes UI flicker on filter/sort.** Throughout the VMs — `Albums = new ObservableCollection<CanonAlbum>(sorted)` wipes the collection and re-attaches every item. For 3k+ items this is a perceivable scroll-reset/flicker. Particularly bad in [ItunesImportViewModel.cs:218](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:218) where `ApplyFilter` runs on every keystroke (`partial void OnFilterChanged → ApplyFilter`), rebuilding a potentially-large collection per typed character. Use clear-and-re-add or `CollectionView`/`ICollectionView` with `Refresh()`. Debounce the filter text update. (M7)
+3. **`BuildSequence` ordering uses `VolumeNumber ?? 0` which collapses null volumes.** [PlayerViewModel.cs:255-257](src/CDArchive.App/ViewModels/PlayerViewModel.cs:255) — null-volume discs sort as 0, ahead of `Vol 1` discs. A mixed album would interleave oddly. Pick null-volumes-last (`?? int.MaxValue`) or document. (M8)
+4. **`PreferredAudioFormat` is `enum?` in SettingsData but `enum` on the interface.** [ArchiveSettings.cs:73](src/CDArchive.Core/Services/ArchiveSettings.cs:73) — a `settings.json` containing `"PreferredAudioFormat": "Wma"` throws `JsonException` (caught silently) and reverts to default with no log. Use `[JsonConverter(typeof(JsonStringEnumConverter))]` + a permissive default + a log warning so the user can see why their setting didn't take. (M10)
+5. **`ItunesLibraryReference.IsTaggedTrue` won't catch all non-music kinds.** [ItunesLibraryReference.cs:70-77](src/CDArchive.Core/Services/ItunesLibraryReference.cs:70) — hardcoded denylist (`Podcast`, `Movie`, etc.). iTunes has added kinds since (`Voice Memo`, `iTunes Extra`, `iTunes U`). Document the list or invert the check ("only include rows where Genre is classical-y"). (M9)
 
 The next tier (M11+) covers MusicBrainz response caching, ItunesLibraryReference XML walk hardening, more Album-editor save-path tightening, and the second wave of editor-VM extractions (`AlbumEditorViewModel.SaveSingle/SaveMulti` is already extracted via H13's editor slices). Higher-effort structural work — extracting `PieceEditorViewModel`'s ~1,100-line code-behind further, dedupe of `SimpleDbContextFactory` boilerplate in tests, etc. — sits below the Top-5 but is the natural next big arc after Mediums are worked down.
 
@@ -61,10 +61,10 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 |---|---|
 | 🔴 Critical | 0 |
 | 🟠 High | 0 |
-| 🟡 Medium | 79 |
+| 🟡 Medium | 78 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **171** |
+| **Total** | **170** |
 
 ---
 
@@ -82,9 +82,6 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 ### M3. `PieceRow.AlbumRefs` inverse navigation exists but `EndPiece` has none
 [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` won't be detected by `Composer.Pieces` walk. Reject cascade hits FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error. Add an inverse or pre-check in `CanonRejectCascade.RejectPieceAsync`.
-
-### M6. `PieceRow.Title` and several "logical key" columns lack `.IsRequired()` and no min-identity CHECK
-[CanonDbContext.cs:229](src/CDArchive.Core/Data/CanonDbContext.cs:229) — pieces with null Title are intentional (structured-form). But the schema would silently accept `Title=null AND Form=null AND CatalogInfo=null AND Composers=null` — an identity-less row. A `CHECK at_least_one_identity` would be cheap insurance.
 
 ### M7. Bare `ObservableCollection` reassignment causes UI flicker on filter/sort
 Throughout the VMs — `Albums = new ObservableCollection<CanonAlbum>(sorted)` wipes the collection and re-attaches every item. For 3k+ items this is a perceivable scroll-reset/flicker. Particularly bad in [ItunesImportViewModel.cs:218](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:218) where `ApplyFilter` runs on every keystroke (`partial void OnFilterChanged → ApplyFilter`), rebuilding a potentially-large collection for each typed character. Use clear-and-re-add or `CollectionView`/`ICollectionView` with `Refresh()`. Debounce the filter text update.
@@ -743,6 +740,26 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### M6. `PieceRow.Title` and several "logical key" columns lack `.IsRequired()` and no min-identity CHECK — M6 retired
+[2026-05-30] `rework/m6-piece-identity-check` — Added a row-level CHECK constraint `ck_pieces_has_identity` to the `pieces` table enforcing that every row carries at least one human-visible identifying field. The constraint:
+
+```sql
+CHECK (title IS NOT NULL OR form IS NOT NULL OR nickname IS NOT NULL OR
+       number IS NOT NULL OR catalog_sort_prefix != '')
+```
+
+`catalog_sort_prefix` is `NOT NULL` and gets populated at save time from `CatalogInfo[0].Catalog` — it's an empty string when the piece has no Catalogue entries, so `!= ''` is a faithful proxy for "has at least one Catalogue entry" without needing a JOIN against the side table. The composer FK is enforced separately via `composer_id NOT NULL` + `OnDelete:Restrict`, so the CHECK covers the piece's own identity field surface (Title / Form / Nickname / Number / Catalogue).
+
+**Migration**: SQLite has no `ALTER TABLE ADD CONSTRAINT`, so existing DBs go through the standard CREATE-COPY-DROP-RENAME recipe used by the existing nullability migrations. New `EnsureCheckConstraintAsync(db, table, constraintName, recreate)` helper detects the missing CHECK by scanning `sqlite_master.sql` for the constraint name (SQLite stores CHECK constraints inline in the CREATE statement). New `RecreatePiecesWithIdentityCheckAsync` recipe rebuilds `pieces` with both CHECK constraints (`ck_pieces_single_parent` preserved + new `ck_pieces_has_identity`), all 30 columns, all 3 FKs (composer Restrict, parent_piece_id self-FK Cascade, parent_version_id Cascade), runs `PRAGMA foreign_key_check` as a sanity gate, recreates all 5 indexes EF declared (`ix_pieces_composer_catalog_sort` + `IX_pieces_composer_id` + `IX_pieces_composer_id_title` + `IX_pieces_parent_piece_id_position` + `IX_pieces_parent_version_id_position`). All within the H1 slice 6 `WithForeignKeysOffAsync` try/finally wrapper (C6's protection against silent FK-off connection-pool leakage).
+
+**EF schema**: `CanonDbContext.ConfigurePieces` switched from the single-arg `t.HasCheckConstraint(...)` to the lambda form that declares both constraints. Fresh DBs get both via `EnsureCreatedAsync`.
+
+8 new tests in `PiecesIdentityCheckMigrationTests` covering: fresh-DB rejects identity-less inserts; Theory across the five disjunction branches asserting every valid identity field is accepted; legacy-DB migrates correctly (CHECK present, both old + new constraints kept, all rows preserved with their IDs + field values, all 5 indexes recreated, post-migration inserts still enforced); idempotency on already-migrated schema.
+
+**Counts**: Medium 79→78; Total 171→170. Top-5 #2 (M6) closes; #1 was M3 and stays at top.
+
+Total tests: 1,123 (688 Core + 435 App; +8 from baseline 1,115).
 
 ### H2. `CanonView.xaml.cs` is 1,436 lines of code-behind doing VM/service work — H2 retired
 [2026-05-30] `rework/h2-edit-flow-orchestration` — 🎉 closes the multi-PR H2 arc. Five slices across one day shrank the file 1,338 → 951 lines (-387, -28.9%). What moved:
