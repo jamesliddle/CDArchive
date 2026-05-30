@@ -509,11 +509,39 @@ public partial class SqliteCanonDataService
                 // Re-attach the rows so subsequent saves don't keep re-trying the delete.
                 foreach (var r in toDelete)
                     db.Entry(r).State = EntityState.Unchanged;
+
+                // M3: distinguish "ref starts at this piece" (piece_id FK) from
+                // "ref ends at this piece" (end_piece_id FK — range marker).
+                // SQLite's FK Restrict message just says "FOREIGN KEY constraint
+                // failed" without naming the column, but both columns target
+                // album_track_piece_refs with OnDelete:Restrict, so we count
+                // each and report which kind blocked the delete. The user
+                // otherwise sees "remove album refs" and looks for visible
+                // references that aren't there — the start-refs were stripped
+                // by the cascade beforehand, and the lingering refs are the
+                // range-end markers (where their EndSubpiecePath, not
+                // SubpiecePath, walks into this piece).
+                var doomedIds = toDelete.Select(r => r.Id).ToList();
+                var startRefCount = await db.AlbumTrackPieceRefs.AsNoTracking()
+                    .Where(r => doomedIds.Contains(r.PieceId))
+                    .CountAsync().ConfigureAwait(false);
+                var endRefCount = await db.AlbumTrackPieceRefs.AsNoTracking()
+                    .Where(r => r.EndPieceId != null && doomedIds.Contains(r.EndPieceId.Value))
+                    .CountAsync().ConfigureAwait(false);
+
                 var titles = string.Join(", ",
                     toDelete.Select(r => $"'{r.Title}'").Where(s => s.Length > 2).Take(3));
+
+                var reasons = new List<string>();
+                if (startRefCount > 0) reasons.Add($"{startRefCount} as the piece itself");
+                if (endRefCount   > 0) reasons.Add($"{endRefCount} as a range-end marker");
+                var reasonClause = reasons.Count > 0
+                    ? $" ({string.Join("; ", reasons)})"
+                    : "";
+
                 throw new InvalidOperationException(
                     $"Cannot delete {toDelete.Count} piece(s) ({titles}…) — they are still " +
-                    $"referenced by one or more album track refs. Remove those album references first.",
+                    $"referenced by album track refs{reasonClause}. Remove those album references first.",
                     ex);
             }
             // CWT entries (_pieceIds) for the deleted CanonPieces clean themselves

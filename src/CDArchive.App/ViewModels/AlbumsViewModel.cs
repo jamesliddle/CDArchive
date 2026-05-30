@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.App.Helpers;
 using CDArchive.App.Services;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
@@ -147,7 +148,9 @@ public partial class AlbumsViewModel : ObservableObject
 
         var sorted = ApplySort(filtered).ToList();
 
-        Albums = new ObservableCollection<CanonAlbum>(sorted);
+        // M7: reset in place — ApplyFilter fires on every keystroke in the
+        // Albums view's filter textbox.
+        Albums.Reset(sorted);
 
         StatusMessage = filter.Length > 0 || ProvisionalFilter != ProvisionalFilter.All
             ? $"{Albums.Count} of {_allAlbums.Count} album(s)"

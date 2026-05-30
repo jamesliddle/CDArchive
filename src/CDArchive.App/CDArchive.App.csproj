@@ -23,4 +23,11 @@
     <ApplicationIcon>cdarchive.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Exposes internal types to the App.Tests project so unit tests can
+         exercise small helper methods (e.g. PlayerViewModel.BuildSequence)
+         without contorting the public surface to make them testable. -->
+    <InternalsVisibleTo Include="CDArchive.App.Tests" />
+  </ItemGroup>
+
 </Project>

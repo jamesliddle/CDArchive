@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -79,16 +80,25 @@ public class ArchiveSettings : IArchiveSettings
         try
         {
             var json = File.ReadAllText(_settingsFilePath);
-            var data = JsonSerializer.Deserialize<SettingsData>(json);
-            if (data is not null)
-            {
-                ArchiveRootPath = data.ArchiveRootPath ?? ArchiveRootPath;
-                FfmpegPath = data.FfmpegPath ?? FfmpegPath;
-                Mp3Bitrate = data.Mp3Bitrate > 0 ? data.Mp3Bitrate : Mp3Bitrate;
-                PreferredAudioFormat = data.PreferredAudioFormat ?? PreferredAudioFormat;
-                if (data.PlayerVolume is float v)
-                    PlayerVolume = Math.Clamp(v, 0f, 1f);
-            }
+            // Parse to a JsonDocument first so we can extract each setting
+            // independently — a single bad value (e.g. an unknown
+            // PreferredAudioFormat that the JsonStringEnumConverter would
+            // throw on) used to fail the whole deserialization and reset
+            // every setting back to default. See Rework M10.
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return;
+
+            if (TryReadString(root, nameof(SettingsData.ArchiveRootPath)) is { } archive)
+                ArchiveRootPath = archive;
+            if (TryReadString(root, nameof(SettingsData.FfmpegPath)) is { } ffmpeg)
+                FfmpegPath = ffmpeg;
+            if (TryReadInt(root, nameof(SettingsData.Mp3Bitrate)) is int bitrate && bitrate > 0)
+                Mp3Bitrate = bitrate;
+            if (TryReadAudioFormat(root, nameof(SettingsData.PreferredAudioFormat)) is { } format)
+                PreferredAudioFormat = format;
+            if (TryReadFloat(root, nameof(SettingsData.PlayerVolume)) is float v)
+                PlayerVolume = Math.Clamp(v, 0f, 1f);
         }
         catch (Exception ex)
         {
@@ -99,6 +109,58 @@ public class ArchiveSettings : IArchiveSettings
             // genuine misconfig still surfaces in cdarchive-YYYYMMDD.log.
             _logger.LogWarning(ex,
                 "Failed to load settings from {Path}; keeping defaults", _settingsFilePath);
+        }
+    }
+
+    private static string? TryReadString(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var el)) return null;
+        return el.ValueKind == JsonValueKind.String ? el.GetString() : null;
+    }
+
+    private static int? TryReadInt(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var el)) return null;
+        return el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var v) ? v : null;
+    }
+
+    private static float? TryReadFloat(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var el)) return null;
+        return el.ValueKind == JsonValueKind.Number && el.TryGetSingle(out var v) ? v : null;
+    }
+
+    /// <summary>
+    /// M10: tolerant parse of <see cref="PreferredAudioFormat"/>. Accepts both
+    /// string forms ("Flac" / "Mp3") and integer forms (the original JSON
+    /// shape). Unknown / malformed values return null so the caller keeps the
+    /// existing default — pre-fix any unknown string here would throw and
+    /// reset every other setting back to default too. Logs a warning on
+    /// unparseable input so a misconfiguration shows up in the rolling log.
+    /// </summary>
+    private PreferredAudioFormat? TryReadAudioFormat(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var el)) return null;
+
+        switch (el.ValueKind)
+        {
+            case JsonValueKind.String:
+                var s = el.GetString();
+                if (Enum.TryParse<PreferredAudioFormat>(s, ignoreCase: true, out var parsed))
+                    return parsed;
+                _logger.LogWarning(
+                    "Settings: unknown PreferredAudioFormat value \"{Value}\"; keeping default", s);
+                return null;
+            case JsonValueKind.Number:
+                if (el.TryGetInt32(out var n) && Enum.IsDefined(typeof(PreferredAudioFormat), n))
+                    return (PreferredAudioFormat)n;
+                _logger.LogWarning(
+                    "Settings: PreferredAudioFormat integer {Value} is out of range; keeping default", el);
+                return null;
+            default:
+                _logger.LogWarning(
+                    "Settings: PreferredAudioFormat has unexpected JSON kind {Kind}; keeping default", el.ValueKind);
+                return null;
         }
     }
 
@@ -116,7 +178,15 @@ public class ArchiveSettings : IArchiveSettings
 
         Directory.CreateDirectory(dir);
 
-        var options = new JsonSerializerOptions { WriteIndented = true };
+        // Serialize the enum as its string form ("Flac" / "Mp3") so a user
+        // who opens settings.json by hand sees the meaningful name instead
+        // of an opaque integer. Read paths accept both forms via M10's
+        // tolerant parse.
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Converters = { new JsonStringEnumConverter() },
+        };
         var json = JsonSerializer.Serialize(new SettingsData
         {
             ArchiveRootPath = ArchiveRootPath,
