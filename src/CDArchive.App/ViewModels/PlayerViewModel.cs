@@ -41,7 +41,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private List<TrackEntry> _currentSequence = new();
     private int _currentIndex;
 
-    private readonly record struct TrackEntry(AlbumDisc Disc, AlbumTrack Track);
+    internal readonly record struct TrackEntry(AlbumDisc Disc, AlbumTrack Track);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TrackInfoLine))]
@@ -257,11 +257,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         Album    = album.DisplayTitle;
     }
 
-    private static List<TrackEntry> BuildSequence(CanonAlbum album)
+    internal static List<TrackEntry> BuildSequence(CanonAlbum album)
     {
         var list = new List<TrackEntry>();
+        // Null-volume discs sort LAST so a mixed album that combines Vol 1 +
+        // Vol 2 + a bonus disc without a volume doesn't interleave the bonus
+        // disc ahead of Vol 1. Pre-fix `?? 0` collapsed nulls into the same
+        // bucket as "Vol 0" (an unlikely but possible legitimate value),
+        // putting them ahead of every numbered volume. See Rework M8.
         foreach (var disc in album.Discs
-                     .OrderBy(d => d.VolumeNumber ?? 0)
+                     .OrderBy(d => d.VolumeNumber ?? int.MaxValue)
                      .ThenBy(d => d.DiscNumber))
         {
             foreach (var t in disc.Tracks.OrderBy(t => t.TrackNumber))

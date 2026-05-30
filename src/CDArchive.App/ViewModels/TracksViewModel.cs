@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.App.Helpers;
 using CDArchive.App.Services;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
@@ -372,7 +373,9 @@ public partial class TracksViewModel : ObservableObject
             _                             => filtered,
         };
 
-        Rows = new ObservableCollection<AlbumTrackRow>(ApplySort(filtered));
+        // M7: reset in place — ApplyFilterAndSort fires on every keystroke
+        // in the filter textbox.
+        Rows.Reset(ApplySort(filtered));
 
         StatusMessage = filter.Length > 0 || ProvisionalFilter != ProvisionalFilter.All
             ? $"{Rows.Count} of {_allRows.Count} track(s)"

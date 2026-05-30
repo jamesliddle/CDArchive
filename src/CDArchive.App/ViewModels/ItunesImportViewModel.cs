@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.App.Helpers;
 using CDArchive.App.Services;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
@@ -266,7 +267,10 @@ public partial class ItunesImportViewModel : ObservableObject
         }
 
         var list = filtered.ToList();
-        Tracks = new ObservableCollection<ItunesTrack>(list);
+        // M7: reset in place — ApplyFilter fires per keystroke
+        // (OnFilterTextChanged → ApplyFilter), and the WPF DataGrid otherwise
+        // re-realises every row on each character.
+        Tracks.Reset(list);
         ShownCount = list.Count;
 
         if (HideAlreadyImported && hiddenAsImported > 0)

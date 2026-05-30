@@ -18,13 +18,15 @@ Note: `MovementEditorWindow` and `VersionEditorWindow` referenced in CLAUDE.md d
 
 🎉 **All Critical and High findings retired** (Critical: across the rework arc; High: H1 + H2 retired across 2026-05-29 + 2026-05-30). The Top-5 list is now seeded with the most-impactful Mediums. The default protocol (numeric-within-severity, Medium first) applies after these are addressed.
 
-1. **`PieceRow.AlbumRefs` has an inverse navigation but `EndPiece` doesn't.** [CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` (a range-end marker) doesn't surface in `Composer.Pieces` walks. The Reject cascade hits the FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error rather than a "this piece is referenced as a range end" diagnostic. Add an inverse navigation or a pre-check in `CanonRejectCascade.RejectPieceAsync` that explicitly looks for `end_piece_id` references and reports them. Bounded fix. (M3)
-2. **Bare `ObservableCollection` reassignment causes UI flicker on filter/sort.** Throughout the VMs — `Albums = new ObservableCollection<CanonAlbum>(sorted)` wipes the collection and re-attaches every item. For 3k+ items this is a perceivable scroll-reset/flicker. Particularly bad in [ItunesImportViewModel.cs:218](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:218) where `ApplyFilter` runs on every keystroke (`partial void OnFilterChanged → ApplyFilter`), rebuilding a potentially-large collection per typed character. Use clear-and-re-add or `CollectionView`/`ICollectionView` with `Refresh()`. Debounce the filter text update. (M7)
-3. **`BuildSequence` ordering uses `VolumeNumber ?? 0` which collapses null volumes.** [PlayerViewModel.cs:255-257](src/CDArchive.App/ViewModels/PlayerViewModel.cs:255) — null-volume discs sort as 0, ahead of `Vol 1` discs. A mixed album would interleave oddly. Pick null-volumes-last (`?? int.MaxValue`) or document. (M8)
-4. **`PreferredAudioFormat` is `enum?` in SettingsData but `enum` on the interface.** [ArchiveSettings.cs:73](src/CDArchive.Core/Services/ArchiveSettings.cs:73) — a `settings.json` containing `"PreferredAudioFormat": "Wma"` throws `JsonException` (caught silently) and reverts to default with no log. Use `[JsonConverter(typeof(JsonStringEnumConverter))]` + a permissive default + a log warning so the user can see why their setting didn't take. (M10)
-5. **`ItunesLibraryReference.IsTaggedTrue` won't catch all non-music kinds.** [ItunesLibraryReference.cs:70-77](src/CDArchive.Core/Services/ItunesLibraryReference.cs:70) — hardcoded denylist (`Podcast`, `Movie`, etc.). iTunes has added kinds since (`Voice Memo`, `iTunes Extra`, `iTunes U`). Document the list or invert the check ("only include rows where Genre is classical-y"). (M9)
+🎉 **M3 + M7 + M8 + M10 retired together [2026-05-30]** via `rework/m3-m7-m8-m10-bundle` — a four-finding cleanup PR that knocked out the top four Mediums in one go. M9 was the only Top-5 entry to survive into the next tranche.
 
-The next tier (M11+) covers MusicBrainz response caching, ItunesLibraryReference XML walk hardening, more Album-editor save-path tightening, and the second wave of editor-VM extractions (`AlbumEditorViewModel.SaveSingle/SaveMulti` is already extracted via H13's editor slices). Higher-effort structural work — extracting `PieceEditorViewModel`'s ~1,100-line code-behind further, dedupe of `SimpleDbContextFactory` boilerplate in tests, etc. — sits below the Top-5 but is the natural next big arc after Mediums are worked down.
+1. **`ItunesLibraryReference.IsTaggedTrue` won't catch all non-music kinds.** [ItunesLibraryReference.cs:184-191](src/CDArchive.Core/Services/ItunesLibraryReference.cs:184) — hardcoded denylist (`Podcast`, `Movie`, `TV Show`, `Audiobook`, `Music Video`, `Has Video`, `Book`). iTunes has added kinds since (`Voice Memo`, `iTunes Extra`). Document the list or invert the check ("only include tracks whose Kind is *audio file*"). (M9)
+2. **M11+: MusicBrainz response caching.** Repeated lookups for the same composer re-hit the API even when the result is unlikely to change within a session. Add an in-memory dictionary keyed on the normalised composer name. (M11)
+3. **The PieceEditor code-behind is still ~1,000 lines.** H13's editor extractions covered AlbumEditor + TrackEditor fully, but PieceEditor's per-version + per-subpiece + per-marker juggling still lives in code-behind. Would be a multi-PR slice arc similar to H1 / H2.
+4. **`SimpleDbContextFactory` boilerplate.** Test files still inline the same 6-line factory. Move it to a shared test-infrastructure helper.
+5. *(Top-5 reduced to 3 until the next pass identifies higher-impact candidates from the deeper Medium tranche.)*
+
+The post-bundle tier above is informal — the default protocol (numeric-within-severity) is the canonical next-bite selector. The four named candidates are just opportunistic flags for the next session.
 
 ---
 
@@ -61,10 +63,10 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 |---|---|
 | 🔴 Critical | 0 |
 | 🟠 High | 0 |
-| 🟡 Medium | 78 |
+| 🟡 Medium | 74 |
 | 🟢 Low | 44 |
 | ⚪ Nit | 48 |
-| **Total** | **170** |
+| **Total** | **166** |
 
 ---
 
@@ -80,20 +82,8 @@ This is a living backlog. The intended workflow is multiple focused passes over 
 
 ## 🟡 Medium
 
-### M3. `PieceRow.AlbumRefs` inverse navigation exists but `EndPiece` has none
-[CanonDbContext.cs:619-625](src/CDArchive.Core/Data/CanonDbContext.cs:619) — deliberate per the comment, but deleting a piece referenced as `end_piece_id` won't be detected by `Composer.Pieces` walk. Reject cascade hits FK Restrict and rolls back (fail-safe), but the user sees a generic SQLite error. Add an inverse or pre-check in `CanonRejectCascade.RejectPieceAsync`.
-
-### M7. Bare `ObservableCollection` reassignment causes UI flicker on filter/sort
-Throughout the VMs — `Albums = new ObservableCollection<CanonAlbum>(sorted)` wipes the collection and re-attaches every item. For 3k+ items this is a perceivable scroll-reset/flicker. Particularly bad in [ItunesImportViewModel.cs:218](src/CDArchive.App/ViewModels/ItunesImportViewModel.cs:218) where `ApplyFilter` runs on every keystroke (`partial void OnFilterChanged → ApplyFilter`), rebuilding a potentially-large collection for each typed character. Use clear-and-re-add or `CollectionView`/`ICollectionView` with `Refresh()`. Debounce the filter text update.
-
-### M8. `BuildSequence` ordering uses `VolumeNumber ?? 0` which collapses null volumes
-[PlayerViewModel.cs:255-257](src/CDArchive.App/ViewModels/PlayerViewModel.cs:255) — null-volume discs sort as 0, ahead of `Vol 1` discs. A mixed album would interleave oddly. Pick null-volumes-last (`?? int.MaxValue`) or document.
-
 ### M9. `ItunesLibraryReference.IsTaggedTrue` won't catch all non-music kinds
 [ItunesLibraryReference.cs:70-77](src/CDArchive.Core/Services/ItunesLibraryReference.cs:70) — hardcoded list of `Podcast`, `Movie`, etc. iTunes has added kinds (`Voice Memo`, `iTunes Extra`, `iTunes U`). Document or invert the check ("only include rows where Genre is classical-y").
-
-### M10. `PreferredAudioFormat` is `enum?` in SettingsData but `enum` on interface
-[ArchiveSettings.cs:73](src/CDArchive.Core/Services/ArchiveSettings.cs:73) — settings.json with `"PreferredAudioFormat": "Wma"` throws `JsonException` (caught silently) and reverts to default. Use `[JsonConverter(typeof(JsonStringEnumConverter))]` + a permissive default.
 
 ### M11. `MusicBrainzReference` — User-Agent verification, caching
 Verified: User-Agent is set (good — `CDArchive/1.0`). No response caching — repeated lookups for the same composer re-hit the API.
@@ -740,6 +730,28 @@ For balance — these things are genuinely well-done and shouldn't be touched wi
 ## ✅ Retired
 
 Findings addressed and verified. Each entry should be moved here from its original severity section, with a one-line note: `[YYYY-MM-DD] <commit-hash> — <brief description of fix>`. Keeps historical context + rationale visible for revisiting.
+
+### M3 + M7 + M8 + M10 bundle — four Mediums retired together
+[2026-05-30] `rework/m3-m7-m8-m10-bundle` — User requested a multi-finding bundle to clear several Top-5 Mediums in one pass. Each finding was independent (different files, different subsystems), so they bundled cleanly without overlapping risk.
+
+**M3 — `PieceRow.EndPiece` diagnostic.** `SqliteCanonDataService.Pieces.cs` `SavePiecesCoreAsync`'s catch block for the FK-Restrict-on-delete case now counts refs against both the start-FK (`piece_id`) AND the end-FK (`end_piece_id`) and includes a reason clause in the surfaced `InvalidOperationException`. Pre-fix the message said "remove those album references first" but the user saw no visible start-refs (those had been stripped by the cascade) — the lingering refs were range-end markers, which have a different visual shape. The new message reads e.g. "Cannot delete 1 piece(s) ('X') — they are still referenced by album track refs (1 as the piece itself; 2 as a range-end marker). Remove those album references first." Pure diagnostic improvement; no behavioural change to the cascade itself.
+
+**M7 — ObservableCollection in-place reset.** New `Helpers/ObservableCollectionExtensions.cs` with a `Reset<T>(this ObservableCollection<T>, IEnumerable<T>)` extension that clears + re-adds without replacing the collection instance. Four keystroke-path reassignments retired (`CanonViewModel.ApplyComposerFilter`, `CanonViewModel.ApplyPiecesFilter`, `ItunesImportViewModel.ApplyFilter`'s Tracks reset, `TracksViewModel.ApplyFilterAndSort`, `AlbumsViewModel.ApplyFilter`). WPF's `ItemsControl` now keeps its realised containers across filter keystrokes — no more scroll-reset flicker at 3k+ rows. Initial-load reassignments (`Composers = new ObservableCollection(loaded)` in `LoadDataAsync`) are intentionally left alone since they fire once at view init and aren't part of the keystroke-path hot loop. Debouncing the filter text is a separate concern, intentionally not in scope for this bundle.
+
+**M8 — null-volume disc ordering.** One-liner in `PlayerViewModel.BuildSequence`: `?? 0` → `?? int.MaxValue`. Mixed albums (Vol 1 + Vol 2 + un-numbered bonus disc) now play numbered volumes first and the bonus disc last, instead of starting with the bonus disc because `null ?? 0` undershot every numbered volume. `BuildSequence` + `TrackEntry` promoted from `private` to `internal` so the headless test can exercise the sort directly; new `InternalsVisibleTo("CDArchive.App.Tests")` in the App csproj covers it (also opens the door to similar small-helper extractions in future).
+
+**M10 — permissive `PreferredAudioFormat` parse.** `ArchiveSettings.Initialize` now parses settings.json field-by-field via `JsonDocument` rather than a whole-record `JsonSerializer.Deserialize`. Pre-fix any single bad value (e.g. `"PreferredAudioFormat": "Wma"`) threw a `JsonException` that the catch-all swallowed — reverting EVERY setting back to defaults silently. Post-fix: each field has its own parse attempt, and the format field accepts both string forms (`"Flac"` / `"Mp3"`, case-insensitive) and integer forms (back-compat with pre-M10 files). Invalid format values log a warning naming the offending value but leave every other setting intact. The `Save` path also emits the string form so a user opening settings.json by hand sees `"Flac"` not `0`.
+
+**Tests added across all four**:
+- `ObservableCollectionExtensionsTests`: 6 tests covering Reset's instance-preservation contract + CollectionChanged events + null-arg guards.
+- `CanonViewModelFilterCollectionPreservationTests`: 3 tests pinning that the filter paths preserve the `FilteredComposers` / `FilteredPieces` instances across keystrokes.
+- `PlayerViewModelBuildSequenceTests`: 3 tests covering the M8 null-volume regression + the common all-null + all-numbered cases.
+- `ArchiveSettingsPermissiveParseTests`: 6 tests covering string form, integer form (back-compat), unknown string (preserves other settings), out-of-range integer, missing property, round-trip via Save (verifies string form is emitted).
+- `PieceDeleteRangeEndDiagnosticTests`: 2 tests covering the range-end diagnostic + the reverse start-ref case (ensures the message still says "as the piece itself" when relevant and doesn't accidentally claim "range-end").
+
+**23 new tests total.** Build clean (1,146 tests pass: 699 Core + 447 App; +23 from baseline 1,123).
+
+**Counts**: Medium 78→74; Total 170→166. Top-5 #1 (M3), #2 (M7), #3 (M8), #4 (M10) all retire. #5 (M9) survives as the new #1; the next four Top-5 slots get repopulated with informal opportunistic flags (M11, PieceEditor extraction, SimpleDbContextFactory dedupe, then "reduced to 3" until next pass).
 
 ### M6. `PieceRow.Title` and several "logical key" columns lack `.IsRequired()` and no min-identity CHECK — M6 retired
 [2026-05-30] `rework/m6-piece-identity-check` — Added a row-level CHECK constraint `ck_pieces_has_identity` to the `pieces` table enforcing that every row carries at least one human-visible identifying field. The constraint:

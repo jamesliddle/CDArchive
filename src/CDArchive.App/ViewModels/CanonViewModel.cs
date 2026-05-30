@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CDArchive.App.Helpers;
 using CDArchive.App.Services;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
@@ -346,7 +347,10 @@ public partial class CanonViewModel : ObservableObject
             _                             => filtered,
         };
 
-        FilteredComposers = new ObservableCollection<CanonComposer>(
+        // M7: reset in place rather than replacing the collection instance —
+        // WPF's ItemsControl keeps its realised containers, avoiding the
+        // per-keystroke scroll-reset flicker the pre-fix reassignment caused.
+        FilteredComposers.Reset(
             filtered.OrderBy(c => !string.IsNullOrEmpty(c.SortName) ? c.SortName : c.Name,
                 StringComparer.OrdinalIgnoreCase));
     }
@@ -374,7 +378,8 @@ public partial class CanonViewModel : ObservableObject
             _                             => filtered,
         };
 
-        FilteredPieces = new ObservableCollection<CanonPiece>(filtered.ToList());
+        // M7: reset in place — see ApplyComposerFilter above.
+        FilteredPieces.Reset(filtered);
     }
 
     // ── Approval / rejection — Composers ─────────────────────────────────────
