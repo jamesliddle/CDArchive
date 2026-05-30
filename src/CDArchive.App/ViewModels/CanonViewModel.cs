@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CDArchive.App.Services;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -734,6 +735,233 @@ public partial class CanonViewModel : ObservableObject
             return;
         }
         StatusMessage = $"Added new piece: {piece.DisplayTitle}.";
+    }
+
+    // ── Edit-flow orchestration (H2 slice 5) ─────────────────────────────────
+    // The modal-dialog launch stays in the View (it owns Window.GetWindow
+    // ownership + the expansion-state guard). After the dialog returns OK,
+    // the View calls into one of the Complete*EditAsync methods below to
+    // run the post-dialog orchestration — rename propagation, catalog
+    // preference reorder, DataMutated firing, save, status message.
+
+    /// <summary>
+    /// Snapshot of composer-edit-relevant state captured before opening the
+    /// editor. The post-dialog flow compares against this to detect rename +
+    /// catalog-prefix changes that need to propagate to other entities.
+    /// </summary>
+    public readonly record struct ComposerEditSnapshot(
+        string Name, IReadOnlyList<string> CatalogPrefixes);
+
+    /// <summary>
+    /// Captures the snapshot the View hands back to
+    /// <see cref="CompleteEditComposerAsync"/> after the dialog returns OK.
+    /// Pulled into the VM as a static helper so callers don't have to know
+    /// the snapshot's shape.
+    /// </summary>
+    public static ComposerEditSnapshot CaptureComposerSnapshot(CanonComposer composer) =>
+        new(composer.Name, composer.CatalogPrefixes?.ToList() ?? new List<string>());
+
+    /// <summary>
+    /// Completes the EditComposer flow after the editor has mutated
+    /// <paramref name="composer"/>. Compares against <paramref name="snapshot"/>
+    /// to detect (a) a Name rename — propagates through every in-memory
+    /// piece + contributor credit + album/loose-track piece-ref so the UI
+    /// doesn't group pieces by the old name until the next app restart; and
+    /// (b) a CatalogPrefixes change — reorders the composer's pieces'
+    /// CatalogInfo and propagates any resulting display-title changes to
+    /// album track references. Fires <see cref="DataMutated"/> before the
+    /// save's await (the H36 pre-await contract that fixed the WPF
+    /// expander-triangle rendering glitch).
+    /// </summary>
+    public async Task CompleteEditComposerAsync(
+        CanonComposer composer, ComposerEditSnapshot snapshot)
+    {
+        // Propagate any composer-name rename to every in-memory piece +
+        // contributor credit + album/loose-track piece-ref BEFORE the
+        // DataMutated tree rebuild — otherwise the UI groups pieces by the
+        // OLD name and the renamed composer would display as having no
+        // pieces until the next app restart loads everything fresh.
+        if (!string.Equals(composer.Name, snapshot.Name, StringComparison.Ordinal))
+        {
+            ComposerRenamePropagator.Propagate(
+                snapshot.Name,
+                composer.Name,
+                Pieces,
+                _albumsVm.HasLoaded ? _albumsVm.AllAlbums : null,
+                _tracksVm.HasLoaded ? _tracksVm.LooseTracks : null);
+        }
+
+        DataMutated?.Invoke();
+
+        IReadOnlyList<string> prefixesAfter = composer.CatalogPrefixes ?? new List<string>();
+        var prefsChanged = !snapshot.CatalogPrefixes.SequenceEqual(prefixesAfter, StringComparer.Ordinal);
+
+        await _canonDataService.SaveComposersAsync(Composers.ToList());
+
+        // If the preference order changed, reorder every piece of this composer's
+        // catalog_info list and propagate any resulting display-title changes to
+        // album track refs. Empty-prefix case is a no-op.
+        if (prefsChanged && prefixesAfter.Count > 0)
+        {
+            var renames = new List<PieceRename>();
+            var owned = Pieces
+                .Where(p => string.Equals(p.Composer, composer.Name,
+                                          StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            ApplyCatalogPreference(prefixesAfter, owned, composer.Name, renames);
+
+            if (renames.Count > 0)
+            {
+                await _canonDataService.SavePiecesAsync(Pieces.ToList());
+
+                var updated = _albumsVm.HasLoaded
+                    ? AlbumRefUpdater.ApplyRenames(_albumsVm.AllAlbums, renames)
+                    : 0;
+                if (updated > 0)
+                    await _albumsVm.SaveAsync();
+
+                StatusMessage = $"Updated {composer.Name}. Reordered catalogues"
+                    + (updated > 0 ? $"; updated {updated} album track reference(s)." : ".");
+                return;
+            }
+        }
+
+        StatusMessage = $"Updated {composer.Name}.";
+    }
+
+    /// <summary>
+    /// Completes the EditPiece flow after the editor has mutated
+    /// <paramref name="piece"/>. Reorders the piece's CatalogInfo per the
+    /// composer's preferred prefixes, fires <see cref="DataMutated"/>, saves
+    /// (pieces + pick lists atomically via SaveBatch), then computes the
+    /// title-rename diff against <paramref name="snapshot"/> + the catalog
+    /// reorder renames and propagates them to album track references.
+    /// </summary>
+    public async Task CompleteEditPieceAsync(
+        CanonPiece piece, PiecePathSnapshot snapshot)
+    {
+        // Apply the composer's catalog-prefix preference to the edited piece
+        // before computing renames, so freshly-added catalog entries land in
+        // canonical order and any resulting display-title change flows into
+        // the album-ref rename stream.
+        var composer = Composers.FirstOrDefault(c =>
+            string.Equals(c.Name, piece.Composer, StringComparison.OrdinalIgnoreCase));
+        var catalogRenames = new List<PieceRename>();
+        ApplyCatalogPreference(
+            composer?.CatalogPrefixes,
+            [piece],
+            piece.Composer ?? "",
+            catalogRenames);
+
+        DataMutated?.Invoke();
+
+        // SaveBatch (pieces + pick lists atomically) matches the pre-fix
+        // two-call SaveAllAsync (SavePiecesCommand + SavePickListsCommand)
+        // but closes the inter-call window — same argument as NewPieceCommand.
+        await _canonDataService.SaveBatchAsync(
+            null, Pieces.ToList(), null, null, PickLists);
+        StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
+
+        // Propagate any title renames (path changes + catalog-reorder
+        // changes) to album track references.
+        var renames = PieceRefPathDiffer.Diff(snapshot, piece)
+            .Concat(catalogRenames).ToList();
+        if (renames.Count > 0 && _albumsVm.HasLoaded)
+        {
+            var updated = AlbumRefUpdater.ApplyRenames(_albumsVm.AllAlbums, renames);
+            if (updated > 0)
+            {
+                await _albumsVm.SaveAsync();
+                StatusMessage += $"  Updated {updated} album track reference(s).";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Completes the EditVersion flow. Versions don't carry top-level
+    /// composer credits and the version's Description rename doesn't
+    /// propagate anywhere — so this is just the DataMutated + SaveBatch +
+    /// status trio.
+    /// </summary>
+    public async Task CompleteEditVersionAsync(VersionDisplayNode versionNode)
+    {
+        DataMutated?.Invoke();
+        await _canonDataService.SaveBatchAsync(
+            null, Pieces.ToList(), null, null, PickLists);
+        StatusMessage = $"Updated version: {versionNode.Version.Description ?? "(no description)"}.";
+    }
+
+    /// <summary>
+    /// Completes the EditSubpiece flow. Subpieces inherit their composer +
+    /// other-contributors from the parent piece; no rename propagation is
+    /// needed because the subpiece's display title is built relative to
+    /// the parent (subpiece-number + title) and the parent isn't being
+    /// edited here.
+    /// </summary>
+    public async Task CompleteEditSubpieceAsync(CanonPiece subpiece)
+    {
+        DataMutated?.Invoke();
+        await _canonDataService.SaveBatchAsync(
+            null, Pieces.ToList(), null, null, PickLists);
+        StatusMessage = $"Updated: {subpiece.SubpieceDisplayTitle}.";
+    }
+
+    /// <summary>
+    /// Applies the composer's <c>preferredPrefixes</c> to each target piece's
+    /// <see cref="CanonPiece.CatalogInfo"/>, and emits a <see cref="PieceRename"/>
+    /// for every piece whose display title changed as a result. Two renames are
+    /// emitted per change — the full form (with nickname/subtitle) and the
+    /// stripped form — because album refs have historically stored either one.
+    /// </summary>
+    private static void ApplyCatalogPreference(
+        IReadOnlyList<string>? preferredPrefixes,
+        IEnumerable<CanonPiece> targets,
+        string composerName,
+        List<PieceRename> renames)
+    {
+        if (preferredPrefixes is null || preferredPrefixes.Count == 0) return;
+
+        foreach (var piece in targets)
+        {
+            var oldFull     = piece.DisplayTitle;
+            var oldStripped = StripNickAndSub(oldFull, piece);
+
+            piece.SortCatalogInfoByPreference(preferredPrefixes);
+
+            var newFull     = piece.DisplayTitle;
+            var newStripped = StripNickAndSub(newFull, piece);
+
+            if (string.Equals(oldFull, newFull, StringComparison.Ordinal))
+                continue;
+
+            renames.Add(new PieceRename(composerName, oldFull, newFull, null, null));
+            if (!string.Equals(oldStripped, oldFull, StringComparison.Ordinal))
+                renames.Add(new PieceRename(composerName, oldStripped, newStripped, null, null));
+        }
+    }
+
+    /// <summary>
+    /// Mirrors <see cref="PieceReferenceIndex.StripNicknameAndSubtitle"/>: strips
+    /// the trailing <c>, Subtitle</c> and/or <c> "Nickname"</c> suffixes that
+    /// <see cref="CanonPiece.BuildDisplayTitle"/> appends.
+    /// </summary>
+    private static string StripNickAndSub(string displayTitle, CanonPiece p)
+    {
+        var result = displayTitle;
+        if (!string.IsNullOrEmpty(p.Nickname))
+        {
+            var nick = $" \"{p.Nickname}\"";
+            if (result.EndsWith(nick, StringComparison.Ordinal))
+                result = result[..^nick.Length];
+        }
+        if (!string.IsNullOrEmpty(p.Subtitle))
+        {
+            var sub = $", {p.Subtitle}";
+            if (result.EndsWith(sub, StringComparison.Ordinal))
+                result = result[..^sub.Length];
+        }
+        return result;
     }
 
     /// <summary>

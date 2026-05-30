@@ -39,10 +39,11 @@ public partial class CanonView : UserControl
     private TreeViewItem? _ctxTvi;      // its container
 
     // ── Auto-refresh suppression ─────────────────────────────────────────────
-    // When an edit handler calls ApplySortedFilter directly (after dialog close)
-    // and then awaits SaveAllAsync, the save commands set IsLoading=true→false,
-    // which would normally trigger a second ApplySortedFilter via
-    // OnViewModelPropertyChanged.  We suppress that redundant rebuild.
+    // VM commands fire DataMutated synchronously before their save's await;
+    // the View's OnVmDataMutated runs UpdatePieceCounts + ApplySortedFilter
+    // and sets _suppressAutoRefresh = true so the post-save IsLoading=false
+    // transition doesn't trigger a redundant second rebuild via
+    // OnViewModelPropertyChanged.
 
     private bool _suppressAutoRefresh;
 
@@ -149,8 +150,10 @@ public partial class CanonView : UserControl
         if (e.PropertyName != nameof(CanonViewModel.IsLoading)) return;
         if (vm.IsLoading) return;   // only act on the transition to false
 
-        // Edit handlers call ApplySortedFilter directly before awaiting SaveAllAsync.
-        // When the save commands flip IsLoading=false, skip the redundant second rebuild.
+        // VM commands raise DataMutated before their save's await; the
+        // OnVmDataMutated handler ran ApplySortedFilter synchronously and set
+        // _suppressAutoRefresh, so the post-save IsLoading=false transition
+        // here is a redundant second rebuild to skip.
         if (_suppressAutoRefresh) { _suppressAutoRefresh = false; return; }
 
         UpdatePieceCounts(vm);
@@ -622,14 +625,21 @@ public partial class CanonView : UserControl
 
     // ── Edit: composer ───────────────────────────────────────────────────────
 
+    // H2 slice 5: post-dialog orchestration for EditComposer / EditPiece /
+    // EditVersion / EditSubpiece migrated to CanonViewModel.Complete*EditAsync.
+    // The View handlers now only own dialog construction (which needs Owner =
+    // Window.GetWindow(this), composerNames/composerCatalogs/ancestorRoles
+    // computed from VM state, and the expansion-state guard around ShowDialog).
+    // The post-OK orchestration (rename propagation + catalog reorder + save +
+    // album-ref rename) lives on the VM.
+
     private async Task EditComposerAsync(CanonComposer composer)
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        // Snapshot the name + catalog-prefix preference before the dialog so
-        // we can detect changes after the edit dialog returns.
-        var nameBefore     = composer.Name;
-        var prefixesBefore = composer.CatalogPrefixes?.ToList() ?? [];
+        // Snapshot captured before the dialog mutates the composer — the VM
+        // uses it post-dialog to detect rename + prefix changes.
+        var snapshot = CanonViewModel.CaptureComposerSnapshot(composer);
 
         var window = new ComposerEditorWindow(vm.PickLists, composer)
         {
@@ -637,120 +647,7 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) != true) return;
-
-        // Propagate any composer-name rename to every in-memory piece +
-        // contributor credit + album/loose-track piece-ref before the tree
-        // rebuild below — otherwise the UI groups pieces by the OLD name
-        // and the renamed composer would display as having no pieces until
-        // the next app restart loads everything fresh from SQLite.
-        if (!string.Equals(composer.Name, nameBefore, StringComparison.Ordinal))
-        {
-            var albumsVmForRename = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
-            var tracksVmForRename = App.ServiceProvider.GetRequiredService<TracksViewModel>();
-            ComposerRenamePropagator.Propagate(
-                nameBefore,
-                composer.Name,
-                vm.Pieces,
-                albumsVmForRename.HasLoaded ? albumsVmForRename.AllAlbums : null,
-                tracksVmForRename.HasLoaded ? tracksVmForRename.LooseTracks : null);
-        }
-
-        UpdatePieceCounts(vm);
-        ApplySortedFilter(vm);
-        _suppressAutoRefresh = true;
-
-        var prefixesAfter = composer.CatalogPrefixes ?? [];
-        var prefsChanged  = !prefixesBefore.SequenceEqual(prefixesAfter, StringComparer.Ordinal);
-
-        await vm.SaveComposersCommand.ExecuteAsync(null);
-
-        // If the preference order changed, reorder every piece of this composer's
-        // catalog_info list and propagate any resulting display-title changes to
-        // album track refs.  The helper is a no-op when prefixesAfter is empty.
-        if (prefsChanged && prefixesAfter.Count > 0)
-        {
-            var renames = new List<PieceRename>();
-            var owned = vm.Pieces
-                .Where(p => string.Equals(p.Composer, composer.Name,
-                                          StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            ApplyCatalogPreference(prefixesAfter, owned, composer.Name, renames);
-
-            if (renames.Count > 0)
-            {
-                await vm.SavePiecesCommand.ExecuteAsync(null);
-
-                var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
-                var updated  = AlbumRefUpdater.ApplyRenames(albumsVm.AllAlbums, renames);
-                if (updated > 0)
-                    await albumsVm.SaveAsync();
-
-                vm.StatusMessage = $"Updated {composer.Name}. Reordered catalogues"
-                    + (updated > 0 ? $"; updated {updated} album track reference(s)." : ".");
-                return;
-            }
-        }
-
-        vm.StatusMessage = $"Updated {composer.Name}.";
-    }
-
-    /// <summary>
-    /// Applies the composer's <c>preferredPrefixes</c> to each target piece's
-    /// <see cref="CanonPiece.CatalogInfo"/> (recursively), and emits a
-    /// <see cref="PieceRename"/> for every piece whose display title changed
-    /// as a result.  Two renames are emitted per change — the full form
-    /// (with nickname/subtitle) and the stripped form — because album refs
-    /// have historically stored either one.
-    /// </summary>
-    private static void ApplyCatalogPreference(
-        IReadOnlyList<string>? preferredPrefixes,
-        IEnumerable<CanonPiece> targets,
-        string composerName,
-        List<PieceRename> renames)
-    {
-        if (preferredPrefixes is null || preferredPrefixes.Count == 0) return;
-
-        foreach (var piece in targets)
-        {
-            var oldFull     = piece.DisplayTitle;
-            var oldStripped = StripNickAndSub(oldFull, piece);
-
-            piece.SortCatalogInfoByPreference(preferredPrefixes);
-
-            var newFull     = piece.DisplayTitle;
-            var newStripped = StripNickAndSub(newFull, piece);
-
-            if (string.Equals(oldFull, newFull, StringComparison.Ordinal))
-                continue;
-
-            renames.Add(new PieceRename(composerName, oldFull, newFull, null, null));
-            if (!string.Equals(oldStripped, oldFull, StringComparison.Ordinal))
-                renames.Add(new PieceRename(composerName, oldStripped, newStripped, null, null));
-        }
-    }
-
-    /// <summary>
-    /// Mirrors <c>PieceReferenceIndex.StripNicknameAndSubtitle</c>: strips the
-    /// trailing <c>, Subtitle</c> and/or <c> "Nickname"</c> suffixes that
-    /// <see cref="CanonPiece.BuildDisplayTitle"/> appends.
-    /// </summary>
-    private static string StripNickAndSub(string displayTitle, CanonPiece p)
-    {
-        var result = displayTitle;
-        if (!string.IsNullOrEmpty(p.Nickname))
-        {
-            var nick = $" \"{p.Nickname}\"";
-            if (result.EndsWith(nick, StringComparison.Ordinal))
-                result = result[..^nick.Length];
-        }
-        if (!string.IsNullOrEmpty(p.Subtitle))
-        {
-            var sub = $", {p.Subtitle}";
-            if (result.EndsWith(sub, StringComparison.Ordinal))
-                result = result[..^sub.Length];
-        }
-        return result;
+        await vm.CompleteEditComposerAsync(composer, snapshot);
     }
 
     // ── Edit: piece ──────────────────────────────────────────────────────────
@@ -759,8 +656,8 @@ public partial class CanonView : UserControl
     {
         if (DataContext is not CanonViewModel vm) return;
 
-        // Phase 6: snapshot the piece's path structure before editing so we can
-        // detect title renames and propagate them to album track references.
+        // Snapshot the piece's path structure before editing so the VM can
+        // diff against the post-dialog state to detect title renames.
         var snapshot = PieceRefPathDiffer.Snapshot(piece);
 
         var composerNames = vm.Composers.Select(c => c.Name).ToList();
@@ -772,40 +669,7 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
-        {
-            // Apply the composer's catalog-prefix preference to the edited piece
-            // before computing renames, so freshly-added catalog entries land in
-            // canonical order and any resulting display-title change flows into
-            // the album-ref rename stream.
-            var composer = vm.Composers.FirstOrDefault(c =>
-                string.Equals(c.Name, piece.Composer, StringComparison.OrdinalIgnoreCase));
-            var catalogRenames = new List<PieceRename>();
-            ApplyCatalogPreference(
-                composer?.CatalogPrefixes,
-                [piece],
-                piece.Composer ?? "",
-                catalogRenames);
-
-            UpdatePieceCounts(vm);
-            ApplySortedFilter(vm);
-            _suppressAutoRefresh = true;
-            await SaveAllAsync(vm);
-            vm.StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
-
-            // Phase 6: propagate any title renames to album track references.
-            var renames = PieceRefPathDiffer.Diff(snapshot, piece)
-                .Concat(catalogRenames).ToList();
-            if (renames.Count > 0)
-            {
-                var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
-                var updated  = AlbumRefUpdater.ApplyRenames(albumsVm.AllAlbums, renames);
-                if (updated > 0)
-                {
-                    await albumsVm.SaveAsync();
-                    vm.StatusMessage += $"  Updated {updated} album track reference(s).";
-                }
-            }
-        }
+            await vm.CompleteEditPieceAsync(piece, snapshot);
     }
 
     // ── Edit: version (direct from tree) ────────────────────────────────
@@ -830,12 +694,7 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
-        {
-            ApplySortedFilter(vm);
-            _suppressAutoRefresh = true;
-            await SaveAllAsync(vm);
-            vm.StatusMessage = $"Updated version: {versionNode.Version.Description ?? "(no description)"}.";
-        }
+            await vm.CompleteEditVersionAsync(versionNode);
     }
 
     // ── Edit: subpiece ───────────────────────────────────────────────────────
@@ -861,15 +720,7 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
-        {
-            // ApplySortedFilter saves expansion state, rebuilds the tree, then
-            // restores it — so the expanded piece and any expanded sub-nodes
-            // are all preserved across the refresh.
-            ApplySortedFilter(vm);
-            _suppressAutoRefresh = true;
-            await SaveAllAsync(vm);
-            vm.StatusMessage = $"Updated: {subpiece.SubpieceDisplayTitle}.";
-        }
+            await vm.CompleteEditSubpieceAsync(subpiece);
     }
 
     // ── Toolbar: New Composer ────────────────────────────────────────────────
@@ -1097,9 +948,4 @@ public partial class CanonView : UserControl
                 CollectAllContributorNames(sp, names);
     }
 
-    private static async Task SaveAllAsync(CanonViewModel vm)
-    {
-        await vm.SavePiecesCommand.ExecuteAsync(null);
-        await vm.SavePickListsCommand.ExecuteAsync(null);
-    }
 }
