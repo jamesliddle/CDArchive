@@ -47,22 +47,12 @@ public partial class CanonView : UserControl
 
     private bool _suppressAutoRefresh;
 
-    // ── Expansion state (all three levels) ───────────────────────────────────
+    // ── Expansion state (all four hashsets + walks) ──────────────────────────
+    // Encapsulated in CanonTreeExpansionState (H2 slice 1). The View calls
+    // _expansionState.Save(ComposerTree) before any rebuild and
+    // _expansionState.Restore(ComposerTree, nodes) after.
 
-    /// <summary>Which composers are currently expanded (level 1).</summary>
-    private readonly HashSet<CanonComposer> _expandedComposers =
-        new(ReferenceEqualityComparer.Instance);
-
-    /// <summary>Which pieces are currently expanded to show subpieces (level 2).</summary>
-    private readonly HashSet<CanonPiece> _expandedPieces =
-        new(ReferenceEqualityComparer.Instance);
-
-    /// <summary>Which subpiece/version nodes are expanded (level 3+), keyed by model object.</summary>
-    private readonly HashSet<object> _expandedSubpieces =
-        new(ReferenceEqualityComparer.Instance);
-
-    /// <summary>Which contributed-role group headers are expanded, keyed by (role, composerName).</summary>
-    private readonly HashSet<(string, string)> _expandedContributedGroups = [];
+    private readonly CanonTreeExpansionState _expansionState = new();
 
     // ── Constructor ──────────────────────────────────────────────────────────
 
@@ -129,10 +119,10 @@ public partial class CanonView : UserControl
         // collapse the Canon tree and lose the user's current context.
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            SaveAllExpansionState();
+            _expansionState.Save(ComposerTree);
             ComposerTree.Items.Refresh();
             if (ComposerTree.ItemsSource is IEnumerable<ComposerTreeNode> nodes)
-                RestoreAllExpansionState(nodes.ToList());
+                _expansionState.Restore(ComposerTree, nodes);
         }));
     }
 
@@ -219,7 +209,7 @@ public partial class CanonView : UserControl
     /// </summary>
     private void ApplySortedFilter(CanonViewModel vm)
     {
-        SaveAllExpansionState();
+        _expansionState.Save(ComposerTree);
 
         var filter = vm.ComposerFilter.Trim();
         IEnumerable<CanonComposer> filtered = string.IsNullOrEmpty(filter)
@@ -269,7 +259,7 @@ public partial class CanonView : UserControl
             .ToList();
 
         ComposerTree.ItemsSource = nodes;
-        RestoreAllExpansionState(nodes);
+        _expansionState.Restore(ComposerTree, nodes);
     }
 
     private IEnumerable<CanonComposer> ApplyComposerSort(IEnumerable<CanonComposer> composers)
@@ -308,171 +298,10 @@ public partial class CanonView : UserControl
         return pieces.ToList();
     }
 
-    // ── Expansion state: save / restore (all three levels) ───────────────────
-
-    /// <summary>
-    /// Walks the visible tree and records which composers, pieces, and
-    /// subpiece/version nodes are currently expanded.
-    /// </summary>
-    private void SaveAllExpansionState()
-    {
-        _expandedComposers.Clear();
-        _expandedPieces.Clear();
-        _expandedSubpieces.Clear();
-        _expandedContributedGroups.Clear();
-
-        if (ComposerTree.ItemsSource is not IEnumerable<ComposerTreeNode> nodes) return;
-
-        foreach (var node in nodes)
-        {
-            if (ComposerTree.ItemContainerGenerator.ContainerFromItem(node)
-                    is not TreeViewItem ci) continue;
-
-            if (ci.IsExpanded)
-                _expandedComposers.Add(node.Composer);
-
-            // Level 2: pieces under this composer
-            foreach (var piece in node.Pieces)
-            {
-                if (ci.ItemContainerGenerator.ContainerFromItem(piece)
-                        is not TreeViewItem pi) continue;
-
-                if (pi.IsExpanded)
-                    _expandedPieces.Add(piece);
-
-                // Level 3+: subpiece / version nodes
-                CollectExpandedSubpieces(pi, pi.Items);
-            }
-
-            // Cross-composer subpiece nodes (collaborative-work entries) live
-            // alongside owned pieces in AllItems. We key their expansion on
-            // .Subpiece (a CanonPiece instance) using the same _expandedPieces
-            // set — that way expanding "Fanfare" under Ravel and under
-            // (Various) stays consistent.
-            foreach (var ccn in node.CrossComposerNodes)
-            {
-                if (ci.ItemContainerGenerator.ContainerFromItem(ccn)
-                        is not TreeViewItem cni) continue;
-
-                if (cni.IsExpanded)
-                    _expandedPieces.Add(ccn.Subpiece);
-
-                CollectExpandedSubpieces(cni, cni.Items);
-            }
-
-            // Contributed-work groups
-            foreach (var group in node.ContributedGroups)
-            {
-                if (ci.ItemContainerGenerator.ContainerFromItem(group)
-                        is not TreeViewItem gi) continue;
-
-                if (gi.IsExpanded)
-                    _expandedContributedGroups.Add((group.Role, group.ComposerName));
-
-                foreach (var contribPiece in group.Pieces)
-                {
-                    if (gi.ItemContainerGenerator.ContainerFromItem(contribPiece)
-                            is not TreeViewItem cpi) continue;
-
-                    if (cpi.IsExpanded)
-                        _expandedPieces.Add(contribPiece.Piece);
-
-                    CollectExpandedSubpieces(cpi, cpi.Items);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// After the tree has been rebuilt, re-expands composers, pieces, and
-    /// subpiece nodes that were previously expanded.
-    /// </summary>
-    private void RestoreAllExpansionState(List<ComposerTreeNode> nodes)
-    {
-        if (_expandedComposers.Count == 0 && _expandedPieces.Count == 0
-            && _expandedContributedGroups.Count == 0) return;
-        ComposerTree.UpdateLayout();
-
-        foreach (var node in nodes)
-        {
-            if (!_expandedComposers.Contains(node.Composer)) continue;
-            if (ComposerTree.ItemContainerGenerator.ContainerFromItem(node)
-                    is not TreeViewItem ci) continue;
-
-            ci.IsExpanded = true;
-            ci.UpdateLayout();
-
-            foreach (var piece in node.Pieces)
-            {
-                if (!_expandedPieces.Contains(piece)) continue;
-                if (ci.ItemContainerGenerator.ContainerFromItem(piece)
-                        is not TreeViewItem pi) continue;
-
-                pi.IsExpanded = true;
-                pi.UpdateLayout();
-                ApplyExpandedSubpieces(pi, pi.Items);
-            }
-
-            // Restore cross-composer node expansion (keyed by .Subpiece in
-            // _expandedPieces, mirroring the save pass).
-            foreach (var ccn in node.CrossComposerNodes)
-            {
-                if (!_expandedPieces.Contains(ccn.Subpiece)) continue;
-                if (ci.ItemContainerGenerator.ContainerFromItem(ccn)
-                        is not TreeViewItem cni) continue;
-
-                cni.IsExpanded = true;
-                cni.UpdateLayout();
-                ApplyExpandedSubpieces(cni, cni.Items);
-            }
-
-            // Restore contributed-group expansion
-            foreach (var group in node.ContributedGroups)
-            {
-                if (!_expandedContributedGroups.Contains((group.Role, group.ComposerName))) continue;
-                if (ci.ItemContainerGenerator.ContainerFromItem(group)
-                        is not TreeViewItem gi) continue;
-
-                gi.IsExpanded = true;
-                gi.UpdateLayout();
-
-                foreach (var contribPiece in group.Pieces)
-                {
-                    if (!_expandedPieces.Contains(contribPiece.Piece)) continue;
-                    if (gi.ItemContainerGenerator.ContainerFromItem(contribPiece)
-                            is not TreeViewItem cpi) continue;
-
-                    cpi.IsExpanded = true;
-                    cpi.UpdateLayout();
-                    ApplyExpandedSubpieces(cpi, cpi.Items);
-                }
-            }
-        }
-    }
-
-    // Recursive helpers for subpiece/version nodes (level 3+).
-    // H47 follow-up: these now route through the generic `TreeExpansionState`
-    // helper (shared with PiecesWindow). The view only owns its
-    // SubpieceKey(item) predicate, which knows about its item-type vocabulary.
-    // The level-1 (composer) and level-2 (piece-under-composer) walks above
-    // stay in CanonView by design — they recurse through a heterogeneous
-    // top-level structure (ComposerTreeNode's Pieces / CrossComposerNodes /
-    // ContributedGroups), each branch with different key logic. A generic
-    // facade for that wouldn't be simpler than the explicit code.
-
-    private void CollectExpandedSubpieces(ItemsControl parent, ItemCollection items) =>
-        TreeExpansionState.CollectExpanded(parent, items, SubpieceKey, _expandedSubpieces);
-
-    private void ApplyExpandedSubpieces(ItemsControl parent, ItemCollection items) =>
-        TreeExpansionState.ApplyExpanded(parent, items, SubpieceKey, _expandedSubpieces);
-
-    private static object? SubpieceKey(object item) => item switch
-    {
-        SubpieceDisplayNode n => n.Piece,
-        VersionDisplayNode  v => (object)v.Version,
-        PieceOriginalNode   o => (o.Piece, "original"),   // value-tuple is a struct; stable across rebuilds
-        _                     => null,
-    };
+    // Expansion-state save/restore + the recursive WPF walks (composer /
+    // piece / cross-composer / contributed-group / subpiece-version levels)
+    // moved to CanonTreeExpansionState (H2 slice 1). The View calls Save()
+    // before any rebuild and Restore(nodes) after — see _expansionState above.
 
     // ── Tree: selection ───────────────────────────────────────────────────────
 
@@ -1242,13 +1071,13 @@ public partial class CanonView : UserControl
     /// </summary>
     private bool? ShowDialogWithExpansionGuard(Window dialog)
     {
-        SaveAllExpansionState();
+        _expansionState.Save(ComposerTree);
         var result = dialog.ShowDialog();
 
         // Restore into the current tree (pre-rebuild).  If the caller then calls
         // ApplySortedFilter it will save this state again, rebuild, and restore once more.
         if (ComposerTree.ItemsSource is IEnumerable<ComposerTreeNode> nodes)
-            RestoreAllExpansionState(nodes.ToList());
+            _expansionState.Restore(ComposerTree, nodes);
 
         return result;
     }
