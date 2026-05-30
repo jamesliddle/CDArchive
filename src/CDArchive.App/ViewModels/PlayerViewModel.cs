@@ -1,3 +1,4 @@
+using System.IO;
 using CDArchive.Core.Models;
 using CDArchive.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -209,6 +210,38 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             _currentSequence = new();
         }
         return result;
+    }
+
+    /// <summary>
+    /// Play a loose track (one with no parent album). The locator's convention
+    /// path needs an album/disc to compute folders, so loose tracks rely
+    /// entirely on the per-track override paths (<see cref="AlbumTrack.FlacPath"/>
+    /// / <see cref="AlbumTrack.Mp3Path"/>). Preferred-format ordering matches
+    /// <see cref="IArchiveAudioLocator"/>. No auto-advance.
+    /// </summary>
+    public PlayRequestResult PlayLooseTrack(AlbumTrack track)
+    {
+        var prefer = _settings.PreferredAudioFormat;
+        var first  = prefer == PreferredAudioFormat.Flac ? track.FlacPath : track.Mp3Path;
+        var second = prefer == PreferredAudioFormat.Flac ? track.Mp3Path  : track.FlacPath;
+
+        string? path = null;
+        if (!string.IsNullOrWhiteSpace(first)  && File.Exists(first))  path = first;
+        else if (!string.IsNullOrWhiteSpace(second) && File.Exists(second)) path = second;
+        if (path is null) return PlayRequestResult.NoAudioFile;
+
+        // Single-shot playback — no auto-advance for loose tracks.
+        _currentAlbum    = null;
+        _currentSequence = new();
+
+        var firstRef = track.PieceRefs?.FirstOrDefault();
+        Title    = track.DisplaySummary;
+        Composer = firstRef?.Composer;
+        Album    = null;
+
+        _player.Load(path);
+        _player.Play();
+        return PlayRequestResult.Playing;
     }
 
     private PlayRequestResult StartAlbum(
