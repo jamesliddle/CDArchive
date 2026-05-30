@@ -150,17 +150,6 @@
             <ListView.View>
                 <GridView>
 
-                    <GridViewColumn Header="Album" Width="220"
-                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding AlbumTitle}"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding AlbumTitle}" />
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-
                     <GridViewColumn Header="Disc" Width="50"
                                     HeaderContainerStyle="{StaticResource RightAlignedHeader}"
                                     HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
@@ -183,6 +172,17 @@
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
 
+                    <GridViewColumn Header="Composer" Width="200"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Composer}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Composer}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
                     <GridViewColumn Header="Piece" Width="520"
                                     HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                         <GridViewColumn.CellTemplate>
@@ -201,6 +201,28 @@
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
 
+                    <GridViewColumn Header="Album" Width="220"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding AlbumTitle}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding AlbumTitle}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="Performers" Width="200"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding PerformerSummary}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding PerformerSummary}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
                     <GridViewColumn Header="Time" Width="70"
                                     HeaderContainerStyle="{StaticResource RightAlignedHeader}"
                                     HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
@@ -208,28 +230,6 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding Duration}"
                                            HorizontalAlignment="Right" Margin="0,0,8,0" />
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-
-                    <GridViewColumn Header="Composer" Width="200"
-                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Composer}"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding Composer}" />
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-
-                    <GridViewColumn Header="Artist" Width="200"
-                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding PerformerSummary}"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding PerformerSummary}" />
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>

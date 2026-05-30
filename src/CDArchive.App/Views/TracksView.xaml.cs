@@ -23,8 +23,8 @@ public partial class TracksView : UserControl
         ["Track"]    = "TrackNumber",
         ["Piece"]    = "Piece",
         ["Time"]     = "Duration",
-        ["Composer"] = "Composer",
-        ["Artist"]   = "PerformerSummary",
+        ["Composer"]   = "Composer",
+        ["Performers"] = "PerformerSummary",
     };
 
     private GridViewColumnHeader? _lastSortHeader;
