@@ -632,6 +632,110 @@ public partial class CanonViewModel : ObservableObject
         StatusMessage = $"Deleted: {title}.";
     }
 
+    // ── Toolbar New Composer / New Piece ─────────────────────────────────────
+    // H2 slice 4: pre-fix the View's New Composer / New Piece click handlers
+    // owned post-dialog orchestration (mutate the observable collection, call
+    // UpdatePieceCounts + ApplySortedFilter, set the suppress flag, await the
+    // save, write StatusMessage). All but the modal-dialog launch is VM work.
+    //
+    // These commands take the editor-built target (already validated by the
+    // dialog) and run the same orchestration the Delete commands above
+    // established: mutate → fire DataMutated → save → status. The View's
+    // OnVmDataMutated subscription handles the rebuild + suppress.
+    //
+    // The modal-dialog launch + ShowDialogWithExpansionGuard stay in the View
+    // by design (they own Window.GetWindow(this) for Owner + the expansion-
+    // state guard around the dialog).
+
+    /// <summary>
+    /// Toolbar New Composer (the post-dialog half). Caller hands in the
+    /// dialog-built composer; this adds it to <see cref="Composers"/>, fires
+    /// <see cref="DataMutated"/>, persists, sets status.
+    /// <para>
+    /// Pre-save duplicate check: <see cref="SqliteCanonDataService.SaveComposersCoreAsync"/>
+    /// silently upserts on <see cref="CanonComposer.Name"/> match (the byName
+    /// lookup in the merge path). Without an upfront check, two composers
+    /// with the same Name would land in the in-memory <see cref="Composers"/>
+    /// collection but only one row in the DB — incoherent state that
+    /// resolves to "one composer" only on the next refresh. So we reject the
+    /// duplicate up front with an error dialog, never mutating either store.
+    /// </para>
+    /// </summary>
+    [RelayCommand]
+    private async Task NewComposerAsync(CanonComposer? composer)
+    {
+        if (composer is null) return;
+
+        if (Composers.Any(c => string.Equals(c.Name, composer.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            _dialogs.ShowError(
+                $"A composer named \"{composer.Name}\" already exists. " +
+                "Each composer must have a unique name.",
+                "Cannot add composer");
+            StatusMessage = $"Add cancelled: \"{composer.Name}\" already exists.";
+            return;
+        }
+
+        Composers.Add(composer);
+        DataMutated?.Invoke();
+
+        // Snapshot for in-memory rollback if the save fails — same shape as
+        // DeleteComposerAsync's recovery path. Save throws on any persistence
+        // error (FK constraints further down the line, disk-full, etc.); the
+        // duplicate-Name case is handled by the pre-check above so it doesn't
+        // reach the save at all.
+        try
+        {
+            await _canonDataService.SaveComposersAsync(Composers.ToList());
+        }
+        catch (Exception ex)
+        {
+            Composers.Remove(composer);
+            DataMutated?.Invoke();
+            _dialogs.ShowError(ex.Message, "Cannot add composer");
+            StatusMessage = $"Add cancelled: {composer.Name}.";
+            return;
+        }
+        StatusMessage = $"Added {composer.Name}.";
+    }
+
+    /// <summary>
+    /// Toolbar New Piece (the post-dialog half). Caller hands in the
+    /// dialog-built piece; this adds it to <see cref="Pieces"/>, fires
+    /// <see cref="DataMutated"/>, persists (pieces + pick lists in one
+    /// transaction via SaveBatch — the editor may have added new Form /
+    /// Category / Catalogue prefix entries that need to land atomically with
+    /// the piece referencing them), sets status.
+    /// </summary>
+    [RelayCommand]
+    private async Task NewPieceAsync(CanonPiece? piece)
+    {
+        if (piece is null) return;
+
+        Pieces.Add(piece);
+        DataMutated?.Invoke();
+
+        try
+        {
+            // SaveBatch (pieces + pick lists in one transaction) matches the
+            // pre-fix two-step SaveAllAsync (SavePiecesCommand +
+            // SavePickListsCommand) but atomically — the pre-fix had a window
+            // between the two saves where a crash could leave a piece
+            // referencing a not-yet-persisted pick-list value.
+            await _canonDataService.SaveBatchAsync(
+                null, Pieces.ToList(), null, null, PickLists);
+        }
+        catch (Exception ex)
+        {
+            Pieces.Remove(piece);
+            DataMutated?.Invoke();
+            _dialogs.ShowError(ex.Message, "Cannot add piece");
+            StatusMessage = $"Add cancelled: {piece.DisplayTitle}.";
+            return;
+        }
+        StatusMessage = $"Added new piece: {piece.DisplayTitle}.";
+    }
+
     /// <summary>
     /// Context-menu Approve. The right-clicked item arrives as
     /// <paramref name="target"/>; we dispatch based on type. Flips

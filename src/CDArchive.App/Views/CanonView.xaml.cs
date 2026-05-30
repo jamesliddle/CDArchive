@@ -873,7 +873,10 @@ public partial class CanonView : UserControl
     }
 
     // ── Toolbar: New Composer ────────────────────────────────────────────────
-
+    // H2 slice 4: post-dialog orchestration lives on
+    // CanonViewModel.NewComposerCommand. The View opens the modal and forwards
+    // the dialog-built composer; tree-rebuild + status messages happen via
+    // the DataMutated event subscription (OnVmDataMutated).
     private async void OnNewComposerClick(object sender, RoutedEventArgs e)
     {
         if (DataContext is not CanonViewModel vm) return;
@@ -884,14 +887,7 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
-        {
-            vm.Composers.Add(window.Composer);
-            UpdatePieceCounts(vm);
-            ApplySortedFilter(vm);
-            _suppressAutoRefresh = true;
-            await vm.SaveComposersCommand.ExecuteAsync(null);
-            vm.StatusMessage = $"Added {window.Composer.Name}.";
-        }
+            await vm.NewComposerCommand.ExecuteAsync(window.Composer);
     }
 
     // ── Toolbar: Delete Composer ─────────────────────────────────────────────
@@ -909,7 +905,7 @@ public partial class CanonView : UserControl
     }
 
     // ── Toolbar: New Piece ───────────────────────────────────────────────────
-
+    // H2 slice 4: see New Composer above.
     private async void OnNewPieceClick(object sender, RoutedEventArgs e)
     {
         if (DataContext is not CanonViewModel vm) return;
@@ -924,14 +920,7 @@ public partial class CanonView : UserControl
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
-        {
-            vm.Pieces.Add(window.Piece);
-            UpdatePieceCounts(vm);
-            ApplySortedFilter(vm);
-            _suppressAutoRefresh = true;
-            await SaveAllAsync(vm);
-            vm.StatusMessage = $"Added new piece: {window.Piece.DisplayTitle}.";
-        }
+            await vm.NewPieceCommand.ExecuteAsync(window.Piece);
     }
 
     // ── Toolbar: Delete Piece ────────────────────────────────────────────────
