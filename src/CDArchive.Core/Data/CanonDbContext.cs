@@ -215,9 +215,27 @@ public class CanonDbContext : DbContext
     {
         mb.Entity<PieceRow>(b =>
         {
-            b.ToTable("pieces", t => t.HasCheckConstraint(
-                "ck_pieces_single_parent",
-                "(parent_piece_id IS NULL) OR (parent_version_id IS NULL)"));
+            // Row-level constraints:
+            // - ck_pieces_single_parent: a piece can be parented by either
+            //   another piece (parent_piece_id) or a version (parent_version_id),
+            //   never both.
+            // - ck_pieces_has_identity: cheap insurance against a buggy importer
+            //   or seed file producing an identity-less row. Every piece must
+            //   carry at least one human-visible identifying field (Title, Form,
+            //   Nickname, Number, or a Catalogue entry — proxied by the
+            //   non-empty catalog_sort_prefix that the save path populates from
+            //   CatalogInfo[0]). The composer FK is already enforced via
+            //   composer_id NOT NULL. See Rework M6.
+            b.ToTable("pieces", t =>
+            {
+                t.HasCheckConstraint(
+                    "ck_pieces_single_parent",
+                    "(parent_piece_id IS NULL) OR (parent_version_id IS NULL)");
+                t.HasCheckConstraint(
+                    "ck_pieces_has_identity",
+                    "title IS NOT NULL OR form IS NOT NULL OR nickname IS NOT NULL OR " +
+                    "number IS NOT NULL OR catalog_sort_prefix != ''");
+            });
 
             b.HasKey(x => x.Id);
             b.Property(x => x.Id).HasColumnName("id");
