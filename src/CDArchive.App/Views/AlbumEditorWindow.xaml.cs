@@ -501,7 +501,7 @@ public partial class AlbumEditorWindow : Window
         if (TrackList.SelectedItem is not TrackRow selected) return;
         var disc          = selected.Disc;
         var defaultsAlbum = selected.Album ?? _album;
-        var dlg = new TrackEditorWindow(disc, disc.Tracks.Count,
+        var dlg = new TrackEditorWindow(disc, disc.Tracks.Count, looseTrack: null,
                                         _pickLists, _allPieces, defaultsAlbum) { Owner = this };
         dlg.ShowDialog();
         PopulateTrackGrid(disc.Tracks.Count > 0 ? disc.Tracks[^1] : null);
@@ -559,7 +559,7 @@ public partial class AlbumEditorWindow : Window
             if (index < 0) return;
 
             var defaultsAlbum = row.Album ?? _album;
-            var dlg = new TrackEditorWindow(disc, index,
+            var dlg = new TrackEditorWindow(disc, index, looseTrack: null,
                                             _pickLists, _allPieces, defaultsAlbum) { Owner = this };
             dlg.ShowDialog();
 

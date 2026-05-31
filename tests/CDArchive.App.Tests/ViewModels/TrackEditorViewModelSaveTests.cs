@@ -107,7 +107,7 @@ public class TrackEditorViewModelSaveTests
         var track = new AlbumTrack { TrackNumber = 99 };
 
         var vm = new TrackEditorViewModel();
-        vm.LoadLoose(track);
+        vm.LoadSingle(track, defaultsFromAlbum: null);
         vm.Description.Value = "Loose";
 
         vm.SaveLoose(track);
@@ -122,7 +122,7 @@ public class TrackEditorViewModelSaveTests
         var track = new AlbumTrack { TrackNumber = 0 };
 
         var vm = new TrackEditorViewModel();
-        vm.LoadLoose(track);
+        vm.LoadSingle(track, defaultsFromAlbum: null);
         vm.Duration.Value    = "10:00";
         vm.SparsCode.Value   = "AAD";
         vm.IsStereo.Value    = "Mono";

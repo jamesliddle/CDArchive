@@ -210,7 +210,7 @@ public partial class TracksView : UserControl
         }), DispatcherPriority.Background);
     }
 
-    // ── Double-click → appropriate editor for the row ─────────────────────────
+    // ── Double-click → TrackEditor for the row (always — never the album) ─────
 
     private async void OnTrackDoubleClick(object sender, MouseButtonEventArgs e)
     {
@@ -223,10 +223,49 @@ public partial class TracksView : UserControl
         if (TrackList.SelectedItem is not AlbumTrackRow row) return;
         e.Handled = true;
 
+        await EditSingleTrackAsync(row);
+    }
+
+    /// <summary>
+    /// Opens the TrackEditor for a single row — loose or album-bound, the
+    /// only difference is the ctor flavour. Save goes through the atomic
+    /// <see cref="TracksViewModel.SaveAsync"/> so a row whose piece-refs got
+    /// re-anchored still leaves albums and loose tracks in sync. Used by
+    /// the row double-click handler and the single-track branches of
+    /// <see cref="OnEditTracksClick"/>.
+    /// </summary>
+    private async Task EditSingleTrackAsync(AlbumTrackRow row)
+    {
+        if (DataContext is not TracksViewModel vm) return;
+
+        var (pieces, pickLists) = await vm.LoadEditorDataAsync();
+
+        TrackEditorWindow dlg;
         if (row.Album is null)
-            await EditLooseTrackAsync(row.Track);
+        {
+            dlg = new TrackEditorWindow(
+                disc: null, trackIndex: -1, looseTrack: row.Track,
+                pickLists, pieces, defaultsFromAlbum: null);
+        }
         else
-            await EditAlbumAsync(row.Album);
+        {
+            var disc = row.Disc;
+            if (disc == null) return;
+            var idx = disc.Tracks.IndexOf(row.Track);
+            if (idx < 0) return;
+
+            dlg = new TrackEditorWindow(
+                disc, idx, looseTrack: null,
+                pickLists, pieces, defaultsFromAlbum: row.Album);
+        }
+        dlg.Owner = Window.GetWindow(this);
+
+        if (dlg.ShowDialog() != true) return;
+
+        vm.RebuildRows();
+        vm.ApplyFilter();
+        await vm.SaveAsync();
+        ReselectTracks(new[] { row.Track });
     }
 
     // ── "New Track" toolbar button ────────────────────────────────────────────
@@ -237,7 +276,9 @@ public partial class TracksView : UserControl
 
         var (pieces, pickLists) = await vm.LoadEditorDataAsync();
         var fresh = new AlbumTrack { IsProvisional = true };
-        var dlg = new TrackEditorWindow(fresh, pickLists, pieces)
+        var dlg = new TrackEditorWindow(
+            disc: null, trackIndex: -1, looseTrack: fresh,
+            pickLists, pieces, defaultsFromAlbum: null)
         {
             Owner = Window.GetWindow(this),
         };
@@ -256,88 +297,34 @@ public partial class TracksView : UserControl
         var selected = TrackList.SelectedItems.Cast<AlbumTrackRow>().ToList();
         if (selected.Count == 0) return;
 
+        // Single selection — share the same path as the row double-click
+        // handler. Both flavours (loose / album-bound) flow through one
+        // helper.
+        if (selected.Count == 1)
+        {
+            await EditSingleTrackAsync(selected[0]);
+            return;
+        }
+
         if (DataContext is not TracksViewModel vm) return;
         var (pieces, pickLists) = await vm.LoadEditorDataAsync();
 
-        var tracks = selected.Select(r => r.Track).ToList();
+        // Multi-edit. When every selected row belongs to one album, we can
+        // pass that album as the session-default source for blank track
+        // fields; mixed selections (multiple albums or any loose) pass null.
+        var albumOnlyRows  = selected.Where(r => r.Album is not null).ToList();
+        var distinctAlbums = albumOnlyRows.Select(r => r.Album!).Distinct().ToList();
+        var defaultsAlbum  =
+            distinctAlbums.Count == 1 && albumOnlyRows.Count == selected.Count
+                ? distinctAlbums[0]
+                : null;
 
-        // Special-case: a single loose-track selection routes to the loose-mode
-        // editor. Mixed or multi-album selections fall through to the bulk-edit
-        // constructor (which already supports a flat track list).
-        if (selected.Count == 1 && selected[0].Album is null)
-        {
-            var dlg = new TrackEditorWindow(selected[0].Track, pickLists, pieces)
-            {
-                Owner = Window.GetWindow(this),
-            };
-            if (dlg.ShowDialog() != true) return;
-        }
-        else
-        {
-            // If every selected row belongs to one album, the track editor can offer
-            // its session combo; otherwise pass null so the combo disables itself
-            // (this is the same contract AlbumEditorWindow.OpenTrackEditor uses).
-            // For session-default purposes: when every selected row belongs
-            // to one album, we can use that album's session fields as the
-            // editor's blank-field defaults. Mixed selections (multiple
-            // albums or any loose) → no defaults; the user sees blanks.
-            var albumOnlyRows  = selected.Where(r => r.Album is not null).ToList();
-            var distinctAlbums = albumOnlyRows.Select(r => r.Album!).Distinct().ToList();
-            var defaultsAlbum  =
-                distinctAlbums.Count == 1 && albumOnlyRows.Count == selected.Count
-                    ? distinctAlbums[0]
-                    : null;
-
-            if (tracks.Count == 1)
-            {
-                var row  = selected[0];
-                var disc = row.Disc!;
-                var idx  = disc.Tracks.IndexOf(row.Track);
-                if (idx < 0) return;
-
-                var dlg = new TrackEditorWindow(disc, idx,
-                                                pickLists, pieces, defaultsAlbum)
-                {
-                    Owner = Window.GetWindow(this),
-                };
-                dlg.ShowDialog();
-            }
-            else
-            {
-                // Loose-batch detection: when every selected row is a loose
-                // track, hide TrackNumber in the bulk editor and skip writing
-                // it on save (loose tracks have TrackNumber=0 sentinel).
-                var allLoose = selected.All(r => r.Album is null);
-                var dlg = new TrackEditorWindow(tracks, pickLists, pieces, defaultsAlbum, allLoose)
-                {
-                    Owner = Window.GetWindow(this),
-                };
-                if (dlg.ShowDialog() != true) return;
-            }
-        }
-
-        // Mutations land on the underlying AlbumTrack instances; refresh the
-        // bound collection and persist. SaveAsync writes both albums and the
-        // loose-tracks list, so mixed selections are handled in one pass.
-        vm.RebuildRows();
-        vm.ApplyFilter();
-        await vm.SaveAsync();
-
-        // Re-select the rows the user just edited so the highlight survives the
-        // ObservableCollection replacement that ApplyFilter performs.
-        ReselectTracks(tracks);
-    }
-
-    /// <summary>
-    /// Opens the loose-mode track editor for an existing loose track. On OK,
-    /// the AlbumTrack was mutated in place — we just need to refresh + save.
-    /// </summary>
-    private async Task EditLooseTrackAsync(AlbumTrack track)
-    {
-        if (DataContext is not TracksViewModel vm) return;
-
-        var (pieces, pickLists) = await vm.LoadEditorDataAsync();
-        var dlg = new TrackEditorWindow(track, pickLists, pieces)
+        // Loose-batch detection: when every selected row is a loose track,
+        // hide TrackNumber in the bulk editor and skip writing it on save
+        // (loose tracks carry the TrackNumber=0 sentinel).
+        var allLoose = selected.All(r => r.Album is null);
+        var tracks   = selected.Select(r => r.Track).ToList();
+        var dlg = new TrackEditorWindow(tracks, pickLists, pieces, defaultsAlbum, allLoose)
         {
             Owner = Window.GetWindow(this),
         };
@@ -345,7 +332,8 @@ public partial class TracksView : UserControl
 
         vm.RebuildRows();
         vm.ApplyFilter();
-        await vm.SaveLooseTracksAsync();
+        await vm.SaveAsync();
+        ReselectTracks(tracks);
     }
 
     private void ReselectTracks(IReadOnlyList<AlbumTrack> tracks)
@@ -358,27 +346,4 @@ public partial class TracksView : UserControl
         }
     }
 
-    // ── Album editor opener (used by double-click) ────────────────────────────
-
-    private async Task EditAlbumAsync(CanonAlbum album)
-    {
-        if (DataContext is not TracksViewModel vm) return;
-
-        var (pieces, pickLists) = await vm.LoadEditorDataAsync();
-        var dlg = new AlbumEditorWindow(pickLists, pieces, vm.Player, album)
-        {
-            Owner = Window.GetWindow(this),
-        };
-
-        if (dlg.ShowDialog() != true || dlg.Result is not CanonAlbum result) return;
-
-        // Editor JSON-clones the input on entry and exposes the clone via Result —
-        // swap the clone into the shared album list so identity stays coherent
-        // (see *Album identity loss across the editor's JSON-clone* in CLAUDE.md).
-        vm.ReplaceAlbum(album, result);
-
-        vm.RebuildRows();
-        vm.ApplyFilter();
-        await vm.SaveAsync();
-    }
 }

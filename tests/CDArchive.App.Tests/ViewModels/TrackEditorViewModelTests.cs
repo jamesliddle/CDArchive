@@ -9,7 +9,8 @@ namespace CDArchive.App.Tests.ViewModels;
 /// owns the 5 text fields (TrackNumber as string for binding, Duration,
 /// Description, FlacPath, Mp3Path). This test class locks in the Load
 /// contracts — LoadSingle from one track, LoadNew for the add-new case,
-/// LoadMulti for multi-edit, LoadLoose for the loose-track ctor.
+/// LoadMulti for multi-edit, and LoadSingle(track, null) for the loose-track
+/// path (which subsumed the retired LoadLoose).
 /// </summary>
 public class TrackEditorViewModelTests
 {
@@ -187,14 +188,14 @@ public class TrackEditorViewModelTests
         // tests below cover the user-relevant fields.
     }
 
-    // ── LoadLoose ────────────────────────────────────────────────────────────
+    // ── Loose-track loading via LoadSingle(track, null) ──────────────────────
+    // After the single/loose ctor consolidation, the loose-mode editor calls
+    // LoadSingle with no album defaults. The loose track's TrackNumber=0
+    // sentinel flows through to "0" in the VM (the UI hides the field).
 
     [Fact]
-    public void LoadLoose_PopulatesDisplayedFields_AndForcesTrackNumberSentinel()
+    public void LoadSingle_LooseTrack_PopulatesDisplayedFields_AndCarriesTrackNumberSentinel()
     {
-        // Loose tracks have TrackNumber=0 sentinel (no disc position). The
-        // editor hides the TrackNumber UI, but the VM still holds "0" so the
-        // binding has a valid value.
         var track = new AlbumTrack
         {
             TrackNumber = 0,
@@ -205,7 +206,7 @@ public class TrackEditorViewModelTests
         };
 
         var vm = new TrackEditorViewModel();
-        vm.LoadLoose(track);
+        vm.LoadSingle(track, defaultsFromAlbum: null);
 
         Assert.Equal("0",                  vm.TrackNumber.Value);
         Assert.Equal("8:00",               vm.Duration.Value);
@@ -218,12 +219,12 @@ public class TrackEditorViewModelTests
     }
 
     [Fact]
-    public void LoadLoose_NullOptionalFields_NormaliseToEmpty()
+    public void LoadSingle_LooseTrack_NullOptionalFields_NormaliseToEmpty()
     {
         var track = new AlbumTrack { TrackNumber = 0 };
 
         var vm = new TrackEditorViewModel();
-        vm.LoadLoose(track);
+        vm.LoadSingle(track, defaultsFromAlbum: null);
 
         Assert.Equal("0", vm.TrackNumber.Value);
         Assert.Equal("",  vm.Duration.Value);
@@ -294,7 +295,7 @@ public class TrackEditorViewModelTests
     }
 
     [Fact]
-    public void LoadLoose_SparsCodeAndIsStereo_LoadFromTrack()
+    public void LoadSingle_LooseTrack_SparsCodeAndIsStereo_LoadFromTrack()
     {
         var track = new AlbumTrack
         {
@@ -304,7 +305,7 @@ public class TrackEditorViewModelTests
         };
 
         var vm = new TrackEditorViewModel();
-        vm.LoadLoose(track);
+        vm.LoadSingle(track, defaultsFromAlbum: null);
 
         Assert.Equal("ADD",  vm.SparsCode.Value);
         Assert.Equal("Mono", vm.IsStereo.Value);
@@ -447,7 +448,7 @@ public class TrackEditorViewModelTests
     }
 
     [Fact]
-    public void LoadLoose_PopulatesPieceRefsAndPerformers_FromTrack()
+    public void LoadSingle_LooseTrack_PopulatesPieceRefsAndPerformers_FromTrack()
     {
         var track = new AlbumTrack
         {
@@ -460,7 +461,7 @@ public class TrackEditorViewModelTests
         };
 
         var vm = new TrackEditorViewModel();
-        vm.LoadLoose(track);
+        vm.LoadSingle(track, defaultsFromAlbum: null);
 
         Assert.Single(vm.PieceRefs.Items);
         Assert.Single(vm.Performers.Items);

@@ -8,16 +8,19 @@ namespace CDArchive.App.ViewModels;
 /// <summary>
 /// View-model for <c>TrackEditorWindow</c>.
 ///
-/// <para>The TrackEditor has three modes:</para>
+/// <para>The TrackEditor has two single-track modes plus multi-edit:</para>
 /// <list type="bullet">
 ///   <item><b>Single album-bound</b>: editing one track within a disc.
-///     <see cref="LoadSingle"/> handles both edit-existing and add-new.</item>
+///     <see cref="LoadSingle"/> handles both edit-existing and add-new
+///     (with album defaults supplied via <paramref name="defaultsFromAlbum"/>).</item>
+///   <item><b>Loose track</b>: singleton with no owning album. Callers pass
+///     the track instance to <see cref="LoadSingle"/> with
+///     <c>defaultsFromAlbum: null</c> — the loose track's TrackNumber=0
+///     sentinel flows through as a "0" string the editor hides. Save goes
+///     through <see cref="SaveLoose"/> so the sentinel is preserved.</item>
 ///   <item><b>Multi-edit</b>: editing several tracks at once. <see cref="LoadMulti"/>
 ///     loads each field as Unanimous (all share a value) or Mixed (values
 ///     differ).</item>
-///   <item><b>Loose track</b>: singleton with no owning album. <see cref="LoadLoose"/>
-///     loads the displayed fields; the hidden TrackNumber gets the sentinel
-///     value 0 on save.</item>
 /// </list>
 ///
 /// <para>Recording-session fields (Dates / Venue / City / State / Country /
@@ -191,33 +194,6 @@ public partial class TrackEditorViewModel : ObservableObject
         {
             field.InitMixed();
         }
-    }
-
-    /// <summary>
-    /// Populate from a loose track. TrackNumber stays at the 0 sentinel; no
-    /// album defaults are applied (loose tracks have no owning album).
-    /// </summary>
-    public void LoadLoose(AlbumTrack track)
-    {
-        TrackNumber.InitUnanimous("0");
-        Duration.InitUnanimous(track.Duration       ?? "");
-        Description.InitUnanimous(track.Description ?? "");
-        FlacPath.InitUnanimous(track.FlacPath       ?? "");
-        Mp3Path.InitUnanimous(track.Mp3Path         ?? "");
-        SparsCode.InitUnanimous(SparsCodeToString(track.SparsCode));
-        IsStereo.InitUnanimous(IsStereoToString(track.IsStereo));
-
-        SessionDates.InitUnanimous(track.SessionDates     ?? "");
-        SessionVenue.InitUnanimous(track.SessionVenue     ?? "");
-        SessionCity.InitUnanimous(track.SessionCity       ?? "");
-        SessionState.InitUnanimous(track.SessionState     ?? "");
-        SessionCountry.InitUnanimous(track.SessionCountry ?? "");
-
-        SetCollection(SessionEngineers, track.SessionEngineers);
-        SetCollection(SessionProducers, track.SessionProducers);
-
-        PieceRefs.InitUnanimous(track.PieceRefs   ?? []);
-        Performers.InitUnanimous(track.Performers ?? []);
     }
 
     private static void Init(MixedField<string> field, IEnumerable<string> values, string mixedPlaceholder)

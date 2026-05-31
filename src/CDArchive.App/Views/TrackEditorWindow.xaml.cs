@@ -36,8 +36,11 @@ public partial class TrackEditorWindow : Window
     private readonly bool _allLooseBatch;
 
     // ── Loose-track state ─────────────────────────────────────────────────────
-    private readonly bool _isLooseTrack;
+    // Loose mode is signalled by _disc == null (and !_isMixed). The track
+    // instance lives in _looseTrack; the consolidated single-track ctor
+    // routes to SaveLoose when this is non-null.
     private readonly AlbumTrack? _looseTrack;
+    private bool IsLooseTrack => _looseTrack != null;
 
     // ── Audio-file duration sync ──────────────────────────────────────────────
     private TimeSpan? _flacFileDuration;
@@ -51,7 +54,7 @@ public partial class TrackEditorWindow : Window
     // only on OK via SaveSingle, like every other track field).
     private readonly List<AlbumTrack>? _tracksSnapshotForRollback;
 
-    private bool IsAddingNew => !_isMixed && _disc != null && _trackIndex >= _disc.Tracks.Count;
+    private bool IsAddingNew => !_isMixed && !IsLooseTrack && _disc != null && _trackIndex >= _disc.Tracks.Count;
 
     private readonly TrackEditorViewModel _vm = new();
 
@@ -61,39 +64,63 @@ public partial class TrackEditorWindow : Window
     public bool ShowSessionFields  { get; private set; }
     public bool ShowSessionLists   { get; private set; }
 
-    // ── Constructor: single album-bound (edit existing or add new) ────────────
+    // ── Constructor: single track (disc-bound or loose) ──────────────────────
+    //
+    // Disc-bound mode: pass <paramref name="disc"/> + <paramref name="trackIndex"/>;
+    // leave <paramref name="looseTrack"/> null. When <c>trackIndex >= disc.Tracks.Count</c>
+    // the editor is in "add new" mode (a fresh track is appended on save).
+    //
+    // Loose mode: pass <paramref name="looseTrack"/> (the standalone track
+    // instance); leave <paramref name="disc"/> null and <paramref name="trackIndex"/>
+    // at -1. Track # and Prev/Next nav are hidden; save goes through
+    // <see cref="TrackEditorViewModel.SaveLoose"/> so TrackNumber stays at
+    // the 0 sentinel.
 
     public TrackEditorWindow(
-        AlbumDisc disc,
+        AlbumDisc? disc,
         int trackIndex,
+        AlbumTrack? looseTrack,
         CanonPickLists pickLists,
         IReadOnlyList<CanonPiece> allPieces,
         CanonAlbum? defaultsFromAlbum)
     {
+        if (disc == null && looseTrack == null)
+            throw new ArgumentException("Either disc or looseTrack must be supplied.");
+        if (disc != null && looseTrack != null)
+            throw new ArgumentException("disc and looseTrack are mutually exclusive.");
+
         InitializeComponent();
         DataContext = _vm;
 
         _disc              = disc;
-        _trackIndex        = trackIndex;
+        _trackIndex        = disc != null ? trackIndex : -1;
+        _looseTrack        = looseTrack;
         _pickLists         = pickLists;
         _allPieces         = allPieces;
         _defaultsFromAlbum = defaultsFromAlbum;
         _isMixed           = false;
 
-        ShowNavigation    = true;
-        ShowTrackNumber   = true;
+        var loose = looseTrack != null;
+        ShowNavigation    = !loose;
+        ShowTrackNumber   = !loose;
         ShowSessionFields = true;
         ShowSessionLists  = true;
 
         // Snapshot the disc's track list so Cancel rolls back any Prev/Next
-        // per-step commits. Sessions snapshot retired with the model change.
-        _tracksSnapshotForRollback = DeepClone(disc.Tracks);
+        // per-step commits. Not relevant for loose (no disc, no Prev/Next).
+        if (disc != null)
+            _tracksSnapshotForRollback = DeepClone(disc.Tracks);
 
         PieceRefList.ItemsSource       = _vm.PieceRefs.Items;
         TrackPerformerList.ItemsSource = _vm.Performers.Items;
 
+        // Always subscribe Closing: the handler body is a no-op when there's
+        // no snapshot to roll back, so this is safe for the loose path too.
         Closing += TrackEditorWindow_Closing;
         SubscribeAudioPathChanges();
+
+        if (loose)
+            Title = "Edit Track";
 
         LoadTrack();
         RefreshDurationFromAudioFiles();
@@ -136,48 +163,6 @@ public partial class TrackEditorWindow : Window
         Title = $"Edit {tracks.Count} Tracks";
 
         PopulateMultiFields();
-    }
-
-    // ── Constructor: loose track (no owning album) ────────────────────────────
-
-    public TrackEditorWindow(
-        AlbumTrack                 track,
-        CanonPickLists             pickLists,
-        IReadOnlyList<CanonPiece>  allPieces)
-    {
-        InitializeComponent();
-        DataContext = _vm;
-
-        _disc              = null;
-        _trackIndex        = -1;
-        _pickLists         = pickLists;
-        _allPieces         = allPieces;
-        _defaultsFromAlbum = null;
-        _isMixed           = false;
-        _isLooseTrack      = true;
-        _looseTrack        = track;
-
-        ShowNavigation    = false;
-        ShowTrackNumber   = false;
-        ShowSessionFields = true;
-        ShowSessionLists  = true;
-
-        PieceRefList.ItemsSource       = _vm.PieceRefs.Items;
-        TrackPerformerList.ItemsSource = _vm.Performers.Items;
-
-        SubscribeAudioPathChanges();
-
-        Title = "Edit Loose Track";
-
-        LoadLooseTrack();
-        RefreshDurationFromAudioFiles();
-    }
-
-    private void LoadLooseTrack()
-    {
-        _vm.LoadLoose(_looseTrack!);
-        SparsCodeCombo.SelectValue(TrackSparsCodeBox, _vm.SparsCode.Value);
-        SetStereoComboFromVm();
     }
 
     // ── Multi-edit: populate every field with unanimous value or "Mixed" ─────
@@ -254,7 +239,15 @@ public partial class TrackEditorWindow : Window
 
     private void LoadTrack()
     {
-        if (IsAddingNew)
+        if (IsLooseTrack)
+        {
+            // LoadLoose was retired; LoadSingle(track, defaultsFromAlbum: null)
+            // produces the same VM state (loose tracks have TrackNumber=0 in
+            // storage, so the resulting VM TrackNumber is "0" — the sentinel
+            // the Track # field would have hidden anyway).
+            _vm.LoadSingle(_looseTrack!, defaultsFromAlbum: null);
+        }
+        else if (IsAddingNew)
         {
             _vm.LoadNew(_disc!, _defaultsFromAlbum);
         }
@@ -271,13 +264,20 @@ public partial class TrackEditorWindow : Window
 
     private void UpdateTitleAndButtons()
     {
-        if (IsAddingNew)
-            Title = $"Add Track (Disc {_disc!.DiscNumber})";
-        else
-            Title = $"Edit Track {_disc!.Tracks[_trackIndex].TrackNumber}  (Disc {_disc.DiscNumber})";
+        if (IsLooseTrack)
+        {
+            // Title was set once in the ctor; Prev/Next is hidden — nothing to
+            // refresh here.
+            return;
+        }
+
+        // Title is uniform across the loose and album-bound single-edit modes
+        // ("Edit Track"); the add-new path keeps its distinct verb. Multi-edit
+        // sets its own title in the bulk ctor ("Edit N Tracks").
+        Title = IsAddingNew ? "Add Track" : "Edit Track";
 
         PrevButton.IsEnabled = _trackIndex > 0;
-        NextButton.IsEnabled = IsAddingNew || _trackIndex < _disc.Tracks.Count - 1;
+        NextButton.IsEnabled = IsAddingNew || _trackIndex < _disc!.Tracks.Count - 1;
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ public partial class TrackEditorWindow : Window
         {
             error = _vm.SaveMulti(_editTracks!, _allLooseBatch);
         }
-        else if (_isLooseTrack)
+        else if (IsLooseTrack)
         {
             _vm.SaveLoose(_looseTrack!);
             error = TrackEditorViewModel.SaveValidationError.None;
