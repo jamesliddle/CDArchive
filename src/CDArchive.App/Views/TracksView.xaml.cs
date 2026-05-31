@@ -277,13 +277,15 @@ public partial class TracksView : UserControl
             // If every selected row belongs to one album, the track editor can offer
             // its session combo; otherwise pass null so the combo disables itself
             // (this is the same contract AlbumEditorWindow.OpenTrackEditor uses).
-            // Loose tracks count as "different albums" for session purposes — they
-            // have none.
+            // For session-default purposes: when every selected row belongs
+            // to one album, we can use that album's session fields as the
+            // editor's blank-field defaults. Mixed selections (multiple
+            // albums or any loose) → no defaults; the user sees blanks.
             var albumOnlyRows  = selected.Where(r => r.Album is not null).ToList();
             var distinctAlbums = albumOnlyRows.Select(r => r.Album!).Distinct().ToList();
-            var sharedSessions =
+            var defaultsAlbum  =
                 distinctAlbums.Count == 1 && albumOnlyRows.Count == selected.Count
-                    ? distinctAlbums[0].Sessions ?? []
+                    ? distinctAlbums[0]
                     : null;
 
             if (tracks.Count == 1)
@@ -293,8 +295,8 @@ public partial class TracksView : UserControl
                 var idx  = disc.Tracks.IndexOf(row.Track);
                 if (idx < 0) return;
 
-                var dlg = new TrackEditorWindow(disc, idx, distinctAlbums[0].Sessions ?? [],
-                                                pickLists, pieces)
+                var dlg = new TrackEditorWindow(disc, idx,
+                                                pickLists, pieces, defaultsAlbum)
                 {
                     Owner = Window.GetWindow(this),
                 };
@@ -303,11 +305,10 @@ public partial class TracksView : UserControl
             else
             {
                 // Loose-batch detection: when every selected row is a loose
-                // track, hide TrackNumber + Session UI in the bulk editor and
-                // skip writing those fields on save (loose tracks have
-                // TrackNumber=0 + SessionIndex=null sentinels).
+                // track, hide TrackNumber in the bulk editor and skip writing
+                // it on save (loose tracks have TrackNumber=0 sentinel).
                 var allLoose = selected.All(r => r.Album is null);
-                var dlg = new TrackEditorWindow(tracks, sharedSessions, pickLists, pieces, allLoose)
+                var dlg = new TrackEditorWindow(tracks, pickLists, pieces, defaultsAlbum, allLoose)
                 {
                     Owner = Window.GetWindow(this),
                 };

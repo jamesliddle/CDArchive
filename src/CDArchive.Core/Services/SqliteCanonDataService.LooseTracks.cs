@@ -62,15 +62,21 @@ public partial class SqliteCanonDataService
                 // TrackNumber is meaningless for loose tracks; the row stores 0.
                 // Keep the field zero on the model so callers can rely on the
                 // "TrackNumber > 0 ⇒ album-bound" invariant.
-                TrackNumber   = tr.TrackNumber,
-                Duration      = tr.Duration,
-                Description   = tr.Description,
-                SparsCode     = tr.SparsCode,
-                IsStereo      = tr.IsStereo,
-                IsProvisional = tr.IsProvisional,
-                FlacPath      = tr.FlacPath,
-                Mp3Path       = tr.Mp3Path,
-                // SessionId is null on loose tracks (no album, no sessions).
+                TrackNumber      = tr.TrackNumber,
+                Duration         = tr.Duration,
+                Description      = tr.Description,
+                SparsCode        = tr.SparsCode,
+                IsStereo         = tr.IsStereo,
+                IsProvisional    = tr.IsProvisional,
+                FlacPath         = tr.FlacPath,
+                Mp3Path          = tr.Mp3Path,
+                SessionDates     = tr.SessionDates,
+                SessionVenue     = tr.SessionVenue,
+                SessionCity      = tr.SessionCity,
+                SessionState     = tr.SessionState,
+                SessionCountry   = tr.SessionCountry,
+                SessionEngineers = DeserializeStringList(tr.SessionEngineersJson),
+                SessionProducers = DeserializeStringList(tr.SessionProducersJson),
             };
 
             if (tr.Performers.Count > 0)
@@ -205,15 +211,7 @@ public partial class SqliteCanonDataService
     private static void ApplyLooseTrackFields(AlbumTrackRow row, AlbumTrack model)
     {
         // DiscId stays null — that's what marks the row as loose.
-        row.TrackNumber   = model.TrackNumber;  // typically 0; meaningless without a disc
-        row.Duration      = model.Duration;
-        row.Description   = model.Description;
-        row.SparsCode     = model.SparsCode;
-        row.IsStereo      = model.IsStereo;
-        row.IsProvisional = model.IsProvisional;
-        row.FlacPath      = model.FlacPath;
-        row.Mp3Path       = model.Mp3Path;
-        // SessionId stays null — loose tracks have no album sessions.
-        row.SessionId     = null;
+        row.TrackNumber = model.TrackNumber;  // typically 0; meaningless without a disc
+        ApplyTrackScalars(row, model);
     }
 }

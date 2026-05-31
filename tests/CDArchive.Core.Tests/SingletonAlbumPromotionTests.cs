@@ -242,10 +242,10 @@ public class SingletonAlbumPromotionTests : IDisposable
     }
 
     [Fact]
-    public async Task SessionsPresent_IsSkipped()
+    public async Task SessionFieldsPresent_IsSkipped()
     {
-        var album = SyntheticWrapper("Has a Session");
-        album.Sessions = [new RecordingSession { Dates = "1970-01-01" }];
+        var album = SyntheticWrapper("Has Session Details");
+        album.SessionDates = "1970-01-01";
         await _svc.SaveAlbumsAsync(new List<CanonAlbum> { album });
 
         var result = await _svc.PromoteSingletonAlbumsToLooseTracksAsync(dryRun: false);

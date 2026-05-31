@@ -179,4 +179,89 @@ public class AlbumFieldPropagatorTests
 
         Assert.Null(album.Discs[0].Tracks[0].Performers);
     }
+
+    // ── Session-as-fields propagation ────────────────────────────────────────
+    // Same Push / Backfill contract as SparsCode etc. — added when the
+    // legacy List<RecordingSession> + SessionId model was collapsed to flat
+    // session_* columns on both album and track.
+
+    [Fact]
+    public void SessionDates_ChangedAtAlbumLevel_PushesToEveryTrack_IncludingOverrides()
+    {
+        // The user's reported bug: adding a second date to the album's
+        // Dates field didn't update the track-level Dates.
+        var album = new CanonAlbum
+        {
+            SessionDates = "1962-Jan, 1962-Feb",   // album's new value (post-edit)
+            Discs = [new AlbumDisc { DiscNumber = 1, Tracks =
+            [
+                new AlbumTrack { TrackNumber = 1, SessionDates = "1962-Jan" },     // matches old album value
+                new AlbumTrack { TrackNumber = 2, SessionDates = "1968-May" },     // a deliberate override
+                new AlbumTrack { TrackNumber = 3, SessionDates = null         },   // null
+            ]}],
+        };
+        // Snapshot represents the pre-edit album state.
+        var snapshot = new AlbumFieldPropagator.InheritableSnapshot(
+            SparsCode: null, IsStereo: null, PerformersFingerprint: "",
+            SessionDates: "1962-Jan");
+
+        AlbumFieldPropagator.Propagate(album, snapshot);
+
+        Assert.All(album.Discs[0].Tracks, t => Assert.Equal("1962-Jan, 1962-Feb", t.SessionDates));
+    }
+
+    [Fact]
+    public void SessionFields_UnchangedAtAlbumLevel_BackfillsNullTracksOnly()
+    {
+        var album = new CanonAlbum
+        {
+            SessionDates = "1962", SessionVenue = "JC Kirche", SessionCity = "Berlin",
+            Discs = [new AlbumDisc { DiscNumber = 1, Tracks =
+            [
+                new AlbumTrack { TrackNumber = 1,
+                                 SessionDates = "override-dates",
+                                 SessionVenue = "override-venue",
+                                 SessionCity  = "override-city" },   // override survives
+                new AlbumTrack { TrackNumber = 2 },                  // all nulls → backfilled
+            ]}],
+        };
+        var snapshot = AlbumFieldPropagator.Snapshot(album);   // matches → no change
+
+        AlbumFieldPropagator.Propagate(album, snapshot);
+
+        Assert.Equal("override-dates", album.Discs[0].Tracks[0].SessionDates);
+        Assert.Equal("1962",           album.Discs[0].Tracks[1].SessionDates);
+        Assert.Equal("JC Kirche",      album.Discs[0].Tracks[1].SessionVenue);
+        Assert.Equal("Berlin",         album.Discs[0].Tracks[1].SessionCity);
+    }
+
+    [Fact]
+    public void SessionEngineers_ChangedAtAlbumLevel_PushesIndependentCopiesToEveryTrack()
+    {
+        // List propagation: pushed lists must be independent copies so a
+        // later mutation to one track's list doesn't bleed into another.
+        var album = new CanonAlbum
+        {
+            SessionEngineers = new List<string> { "Wilkinson", "Lock" },
+            Discs = [new AlbumDisc { DiscNumber = 1, Tracks =
+            [
+                new AlbumTrack { TrackNumber = 1, SessionEngineers = new List<string> { "old" } },
+                new AlbumTrack { TrackNumber = 2 },   // null
+            ]}],
+        };
+        var snapshot = new AlbumFieldPropagator.InheritableSnapshot(
+            SparsCode: null, IsStereo: null, PerformersFingerprint: "");
+        // Snapshot's SessionEngineersFingerprint default ("") differs from
+        // the album's current fingerprint, so the propagator treats it as
+        // changed → pushes to every track.
+
+        AlbumFieldPropagator.Propagate(album, snapshot);
+
+        Assert.Equal(new[] { "Wilkinson", "Lock" }, album.Discs[0].Tracks[0].SessionEngineers);
+        Assert.Equal(new[] { "Wilkinson", "Lock" }, album.Discs[0].Tracks[1].SessionEngineers);
+
+        // Independent copies: mutating track 0's list doesn't touch track 1's.
+        album.Discs[0].Tracks[0].SessionEngineers!.Add("Moorfoot");
+        Assert.Equal(2, album.Discs[0].Tracks[1].SessionEngineers!.Count);
+    }
 }

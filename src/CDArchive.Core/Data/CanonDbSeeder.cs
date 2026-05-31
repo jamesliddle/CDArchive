@@ -540,16 +540,26 @@ public class CanonDbSeeder
         {
             var albumRow = new AlbumRow
             {
-                Title           = album.Title,
-                Subtitle        = album.Subtitle,
-                Label           = album.Label,
-                CatalogueNumber = album.CatalogueNumber,
-                Barcode         = album.Barcode,
-                SparsCode       = album.SparsCode,
-                IsStereo        = album.IsStereo,
-                Notes           = album.Notes,
+                Title                 = album.Title,
+                Subtitle              = album.Subtitle,
+                Label                 = album.Label,
+                CatalogueNumber       = album.CatalogueNumber,
+                Barcode               = album.Barcode,
+                SparsCode             = album.SparsCode,
+                IsStereo              = album.IsStereo,
+                Notes                 = album.Notes,
                 // Rework H42: preserve JSON IsProvisional. See SeedComposers.
-                IsProvisional   = album.IsProvisional,
+                IsProvisional         = album.IsProvisional,
+                // Session-as-fields: flat columns. Legacy JSON snapshots with
+                // sessions[] get session[0]'s fields copied up by
+                // CanonAlbum.LegacySessions's setter before we get here.
+                SessionDates          = album.SessionDates,
+                SessionVenue          = album.SessionVenue,
+                SessionCity           = album.SessionCity,
+                SessionState          = album.SessionState,
+                SessionCountry        = album.SessionCountry,
+                SessionEngineersJson  = SerializeStringList(album.SessionEngineers),
+                SessionProducersJson  = SerializeStringList(album.SessionProducers),
             };
 
             // ── Volumes ──────────────────────────────────────────────────────
@@ -569,34 +579,9 @@ public class CanonDbSeeder
                 }
             }
 
-            // ── Sessions ─────────────────────────────────────────────────────
-            // H21: tracks reference sessions by stable Id (RecordingSession.Id ↔
-            // AlbumTrack.SessionId). Build a by-Id map for the track wire-up
-            // below; a per-position map remains as a fallback for pre-H21 JSON
-            // snapshots that still carry the legacy positional SessionIndex.
-            var sessionByIndex = new Dictionary<int, AlbumSessionRow>();
-            var sessionById    = new Dictionary<long, AlbumSessionRow>();
-            if (album.Sessions is { Count: > 0 })
-            {
-                for (int i = 0; i < album.Sessions.Count; i++)
-                {
-                    var s = album.Sessions[i];
-                    var sr = new AlbumSessionRow
-                    {
-                        Position      = i,
-                        Dates         = s.Dates,
-                        Venue         = s.Venue,
-                        City          = s.City,
-                        State         = s.State,
-                        Country       = s.Country,
-                        EngineersJson = SerializeStringList(s.Engineers),
-                        ProducersJson = SerializeStringList(s.Producers),
-                    };
-                    albumRow.Sessions.Add(sr);
-                    sessionByIndex[i] = sr;
-                    if (s.Id != 0) sessionById[s.Id] = sr;
-                }
-            }
+            // Session list retired in the sessions-as-fields refactor — see
+            // CanonAlbum.LegacySessions for the JSON back-compat path that
+            // copies a pre-refactor sessions[0] up to the new flat columns.
 
             // ── Album-level performers ───────────────────────────────────────
             if (album.Performers is { Count: > 0 })
@@ -618,20 +603,22 @@ public class CanonDbSeeder
                 {
                     var trackRow = new AlbumTrackRow
                     {
-                        TrackNumber   = track.TrackNumber,
-                        Duration      = track.Duration,
-                        Description   = track.Description,
-                        SparsCode     = track.SparsCode,
-                        IsStereo      = track.IsStereo,
+                        TrackNumber           = track.TrackNumber,
+                        Duration              = track.Duration,
+                        Description           = track.Description,
+                        SparsCode             = track.SparsCode,
+                        IsStereo              = track.IsStereo,
                         // Rework H42: preserve JSON IsProvisional. See SeedComposers.
-                        IsProvisional = track.IsProvisional,
+                        IsProvisional         = track.IsProvisional,
+                        // Per-track session columns (session-as-fields refactor).
+                        SessionDates          = track.SessionDates,
+                        SessionVenue          = track.SessionVenue,
+                        SessionCity           = track.SessionCity,
+                        SessionState          = track.SessionState,
+                        SessionCountry        = track.SessionCountry,
+                        SessionEngineersJson  = SerializeStringList(track.SessionEngineers),
+                        SessionProducersJson  = SerializeStringList(track.SessionProducers),
                     };
-                    // H21: prefer the stable SessionId; fall back to positional
-                    // SessionIndex only for pre-H21 JSON snapshots.
-                    if (track.SessionId is long sid && sessionById.TryGetValue(sid, out var sessRowById))
-                        trackRow.Session = sessRowById;
-                    else if (track.SessionIndex is int si && sessionByIndex.TryGetValue(si, out var sessRow))
-                        trackRow.Session = sessRow;
 
                     // Track-level performers need both album_id (required FK) and track_id.
                     // Attach each row to both parent collections so EF sets both FKs.

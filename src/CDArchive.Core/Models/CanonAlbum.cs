@@ -84,13 +84,74 @@ public class CanonAlbum
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<AlbumPerformer>? Performers { get; set; }
 
+    // ── Recording session fields (formerly the Sessions list) ────────────────
+    // Pre-refactor: an album owned a List<RecordingSession> and each track
+    // referenced one by stable Id. The user wanted the simpler shape — one
+    // session-worth of fields directly on the album; tracks carry their own
+    // copy of the same fields, defaulted from the album on TrackEditor open.
+    // The legacy List<RecordingSession> + AlbumTrack.SessionId model is gone;
+    // the migration copies session[0]'s fields up to the album.
+
+    /// <summary>Freeform recording date, e.g. "March 3–7, 1967", "c.1963".</summary>
+    [JsonPropertyName("session_dates")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionDates { get; set; }
+
+    /// <summary>Recording venue or studio name.</summary>
+    [JsonPropertyName("session_venue")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionVenue { get; set; }
+
+    [JsonPropertyName("session_city")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionCity { get; set; }
+
+    /// <summary>State / province — sits between City and Country.</summary>
+    [JsonPropertyName("session_state")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionState { get; set; }
+
+    [JsonPropertyName("session_country")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionCountry { get; set; }
+
+    [JsonPropertyName("session_engineers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? SessionEngineers { get; set; }
+
+    [JsonPropertyName("session_producers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? SessionProducers { get; set; }
+
     /// <summary>
-    /// Recording sessions.  Most albums have one entry that covers all tracks.
-    /// Tracks reference a session by stable Id via <see cref="AlbumTrack.SessionId"/>.
+    /// Back-compat-only: lets JSON snapshots that still carry the legacy
+    /// <c>"sessions": [ ... ]</c> array deserialize without data loss. The
+    /// setter copies session[0]'s fields into the new flat <c>Session*</c>
+    /// properties (matching the user's "keep only the first session" choice
+    /// on the model migration). Sessions 2..N in the JSON are dropped.
+    /// Getter always returns null so we never write the legacy shape back
+    /// — re-exporting the JSON normalises everyone to the new fields.
     /// </summary>
     [JsonPropertyName("sessions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<RecordingSession>? Sessions { get; set; }
+    public List<LegacySessionEntry>? LegacySessions
+    {
+        get => null;
+        set
+        {
+            if (value is null or { Count: 0 }) return;
+            var first = value[0];
+            // ??= so the new flat fields win when both shapes are present
+            // in the same JSON (defensive — shouldn't happen in practice).
+            SessionDates     ??= first.Dates;
+            SessionVenue     ??= first.Venue;
+            SessionCity      ??= first.City;
+            SessionState     ??= first.State;
+            SessionCountry   ??= first.Country;
+            SessionEngineers ??= first.Engineers;
+            SessionProducers ??= first.Producers;
+        }
+    }
 
     // ── Computed helpers ─────────────────────────────────────────────────────
 
@@ -148,6 +209,23 @@ public class CanonAlbum
             return Performers.Count == 1 ? first : $"{first} +{Performers.Count - 1} more";
         }
     }
+}
+
+/// <summary>
+/// Back-compat-only shape used by <see cref="CanonAlbum.LegacySessions"/> to
+/// migrate JSON snapshots that still carry the pre-refactor
+/// <c>"sessions": [ { dates, venue, city, state, country, engineers,
+/// producers } ]</c> array. Never written; only deserialized.
+/// </summary>
+public class LegacySessionEntry
+{
+    [JsonPropertyName("dates")]     public string? Dates     { get; set; }
+    [JsonPropertyName("venue")]     public string? Venue     { get; set; }
+    [JsonPropertyName("city")]      public string? City      { get; set; }
+    [JsonPropertyName("state")]     public string? State     { get; set; }
+    [JsonPropertyName("country")]   public string? Country   { get; set; }
+    [JsonPropertyName("engineers")] public List<string>? Engineers { get; set; }
+    [JsonPropertyName("producers")] public List<string>? Producers { get; set; }
 }
 
 /// <summary>
@@ -234,37 +312,46 @@ public class AlbumTrack
     public List<TrackPieceRef>? PieceRefs { get; set; }
 
     /// <summary>
-    /// Stable identity reference to a <see cref="RecordingSession"/> on the
-    /// parent album (matches <see cref="RecordingSession.Id"/>). Survives
-    /// session reorders and list mutations — the H21 architectural fix.
-    /// null = no session.
-    /// </summary>
-    [JsonPropertyName("session_id")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? SessionId { get; set; }
-
-    /// <summary>
-    /// <b>Transient in-memory handle.</b> Zero-based index into
-    /// <see cref="CanonAlbum.Sessions"/>, populated only by the AlbumEditor
-    /// VM while a track is referencing a freshly-added session that hasn't
-    /// yet received a SQLite-allocated Id (so <see cref="SessionId"/> is null
-    /// during the in-flight save). The data service's save path consults this
-    /// as a fallback when <see cref="SessionId"/> doesn't resolve, then the
-    /// post-save reload backfills <see cref="SessionId"/> with the row's
-    /// assigned Id and this field stops mattering.
-    /// <para>NOT serialized to JSON. NOT populated by the load path. NOT a
-    /// persistent reference. Treat as an implementation detail of the
-    /// in-editor flow.</para>
-    /// </summary>
-    [JsonIgnore]
-    public int? SessionIndex { get; set; }
-
-    /// <summary>
     /// True until the track is explicitly approved. New tracks imported from iTunes
     /// start provisional; can be approved individually or as part of bulk album approval.
     /// </summary>
     [JsonPropertyName("is_provisional")]
     public bool IsProvisional { get; set; } = true;
+
+    // ── Per-track recording session fields ────────────────────────────────────
+    // Same shape as the album-level session fields on CanonAlbum. The
+    // TrackEditor eagerly copies the album's values into blank fields on
+    // open; the user can override any of them per track. Pre-refactor these
+    // were a SessionId reference to one of the album's List<RecordingSession>
+    // entries — see CanonAlbum's note on the model change.
+
+    [JsonPropertyName("session_dates")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionDates { get; set; }
+
+    [JsonPropertyName("session_venue")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionVenue { get; set; }
+
+    [JsonPropertyName("session_city")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionCity { get; set; }
+
+    [JsonPropertyName("session_state")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionState { get; set; }
+
+    [JsonPropertyName("session_country")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionCountry { get; set; }
+
+    [JsonPropertyName("session_engineers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? SessionEngineers { get; set; }
+
+    [JsonPropertyName("session_producers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? SessionProducers { get; set; }
 
     /// <summary>
     /// Track-level SPARS code override (e.g. "DDD", "ADD").

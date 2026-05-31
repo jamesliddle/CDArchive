@@ -82,20 +82,36 @@ public partial class AlbumEditorViewModel : ObservableObject
     public static string? SparsCodeFromString(string? v) =>
         string.IsNullOrEmpty(v) ? null : v;
 
-    // ── List-shaped fields (slice 3) ──────────────────────────────────────────
-    // Performers and Sessions live as ObservableCollections so the ListView
-    // ItemsSource bindings auto-update on Add/Edit/Remove without manual
-    // ItemsSource = null; ItemsSource = list reset cycles. The Add/Edit/Remove
+    // ── Recording-session fields (post-session-as-fields refactor) ───────────
+    // Pre-refactor an album owned a List<RecordingSession> and tracks
+    // referenced one by Id. Now one set of session fields lives directly on
+    // the album (and a parallel set on each track, defaulted from the album
+    // on TrackEditor open). The first five are MixedField<string>s for the
+    // multi-edit shape; Engineers and Producers are ObservableCollection<string>
+    // mirroring the AlbumEditor's Performers shape — Add/Edit/Remove/Up/Down
+    // handlers in the editor's code-behind drive them.
+
+    public MixedField<string> SessionDates    { get; } = new();
+    public MixedField<string> SessionVenue    { get; } = new();
+    public MixedField<string> SessionCity     { get; } = new();
+    public MixedField<string> SessionState    { get; } = new();
+    public MixedField<string> SessionCountry  { get; } = new();
+
+    // ── List-shaped fields ────────────────────────────────────────────────────
+    // Performers and the two session name lists (Engineers / Producers) live
+    // as ObservableCollections so the ListView ItemsSource bindings auto-
+    // update on Add/Edit/Remove without manual reset cycles. Add/Edit/Remove
     // button handlers stay in the editor's code-behind because they open
-    // modal child dialogs (PerformerEditorWindow / SessionEditorWindow) that
-    // need Window.GetWindow(this) as Owner — a legitimate View concern.
+    // modal child dialogs that need Window.GetWindow(this) as Owner.
     //
-    // Both tabs (Performers and Sessions) are hidden in multi-edit (per H18's
-    // ShowPerformersTab / ShowSessionsTab visibility bindings). LoadMulti
+    // The Performers section + session fields are all hidden in multi-edit
+    // (per H18's ShowPerformersSection / ShowSessionsSection visibility
+    // bindings — multi-edit collapses the section entirely). LoadMulti
     // leaves these empty; SaveMulti doesn't read them.
 
-    public ObservableCollection<AlbumPerformer>  Performers { get; } = new();
-    public ObservableCollection<RecordingSession> Sessions  { get; } = new();
+    public ObservableCollection<AlbumPerformer> Performers        { get; } = new();
+    public ObservableCollection<string>         SessionEngineers  { get; } = new();
+    public ObservableCollection<string>         SessionProducers  { get; } = new();
 
     /// <summary>
     /// Populate from a single album (single-edit mode). Every field becomes
@@ -117,12 +133,23 @@ public partial class AlbumEditorViewModel : ObservableObject
         SparsCode.InitUnanimous(SparsCodeToString(album.SparsCode));
         IsStereo.InitUnanimous(IsStereoToString(album.IsStereo));
 
+        SessionDates.InitUnanimous(album.SessionDates       ?? "");
+        SessionVenue.InitUnanimous(album.SessionVenue       ?? "");
+        SessionCity.InitUnanimous(album.SessionCity         ?? "");
+        SessionState.InitUnanimous(album.SessionState       ?? "");
+        SessionCountry.InitUnanimous(album.SessionCountry   ?? "");
+
         Performers.Clear();
         if (album.Performers is { Count: > 0 } perfs)
             foreach (var p in perfs) Performers.Add(p);
-        Sessions.Clear();
-        if (album.Sessions is { Count: > 0 } sess)
-            foreach (var s in sess) Sessions.Add(s);
+
+        SessionEngineers.Clear();
+        if (album.SessionEngineers is { Count: > 0 } engs)
+            foreach (var e in engs) SessionEngineers.Add(e);
+
+        SessionProducers.Clear();
+        if (album.SessionProducers is { Count: > 0 } prods)
+            foreach (var p in prods) SessionProducers.Add(p);
     }
 
     /// <summary>
@@ -154,12 +181,20 @@ public partial class AlbumEditorViewModel : ObservableObject
         Init(SparsCode, albums.Select(a => SparsCodeToString(a.SparsCode)), SparsCodeMixedSentinel);
         Init(IsStereo,  albums.Select(a => IsStereoToString(a.IsStereo)),  IsStereoMixedSentinel);
 
-        // Performers / Sessions tabs are hidden in multi-edit (H18); leave
-        // the collections empty. SaveMulti's per-album backfill of
-        // track.Performers reads from each album.Performers directly, not
-        // from the VM.
+        // Session text fields share the multi-edit Mixed/Unanimous contract
+        // with the other free-text fields.
+        Init(SessionDates,   albums.Select(a => a.SessionDates   ?? ""), mixedPlaceholder);
+        Init(SessionVenue,   albums.Select(a => a.SessionVenue   ?? ""), mixedPlaceholder);
+        Init(SessionCity,    albums.Select(a => a.SessionCity    ?? ""), mixedPlaceholder);
+        Init(SessionState,   albums.Select(a => a.SessionState   ?? ""), mixedPlaceholder);
+        Init(SessionCountry, albums.Select(a => a.SessionCountry ?? ""), mixedPlaceholder);
+
+        // Performers + Session Engineers/Producers sections are hidden in
+        // multi-edit (H18 visibility binding); leave the collections empty.
+        // SaveMulti doesn't write them in multi-edit.
         Performers.Clear();
-        Sessions.Clear();
+        SessionEngineers.Clear();
+        SessionProducers.Clear();
     }
 
     private static void Init(MixedField<string> field, IEnumerable<string> values, string mixedPlaceholder)
@@ -226,8 +261,16 @@ public partial class AlbumEditorViewModel : ObservableObject
         // model fields are List<T>?, and storing the ObservableCollection instance
         // directly would be a type mismatch + would tie the model to a UI-facing
         // collection type.
-        album.Performers = Performers.Count > 0 ? Performers.ToList() : null;
-        album.Sessions   = Sessions.Count   > 0 ? Sessions.ToList()   : null;
+        album.Performers       = Performers.Count       > 0 ? Performers.ToList()       : null;
+        album.SessionEngineers = SessionEngineers.Count > 0 ? SessionEngineers.ToList() : null;
+        album.SessionProducers = SessionProducers.Count > 0 ? SessionProducers.ToList() : null;
+
+        // Session free-text fields.
+        album.SessionDates   = NullIfEmpty(SessionDates.Value);
+        album.SessionVenue   = NullIfEmpty(SessionVenue.Value);
+        album.SessionCity    = NullIfEmpty(SessionCity.Value);
+        album.SessionState   = NullIfEmpty(SessionState.Value);
+        album.SessionCountry = NullIfEmpty(SessionCountry.Value);
 
         album.Discs.RemoveAll(d => d.Tracks.Count == 0);
 
@@ -266,6 +309,15 @@ public partial class AlbumEditorViewModel : ObservableObject
         ApplyMixedFieldText(Barcode,         v => { foreach (var a in albums) a.Barcode         = v; });
         ApplyMixedFieldText(ArchiveFolder,   v => { foreach (var a in albums) a.ArchiveFolder   = v; });
         ApplyMixedFieldText(Notes,           v => { foreach (var a in albums) a.Notes           = v; });
+
+        // Session text fields share the multi-edit contract. Engineers /
+        // Producers (list-shaped) aren't editable in multi-edit so they
+        // aren't written here — same shape as the Performers list above.
+        ApplyMixedFieldText(SessionDates,   v => { foreach (var a in albums) a.SessionDates   = v; });
+        ApplyMixedFieldText(SessionVenue,   v => { foreach (var a in albums) a.SessionVenue   = v; });
+        ApplyMixedFieldText(SessionCity,    v => { foreach (var a in albums) a.SessionCity    = v; });
+        ApplyMixedFieldText(SessionState,   v => { foreach (var a in albums) a.SessionState   = v; });
+        ApplyMixedFieldText(SessionCountry, v => { foreach (var a in albums) a.SessionCountry = v; });
 
         // SparsCode + IsStereo: write IFF !(started Mixed AND still Mixed). For
         // a combo started Unanimous, IsMixed is false from the start so this
