@@ -253,92 +253,135 @@
                     </DockPanel>
                 </GroupBox>
 
-                <!-- ══ Sessions ══════════════════════════════════════════════ -->
-                <GroupBox x:Name="SessionsGroup" Header="Sessions"
+                <!-- ══ Recording Session ═════════════════════════════════════ -->
+                <!-- Session fields used to live in their own modal (the
+                     SessionEditorWindow). They're now inlined here: one set
+                     of fields per album, with each track allowed to override
+                     any of them via the TrackEditor (which eagerly copies
+                     the album values into blank track fields on open). -->
+                <GroupBox x:Name="SessionsGroup" Header="Recording Session"
                           Padding="8" Margin="0,0,0,10"
                           Visibility="{Binding ShowSessionsSection,
                                                 RelativeSource={RelativeSource AncestorType=Window},
                                                 Converter={StaticResource BoolToVis}}">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top"
-                                   Text="Recording sessions describe where and when the album was recorded. Tracks can reference a specific session by index."
-                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
-                                   Margin="0,0,0,6" />
-                        <Grid Height="175">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Dates -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dates"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="SessionDatesBox"
+                                 Text="{Binding SessionDates.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 ToolTip="Freeform date, e.g. 'March 3–7, 1967', '1955', 'c.1963'." />
+
+                        <!-- Venue -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Venue"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="SessionVenueBox"
+                                 Text="{Binding SessionVenue.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- City -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="City"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="SessionCityBox"
+                                 Text="{Binding SessionCity.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- State -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="State"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Row="3" Grid.Column="1" x:Name="SessionStateBox"
+                                 Text="{Binding SessionState.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 ToolTip="State or province (e.g. 'CA', 'New York', 'Bavaria')." />
+
+                        <!-- Country -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Country"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Row="4" Grid.Column="1" x:Name="SessionCountryBox"
+                                 Text="{Binding SessionCountry.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+
+                        <!-- Engineers list -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Engineers"
+                                   FontSize="13" VerticalAlignment="Top" Margin="0,4,8,0" />
+                        <Grid Grid.Row="5" Grid.Column="1" Height="175" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-
-                            <ListView x:Name="SessionList" Grid.Column="0" FontSize="13"
-                                      BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
-                                      ItemsSource="{Binding Sessions}"
-                                      SelectionChanged="OnSessionSelectionChanged"
-                                      MouseDoubleClick="OnSessionDoubleClick">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="Dates" Width="140"
-                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Dates}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                        <GridViewColumn Header="Location" Width="200"
-                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding LocationSummary}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                        <GridViewColumn Header="Engineers" Width="200"
-                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding EngineersSummary}"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding EngineersSummary}" />
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                        <GridViewColumn Header="Producers" Width="200"
-                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding ProducersSummary}"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding ProducersSummary}" />
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-
+                            <ListBox x:Name="SessionEngineerList" Grid.Column="0" FontSize="13"
+                                     BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                     ItemsSource="{Binding SessionEngineers}"
+                                     SelectionChanged="OnSessionEngineerSelectionChanged"
+                                     MouseDoubleClick="OnSessionEngineerDoubleClick" />
                             <StackPanel Grid.Column="1" Orientation="Vertical">
-                                <Button x:Name="AddSessionButton" Content="Add"
+                                <Button x:Name="AddSessionEngineerButton" Content="Add"
                                         Style="{StaticResource ListActionButtonStyle}"
-                                        Click="OnAddSession" />
-                                <Button x:Name="EditSessionButton" Content="Edit"
+                                        Click="OnAddSessionEngineer" />
+                                <Button x:Name="EditSessionEngineerButton" Content="Edit"
                                         Style="{StaticResource ListActionButtonStyle}"
-                                        IsEnabled="False" Click="OnEditSession" />
-                                <Button x:Name="RemoveSessionButton" Content="Remove"
+                                        IsEnabled="False" Click="OnEditSessionEngineer" />
+                                <Button x:Name="RemoveSessionEngineerButton" Content="Remove"
                                         Style="{StaticResource ListActionButtonStyle}"
-                                        IsEnabled="False" Click="OnRemoveSession" />
-                                <Border Height="1" Background="#DDD" Margin="0,4,0,8" />
-                                <Button x:Name="SessionUpButton" Content="Up"
+                                        IsEnabled="False" Click="OnRemoveSessionEngineer" />
+                                <Border Height="1" Background="#DDD" Margin="0,4,0,4" />
+                                <Button x:Name="SessionEngineerUpButton" Content="Up"
                                         Style="{StaticResource ListActionButtonStyle}"
-                                        IsEnabled="False" Click="OnSessionMoveUp" />
-                                <Button x:Name="SessionDownButton" Content="Down"
+                                        IsEnabled="False" Click="OnSessionEngineerMoveUp" />
+                                <Button x:Name="SessionEngineerDownButton" Content="Down"
                                         Style="{StaticResource ListActionButtonStyle}"
-                                        IsEnabled="False" Click="OnSessionMoveDown" />
+                                        IsEnabled="False" Click="OnSessionEngineerMoveDown" />
                             </StackPanel>
                         </Grid>
-                    </DockPanel>
+
+                        <!-- Producers list -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Producers"
+                                   FontSize="13" VerticalAlignment="Top" Margin="0,4,8,0" />
+                        <Grid Grid.Row="6" Grid.Column="1" Height="175">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ListBox x:Name="SessionProducerList" Grid.Column="0" FontSize="13"
+                                     BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                     ItemsSource="{Binding SessionProducers}"
+                                     SelectionChanged="OnSessionProducerSelectionChanged"
+                                     MouseDoubleClick="OnSessionProducerDoubleClick" />
+                            <StackPanel Grid.Column="1" Orientation="Vertical">
+                                <Button x:Name="AddSessionProducerButton" Content="Add"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        Click="OnAddSessionProducer" />
+                                <Button x:Name="EditSessionProducerButton" Content="Edit"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnEditSessionProducer" />
+                                <Button x:Name="RemoveSessionProducerButton" Content="Remove"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnRemoveSessionProducer" />
+                                <Border Height="1" Background="#DDD" Margin="0,4,0,4" />
+                                <Button x:Name="SessionProducerUpButton" Content="Up"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnSessionProducerMoveUp" />
+                                <Button x:Name="SessionProducerDownButton" Content="Down"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnSessionProducerMoveDown" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
                 </GroupBox>
 
                 <!-- ══ Discs & Tracks ════════════════════════════════════════ -->

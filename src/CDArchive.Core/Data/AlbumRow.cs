@@ -27,8 +27,20 @@ public class AlbumRow
     /// <summary>True until explicitly approved. Defaults true for new albums.</summary>
     public bool IsProvisional { get; set; } = true;
 
+    // ── Recording session fields (formerly the album_sessions table) ─────────
+    // One session-worth of fields directly on the album. Per-track copies
+    // live on AlbumTrackRow. Engineers + Producers are name lists serialized
+    // as JSON arrays, matching the pre-refactor shape.
+
+    public string? SessionDates    { get; set; }
+    public string? SessionVenue    { get; set; }
+    public string? SessionCity     { get; set; }
+    public string? SessionState    { get; set; }
+    public string? SessionCountry  { get; set; }
+    public string? SessionEngineersJson { get; set; }
+    public string? SessionProducersJson { get; set; }
+
     public List<AlbumVolumeRow> Volumes { get; set; } = [];
     public List<AlbumDiscRow> Discs { get; set; } = [];
     public List<AlbumPerformerRow> Performers { get; set; } = [];
-    public List<AlbumSessionRow> Sessions { get; set; } = [];
 }

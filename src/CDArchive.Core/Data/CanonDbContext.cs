@@ -36,7 +36,6 @@ public class CanonDbContext : DbContext
     public DbSet<AlbumTrackRow>              AlbumTracks             => Set<AlbumTrackRow>();
     public DbSet<AlbumTrackPieceRefRow>      AlbumTrackPieceRefs     => Set<AlbumTrackPieceRefRow>();
     public DbSet<AlbumPerformerRow>          AlbumPerformers         => Set<AlbumPerformerRow>();
-    public DbSet<AlbumSessionRow>            AlbumSessions           => Set<AlbumSessionRow>();
 
     // ── Markers (track anchors: tempo / first-line / rehearsal mark / bar number) ───
     public DbSet<PieceMarkerRow>             PieceMarkers            => Set<PieceMarkerRow>();
@@ -507,6 +506,16 @@ public class CanonDbContext : DbContext
             b.Property(x => x.IsStereo).HasColumnName("is_stereo");
             b.Property(x => x.Notes).HasColumnName("notes");
             b.Property(x => x.ArchiveFolder).HasColumnName("archive_folder");
+            // Recording-session fields (moved off the retired album_sessions
+            // table). Engineers + Producers serialize as JSON arrays of strings
+            // — same shape the per-track copies on AlbumTrackRow use.
+            b.Property(x => x.SessionDates).HasColumnName("session_dates");
+            b.Property(x => x.SessionVenue).HasColumnName("session_venue");
+            b.Property(x => x.SessionCity).HasColumnName("session_city");
+            b.Property(x => x.SessionState).HasColumnName("session_state");
+            b.Property(x => x.SessionCountry).HasColumnName("session_country");
+            b.Property(x => x.SessionEngineersJson).HasColumnName("session_engineers_json");
+            b.Property(x => x.SessionProducersJson).HasColumnName("session_producers_json");
             // No HasDefaultValue here: with it, EF Core omits the column from the
             // INSERT statement when the CLR value happens to match the configured
             // default, letting the database apply its own (possibly stale) default
@@ -576,7 +585,16 @@ public class CanonDbContext : DbContext
             b.Property(x => x.TrackNumber).HasColumnName("track_number");
             b.Property(x => x.Duration).HasColumnName("duration");
             b.Property(x => x.Description).HasColumnName("description");
-            b.Property(x => x.SessionId).HasColumnName("session_id");
+            // Per-track recording-session fields. Same shape as the album-level
+            // columns; the TrackEditor eagerly copies album defaults into blank
+            // track fields on open.
+            b.Property(x => x.SessionDates).HasColumnName("session_dates");
+            b.Property(x => x.SessionVenue).HasColumnName("session_venue");
+            b.Property(x => x.SessionCity).HasColumnName("session_city");
+            b.Property(x => x.SessionState).HasColumnName("session_state");
+            b.Property(x => x.SessionCountry).HasColumnName("session_country");
+            b.Property(x => x.SessionEngineersJson).HasColumnName("session_engineers_json");
+            b.Property(x => x.SessionProducersJson).HasColumnName("session_producers_json");
             b.Property(x => x.SparsCode).HasColumnName("spars_code");
             b.Property(x => x.IsStereo).HasColumnName("is_stereo");
             // No HasDefaultValue here: with it, EF Core omits the column from the
@@ -594,11 +612,9 @@ public class CanonDbContext : DbContext
                 .HasForeignKey(x => x.DiscId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Deleting a session detaches its tracks rather than cascading.
-            b.HasOne(x => x.Session)
-                .WithMany(s => s.Tracks)
-                .HasForeignKey(x => x.SessionId)
-                .OnDelete(DeleteBehavior.SetNull);
+            // No Session FK any more — session fields live directly on each
+            // track row. The album_sessions table + AlbumSessionRow.Session
+            // navigation were retired in the session-as-fields refactor.
 
             b.HasIndex(x => new { x.DiscId, x.TrackNumber }).IsUnique();
         });
@@ -714,28 +730,11 @@ public class CanonDbContext : DbContext
             b.HasIndex(x => x.EnsembleId);
         });
 
-        mb.Entity<AlbumSessionRow>(b =>
-        {
-            b.ToTable("album_sessions");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.Id).HasColumnName("id");
-            b.Property(x => x.AlbumId).HasColumnName("album_id");
-            b.Property(x => x.Position).HasColumnName("position");
-            b.Property(x => x.Dates).HasColumnName("dates");
-            b.Property(x => x.Venue).HasColumnName("venue");
-            b.Property(x => x.City).HasColumnName("city");
-            b.Property(x => x.State).HasColumnName("state");
-            b.Property(x => x.Country).HasColumnName("country");
-            b.Property(x => x.EngineersJson).HasColumnName("engineers_json");
-            b.Property(x => x.ProducersJson).HasColumnName("producers_json");
-
-            b.HasOne(x => x.Album)
-                .WithMany(a => a.Sessions)
-                .HasForeignKey(x => x.AlbumId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            b.HasIndex(x => new { x.AlbumId, x.Position }).IsUnique();
-        });
+        // The album_sessions table + AlbumSessionRow mapping were retired in
+        // the session-as-fields refactor. Existing data is migrated up to the
+        // album row and (per track) down to album_tracks by the schema
+        // upgrade in SqliteCanonDataService.Migrations.cs; the table itself
+        // is dropped at the end of the upgrade.
     }
 
     // ─────────────────────────────────────────────────────────────────────────

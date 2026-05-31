@@ -158,7 +158,7 @@ public static class ItunesImporter
             // "already imported" filter line up against the same logical key
             // here. When a matching existing album is found, MERGE new tracks
             // into it rather than creating a fresh CanonAlbum. The existing
-            // album's scalar fields / Performers / Sessions / IsProvisional
+            // album's scalar fields / Performers / Session* / IsProvisional
             // are intentionally not modified — the user's curation wins.
             CanonAlbum album;
             bool isExistingAlbum = false;

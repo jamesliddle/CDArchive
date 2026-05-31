@@ -102,9 +102,9 @@ public class TrackEditorViewModelSaveTests
     // ── SaveLoose ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void SaveLoose_ForcesTrackNumberZeroAndSessionIndexNull()
+    public void SaveLoose_ForcesTrackNumberZero()
     {
-        var track = new AlbumTrack { TrackNumber = 99, SessionIndex = 7 };
+        var track = new AlbumTrack { TrackNumber = 99 };
 
         var vm = new TrackEditorViewModel();
         vm.LoadLoose(track);
@@ -113,7 +113,6 @@ public class TrackEditorViewModelSaveTests
         vm.SaveLoose(track);
 
         Assert.Equal(0, track.TrackNumber);
-        Assert.Null(track.SessionIndex);
         Assert.Equal("Loose", track.Description);
     }
 
@@ -370,12 +369,15 @@ public class TrackEditorViewModelSaveTests
     }
 
     [Fact]
-    public void SaveMulti_MixedSession_UserDidNotTouch_SkipsWrite()
+    public void SaveMulti_MixedSessionField_UserDidNotTouch_SkipsWrite()
     {
+        // Post-refactor: SessionDates is a plain text field with the Mixed
+        // contract — same shape as Description etc. Untouched-after-Mixed
+        // means save preserves each track's existing value.
         var tracks = new[]
         {
-            new AlbumTrack { TrackNumber = 1, SessionIndex = 0 },
-            new AlbumTrack { TrackNumber = 2, SessionIndex = 1 },
+            new AlbumTrack { TrackNumber = 1, SessionDates = "1962" },
+            new AlbumTrack { TrackNumber = 2, SessionDates = "1968" },
         };
 
         var vm = new TrackEditorViewModel();
@@ -383,27 +385,7 @@ public class TrackEditorViewModelSaveTests
 
         vm.SaveMulti(tracks, allLoose: false);
 
-        Assert.Equal(0, tracks[0].SessionIndex);
-        Assert.Equal(1, tracks[1].SessionIndex);
-    }
-
-    [Fact]
-    public void SaveMulti_UnsharedSessions_SkipsSessionWrite()
-    {
-        // hasSharedSessions=false → Session loaded as Mixed → save skips.
-        var tracks = new[]
-        {
-            new AlbumTrack { TrackNumber = 1, SessionIndex = 0 },
-            new AlbumTrack { TrackNumber = 2, SessionIndex = 0 },
-        };
-
-        var vm = new TrackEditorViewModel();
-        vm.LoadMulti(tracks, "(Mixed)", hasSharedSessions: false);
-
-        vm.SaveMulti(tracks, allLoose: false);
-
-        // SessionIndex untouched even though both tracks happen to share the value.
-        Assert.Equal(0, tracks[0].SessionIndex);
-        Assert.Equal(0, tracks[1].SessionIndex);
+        Assert.Equal("1962", tracks[0].SessionDates);
+        Assert.Equal("1968", tracks[1].SessionDates);
     }
 }

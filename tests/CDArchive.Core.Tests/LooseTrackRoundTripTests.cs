@@ -196,7 +196,9 @@ public class LooseTrackRoundTripTests : IDisposable
         Assert.True(got.IsProvisional);
         Assert.Equal(@"C:\Users\james\Music\loose\fur-elise.flac", got.FlacPath);
         Assert.Equal(@"C:\Users\james\Music\loose\fur-elise.mp3",  got.Mp3Path);
-        Assert.Null(got.SessionIndex);
+        // Session fields stay null on loose tracks (no parent album to default from).
+        Assert.Null(got.SessionDates);
+        Assert.Null(got.SessionVenue);
 
         var pieceRef = Assert.Single(got.PieceRefs!);
         Assert.Equal("Beethoven, Ludwig van", pieceRef.Composer);

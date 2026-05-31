@@ -90,20 +90,16 @@ public partial class SqliteCanonDataService
         await EnsureColumnAsync(db, "album_tracks", "mp3_path", "TEXT NULL")
             .ConfigureAwait(false);
 
-        // Recording-session State (province / state, sits between City and
-        // Country in the address-style location summary). Nullable — most
-        // existing rows have City+Country only and stay that way.
-        await EnsureColumnAsync(db, "album_sessions", "state", "TEXT NULL")
-            .ConfigureAwait(false);
-
-        // Loose tracks (singletons that don't belong to any album) live in the
-        // same album_tracks table but with disc_id NULL. The original schema
-        // had disc_id NOT NULL — recreate the table on first upgrade so the
-        // column accepts null. Safe to run on every startup; the helper checks
-        // the current nullability and no-ops once it's already nullable.
-        await EnsureColumnNullableAsync(db, "album_tracks", "disc_id",
-            recreate: RecreateAlbumTracksWithNullableDiscIdAsync)
-            .ConfigureAwait(false);
+        // Session-fields refactor: an album used to own a List<RecordingSession>
+        // and each track referenced one by stable Id; the user wanted one
+        // session's-worth of fields directly on the album with per-track
+        // copies. The migration adds the new columns, copies session[0]
+        // fields up to albums + each referenced session's fields down to
+        // tracks, drops the session_id column + FK, drops the album_sessions
+        // table, and (as a bonus) makes disc_id nullable for loose tracks.
+        // Subsumes the old `EnsureColumnNullableAsync(album_tracks, disc_id)`
+        // step. Idempotent: re-runs no-op once the migration has completed.
+        await MigrateSessionsToFlatFieldsAsync(db).ConfigureAwait(false);
 
         // Performers on a loose track have no owning album, so album_id needs
         // to be nullable. The migration also adds a CHECK constraint guaranteeing
@@ -263,59 +259,213 @@ public partial class SqliteCanonDataService
     }
 
     /// <summary>
-    /// Recreates <c>album_tracks</c> with a nullable <c>disc_id</c> column,
-    /// preserving every existing row and its id. Implements SQLite's
-    /// recommended schema-change recipe:
+    /// Sessions-as-fields migration: retires the <c>album_sessions</c> table
+    /// + the <c>album_tracks.session_id</c> FK in favour of session columns
+    /// (dates / venue / city / state / country / engineers_json /
+    /// producers_json) directly on the <c>albums</c> and <c>album_tracks</c>
+    /// rows. Also folds in the older "disc_id nullable" migration so old DBs
+    /// only pay the table-recreate cost once.
+    ///
+    /// <para>Steps:</para>
     /// <list type="number">
-    ///   <item><c>PRAGMA foreign_keys=OFF</c> so dropping the old table doesn't
-    ///     cascade through child tables (refs / performers).</item>
-    ///   <item>Transaction. CREATE TABLE <c>album_tracks_new</c> with the new
-    ///     definition (only <c>disc_id</c> changes nullability).</item>
-    ///   <item>Copy every row, columns enumerated explicitly so the order is
-    ///     pinned regardless of how columns happen to live in the old table.</item>
-    ///   <item>DROP the old table; RENAME the new one into its place.</item>
-    ///   <item>Recreate the <c>(disc_id, track_number)</c> unique index that
-    ///     EF Core declared on the entity.</item>
-    ///   <item><c>PRAGMA foreign_key_check</c> as a sanity gate before commit;
-    ///     any orphaned child row would surface here.</item>
-    ///   <item>COMMIT, then turn FKs back on.</item>
+    ///   <item>Add the 7 new session columns to <c>albums</c> (idempotent).</item>
+    ///   <item>Add the 7 new session columns to <c>album_tracks</c> (idempotent).</item>
+    ///   <item>If <c>album_sessions</c> table exists, copy session[position=0]'s
+    ///     fields up into each album row; copy each track's referenced session
+    ///     fields down via the track's <c>session_id</c>.</item>
+    ///   <item>If <c>album_tracks.session_id</c> exists OR <c>disc_id</c> is
+    ///     NOT NULL, recreate <c>album_tracks</c> with the final shape:
+    ///     nullable <c>disc_id</c>, no <c>session_id</c> column, all 7
+    ///     session columns present. Done inside
+    ///     <see cref="WithForeignKeysOffAsync"/> + a transaction +
+    ///     <c>PRAGMA foreign_key_check</c> sanity gate (Rework C6).</item>
+    ///   <item>Drop the <c>album_sessions</c> table.</item>
     /// </list>
+    ///
+    /// <para>Re-runs on a healthy DB are cheap no-ops: the column adds detect
+    /// existing columns and skip, the recreate trigger checks both
+    /// <c>session_id</c> presence and <c>disc_id</c> nullability and only
+    /// fires when either is wrong, and the table drop is guarded by
+    /// <c>DROP TABLE IF EXISTS</c>.</para>
     /// </summary>
-    private static Task RecreateAlbumTracksWithNullableDiscIdAsync(
+    private static async Task MigrateSessionsToFlatFieldsAsync(CanonDbContext db)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        // ── Step 1+2: add new columns idempotently ───────────────────────────
+        // These are independent ALTER TABLE ADD COLUMN calls — safe to run
+        // on every startup even after the migration has completed.
+        string[] sessionCols =
+        [
+            "session_dates           TEXT NULL",
+            "session_venue           TEXT NULL",
+            "session_city            TEXT NULL",
+            "session_state           TEXT NULL",
+            "session_country         TEXT NULL",
+            "session_engineers_json  TEXT NULL",
+            "session_producers_json  TEXT NULL",
+        ];
+        foreach (var def in sessionCols)
+        {
+            var name = def.Split(' ', 2)[0];
+            await EnsureColumnAsync(db, "albums",       name, def[name.Length..].TrimStart())
+                .ConfigureAwait(false);
+            await EnsureColumnAsync(db, "album_tracks", name, def[name.Length..].TrimStart())
+                .ConfigureAwait(false);
+        }
+
+        // ── Step 3: copy session_* up from album_sessions (if still there) ──
+        bool albumSessionsExists = await TableExistsAsync(conn, "album_sessions")
+            .ConfigureAwait(false);
+
+        if (albumSessionsExists)
+        {
+            // Album-level: take fields from each album's session at position 0.
+            // Albums with no sessions (zero rows in album_sessions) leave the
+            // new columns null, which is the correct default.
+            await ExecAsync(conn, """
+                UPDATE albums SET
+                    session_dates          = (SELECT dates          FROM album_sessions WHERE album_id = albums.id AND position = 0),
+                    session_venue          = (SELECT venue          FROM album_sessions WHERE album_id = albums.id AND position = 0),
+                    session_city           = (SELECT city           FROM album_sessions WHERE album_id = albums.id AND position = 0),
+                    session_state          = (SELECT state          FROM album_sessions WHERE album_id = albums.id AND position = 0),
+                    session_country        = (SELECT country        FROM album_sessions WHERE album_id = albums.id AND position = 0),
+                    session_engineers_json = (SELECT engineers_json FROM album_sessions WHERE album_id = albums.id AND position = 0),
+                    session_producers_json = (SELECT producers_json FROM album_sessions WHERE album_id = albums.id AND position = 0)
+                """).ConfigureAwait(false);
+
+            // Track-level: take fields from each track's referenced session.
+            // Tracks with no session_id (null) leave the columns null.
+            await ExecAsync(conn, """
+                UPDATE album_tracks SET
+                    session_dates          = (SELECT dates          FROM album_sessions WHERE id = album_tracks.session_id),
+                    session_venue          = (SELECT venue          FROM album_sessions WHERE id = album_tracks.session_id),
+                    session_city           = (SELECT city           FROM album_sessions WHERE id = album_tracks.session_id),
+                    session_state          = (SELECT state          FROM album_sessions WHERE id = album_tracks.session_id),
+                    session_country        = (SELECT country        FROM album_sessions WHERE id = album_tracks.session_id),
+                    session_engineers_json = (SELECT engineers_json FROM album_sessions WHERE id = album_tracks.session_id),
+                    session_producers_json = (SELECT producers_json FROM album_sessions WHERE id = album_tracks.session_id)
+                WHERE session_id IS NOT NULL
+                """).ConfigureAwait(false);
+        }
+
+        // ── Step 4: recreate album_tracks if it still has session_id or
+        // a NOT NULL disc_id (the old-shape signals). One recreate handles
+        // both: drops session_id + FK, makes disc_id nullable.
+        bool hasSessionId  = await ColumnExistsAsync(conn, "album_tracks", "session_id")
+            .ConfigureAwait(false);
+        bool discIdNullable = await ColumnIsNullableAsync(conn, "album_tracks", "disc_id")
+            .ConfigureAwait(false);
+
+        if (hasSessionId || !discIdNullable)
+        {
+            await RecreateAlbumTracksWithoutSessionIdAsync(conn).ConfigureAwait(false);
+        }
+
+        // ── Step 5: drop album_sessions table (guarded — safe re-run). ──
+        if (albumSessionsExists)
+        {
+            await ExecAsync(conn, "DROP TABLE IF EXISTS album_sessions")
+                .ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<bool> TableExistsAsync(
+        System.Data.Common.DbConnection conn, string table)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=@name LIMIT 1";
+        var p = cmd.CreateParameter();
+        p.ParameterName = "@name";
+        p.Value = table;
+        cmd.Parameters.Add(p);
+        var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        return result is not null;
+    }
+
+    private static async Task<bool> ColumnExistsAsync(
+        System.Data.Common.DbConnection conn, string table, string column)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({table})";
+        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
+        {
+            if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    private static async Task<bool> ColumnIsNullableAsync(
+        System.Data.Common.DbConnection conn, string table, string column)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({table})";
+        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
+        {
+            if (!string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                continue;
+            // PRAGMA table_info column 3 = notnull (0 = nullable).
+            return reader.GetInt32(3) == 0;
+        }
+        // Missing column counts as "not nullable" in the sense that the
+        // caller's check (`if (!discIdNullable)`) will trigger a recreate,
+        // but a missing disc_id would be a deeper schema corruption — let
+        // the recreate's INSERT SELECT surface the error.
+        return false;
+    }
+
+    /// <summary>
+    /// Recreates <c>album_tracks</c> with the final session-as-fields shape:
+    /// nullable <c>disc_id</c>, no <c>session_id</c> column or FK, all 7
+    /// session_* columns present. Called by the sessions-to-flat-fields
+    /// migration when it detects either an old NOT NULL <c>disc_id</c> or
+    /// a still-present <c>session_id</c> column.
+    /// </summary>
+    private static Task RecreateAlbumTracksWithoutSessionIdAsync(
         System.Data.Common.DbConnection conn) =>
         WithForeignKeysOffAsync(conn, async () =>
         {
         await using (var tx = await conn.BeginTransactionAsync().ConfigureAwait(false))
         {
-            // New table: disc_id nullable, everything else identical.
             await ExecAsync(conn, """
                 CREATE TABLE album_tracks_new (
-                    id             INTEGER NOT NULL CONSTRAINT PK_album_tracks PRIMARY KEY AUTOINCREMENT,
-                    disc_id        INTEGER     NULL,
-                    track_number   INTEGER NOT NULL,
-                    duration       TEXT        NULL,
-                    description    TEXT        NULL,
-                    session_id     INTEGER     NULL,
-                    spars_code     TEXT        NULL,
-                    is_stereo      INTEGER     NULL,
-                    is_provisional INTEGER NOT NULL DEFAULT 1,
-                    flac_path      TEXT        NULL,
-                    mp3_path       TEXT        NULL,
+                    id                     INTEGER NOT NULL CONSTRAINT PK_album_tracks PRIMARY KEY AUTOINCREMENT,
+                    disc_id                INTEGER     NULL,
+                    track_number           INTEGER NOT NULL,
+                    duration               TEXT        NULL,
+                    description            TEXT        NULL,
+                    session_dates          TEXT        NULL,
+                    session_venue          TEXT        NULL,
+                    session_city           TEXT        NULL,
+                    session_state          TEXT        NULL,
+                    session_country        TEXT        NULL,
+                    session_engineers_json TEXT        NULL,
+                    session_producers_json TEXT        NULL,
+                    spars_code             TEXT        NULL,
+                    is_stereo              INTEGER     NULL,
+                    is_provisional         INTEGER NOT NULL DEFAULT 1,
+                    flac_path              TEXT        NULL,
+                    mp3_path               TEXT        NULL,
                     CONSTRAINT FK_album_tracks_album_discs_disc_id
-                        FOREIGN KEY (disc_id)    REFERENCES album_discs    (id) ON DELETE CASCADE,
-                    CONSTRAINT FK_album_tracks_album_sessions_session_id
-                        FOREIGN KEY (session_id) REFERENCES album_sessions (id) ON DELETE SET NULL
+                        FOREIGN KEY (disc_id) REFERENCES album_discs (id) ON DELETE CASCADE
                 )
                 """, tx);
 
-            // Copy rows. Explicit column list so a stale column ordering in the
-            // old table doesn't silently misalign.
             await ExecAsync(conn, """
                 INSERT INTO album_tracks_new
-                    (id, disc_id, track_number, duration, description, session_id,
+                    (id, disc_id, track_number, duration, description,
+                     session_dates, session_venue, session_city, session_state,
+                     session_country, session_engineers_json, session_producers_json,
                      spars_code, is_stereo, is_provisional, flac_path, mp3_path)
                 SELECT
-                     id, disc_id, track_number, duration, description, session_id,
+                     id, disc_id, track_number, duration, description,
+                     session_dates, session_venue, session_city, session_state,
+                     session_country, session_engineers_json, session_producers_json,
                      spars_code, is_stereo, is_provisional, flac_path, mp3_path
                 FROM album_tracks
                 """, tx);
@@ -323,15 +473,11 @@ public partial class SqliteCanonDataService
             await ExecAsync(conn, "DROP TABLE album_tracks", tx);
             await ExecAsync(conn, "ALTER TABLE album_tracks_new RENAME TO album_tracks", tx);
 
-            // EF named its unique index IX_album_tracks_DiscId_TrackNumber. Keep
-            // the name so future migrations can reference it without surprise.
+            // EF named its unique index IX_album_tracks_DiscId_TrackNumber.
             await ExecAsync(conn,
                 "CREATE UNIQUE INDEX IX_album_tracks_DiscId_TrackNumber " +
                 "ON album_tracks (disc_id, track_number)", tx);
 
-            // Last-chance sanity gate inside the txn — any child row whose FK no
-            // longer points at a valid parent would surface here. With FKs off
-            // during the swap, the integrity check has to be explicit.
             await using (var check = conn.CreateCommand())
             {
                 check.Transaction = tx;
@@ -340,8 +486,8 @@ public partial class SqliteCanonDataService
                 if (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     throw new InvalidOperationException(
-                        "Foreign-key check failed after recreating album_tracks. " +
-                        "Migration aborted; the transaction will roll back.");
+                        "Foreign-key check failed after recreating album_tracks " +
+                        "(sessions-as-fields migration). Transaction will roll back.");
                 }
             }
 

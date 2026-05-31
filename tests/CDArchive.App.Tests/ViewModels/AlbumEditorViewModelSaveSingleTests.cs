@@ -140,19 +140,26 @@ public class AlbumEditorViewModelSaveSingleTests
     }
 
     [Fact]
-    public void SaveSingle_SnapshotsSessionsFromVmToAlbumList()
+    public void SaveSingle_WritesSessionFlatFieldsFromVmToAlbum()
     {
+        // Post-refactor: session data is direct fields on the album, not a
+        // list. Engineers and Producers are ObservableCollections that
+        // snapshot to List<string>? on save.
         var album = new CanonAlbum();
         var vm    = new AlbumEditorViewModel();
         vm.LoadSingle(album);
-        vm.Title.Value = "T";
-        vm.Sessions.Add(new RecordingSession { Dates = "1962", Venue = "JC Kirche" });
+        vm.Title.Value         = "T";
+        vm.SessionDates.Value  = "1962";
+        vm.SessionVenue.Value  = "JC Kirche";
+        vm.SessionEngineers.Add("Karl-Heinz Schneider");
+        vm.SessionProducers.Add("John Culshaw");
 
         vm.SaveSingle(album, SnapshotOf(album));
 
-        Assert.NotNull(album.Sessions);
-        Assert.Single(album.Sessions!);
-        Assert.Equal("1962", album.Sessions[0].Dates);
+        Assert.Equal("1962", album.SessionDates);
+        Assert.Equal("JC Kirche", album.SessionVenue);
+        Assert.Equal(new[] { "Karl-Heinz Schneider" }, album.SessionEngineers);
+        Assert.Equal(new[] { "John Culshaw" },          album.SessionProducers);
     }
 
     [Fact]

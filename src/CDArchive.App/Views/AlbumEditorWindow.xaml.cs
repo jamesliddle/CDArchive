@@ -310,99 +310,111 @@ public partial class AlbumEditorWindow : Window
         _vm.Performers.Remove(selected);
     }
 
-    // ── Sessions tab ─────────────────────────────────────────────────────────
-    // Same pattern as Performers above. The OnRemoveSession handler also
-    // calls SessionIndexMapping.RemapTracksAfterSessionRemoval (H21) to
-    // re-anchor every track's positional SessionIndex before the removal.
+    // ── Session Engineers / Producers lists (mirrors Performers section) ─────
 
-    private void OnSessionSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void OnSessionEngineerSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateNameListButtons(SessionEngineerList, _vm.SessionEngineers,
+            EditSessionEngineerButton, RemoveSessionEngineerButton,
+            SessionEngineerUpButton, SessionEngineerDownButton);
+
+    private void OnAddSessionEngineer(object sender, RoutedEventArgs e) =>
+        AddNameTo(_vm.SessionEngineers, SessionEngineerList, "Add Engineer", "Engineer name:");
+
+    private void OnEditSessionEngineer(object sender, RoutedEventArgs e) =>
+        EditSelectedNameIn(_vm.SessionEngineers, SessionEngineerList, "Edit Engineer", "Engineer name:");
+
+    private void OnRemoveSessionEngineer(object sender, RoutedEventArgs e) =>
+        RemoveSelectedNameIn(_vm.SessionEngineers, SessionEngineerList);
+
+    private void OnSessionEngineerMoveUp(object sender, RoutedEventArgs e) =>
+        MoveSelectedNameIn(_vm.SessionEngineers, SessionEngineerList, delta: -1);
+
+    private void OnSessionEngineerMoveDown(object sender, RoutedEventArgs e) =>
+        MoveSelectedNameIn(_vm.SessionEngineers, SessionEngineerList, delta: +1);
+
+    private void OnSessionEngineerDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        var idx = SessionList.SelectedIndex;
+        if (SessionEngineerList.SelectedIndex < 0) return;
+        OnEditSessionEngineer(sender, e);
+    }
+
+    private void OnSessionProducerSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateNameListButtons(SessionProducerList, _vm.SessionProducers,
+            EditSessionProducerButton, RemoveSessionProducerButton,
+            SessionProducerUpButton, SessionProducerDownButton);
+
+    private void OnAddSessionProducer(object sender, RoutedEventArgs e) =>
+        AddNameTo(_vm.SessionProducers, SessionProducerList, "Add Producer", "Producer name:");
+
+    private void OnEditSessionProducer(object sender, RoutedEventArgs e) =>
+        EditSelectedNameIn(_vm.SessionProducers, SessionProducerList, "Edit Producer", "Producer name:");
+
+    private void OnRemoveSessionProducer(object sender, RoutedEventArgs e) =>
+        RemoveSelectedNameIn(_vm.SessionProducers, SessionProducerList);
+
+    private void OnSessionProducerMoveUp(object sender, RoutedEventArgs e) =>
+        MoveSelectedNameIn(_vm.SessionProducers, SessionProducerList, delta: -1);
+
+    private void OnSessionProducerMoveDown(object sender, RoutedEventArgs e) =>
+        MoveSelectedNameIn(_vm.SessionProducers, SessionProducerList, delta: +1);
+
+    private void OnSessionProducerDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (SessionProducerList.SelectedIndex < 0) return;
+        OnEditSessionProducer(sender, e);
+    }
+
+    // ── Shared single-string list helpers (used by Engineers + Producers) ────
+
+    private void AddNameTo(System.Collections.ObjectModel.ObservableCollection<string> list,
+                            ListBox listBox, string title, string prompt)
+    {
+        var dlg = new NameInputWindow(title, prompt) { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Result is null) return;
+        list.Add(dlg.Result);
+        listBox.SelectedIndex = list.Count - 1;
+    }
+
+    private void EditSelectedNameIn(System.Collections.ObjectModel.ObservableCollection<string> list,
+                                     ListBox listBox, string title, string prompt)
+    {
+        var idx = listBox.SelectedIndex;
+        if (idx < 0 || idx >= list.Count) return;
+        var dlg = new NameInputWindow(title, prompt, list[idx]) { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Result is null) return;
+        list[idx] = dlg.Result;
+        listBox.SelectedIndex = idx;
+    }
+
+    private static void RemoveSelectedNameIn(System.Collections.ObjectModel.ObservableCollection<string> list,
+                                              ListBox listBox)
+    {
+        var idx = listBox.SelectedIndex;
+        if (idx < 0 || idx >= list.Count) return;
+        list.RemoveAt(idx);
+        if (list.Count > 0) listBox.SelectedIndex = Math.Min(idx, list.Count - 1);
+    }
+
+    private static void MoveSelectedNameIn(System.Collections.ObjectModel.ObservableCollection<string> list,
+                                            ListBox listBox, int delta)
+    {
+        var idx = listBox.SelectedIndex;
+        var target = idx + delta;
+        if (idx < 0 || target < 0 || target >= list.Count) return;
+        list.Move(idx, target);
+        listBox.SelectedIndex = target;
+    }
+
+    private static void UpdateNameListButtons(
+        ListBox listBox, System.Collections.ObjectModel.ObservableCollection<string> list,
+        Button editBtn, Button removeBtn, Button upBtn, Button downBtn)
+    {
+        var idx = listBox.SelectedIndex;
         var has = idx >= 0;
-        EditSessionButton.IsEnabled   = has;
-        RemoveSessionButton.IsEnabled = has;
-        SessionUpButton.IsEnabled     = has && idx > 0;
-        SessionDownButton.IsEnabled   = has && idx < _vm.Sessions.Count - 1;
-    }
-
-    private void OnSessionMoveUp(object sender, RoutedEventArgs e)
-    {
-        var idx = SessionList.SelectedIndex;
-        if (idx <= 0 || idx >= _vm.Sessions.Count) return;
-        MoveSession(idx, idx - 1);
-    }
-
-    private void OnSessionMoveDown(object sender, RoutedEventArgs e)
-    {
-        var idx = SessionList.SelectedIndex;
-        if (idx < 0 || idx >= _vm.Sessions.Count - 1) return;
-        MoveSession(idx, idx + 1);
-    }
-
-    /// <summary>
-    /// Moves a session from <paramref name="fromIndex"/> to <paramref name="toIndex"/>
-    /// and re-anchors every track's positional <see cref="AlbumTrack.SessionIndex"/>
-    /// so it still points at the same session. Tracks with a stable
-    /// <see cref="AlbumTrack.SessionId"/> (post-H21) keep pointing at the
-    /// right session by Id; the SessionIndex sync is for the legacy
-    /// positional readers + JSON snapshots.
-    /// </summary>
-    private void MoveSession(int fromIndex, int toIndex)
-    {
-        _vm.Sessions.Move(fromIndex, toIndex);
-        var allTracks = _album.Discs.SelectMany(d => d.Tracks);
-        SessionIndexMapping.RemapTracksAfterSessionMove(
-            fromIndex, toIndex, _vm.Sessions.ToList(), allTracks);
-        SessionList.SelectedIndex = toIndex;
-    }
-
-    private void OnAddSession(object sender, RoutedEventArgs e)
-    {
-        var dlg = new SessionEditorWindow(null) { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _vm.Sessions.Add(dlg.Result);
-    }
-
-    private void OnSessionDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        // MouseDoubleClick bubbles — verify the click landed on a row, not
-        // on scroll chrome / column-header area.
-        var hit = e.OriginalSource as DependencyObject;
-        if (hit == null) return;
-        if (hit.FindAncestorOrSelf<ListViewItem>() == null) return;
-
-        if (SessionList.SelectedItem is null) return;
-        e.Handled = true;
-        OnEditSession(sender, e);
-    }
-
-    private void OnEditSession(object sender, RoutedEventArgs e)
-    {
-        if (SessionList.SelectedItem is not RecordingSession selected) return;
-        var idx = _vm.Sessions.IndexOf(selected);
-        var dlg = new SessionEditorWindow(selected) { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _vm.Sessions[idx] = dlg.Result;
-    }
-
-    private void OnRemoveSession(object sender, RoutedEventArgs e)
-    {
-        if (SessionList.SelectedItem is not RecordingSession selected) return;
-
-        // H21 slice 3: re-anchor every track's session reference BEFORE we
-        // mutate the sessions list. Tracks carrying a stable SessionId are
-        // re-anchored by Id (resilient to session list reorders); tracks
-        // without one fall back to the pre-H21 positional walk. Pure logic
-        // lives in SessionIndexMapping so it's unit-tested without WPF.
-        var removedIndex = _vm.Sessions.IndexOf(selected);
-        if (removedIndex >= 0)
-        {
-            var allTracks = _album.Discs.SelectMany(d => d.Tracks);
-            SessionIndexMapping.RemapTracksAfterSessionRemoval(
-                removedIndex, _vm.Sessions.ToList(), allTracks);
-        }
-
-        _vm.Sessions.Remove(selected);
+        editBtn.IsEnabled   = has;
+        removeBtn.IsEnabled = has;
+        upBtn.IsEnabled     = has && idx > 0;
+        downBtn.IsEnabled   = has && idx < list.Count - 1;
     }
 
     // ── Discs & Tracks section ────────────────────────────────────────────────
@@ -452,19 +464,6 @@ public partial class AlbumEditorWindow : Window
             TrackList.SelectedIndex = 0;
     }
 
-    /// <summary>
-    /// Returns the session list to pass to <see cref="TrackEditorWindow"/>.
-    /// In single-edit mode this is the album-level session list held by the
-    /// VM (slice 3 — was previously <c>_sessions</c>). In multi-edit mode
-    /// each album owns its own session list.
-    /// </summary>
-    private IList<RecordingSession> SessionsFor(CanonAlbum? album)
-    {
-        if (!_isMixed) return _vm.Sessions;
-        var a = album ?? _editAlbums![0];
-        return a.Sessions ??= [];
-    }
-
     private void OnTrackSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var count = TrackList.SelectedItems.Count;
@@ -500,15 +499,11 @@ public partial class AlbumEditorWindow : Window
     private void OnAddTrack(object sender, RoutedEventArgs e)
     {
         if (TrackList.SelectedItem is not TrackRow selected) return;
-        var disc     = selected.Disc;
-        var sessions = SessionsFor(selected.Album);
+        var disc          = selected.Disc;
+        var defaultsAlbum = selected.Album ?? _album;
         var dlg = new TrackEditorWindow(disc, disc.Tracks.Count,
-                                        sessions, _pickLists, _allPieces) { Owner = this };
+                                        _pickLists, _allPieces, defaultsAlbum) { Owner = this };
         dlg.ShowDialog();
-        // H13 slice 3: no manual refresh needed — TrackEditor's OnAddSession
-        // appends to the same ObservableCollection (_vm.Sessions, passed
-        // through via SessionsFor) and the ListView ItemsSource binding
-        // updates via CollectionChanged automatically.
         PopulateTrackGrid(disc.Tracks.Count > 0 ? disc.Tracks[^1] : null);
     }
 
@@ -563,15 +558,10 @@ public partial class AlbumEditorWindow : Window
             var index = disc.Tracks.IndexOf(row.Track);
             if (index < 0) return;
 
-            var sessions = SessionsFor(row.Album);
+            var defaultsAlbum = row.Album ?? _album;
             var dlg = new TrackEditorWindow(disc, index,
-                                            sessions, _pickLists, _allPieces) { Owner = this };
+                                            _pickLists, _allPieces, defaultsAlbum) { Owner = this };
             dlg.ShowDialog();
-
-            // H13 slice 3: no manual refresh needed — TrackEditor's OnAddSession
-        // appends to the same ObservableCollection (_vm.Sessions, passed
-        // through via SessionsFor) and the ListView ItemsSource binding
-        // updates via CollectionChanged automatically.
 
             var reselect = index < disc.Tracks.Count ? disc.Tracks[index] : null;
             PopulateTrackGrid(reselect);
@@ -584,14 +574,13 @@ public partial class AlbumEditorWindow : Window
             // only the fields the user actually changed.
             var tracks = selectedRows.Select(r => r.Track).ToList();
 
-            // If all selected tracks belong to the same album (single-edit mode, or
-            // multi-edit mode where the user only picked tracks from one album), pass
-            // that album's session list so the Session combo is usable. Otherwise
-            // pass null — the Session combo will be disabled in the editor.
-            IList<RecordingSession>? sharedSessions;
+            // If all selected tracks belong to the same album, we can use that
+            // album for the "blank field defaults to album value" semantic in
+            // the multi-edit TrackEditor. Otherwise pass null — no defaulting.
+            CanonAlbum? defaultsAlbum = null;
             if (!_isMixed)
             {
-                sharedSessions = _vm.Sessions;
+                defaultsAlbum = _album;
             }
             else
             {
@@ -600,12 +589,10 @@ public partial class AlbumEditorWindow : Window
                     .Where(a => a != null)
                     .Distinct()
                     .ToList();
-                sharedSessions = distinctAlbums.Count == 1
-                    ? SessionsFor(distinctAlbums[0])
-                    : null;
+                if (distinctAlbums.Count == 1) defaultsAlbum = distinctAlbums[0];
             }
 
-            var dlg = new TrackEditorWindow(tracks, sharedSessions, _pickLists, _allPieces) { Owner = this };
+            var dlg = new TrackEditorWindow(tracks, _pickLists, _allPieces, defaultsAlbum) { Owner = this };
             if (dlg.ShowDialog() != true) return;
 
             // Rebuild the grid, anchoring on the first edited track, then re-add

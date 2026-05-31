@@ -238,10 +238,10 @@ public class AlbumEditorViewModelTests
         Assert.Equal(expected, AlbumEditorViewModel.IsStereoFromString(input));
     }
 
-    // ── Slice 3: Performers + Sessions ObservableCollections ────────────────
+    // ── Performers + session lists (ObservableCollections) ───────────────────
 
     [Fact]
-    public void LoadSingle_PopulatesPerformersAndSessionsFromAlbum()
+    public void LoadSingle_PopulatesPerformersAndSessionListsFromAlbum()
     {
         var album = new CanonAlbum
         {
@@ -250,10 +250,8 @@ public class AlbumEditorViewModelTests
                 new() { Name = "Karajan, Herbert von", Role = "Conductor" },
                 new() { Name = "Berliner Philharmoniker" },
             },
-            Sessions = new List<RecordingSession>
-            {
-                new() { Dates = "1962", Venue = "Jesus-Christus-Kirche" },
-            },
+            SessionEngineers = new List<string> { "Karl-Heinz Schneider" },
+            SessionProducers = new List<string> { "John Culshaw" },
         };
 
         var vm = new AlbumEditorViewModel();
@@ -261,12 +259,12 @@ public class AlbumEditorViewModelTests
 
         Assert.Equal(2, vm.Performers.Count);
         Assert.Equal("Karajan, Herbert von", vm.Performers[0].Name);
-        Assert.Equal(1, vm.Sessions.Count);
-        Assert.Equal("1962", vm.Sessions[0].Dates);
+        Assert.Equal(new[] { "Karl-Heinz Schneider" }, vm.SessionEngineers);
+        Assert.Equal(new[] { "John Culshaw" },          vm.SessionProducers);
     }
 
     [Fact]
-    public void LoadSingle_NullPerformersAndSessions_LeaveCollectionsEmpty()
+    public void LoadSingle_NullPerformersAndSessionLists_LeaveCollectionsEmpty()
     {
         var album = new CanonAlbum { Title = "no lists" };
 
@@ -274,16 +272,15 @@ public class AlbumEditorViewModelTests
         vm.LoadSingle(album);
 
         Assert.Empty(vm.Performers);
-        Assert.Empty(vm.Sessions);
+        Assert.Empty(vm.SessionEngineers);
+        Assert.Empty(vm.SessionProducers);
     }
 
     [Fact]
     public void LoadSingle_ReHydratesAlreadyPopulatedCollections()
     {
         // Re-loading the editor with a different album must clear the
-        // previous lists, not append to them. Important for the editor's
-        // theoretical re-show (today the editor is single-use, but the
-        // VM should behave correctly across re-hydrates).
+        // previous lists, not append to them.
         var vm = new AlbumEditorViewModel();
         vm.LoadSingle(new CanonAlbum
         {
@@ -301,16 +298,17 @@ public class AlbumEditorViewModelTests
     }
 
     [Fact]
-    public void LoadMulti_LeavesPerformersAndSessionsEmpty()
+    public void LoadMulti_LeavesPerformersAndSessionListsEmpty()
     {
-        // Performers / Sessions tabs are hidden in multi-edit (H18); the VM
-        // collections should stay empty so a stale single-edit hydration
-        // doesn't bleed into the multi-edit view.
+        // Performers + session-name-list sections are hidden in multi-edit
+        // (H18 visibility); the VM collections should stay empty so a stale
+        // single-edit hydration doesn't bleed into the multi-edit view.
         var vm = new AlbumEditorViewModel();
         vm.LoadSingle(new CanonAlbum
         {
-            Performers = new List<AlbumPerformer> { new() { Name = "lingers?" } },
-            Sessions   = new List<RecordingSession> { new() { Dates = "1962" } },
+            Performers       = new List<AlbumPerformer> { new() { Name = "lingers?" } },
+            SessionEngineers = new List<string> { "engineer" },
+            SessionProducers = new List<string> { "producer" },
         });
         Assert.Single(vm.Performers);
 
@@ -321,6 +319,7 @@ public class AlbumEditorViewModelTests
         }, "(Mixed)");
 
         Assert.Empty(vm.Performers);
-        Assert.Empty(vm.Sessions);
+        Assert.Empty(vm.SessionEngineers);
+        Assert.Empty(vm.SessionProducers);
     }
 }

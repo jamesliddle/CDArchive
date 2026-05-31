@@ -128,25 +128,27 @@ public class SmallEditorContractTests
     }
 
     /// <summary>
-    /// H31 contract for <see cref="RecordingSession"/>: the editor exposes
-    /// Dates / Venue / City / Country / Engineers / Producers — that's
-    /// every public-settable field on the model today. The contract holds
-    /// trivially now, and pins the invariant if (when) the model grows.
+    /// Session fields live directly on <see cref="CanonAlbum"/> (post-
+    /// sessions-as-fields refactor). The contract: setting all session
+    /// fields on an album mutates that same instance in place and the
+    /// values round-trip.
     /// </summary>
     [Fact]
-    public void RecordingSession_MutateAllFields_StaysSameInstance()
+    public void Album_MutateSessionFields_StaysSameInstance()
     {
-        var session = new RecordingSession();
-        var original = session;
+        var album = new CanonAlbum();
+        var original = album;
 
-        session.Dates     = "1962-03-01";
-        session.Venue     = "Musikverein";
-        session.City      = "Vienna";
-        session.Country   = "Austria";
-        session.Engineers = new List<string> { "Erich Karajan" };
-        session.Producers = new List<string> { "Walter Legge" };
+        album.SessionDates     = "1962-03-01";
+        album.SessionVenue     = "Musikverein";
+        album.SessionCity      = "Vienna";
+        album.SessionState     = "Vienna";
+        album.SessionCountry   = "Austria";
+        album.SessionEngineers = new List<string> { "Erich Karajan" };
+        album.SessionProducers = new List<string> { "Walter Legge" };
 
-        Assert.Same(original, session);
-        Assert.Equal("Musikverein", session.Venue);
+        Assert.Same(original, album);
+        Assert.Equal("Musikverein", album.SessionVenue);
+        Assert.Equal("Vienna",      album.SessionState);
     }
 }

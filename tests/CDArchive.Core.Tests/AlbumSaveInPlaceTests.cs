@@ -459,7 +459,6 @@ public class AlbumSaveInPlaceTests
                 Assert.True(await db.AlbumDiscs.CountAsync() >= 3);
                 Assert.True(await db.AlbumTracks.CountAsync() >= 3);
                 Assert.True(await db.AlbumPerformers.AnyAsync());
-                Assert.True(await db.AlbumSessions.AnyAsync());
                 Assert.True(await db.AlbumTrackPieceRefs.AnyAsync());
                 countBefore = await db.Albums.CountAsync();
             }
@@ -481,7 +480,6 @@ public class AlbumSaveInPlaceTests
                 var aId = (await db.Albums.SingleAsync()).Id;
                 Assert.True(await db.AlbumVolumes.AllAsync(v => v.AlbumId == aId));
                 Assert.True(await db.AlbumDiscs.AllAsync(d => d.AlbumId == aId));
-                Assert.True(await db.AlbumSessions.AllAsync(s => s.AlbumId == aId));
                 Assert.True(await db.AlbumPerformers.AllAsync(p => p.AlbumId == null || p.AlbumId == aId));
 
                 // Tracks live under disc; check via the disc join. AlbumTracks
@@ -505,22 +503,24 @@ public class AlbumSaveInPlaceTests
 
     /// <summary>
     /// Builds an album fixture that exercises every cascade-FK from the album
-    /// row: volume, disc, track, album-level performer, session, and a piece
-    /// ref hanging off the track. The composer/piece seeded by
+    /// row: volume, disc, track, album-level performer, and a piece ref
+    /// hanging off the track. The composer/piece seeded by
     /// <see cref="SeedComposerAndPieceAsync"/> is the target of the piece ref.
+    /// Session fields live as direct columns on the album now (post the
+    /// sessions-as-fields refactor) — set them here so the round-trip
+    /// covers them too.
     /// </summary>
     private static CanonAlbum BuildOrphanFixtureAlbum(string title, string label, string cat) => new()
     {
         Title           = title,
         Label           = label,
         CatalogueNumber = cat,
+        SessionDates    = "1962-03-01",
+        SessionVenue    = "Musikverein",
+        SessionCity     = "Vienna",
         Volumes         = new List<AlbumVolume>
         {
             new() { Number = 1, Title = "Vol I" },
-        },
-        Sessions        = new List<RecordingSession>
-        {
-            new() { Dates = "1962-03-01", Venue = "Musikverein", City = "Vienna" },
         },
         Performers      = new List<AlbumPerformer>
         {

@@ -75,7 +75,6 @@ public partial class SqliteCanonDataService
         var albumRows = await db.Albums
             .AsNoTracking()
             .Include(a => a.Volumes)
-            .Include(a => a.Sessions)
             .Include(a => a.Performers)
             .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
             .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
@@ -112,16 +111,23 @@ public partial class SqliteCanonDataService
     {
         var album = new CanonAlbum
         {
-            Title           = ar.Title,
-            Subtitle        = ar.Subtitle,
-            Label           = ar.Label,
-            CatalogueNumber = ar.CatalogueNumber,
-            Barcode         = ar.Barcode,
-            SparsCode       = ar.SparsCode,
-            IsStereo        = ar.IsStereo,
-            Notes           = ar.Notes,
-            ArchiveFolder   = ar.ArchiveFolder,
-            IsProvisional   = ar.IsProvisional,
+            Title            = ar.Title,
+            Subtitle         = ar.Subtitle,
+            Label            = ar.Label,
+            CatalogueNumber  = ar.CatalogueNumber,
+            Barcode          = ar.Barcode,
+            SparsCode        = ar.SparsCode,
+            IsStereo         = ar.IsStereo,
+            Notes            = ar.Notes,
+            ArchiveFolder    = ar.ArchiveFolder,
+            IsProvisional    = ar.IsProvisional,
+            SessionDates     = ar.SessionDates,
+            SessionVenue     = ar.SessionVenue,
+            SessionCity      = ar.SessionCity,
+            SessionState     = ar.SessionState,
+            SessionCountry   = ar.SessionCountry,
+            SessionEngineers = DeserializeStringList(ar.SessionEngineersJson),
+            SessionProducers = DeserializeStringList(ar.SessionProducersJson),
         };
 
         if (ar.Volumes.Count > 0)
@@ -135,29 +141,6 @@ public partial class SqliteCanonDataService
                     Subtitle = v.Subtitle,
                 })
                 .ToList();
-        }
-
-        // Sessions ordered by Position. Tracks reference sessions by their
-        // stable Id (AlbumTrack.SessionId).
-        var orderedSessions = ar.Sessions.OrderBy(s => s.Position).ToList();
-        if (orderedSessions.Count > 0)
-        {
-            album.Sessions = new List<RecordingSession>(orderedSessions.Count);
-            for (int i = 0; i < orderedSessions.Count; i++)
-            {
-                var sr = orderedSessions[i];
-                album.Sessions.Add(new RecordingSession
-                {
-                    Id        = sr.Id,
-                    Dates     = sr.Dates,
-                    Venue     = sr.Venue,
-                    City      = sr.City,
-                    State     = sr.State,
-                    Country   = sr.Country,
-                    Engineers = DeserializeStringList(sr.EngineersJson),
-                    Producers = DeserializeStringList(sr.ProducersJson),
-                });
-            }
         }
 
         // Volume → AlbumVolume.Number lookup so discs can map back.
@@ -197,15 +180,21 @@ public partial class SqliteCanonDataService
             {
                 var track = new AlbumTrack
                 {
-                    TrackNumber   = tr.TrackNumber,
-                    Duration      = tr.Duration,
-                    Description   = tr.Description,
-                    SparsCode     = tr.SparsCode,
-                    IsStereo      = tr.IsStereo,
-                    IsProvisional = tr.IsProvisional,
-                    FlacPath      = tr.FlacPath,
-                    Mp3Path       = tr.Mp3Path,
-                    SessionId     = tr.SessionId,
+                    TrackNumber      = tr.TrackNumber,
+                    Duration         = tr.Duration,
+                    Description      = tr.Description,
+                    SparsCode        = tr.SparsCode,
+                    IsStereo         = tr.IsStereo,
+                    IsProvisional    = tr.IsProvisional,
+                    FlacPath         = tr.FlacPath,
+                    Mp3Path          = tr.Mp3Path,
+                    SessionDates     = tr.SessionDates,
+                    SessionVenue     = tr.SessionVenue,
+                    SessionCity      = tr.SessionCity,
+                    SessionState     = tr.SessionState,
+                    SessionCountry   = tr.SessionCountry,
+                    SessionEngineers = DeserializeStringList(tr.SessionEngineersJson),
+                    SessionProducers = DeserializeStringList(tr.SessionProducersJson),
                 };
 
                 if (trackPerformersByTrackId.TryGetValue(tr.Id, out var tps) && tps.Count > 0)
@@ -501,7 +490,6 @@ public partial class SqliteCanonDataService
             var loaded = await db.Albums
                 .Where(a => matchedExistingRowIds.Contains(a.Id))
                 .Include(a => a.Volumes)
-                .Include(a => a.Sessions)
                 .Include(a => a.Performers)
                 .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
                 .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
@@ -527,39 +515,26 @@ public partial class SqliteCanonDataService
 
         var inserted = new List<(CanonAlbum, AlbumRow)>();
         var matched = new Dictionary<CanonAlbum, AlbumRow>(ReferenceEqualityComparer.Instance);
-        // H21: capture the position→sessionRow map per album so we can
-        // back-propagate the freshly-allocated row Ids into the in-memory
-        // model after SaveChanges flushes. Without this the model's
-        // RecordingSession.Id stays 0 and AlbumTrack.SessionId stays null for
-        // sessions added in-editor — the next operation (e.g. AlbumEditor
-        // reopening) JSON-clones a track that points at nothing.
-        var sessionMapsByAlbum = new Dictionary<CanonAlbum, Dictionary<int, AlbumSessionRow>>(ReferenceEqualityComparer.Instance);
+        // Session-as-fields refactor: no more session map / back-propagation —
+        // session fields live directly on each album / track row, so
+        // SaveChanges flushes them with no post-save bookkeeping needed.
         foreach (var album in albums)
         {
             if (matchedRowIdByModel.TryGetValue(album, out var rowId) &&
                 matchedRows.TryGetValue(rowId, out var row))
             {
-                var sessionMap = MergeAlbumIntoRow(album, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
+                MergeAlbumIntoRow(album, row, resolver, rowIdByPieceModel, rowIdByVersionModel, db);
                 matched[album] = row;
-                sessionMapsByAlbum[album] = sessionMap;
             }
             else
             {
-                var (newRow, sessionMap) = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
+                var newRow = MapAlbumModelToRow(album, resolver, rowIdByPieceModel, rowIdByVersionModel);
                 db.Albums.Add(newRow);
                 inserted.Add((album, newRow));
-                sessionMapsByAlbum[album] = sessionMap;
             }
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
-
-        // H21 back-propagation: now that every AlbumSessionRow has an Id
-        // (assigned during SaveChanges), copy those Ids into the in-memory
-        // model so subsequent operations see SessionId instead of the stale
-        // SessionIndex transient handle.
-        foreach (var (album, sessionMap) in sessionMapsByAlbum)
-            BackPropagateSessionIds(album, sessionMap);
 
         return () =>
         {
@@ -630,7 +605,6 @@ public partial class SqliteCanonDataService
 
         var rows = await db.Albums
             .Include(a => a.Volumes)
-            .Include(a => a.Sessions)
             .Include(a => a.Performers)
             .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
             .ToListAsync()
@@ -676,9 +650,12 @@ public partial class SqliteCanonDataService
             var newStereo = track.IsStereo  ?? album.IsStereo;
 
             // 3. Detach the track: disc_id null (loose), track_number 0 (loose
-            //    sentinel), session_id null (no album sessions anymore).
+            //    sentinel). The session_id column was retired in the
+            //    sessions-as-fields refactor — the session_* columns are
+            //    already on the track row from the migration; no extra work
+            //    here.
             await ExecParamAsync(conn, tx,
-                "UPDATE album_tracks SET disc_id = NULL, track_number = 0, session_id = NULL, " +
+                "UPDATE album_tracks SET disc_id = NULL, track_number = 0, " +
                 "spars_code = @spars, is_stereo = @stereo WHERE id = @trackId",
                 ("@spars",   (object?)newSpars ?? DBNull.Value),
                 ("@stereo",  newStereo.HasValue ? (object)(newStereo.Value ? 1 : 0) : DBNull.Value),
@@ -702,7 +679,7 @@ public partial class SqliteCanonDataService
         if (album.Discs.Count != 1)                                        return $"has {album.Discs.Count} disc(s)";
         if (album.Discs[0].Tracks.Count != 1)                              return $"disc has {album.Discs[0].Tracks.Count} track(s)";
         if (album.Volumes.Count > 0)                                       return "has volumes";
-        if (album.Sessions.Count > 0)                                      return "has sessions";
+        if (HasAnySessionFields(album))                                    return "has session details";
         if (!string.IsNullOrWhiteSpace(album.Label))                       return $"has Label='{album.Label}'";
         if (!string.IsNullOrWhiteSpace(album.CatalogueNumber))             return $"has CatalogueNumber='{album.CatalogueNumber}'";
         if (!string.IsNullOrWhiteSpace(album.Barcode))                     return "has Barcode";
@@ -710,6 +687,15 @@ public partial class SqliteCanonDataService
         if (album.Discs[0].Tracks[0].Performers.Count > 0)                 return "track has track-level Performers (manual override?)";
         return null;
     }
+
+    private static bool HasAnySessionFields(AlbumRow album) =>
+        !string.IsNullOrWhiteSpace(album.SessionDates) ||
+        !string.IsNullOrWhiteSpace(album.SessionVenue) ||
+        !string.IsNullOrWhiteSpace(album.SessionCity) ||
+        !string.IsNullOrWhiteSpace(album.SessionState) ||
+        !string.IsNullOrWhiteSpace(album.SessionCountry) ||
+        !string.IsNullOrEmpty(album.SessionEngineersJson) ||
+        !string.IsNullOrEmpty(album.SessionProducersJson);
 
     private static async Task ExecParamAsync(
         System.Data.Common.DbConnection conn,
@@ -740,7 +726,7 @@ public partial class SqliteCanonDataService
     // Position) come straight from the schema's existing UNIQUE indexes.
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static Dictionary<int, AlbumSessionRow> MergeAlbumIntoRow(
+    private static void MergeAlbumIntoRow(
         CanonAlbum album,
         AlbumRow row,
         PieceReferenceIndex resolver,
@@ -759,27 +745,27 @@ public partial class SqliteCanonDataService
         row.ArchiveFolder   = album.ArchiveFolder;
         row.IsProvisional   = album.IsProvisional;
 
-        // Volumes and sessions get planned first (returning the row that each
-        // input slot should resolve to) but their orphan deletions are deferred
-        // until after disc/track rewiring, so disc.Volume / track.Session FKs
-        // are pointing at the new survivors by the time the deletes fire. Avoids
-        // FK Restrict failures (volumes) and surprise SetNull side-effects
-        // (sessions).
+        // Session fields: post-refactor these are flat columns on AlbumRow.
+        row.SessionDates          = album.SessionDates;
+        row.SessionVenue          = album.SessionVenue;
+        row.SessionCity           = album.SessionCity;
+        row.SessionState          = album.SessionState;
+        row.SessionCountry        = album.SessionCountry;
+        row.SessionEngineersJson  = SerializeStringList(album.SessionEngineers);
+        row.SessionProducersJson  = SerializeStringList(album.SessionProducers);
+
+        // Volume orphan deletes are deferred until AFTER disc rewiring so the
+        // disc.Volume FK is repointed before its current parent is dropped
+        // (FK Restrict would otherwise fail). Sessions used to have the same
+        // dance for track.Session FKs, but that FK is gone post-refactor.
         var (volumeMap, orphanVolumes) = PlanVolumes(album.Volumes, row);
-        var (sessionMap, sessionMapById, orphanSessions) = PlanSessions(album.Sessions, row);
 
         MergeAlbumLevelPerformers(album.Performers, row, db);
 
-        MergeDiscs(album.Discs, row, volumeMap, sessionMap, sessionMapById,
+        MergeDiscs(album.Discs, row, volumeMap,
                    resolver, rowIdByPieceModel, rowIdByVersionModel, db);
 
         foreach (var v in orphanVolumes) db.AlbumVolumes.Remove(v);
-        foreach (var s in orphanSessions) db.AlbumSessions.Remove(s);
-
-        // Return the position→row map so SaveAlbumsCoreAsync can back-propagate
-        // freshly-allocated session Ids into the in-memory model after
-        // SaveChangesAsync flushes (H21 transient handle cleanup).
-        return sessionMap;
     }
 
     /// <summary>
@@ -824,71 +810,8 @@ public partial class SqliteCanonDataService
         return (map, orphans);
     }
 
-    /// <summary>
-    /// Plans the session merge. Sessions are positional — input index becomes
-    /// the schema's <c>Position</c> column. Returns (map keyed by input index,
-    /// list of existing rows to delete after track rewiring).
-    /// </summary>
-    private static (Dictionary<int, AlbumSessionRow> Map, Dictionary<long, AlbumSessionRow> MapById, List<AlbumSessionRow> Orphans)
-        PlanSessions(List<RecordingSession>? input, AlbumRow row)
-    {
-        var existing = row.Sessions.ToList();
-        var existingByPosition = existing.ToDictionary(s => s.Position);
-        var map = new Dictionary<int, AlbumSessionRow>();
-        // H21 slice 1: by-stable-Id lookup so tracks carrying SessionId can
-        // resolve directly without the positional dance. Populated for every
-        // matched-or-created row whose Id is known (matched rows from the
-        // existing DB load; fresh rows after the parent SaveChangesAsync would
-        // also have Ids, but tracks added in the same transaction reference
-        // them via SessionIndex anyway — the SessionId path covers the
-        // common edit-an-existing-album case).
-        var mapById = new Dictionary<long, AlbumSessionRow>();
-        var matched = new HashSet<long>();
-
-        if (input is { Count: > 0 })
-        {
-            for (int i = 0; i < input.Count; i++)
-            {
-                var s = input[i];
-                if (existingByPosition.TryGetValue(i, out var er))
-                {
-                    er.Dates         = s.Dates;
-                    er.Venue         = s.Venue;
-                    er.City          = s.City;
-                    er.State         = s.State;
-                    er.Country       = s.Country;
-                    er.EngineersJson = SerializeStringList(s.Engineers);
-                    er.ProducersJson = SerializeStringList(s.Producers);
-                    map[i] = er;
-                    matched.Add(er.Id);
-                    if (er.Id != 0) mapById[er.Id] = er;
-                }
-                else
-                {
-                    var fresh = new AlbumSessionRow
-                    {
-                        Position      = i,
-                        Dates         = s.Dates,
-                        Venue         = s.Venue,
-                        City          = s.City,
-                        State         = s.State,
-                        Country       = s.Country,
-                        EngineersJson = SerializeStringList(s.Engineers),
-                        ProducersJson = SerializeStringList(s.Producers),
-                    };
-                    row.Sessions.Add(fresh);
-                    map[i] = fresh;
-                }
-                // Honour the input model's stable Id even when its position is
-                // new: lets a track with SessionId resolve to a fresh session
-                // when the user reordered before adding.
-                if (s.Id != 0) mapById[s.Id] = map[i];
-            }
-        }
-
-        var orphans = existing.Where(s => s.Id != 0 && !matched.Contains(s.Id)).ToList();
-        return (map, mapById, orphans);
-    }
+    // PlanSessions retired in the sessions-as-fields refactor — session
+    // fields live directly on AlbumRow and are written in MergeAlbumIntoRow.
 
     /// <summary>
     /// Album-level performers are positional and live in <c>row.Performers</c>
@@ -940,8 +863,6 @@ public partial class SqliteCanonDataService
         List<AlbumDisc> input,
         AlbumRow row,
         Dictionary<int, AlbumVolumeRow> volumeMap,
-        Dictionary<int, AlbumSessionRow> sessionMap,
-        Dictionary<long, AlbumSessionRow> sessionMapById,
         PieceReferenceIndex resolver,
         Dictionary<CanonPiece, long> rowIdByPieceModel,
         Dictionary<CanonPieceVersion, long> rowIdByVersionModel,
@@ -959,7 +880,7 @@ public partial class SqliteCanonDataService
                 dr.FolderName = inputDisc.FolderName;
                 dr.Volume     = (inputDisc.VolumeNumber is int vn && volumeMap.TryGetValue(vn, out var vRow))
                                     ? vRow : null;
-                MergeTracks(inputDisc.Tracks, dr, sessionMap, sessionMapById,
+                MergeTracks(inputDisc.Tracks, dr,
                             resolver, rowIdByPieceModel, rowIdByVersionModel, row, db);
                 matched.Add(dr.Id);
             }
@@ -976,7 +897,7 @@ public partial class SqliteCanonDataService
                 row.Discs.Add(fresh);
                 // For a brand-new disc all input tracks are also new — the
                 // merge path runs identically against an empty existing set.
-                MergeTracks(inputDisc.Tracks, fresh, sessionMap, sessionMapById,
+                MergeTracks(inputDisc.Tracks, fresh,
                             resolver, rowIdByPieceModel, rowIdByVersionModel, row, db);
             }
         }
@@ -988,14 +909,12 @@ public partial class SqliteCanonDataService
 
     /// <summary>
     /// Tracks match by TrackNumber within their disc. Mirrors the disc merge:
-    /// scalar fields, Session FK via <paramref name="sessionMap"/>, then
-    /// recurses into per-track piece-refs and per-track performers.
+    /// scalar fields (now including the 7 session_* columns), then recurses
+    /// into per-track piece-refs and per-track performers.
     /// </summary>
     private static void MergeTracks(
         List<AlbumTrack> input,
         AlbumDiscRow disc,
-        Dictionary<int, AlbumSessionRow> sessionMap,
-        Dictionary<long, AlbumSessionRow> sessionMapById,
         PieceReferenceIndex resolver,
         Dictionary<CanonPiece, long> rowIdByPieceModel,
         Dictionary<CanonPieceVersion, long> rowIdByVersionModel,
@@ -1008,22 +927,9 @@ public partial class SqliteCanonDataService
 
         foreach (var inputTrack in input)
         {
-            // H21 slice 1: prefer the stable SessionId reference when present;
-            // fall back to the legacy positional SessionIndex for pre-H21
-            // models / freshly-added sessions whose Id isn't assigned yet.
-            var resolvedSession = ResolveSessionRow(inputTrack, sessionMap, sessionMapById);
-
             if (existingByNumber.TryGetValue(inputTrack.TrackNumber, out var tr))
             {
-                tr.Duration      = inputTrack.Duration;
-                tr.Description   = inputTrack.Description;
-                tr.SparsCode     = inputTrack.SparsCode;
-                tr.IsStereo      = inputTrack.IsStereo;
-                tr.IsProvisional = inputTrack.IsProvisional;
-                tr.FlacPath      = inputTrack.FlacPath;
-                tr.Mp3Path       = inputTrack.Mp3Path;
-                tr.Session       = resolvedSession;
-
+                ApplyTrackScalars(tr, inputTrack);
                 MergePieceRefs(inputTrack.PieceRefs, tr,
                                resolver, rowIdByPieceModel, rowIdByVersionModel, db);
                 MergeTrackPerformers(inputTrack.Performers, tr, albumRow, db);
@@ -1031,18 +937,8 @@ public partial class SqliteCanonDataService
             }
             else
             {
-                var fresh = new AlbumTrackRow
-                {
-                    TrackNumber   = inputTrack.TrackNumber,
-                    Duration      = inputTrack.Duration,
-                    Description   = inputTrack.Description,
-                    SparsCode     = inputTrack.SparsCode,
-                    IsStereo      = inputTrack.IsStereo,
-                    IsProvisional = inputTrack.IsProvisional,
-                    FlacPath      = inputTrack.FlacPath,
-                    Mp3Path       = inputTrack.Mp3Path,
-                    Session       = resolvedSession,
-                };
+                var fresh = new AlbumTrackRow { TrackNumber = inputTrack.TrackNumber };
+                ApplyTrackScalars(fresh, inputTrack);
                 disc.Tracks.Add(fresh);
                 MergePieceRefs(inputTrack.PieceRefs, fresh,
                                resolver, rowIdByPieceModel, rowIdByVersionModel, db);
@@ -1056,70 +952,26 @@ public partial class SqliteCanonDataService
     }
 
     /// <summary>
-    /// H21 back-propagation: after <c>SaveChangesAsync</c> flushes (allocating
-    /// row Ids for any newly-inserted sessions), copy those Ids back into the
-    /// in-memory model so subsequent operations see the persistent reference.
-    /// Without this, a session added in the AlbumEditor in the same app
-    /// session as the save retains <c>RecordingSession.Id = 0</c>, and tracks
-    /// pointing at it via the transient positional <see cref="AlbumTrack.SessionIndex"/>
-    /// handle have <see cref="AlbumTrack.SessionId"/> = null. Re-opening the
-    /// AlbumEditor JSON-clones such a track, losing the session reference
-    /// entirely (the positional handle isn't serialized).
+    /// Copies the model's scalar + session fields onto an <see cref="AlbumTrackRow"/>.
+    /// Shared between matched-update and fresh-insert paths in <see cref="MergeTracks"/>
+    /// and used by the loose-track path in the sibling LooseTracks partial.
     /// </summary>
-    private static void BackPropagateSessionIds(
-        CanonAlbum album,
-        Dictionary<int, AlbumSessionRow> sessionMap)
+    internal static void ApplyTrackScalars(AlbumTrackRow tr, AlbumTrack inputTrack)
     {
-        if (album.Sessions is not { Count: > 0 }) return;
-
-        // Step 1: assign newly-allocated row Ids onto the in-memory
-        // RecordingSession instances.
-        for (int i = 0; i < album.Sessions.Count; i++)
-        {
-            if (album.Sessions[i].Id == 0 &&
-                sessionMap.TryGetValue(i, out var row) && row.Id != 0)
-            {
-                album.Sessions[i].Id = row.Id;
-            }
-        }
-
-        // Step 2: walk all tracks. Where the track was using the SessionIndex
-        // transient handle (SessionId null, SessionIndex set), look up the
-        // session's now-allocated Id and populate SessionId. Clear the
-        // transient handle since SessionId is now authoritative.
-        foreach (var disc in album.Discs)
-        foreach (var track in disc.Tracks)
-        {
-            if (track.SessionId is null && track.SessionIndex is int si &&
-                si >= 0 && si < album.Sessions.Count &&
-                album.Sessions[si].Id != 0)
-            {
-                track.SessionId    = album.Sessions[si].Id;
-                track.SessionIndex = null;
-            }
-        }
-    }
-
-    /// <summary>
-    /// H21: pick the right <see cref="AlbumSessionRow"/> for a track being
-    /// saved. Priority order:
-    ///   1. <see cref="AlbumTrack.SessionId"/> against the stable-Id map
-    ///      (post-H21 path — survives session reorders).
-    ///   2. <see cref="AlbumTrack.SessionIndex"/> against the positional map
-    ///      (legacy path — pre-H21 snapshots and freshly-added sessions whose
-    ///      Id isn't yet allocated by SQLite).
-    ///   3. null when neither resolves.
-    /// </summary>
-    private static AlbumSessionRow? ResolveSessionRow(
-        AlbumTrack inputTrack,
-        Dictionary<int, AlbumSessionRow> sessionMap,
-        Dictionary<long, AlbumSessionRow> sessionMapById)
-    {
-        if (inputTrack.SessionId is long sid && sessionMapById.TryGetValue(sid, out var byId))
-            return byId;
-        if (inputTrack.SessionIndex is int si && sessionMap.TryGetValue(si, out var byPos))
-            return byPos;
-        return null;
+        tr.Duration              = inputTrack.Duration;
+        tr.Description           = inputTrack.Description;
+        tr.SparsCode             = inputTrack.SparsCode;
+        tr.IsStereo              = inputTrack.IsStereo;
+        tr.IsProvisional         = inputTrack.IsProvisional;
+        tr.FlacPath              = inputTrack.FlacPath;
+        tr.Mp3Path               = inputTrack.Mp3Path;
+        tr.SessionDates          = inputTrack.SessionDates;
+        tr.SessionVenue          = inputTrack.SessionVenue;
+        tr.SessionCity           = inputTrack.SessionCity;
+        tr.SessionState          = inputTrack.SessionState;
+        tr.SessionCountry        = inputTrack.SessionCountry;
+        tr.SessionEngineersJson  = SerializeStringList(inputTrack.SessionEngineers);
+        tr.SessionProducersJson  = SerializeStringList(inputTrack.SessionProducers);
     }
 
     /// <summary>
@@ -1299,7 +1151,7 @@ public partial class SqliteCanonDataService
         return $"{l}|{cn}|{t}|{st}";
     }
 
-    private static (AlbumRow Row, Dictionary<int, AlbumSessionRow> SessionMap) MapAlbumModelToRow(
+    private static AlbumRow MapAlbumModelToRow(
         CanonAlbum album,
         PieceReferenceIndex resolver,
         Dictionary<CanonPiece, long> rowIdByPieceModel,
@@ -1307,16 +1159,23 @@ public partial class SqliteCanonDataService
     {
         var row = new AlbumRow
         {
-            Title           = album.Title,
-            Subtitle        = album.Subtitle,
-            Label           = album.Label,
-            CatalogueNumber = album.CatalogueNumber,
-            Barcode         = album.Barcode,
-            SparsCode       = album.SparsCode,
-            IsStereo        = album.IsStereo,
-            Notes           = album.Notes,
-            ArchiveFolder   = album.ArchiveFolder,
-            IsProvisional   = album.IsProvisional,
+            Title                 = album.Title,
+            Subtitle              = album.Subtitle,
+            Label                 = album.Label,
+            CatalogueNumber       = album.CatalogueNumber,
+            Barcode               = album.Barcode,
+            SparsCode             = album.SparsCode,
+            IsStereo              = album.IsStereo,
+            Notes                 = album.Notes,
+            ArchiveFolder         = album.ArchiveFolder,
+            IsProvisional         = album.IsProvisional,
+            SessionDates          = album.SessionDates,
+            SessionVenue          = album.SessionVenue,
+            SessionCity           = album.SessionCity,
+            SessionState          = album.SessionState,
+            SessionCountry        = album.SessionCountry,
+            SessionEngineersJson  = SerializeStringList(album.SessionEngineers),
+            SessionProducersJson  = SerializeStringList(album.SessionProducers),
         };
 
         var volumeRowByNumber = new Dictionary<int, AlbumVolumeRow>();
@@ -1332,34 +1191,6 @@ public partial class SqliteCanonDataService
                 };
                 row.Volumes.Add(vr);
                 volumeRowByNumber[v.Number] = vr;
-            }
-        }
-
-        var sessionRowByIndex = new Dictionary<int, AlbumSessionRow>();
-        // H21 slice 1: parallel by-stable-Id lookup so tracks carrying SessionId
-        // can resolve against the corresponding fresh AlbumSessionRow when this
-        // album is inserted brand-new (e.g. iTunes import, or first save of a
-        // hand-built album).
-        var sessionRowById = new Dictionary<long, AlbumSessionRow>();
-        if (album.Sessions is { Count: > 0 })
-        {
-            for (int i = 0; i < album.Sessions.Count; i++)
-            {
-                var s = album.Sessions[i];
-                var sr = new AlbumSessionRow
-                {
-                    Position      = i,
-                    Dates         = s.Dates,
-                    Venue         = s.Venue,
-                    City          = s.City,
-                    State         = s.State,
-                    Country       = s.Country,
-                    EngineersJson = SerializeStringList(s.Engineers),
-                    ProducersJson = SerializeStringList(s.Producers),
-                };
-                row.Sessions.Add(sr);
-                sessionRowByIndex[i] = sr;
-                if (s.Id != 0) sessionRowById[s.Id] = sr;
             }
         }
 
@@ -1380,23 +1211,8 @@ public partial class SqliteCanonDataService
 
             foreach (var track in disc.Tracks)
             {
-                var tr = new AlbumTrackRow
-                {
-                    TrackNumber   = track.TrackNumber,
-                    Duration      = track.Duration,
-                    Description   = track.Description,
-                    SparsCode     = track.SparsCode,
-                    IsStereo      = track.IsStereo,
-                    IsProvisional = track.IsProvisional,
-                    FlacPath      = track.FlacPath,
-                    Mp3Path       = track.Mp3Path,
-                };
-                // H21 slice 1: prefer stable SessionId, fall back to legacy
-                // positional SessionIndex.
-                if (track.SessionId is long sid && sessionRowById.TryGetValue(sid, out var sessRowById))
-                    tr.Session = sessRowById;
-                else if (track.SessionIndex is int si && sessionRowByIndex.TryGetValue(si, out var sessRow))
-                    tr.Session = sessRow;
+                var tr = new AlbumTrackRow { TrackNumber = track.TrackNumber };
+                ApplyTrackScalars(tr, track);
 
                 if (track.Performers is { Count: > 0 })
                     for (int i = 0; i < track.Performers.Count; i++)
@@ -1463,7 +1279,7 @@ public partial class SqliteCanonDataService
             row.Discs.Add(dr);
         }
 
-        return (row, sessionRowByIndex);
+        return row;
     }
 
     private static AlbumPerformerRow MapPerformerModelToRow(AlbumPerformer p, int position) => new()

@@ -29,8 +29,17 @@ public class AlbumTrackRow
     /// <summary>Freeform label when the track isn't linked to a canon piece.</summary>
     public string? Description { get; set; }
 
-    public long? SessionId { get; set; }
-    public AlbumSessionRow? Session { get; set; }
+    // ── Per-track recording session fields ────────────────────────────────────
+    // Same shape as the album-level columns on AlbumRow. Pre-refactor this
+    // was a SessionId FK into the (now-retired) album_sessions table.
+
+    public string? SessionDates    { get; set; }
+    public string? SessionVenue    { get; set; }
+    public string? SessionCity     { get; set; }
+    public string? SessionState    { get; set; }
+    public string? SessionCountry  { get; set; }
+    public string? SessionEngineersJson { get; set; }
+    public string? SessionProducersJson { get; set; }
 
     public string? SparsCode { get; set; }
 
