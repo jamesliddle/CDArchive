@@ -90,6 +90,12 @@ public partial class SqliteCanonDataService
         await EnsureColumnAsync(db, "album_tracks", "mp3_path", "TEXT NULL")
             .ConfigureAwait(false);
 
+        // Recording-session State (province / state, sits between City and
+        // Country in the address-style location summary). Nullable — most
+        // existing rows have City+Country only and stay that way.
+        await EnsureColumnAsync(db, "album_sessions", "state", "TEXT NULL")
+            .ConfigureAwait(false);
+
         // Loose tracks (singletons that don't belong to any album) live in the
         // same album_tracks table but with disc_id NULL. The original schema
         // had disc_id NOT NULL — recreate the table on first upgrade so the

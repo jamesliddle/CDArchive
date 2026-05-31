@@ -53,11 +53,10 @@ public partial class AlbumEditorWindow : Window
     // Bound from XAML via {Binding Show…, RelativeSource={RelativeSource AncestorType=Window}}.
     // Set in each constructor before the visual tree is rendered; never mutated
     // afterward, so no INotifyPropertyChanged is needed — the binding evaluates
-    // once at load. Replaces `MainTabs.Items.Remove(PerformersTab/SessionsTab)`
-    // imperative mutation in the multi-edit ctor (didn't survive a re-show —
-    // anticipatory; the editor is single-use today).
-    public bool ShowPerformersTab { get; private set; } = true;
-    public bool ShowSessionsTab   { get; private set; } = true;
+    // once at load. Multi-edit collapses the Performers / Sessions sections
+    // (they're per-album state that doesn't bulk-edit meaningfully).
+    public bool ShowPerformersSection { get; private set; } = true;
+    public bool ShowSessionsSection   { get; private set; } = true;
 
     // ── View-model (H13 slice 1: text fields) ────────────────────────────────
     // XAML TwoWay-binds the 7 text fields to _vm.X.Value. The combobox-driven
@@ -129,11 +128,12 @@ public partial class AlbumEditorWindow : Window
 
         Title = $"Edit {albums.Count} Albums";
 
-        // Performers / Sessions tabs hidden in multi-edit — Visibility bindings
-        // (driven by ShowPerformersTab / ShowSessionsTab) collapse the tab
-        // strip entries (H18). Discs & Tracks stays.
-        ShowPerformersTab = false;
-        ShowSessionsTab   = false;
+        // Performers / Sessions sections hidden in multi-edit — Visibility
+        // bindings (driven by ShowPerformersSection / ShowSessionsSection)
+        // collapse the GroupBoxes (H18 pattern; the field-level VM still
+        // initialises empty Performers/Sessions). Discs & Tracks stays.
+        ShowPerformersSection = false;
+        ShowSessionsSection   = false;
 
         // Widen the Album column so the user can see which album each track belongs to
         AlbumColumn.Width = 200;
@@ -264,9 +264,28 @@ public partial class AlbumEditorWindow : Window
 
     private void OnPerformerSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var has = PerformerList.SelectedItem != null;
+        var idx = PerformerList.SelectedIndex;
+        var has = idx >= 0;
         EditPerformerButton.IsEnabled   = has;
         RemovePerformerButton.IsEnabled = has;
+        PerformerUpButton.IsEnabled     = has && idx > 0;
+        PerformerDownButton.IsEnabled   = has && idx < _vm.Performers.Count - 1;
+    }
+
+    private void OnPerformerMoveUp(object sender, RoutedEventArgs e)
+    {
+        var idx = PerformerList.SelectedIndex;
+        if (idx <= 0 || idx >= _vm.Performers.Count) return;
+        _vm.Performers.Move(idx, idx - 1);
+        PerformerList.SelectedIndex = idx - 1;
+    }
+
+    private void OnPerformerMoveDown(object sender, RoutedEventArgs e)
+    {
+        var idx = PerformerList.SelectedIndex;
+        if (idx < 0 || idx >= _vm.Performers.Count - 1) return;
+        _vm.Performers.Move(idx, idx + 1);
+        PerformerList.SelectedIndex = idx + 1;
     }
 
     private void OnAddPerformer(object sender, RoutedEventArgs e)
@@ -298,9 +317,43 @@ public partial class AlbumEditorWindow : Window
 
     private void OnSessionSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var has = SessionList.SelectedItem != null;
+        var idx = SessionList.SelectedIndex;
+        var has = idx >= 0;
         EditSessionButton.IsEnabled   = has;
         RemoveSessionButton.IsEnabled = has;
+        SessionUpButton.IsEnabled     = has && idx > 0;
+        SessionDownButton.IsEnabled   = has && idx < _vm.Sessions.Count - 1;
+    }
+
+    private void OnSessionMoveUp(object sender, RoutedEventArgs e)
+    {
+        var idx = SessionList.SelectedIndex;
+        if (idx <= 0 || idx >= _vm.Sessions.Count) return;
+        MoveSession(idx, idx - 1);
+    }
+
+    private void OnSessionMoveDown(object sender, RoutedEventArgs e)
+    {
+        var idx = SessionList.SelectedIndex;
+        if (idx < 0 || idx >= _vm.Sessions.Count - 1) return;
+        MoveSession(idx, idx + 1);
+    }
+
+    /// <summary>
+    /// Moves a session from <paramref name="fromIndex"/> to <paramref name="toIndex"/>
+    /// and re-anchors every track's positional <see cref="AlbumTrack.SessionIndex"/>
+    /// so it still points at the same session. Tracks with a stable
+    /// <see cref="AlbumTrack.SessionId"/> (post-H21) keep pointing at the
+    /// right session by Id; the SessionIndex sync is for the legacy
+    /// positional readers + JSON snapshots.
+    /// </summary>
+    private void MoveSession(int fromIndex, int toIndex)
+    {
+        _vm.Sessions.Move(fromIndex, toIndex);
+        var allTracks = _album.Discs.SelectMany(d => d.Tracks);
+        SessionIndexMapping.RemapTracksAfterSessionMove(
+            fromIndex, toIndex, _vm.Sessions.ToList(), allTracks);
+        SessionList.SelectedIndex = toIndex;
     }
 
     private void OnAddSession(object sender, RoutedEventArgs e)
@@ -308,6 +361,19 @@ public partial class AlbumEditorWindow : Window
         var dlg = new SessionEditorWindow(null) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
         _vm.Sessions.Add(dlg.Result);
+    }
+
+    private void OnSessionDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // MouseDoubleClick bubbles — verify the click landed on a row, not
+        // on scroll chrome / column-header area.
+        var hit = e.OriginalSource as DependencyObject;
+        if (hit == null) return;
+        if (hit.FindAncestorOrSelf<ListViewItem>() == null) return;
+
+        if (SessionList.SelectedItem is null) return;
+        e.Handled = true;
+        OnEditSession(sender, e);
     }
 
     private void OnEditSession(object sender, RoutedEventArgs e)
@@ -339,24 +405,11 @@ public partial class AlbumEditorWindow : Window
         _vm.Sessions.Remove(selected);
     }
 
-    // ── Tab selection ─────────────────────────────────────────────────────────
-
-    private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // Guard against SelectionChanged events that bubble up from nested selectors
-        // (e.g. TrackList, LabelBox). We only want to act on actual tab-navigation events,
-        // which always carry a TabItem in AddedItems.
-        if (e.AddedItems.Count == 0 || e.AddedItems[0] is not TabItem) return;
-
-        // Auto-select the first row when navigating to the Discs & Tracks tab.
-        // Use reference equality so this works regardless of the tab's current index
-        // (index 3 in single-edit; index 1 in multi-edit after the other tabs are removed).
-        if (!ReferenceEquals(MainTabs.SelectedItem, DiscTracksTab)) return;
-        if (TrackList.SelectedIndex < 0 && TrackList.Items.Count > 0)
-            TrackList.SelectedIndex = 0;
-    }
-
-    // ── Discs & Tracks tab ────────────────────────────────────────────────────
+    // ── Discs & Tracks section ────────────────────────────────────────────────
+    // OnTabSelectionChanged retired — the tab strip is gone, so there's no
+    // "navigated to Discs & Tracks" event to react to. PopulateTrackGrid below
+    // already auto-selects the first row at load time, which is what the old
+    // handler did on tab activation.
 
     private void PopulateTrackGrid(AlbumTrack? selectTrack = null)
     {
@@ -622,14 +675,14 @@ public partial class AlbumEditorWindow : Window
             case AlbumEditorViewModel.SaveValidationError.MissingTitle:
                 MessageBox.Show("Title is required.", "Validation",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                MainTabs.SelectedIndex = 0;
                 // When MessageBox.Show returns, WPF restores focus to the OK
                 // button (the dialog button that opened the MessageBox) via the
                 // dispatcher — AFTER our synchronous call. A direct TitleBox.Focus()
                 // here gets clobbered. Defer the focus through the dispatcher at
-                // Input priority so it runs after WPF's restoration. Also force a
-                // layout pass first because if the Details tab wasn't already
-                // active, TitleBox's container has only just been realised.
+                // Input priority so it runs after WPF's restoration. The
+                // single-pane layout means TitleBox is always realised — no
+                // tab-switch needed (the pre-fix `MainTabs.SelectedIndex = 0`
+                // is gone with the TabControl).
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     TitleBox.UpdateLayout();

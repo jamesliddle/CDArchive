@@ -587,6 +587,7 @@ public class CanonDbSeeder
                         Dates         = s.Dates,
                         Venue         = s.Venue,
                         City          = s.City,
+                        State         = s.State,
                         Country       = s.Country,
                         EngineersJson = SerializeStringList(s.Engineers),
                         ProducersJson = SerializeStringList(s.Producers),

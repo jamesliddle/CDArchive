@@ -106,6 +106,26 @@ public class RecordingSessionTests
     }
 
     [Fact]
+    public void LocationSummary_IncludesStateBetweenCityAndCountry()
+    {
+        var s = new RecordingSession
+        {
+            Venue   = "Skywalker Sound",
+            City    = "Marin County",
+            State   = "California",
+            Country = "USA",
+        };
+        Assert.Equal("Skywalker Sound, Marin County, California, USA", s.LocationSummary);
+    }
+
+    [Fact]
+    public void LocationSummary_StateOnly_StillRenders()
+    {
+        var s = new RecordingSession { State = "Bavaria" };
+        Assert.Equal("Bavaria", s.LocationSummary);
+    }
+
+    [Fact]
     public void LocationSummary_PartialParts_OmitsMissing()
     {
         var s = new RecordingSession { City = "Vienna", Country = "Austria" };
