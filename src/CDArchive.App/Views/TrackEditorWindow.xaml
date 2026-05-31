@@ -47,6 +47,54 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
 
+                <!-- Piece References -->
+                <GroupBox x:Name="PieceRefsGroup" Header="Piece References"
+                          Margin="0,0,0,10" Padding="8">
+                    <DockPanel>
+                        <TextBlock x:Name="PieceRefsMixedNote"
+                                   DockPanel.Dock="Top"
+                                   Text="Mixed — piece references differ across selected tracks. Entries added here are APPENDED to each track's existing list; existing entries are preserved."
+                                   Foreground="DarkGray" FontStyle="Italic"
+                                   TextWrapping="Wrap" Margin="0,0,0,6"
+                                   Visibility="Collapsed" />
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                            <Button x:Name="AddPieceRefButton" Content="Add"
+                                    Padding="10,4" Click="OnAddPieceRef" />
+                            <Button x:Name="EditPieceRefButton" Content="Details…"
+                                    Padding="10,4" Margin="6,0,0,0"
+                                    ToolTip="Set start/end markers and range across sibling subpieces"
+                                    IsEnabled="False" Click="OnEditPieceRefDetails" />
+                            <Button x:Name="RemovePieceRefButton" Content="Remove"
+                                    Padding="10,4" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnRemovePieceRef" />
+                        </StackPanel>
+                        <ListBox x:Name="PieceRefList" MinHeight="80" MaxHeight="160"
+                                 BorderThickness="1" BorderBrush="#CCC" Margin="0,6,0,0"
+                                 SelectionChanged="OnPieceRefSelectionChanged"
+                                 MouseDoubleClick="OnPieceRefDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplaySummary}"
+                                               TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </GroupBox>
+
+                <!-- Description -->
+                <GroupBox Header="Description" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
+                        <TextBlock Text="Used for tracks not linked to the Canon (e.g. 'Interview with Brendel')"
+                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
+                                   Margin="0,0,0,6" />
+                        <TextBox x:Name="DescriptionBox" Height="50"
+                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                 FontSize="13" Padding="4,3"
+                                 Text="{Binding Description.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- Track Info -->
                 <GroupBox Header="Track Info" Margin="0,0,0,10" Padding="8">
                     <Grid>
@@ -289,53 +337,6 @@
                                     Click="OnBrowseMp3Path" />
                         </Grid>
                     </StackPanel>
-                </GroupBox>
-
-                <!-- Description -->
-                <GroupBox Header="Description" Margin="0,0,0,10" Padding="8">
-                    <StackPanel>
-                        <TextBlock Text="Used for tracks not linked to the Canon (e.g. 'Interview with Brendel')"
-                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
-                                   Margin="0,0,0,6" />
-                        <TextBox x:Name="DescriptionBox" Height="50"
-                                 TextWrapping="Wrap" AcceptsReturn="True"
-                                 FontSize="13" Padding="4,3"
-                                 Text="{Binding Description.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    </StackPanel>
-                </GroupBox>
-
-                <!-- Piece References -->
-                <GroupBox x:Name="PieceRefsGroup" Header="Piece References" Padding="8">
-                    <DockPanel>
-                        <TextBlock x:Name="PieceRefsMixedNote"
-                                   DockPanel.Dock="Top"
-                                   Text="Mixed — piece references differ across selected tracks. Entries added here are APPENDED to each track's existing list; existing entries are preserved."
-                                   Foreground="DarkGray" FontStyle="Italic"
-                                   TextWrapping="Wrap" Margin="0,0,0,6"
-                                   Visibility="Collapsed" />
-                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-                            <Button x:Name="AddPieceRefButton" Content="Add"
-                                    Padding="10,4" Click="OnAddPieceRef" />
-                            <Button x:Name="EditPieceRefButton" Content="Details…"
-                                    Padding="10,4" Margin="6,0,0,0"
-                                    ToolTip="Set start/end markers and range across sibling subpieces"
-                                    IsEnabled="False" Click="OnEditPieceRefDetails" />
-                            <Button x:Name="RemovePieceRefButton" Content="Remove"
-                                    Padding="10,4" Margin="6,0,0,0"
-                                    IsEnabled="False" Click="OnRemovePieceRef" />
-                        </StackPanel>
-                        <ListBox x:Name="PieceRefList" MinHeight="80" MaxHeight="160"
-                                 BorderThickness="1" BorderBrush="#CCC" Margin="0,6,0,0"
-                                 SelectionChanged="OnPieceRefSelectionChanged"
-                                 MouseDoubleClick="OnPieceRefDoubleClick">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplaySummary}"
-                                               TextWrapping="Wrap" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </DockPanel>
                 </GroupBox>
 
                 <!-- Performers — same Grid + vertical button-stack layout as
