@@ -230,4 +230,88 @@ public static class SessionIndexMapping
         }
         return changed;
     }
+
+    /// <summary>
+    /// Updates every track's positional <see cref="AlbumTrack.SessionIndex"/>
+    /// after a session has been moved (e.g. via Up/Down buttons).
+    ///
+    /// <para>Two paths, mirroring <see cref="RemapTracksAfterSessionRemoval"/>:</para>
+    /// <list type="bullet">
+    ///   <item><b>Stable-Id (post-H21)</b> — tracks carrying a
+    ///     <see cref="AlbumTrack.SessionId"/> have their <see cref="AlbumTrack.SessionIndex"/>
+    ///     overwritten with the session's new position in
+    ///     <paramref name="sessionsAfterMove"/>. SessionId itself stays correct
+    ///     across reorders (that's the whole point of the stable Id).</item>
+    ///   <item><b>Positional fallback</b> — tracks with only a
+    ///     <see cref="AlbumTrack.SessionIndex"/> get standard
+    ///     list-move-pull-through arithmetic. Safe for any
+    ///     <paramref name="fromIndex"/> / <paramref name="toIndex"/> pair, not
+    ///     just adjacent swaps — but the editor's Up/Down buttons always pass
+    ///     adjacent indices today.</item>
+    /// </list>
+    ///
+    /// <para>Call AFTER the move (the helper inspects the new list to discover
+    /// each session's current position). Differs from
+    /// <see cref="RemapTracksAfterSessionRemoval"/> which is called BEFORE the
+    /// removal — moves are 1-step swaps where the post-move state is the
+    /// natural argument; removals need to look up the removed session's Id
+    /// while it's still in the list.</para>
+    /// </summary>
+    /// <param name="fromIndex">The session's original position.</param>
+    /// <param name="toIndex">The session's new position.</param>
+    /// <param name="sessionsAfterMove">The album's session list after the move
+    /// has been applied — i.e. the session that was at <paramref name="fromIndex"/>
+    /// is now at <paramref name="toIndex"/>.</param>
+    /// <param name="tracks">Every track on every disc of the album.</param>
+    /// <returns>The number of tracks whose <see cref="AlbumTrack.SessionIndex"/>
+    /// was actually changed.</returns>
+    public static int RemapTracksAfterSessionMove(
+        int fromIndex,
+        int toIndex,
+        IReadOnlyList<RecordingSession> sessionsAfterMove,
+        IEnumerable<AlbumTrack> tracks)
+    {
+        if (fromIndex == toIndex) return 0;
+        if (fromIndex < 0 || toIndex < 0) return 0;
+        if (fromIndex >= sessionsAfterMove.Count || toIndex >= sessionsAfterMove.Count) return 0;
+
+        // Build stable-id → current-position map for post-H21 SessionId lookups.
+        var posById = new Dictionary<long, int>();
+        for (int i = 0; i < sessionsAfterMove.Count; i++)
+        {
+            var s = sessionsAfterMove[i];
+            if (s.Id != 0) posById[s.Id] = i;
+        }
+
+        int changed = 0;
+        foreach (var t in tracks)
+        {
+            int? targetIndex = null;
+
+            if (t.SessionId is long sid && sid != 0 && posById.TryGetValue(sid, out var newPos))
+            {
+                // Stable-Id path: SessionId already correct; sync SessionIndex.
+                targetIndex = newPos;
+            }
+            else if (t.SessionIndex is int si)
+            {
+                // Positional fallback: list-move-pull-through arithmetic.
+                if (si == fromIndex)
+                    targetIndex = toIndex;
+                else if (fromIndex < toIndex && si > fromIndex && si <= toIndex)
+                    targetIndex = si - 1;
+                else if (fromIndex > toIndex && si < fromIndex && si >= toIndex)
+                    targetIndex = si + 1;
+                else
+                    targetIndex = si;   // unaffected
+            }
+
+            if (targetIndex.HasValue && t.SessionIndex != targetIndex.Value)
+            {
+                t.SessionIndex = targetIndex.Value;
+                changed++;
+            }
+        }
+        return changed;
+    }
 }

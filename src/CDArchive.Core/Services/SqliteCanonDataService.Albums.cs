@@ -152,6 +152,7 @@ public partial class SqliteCanonDataService
                     Dates     = sr.Dates,
                     Venue     = sr.Venue,
                     City      = sr.City,
+                    State     = sr.State,
                     Country   = sr.Country,
                     Engineers = DeserializeStringList(sr.EngineersJson),
                     Producers = DeserializeStringList(sr.ProducersJson),
@@ -854,6 +855,7 @@ public partial class SqliteCanonDataService
                     er.Dates         = s.Dates;
                     er.Venue         = s.Venue;
                     er.City          = s.City;
+                    er.State         = s.State;
                     er.Country       = s.Country;
                     er.EngineersJson = SerializeStringList(s.Engineers);
                     er.ProducersJson = SerializeStringList(s.Producers);
@@ -869,6 +871,7 @@ public partial class SqliteCanonDataService
                         Dates         = s.Dates,
                         Venue         = s.Venue,
                         City          = s.City,
+                        State         = s.State,
                         Country       = s.Country,
                         EngineersJson = SerializeStringList(s.Engineers),
                         ProducersJson = SerializeStringList(s.Producers),
@@ -1349,6 +1352,7 @@ public partial class SqliteCanonDataService
                     Dates         = s.Dates,
                     Venue         = s.Venue,
                     City          = s.City,
+                    State         = s.State,
                     Country       = s.Country,
                     EngineersJson = SerializeStringList(s.Engineers),
                     ProducersJson = SerializeStringList(s.Producers),

@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="New Album"
-        Width="860" Height="640"
-        MinWidth="680" MinHeight="480"
+        Width="920" Height="720"
+        MinWidth="720" MinHeight="560"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False">
@@ -35,11 +35,18 @@
         <Style TargetType="ListViewItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         </Style>
+
+        <!-- Shared button style for the per-list action columns -->
+        <Style x:Key="ListActionButtonStyle" TargetType="Button">
+            <Setter Property="Width"   Value="80" />
+            <Setter Property="Padding" Value="0,5" />
+            <Setter Property="Margin"  Value="0,0,0,4" />
+        </Style>
     </Window.Resources>
 
     <DockPanel Margin="0">
 
-        <!-- Save / Cancel -->
+        <!-- ── Save / Cancel docked at the bottom ─────────────────────────── -->
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="12,8">
             <Button x:Name="SaveButton" Content="Save" Width="80" Padding="0,6"
@@ -48,13 +55,15 @@
                     IsCancel="True" />
         </StackPanel>
 
-        <!-- Tabs -->
-        <TabControl x:Name="MainTabs" Margin="12,12,12,0"
-                    SelectionChanged="OnTabSelectionChanged">
+        <!-- ── Scrollable content stack — Details / Performers / Sessions /
+             Discs & Tracks, top-to-bottom (no more tabs). ───────────────── -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="12,12,12,0">
+            <StackPanel>
 
-            <!-- ══ Tab 1: Details ══════════════════════════════════════════════ -->
-            <TabItem Header="Details">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="8">
+                <!-- ══ Details ═══════════════════════════════════════════════ -->
+                <GroupBox Header="Details" Padding="8" Margin="0,0,0,10">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -66,7 +75,6 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="130" />
@@ -165,235 +173,267 @@
                                  Text="{Binding Notes.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Height="60" FontSize="13" Padding="4,3"
                                  TextWrapping="Wrap" AcceptsReturn="True"
-                                 Margin="0,0,0,8" />
-
+                                 Margin="0,0,0,4" />
                     </Grid>
-                </ScrollViewer>
-            </TabItem>
+                </GroupBox>
 
-            <!-- ══ Tab 2: Performers ══════════════════════════════════════════ -->
-            <TabItem x:Name="PerformersTab" Header="Performers"
-                     Visibility="{Binding ShowPerformersTab,
-                                           RelativeSource={RelativeSource AncestorType=Window},
-                                           Converter={StaticResource BoolToVis}}">
-                <DockPanel Margin="10">
-
-                    <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="Album-level performers appear on all tracks unless overridden per-track."
+                <!-- ══ Performers ════════════════════════════════════════════ -->
+                <GroupBox x:Name="PerformersGroup" Header="Performers"
+                          Padding="8" Margin="0,0,0,10"
+                          Visibility="{Binding ShowPerformersSection,
+                                                RelativeSource={RelativeSource AncestorType=Window},
+                                                Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top"
+                                   Text="Album-level performers appear on all tracks unless overridden per-track."
                                    FontSize="11" Foreground="#888" TextWrapping="Wrap"
-                                   Margin="0,0,0,8" />
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="AddPerformerButton" Content="Add"
-                                    Padding="10,5" Click="OnAddPerformer" />
-                            <Button x:Name="EditPerformerButton" Content="Edit"
-                                    Padding="10,5" Margin="6,0,0,0"
-                                    IsEnabled="False" Click="OnEditPerformer" />
-                            <Button x:Name="RemovePerformerButton" Content="Remove"
-                                    Padding="10,5" Margin="6,0,0,0"
-                                    IsEnabled="False" Click="OnRemovePerformer" />
-                        </StackPanel>
-                    </StackPanel>
+                                   Margin="0,0,0,6" />
+                        <Grid Height="175">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                    <ListView x:Name="PerformerList" FontSize="13"
-                              BorderThickness="1" BorderBrush="#CCC" Margin="0,8,0,0"
-                              ItemsSource="{Binding Performers}"
-                              SelectionChanged="OnPerformerSelectionChanged">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Name" Width="200"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Name}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Role" Width="160"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Role}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Instrument" Width="160"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Instrument}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
+                            <ListView x:Name="PerformerList" Grid.Column="0" FontSize="13"
+                                      BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                      ItemsSource="{Binding Performers}"
+                                      SelectionChanged="OnPerformerSelectionChanged">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Name" Width="200"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Role" Width="160"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Role}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Instrument" Width="160"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Instrument}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
 
-                </DockPanel>
-            </TabItem>
+                            <StackPanel Grid.Column="1" Orientation="Vertical">
+                                <Button x:Name="AddPerformerButton" Content="Add"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        Click="OnAddPerformer" />
+                                <Button x:Name="EditPerformerButton" Content="Edit"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnEditPerformer" />
+                                <Button x:Name="RemovePerformerButton" Content="Remove"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnRemovePerformer" />
+                                <Border Height="1" Background="#DDD" Margin="0,4,0,8" />
+                                <Button x:Name="PerformerUpButton" Content="Up"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnPerformerMoveUp" />
+                                <Button x:Name="PerformerDownButton" Content="Down"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnPerformerMoveDown" />
+                            </StackPanel>
+                        </Grid>
+                    </DockPanel>
+                </GroupBox>
 
-            <!-- ══ Tab 3: Sessions ════════════════════════════════════════════ -->
-            <TabItem x:Name="SessionsTab" Header="Sessions"
-                     Visibility="{Binding ShowSessionsTab,
-                                           RelativeSource={RelativeSource AncestorType=Window},
-                                           Converter={StaticResource BoolToVis}}">
-                <DockPanel Margin="10">
-
-                    <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="Recording sessions describe where and when the album was recorded. Tracks can reference a specific session by index."
+                <!-- ══ Sessions ══════════════════════════════════════════════ -->
+                <GroupBox x:Name="SessionsGroup" Header="Sessions"
+                          Padding="8" Margin="0,0,0,10"
+                          Visibility="{Binding ShowSessionsSection,
+                                                RelativeSource={RelativeSource AncestorType=Window},
+                                                Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top"
+                                   Text="Recording sessions describe where and when the album was recorded. Tracks can reference a specific session by index."
                                    FontSize="11" Foreground="#888" TextWrapping="Wrap"
-                                   Margin="0,0,0,8" />
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="AddSessionButton" Content="Add"
-                                    Padding="10,5" Click="OnAddSession" />
-                            <Button x:Name="EditSessionButton" Content="Edit"
-                                    Padding="10,5" Margin="6,0,0,0"
-                                    IsEnabled="False" Click="OnEditSession" />
-                            <Button x:Name="RemoveSessionButton" Content="Remove"
-                                    Padding="10,5" Margin="6,0,0,0"
-                                    IsEnabled="False" Click="OnRemoveSession" />
+                                   Margin="0,0,0,6" />
+                        <Grid Height="175">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <ListView x:Name="SessionList" Grid.Column="0" FontSize="13"
+                                      BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                      ItemsSource="{Binding Sessions}"
+                                      SelectionChanged="OnSessionSelectionChanged"
+                                      MouseDoubleClick="OnSessionDoubleClick">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Dates" Width="140"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Dates}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Location" Width="200"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding LocationSummary}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Engineers" Width="200"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding EngineersSummary}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding EngineersSummary}" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Producers" Width="200"
+                                                        HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding ProducersSummary}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding ProducersSummary}" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+
+                            <StackPanel Grid.Column="1" Orientation="Vertical">
+                                <Button x:Name="AddSessionButton" Content="Add"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        Click="OnAddSession" />
+                                <Button x:Name="EditSessionButton" Content="Edit"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnEditSession" />
+                                <Button x:Name="RemoveSessionButton" Content="Remove"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnRemoveSession" />
+                                <Border Height="1" Background="#DDD" Margin="0,4,0,8" />
+                                <Button x:Name="SessionUpButton" Content="Up"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnSessionMoveUp" />
+                                <Button x:Name="SessionDownButton" Content="Down"
+                                        Style="{StaticResource ListActionButtonStyle}"
+                                        IsEnabled="False" Click="OnSessionMoveDown" />
+                            </StackPanel>
+                        </Grid>
+                    </DockPanel>
+                </GroupBox>
+
+                <!-- ══ Discs & Tracks ════════════════════════════════════════ -->
+                <GroupBox Header="Discs &amp; Tracks" Padding="8" Margin="0,0,0,10">
+                    <Grid Height="320">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <ListView x:Name="TrackList" Grid.Column="0" FontSize="13"
+                                  BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                  SelectionMode="Extended"
+                                  SelectionChanged="OnTrackSelectionChanged"
+                                  MouseDoubleClick="OnTrackDoubleClick">
+                            <ListView.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Play this track" Click="OnContextPlayTrack" />
+                                    <MenuItem Header="Play from here"  Click="OnContextPlayFromHere" />
+                                </ContextMenu>
+                            </ListView.ContextMenu>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn x:Name="AlbumColumn" Header="Album" Width="0"
+                                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding AlbumTitle}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding AlbumTitle}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Disc" Width="45"
+                                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DiscNumber}"
+                                                           HorizontalAlignment="Right" Margin="0,0,8,0" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Track" Width="45"
+                                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Track.TrackNumber}"
+                                                           HorizontalAlignment="Right" Margin="0,0,8,0" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Duration" Width="70"
+                                                    HeaderContainerStyle="{StaticResource RightAlignedHeader}"
+                                                    HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Track.Duration}"
+                                                           HorizontalAlignment="Right" Margin="0,0,8,0" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Content" Width="500"
+                                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Track.DisplaySummary}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Track.DisplaySummary}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+
+                        <StackPanel Grid.Column="1" Orientation="Vertical">
+                            <Button x:Name="AddDiscButton" Content="Add Disc"
+                                    Style="{StaticResource ListActionButtonStyle}"
+                                    Click="OnAddDisc" />
+                            <Button x:Name="AddTrackButton" Content="Add Track"
+                                    Style="{StaticResource ListActionButtonStyle}"
+                                    IsEnabled="False" Click="OnAddTrack" />
+                            <Button x:Name="EditTrackButton" Content="Edit"
+                                    Style="{StaticResource ListActionButtonStyle}"
+                                    IsEnabled="False" Click="OnEditTrack" />
+                            <Button x:Name="RemoveTrackButton" Content="Remove"
+                                    Style="{StaticResource ListActionButtonStyle}"
+                                    IsEnabled="False" Click="OnRemoveTrack" />
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
+                </GroupBox>
 
-                    <ListView x:Name="SessionList" FontSize="13"
-                              BorderThickness="1" BorderBrush="#CCC" Margin="0,8,0,0"
-                              ItemsSource="{Binding Sessions}"
-                              SelectionChanged="OnSessionSelectionChanged">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Dates" Width="140"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Dates}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Location" Width="200"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding LocationSummary}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Engineers" Width="200"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding EngineersSummary}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding EngineersSummary}" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Producers" Width="200"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding ProducersSummary}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding ProducersSummary}" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-
-                </DockPanel>
-            </TabItem>
-
-            <!-- ══ Tab 4: Discs & Tracks ══════════════════════════════════════ -->
-            <TabItem x:Name="DiscTracksTab" Header="Discs &amp; Tracks">
-                <DockPanel Margin="8">
-                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
-                                HorizontalAlignment="Right" Margin="0,0,0,6">
-                        <Button x:Name="AddDiscButton" Content="Add Disc"
-                                Padding="10,4" Click="OnAddDisc" />
-                        <Button x:Name="AddTrackButton" Content="Add Track"
-                                Padding="10,4" Margin="6,0,0,0"
-                                IsEnabled="False" Click="OnAddTrack" />
-                        <Button x:Name="EditTrackButton" Content="Edit"
-                                Padding="10,4" Margin="6,0,0,0"
-                                IsEnabled="False" Click="OnEditTrack" />
-                        <Button x:Name="RemoveTrackButton" Content="Remove"
-                                Padding="10,4" Margin="6,0,0,0"
-                                IsEnabled="False" Click="OnRemoveTrack" />
-                    </StackPanel>
-                    <ListView x:Name="TrackList" FontSize="13"
-                              BorderThickness="1" BorderBrush="#CCC"
-                              SelectionMode="Extended"
-                              SelectionChanged="OnTrackSelectionChanged"
-                              MouseDoubleClick="OnTrackDoubleClick">
-                        <ListView.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Play this track" Click="OnContextPlayTrack" />
-                                <MenuItem Header="Play from here"  Click="OnContextPlayFromHere" />
-                            </ContextMenu>
-                        </ListView.ContextMenu>
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn x:Name="AlbumColumn" Header="Album" Width="0"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding AlbumTitle}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding AlbumTitle}" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Disc" Width="45"
-                                                HeaderContainerStyle="{StaticResource RightAlignedHeader}"
-                                                HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding DiscNumber}"
-                                                       HorizontalAlignment="Right" Margin="0,0,8,0" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Track" Width="45"
-                                                HeaderContainerStyle="{StaticResource RightAlignedHeader}"
-                                                HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Track.TrackNumber}"
-                                                       HorizontalAlignment="Right" Margin="0,0,8,0" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Duration" Width="70"
-                                                HeaderContainerStyle="{StaticResource RightAlignedHeader}"
-                                                HeaderTemplate="{StaticResource RightAlignedHeaderTemplate}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Track.Duration}"
-                                                       HorizontalAlignment="Right" Margin="0,0,8,0" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Content" Width="500"
-                                                HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Track.DisplaySummary}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding Track.DisplaySummary}" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-                </DockPanel>
-            </TabItem>
-
-        </TabControl>
+            </StackPanel>
+        </ScrollViewer>
     </DockPanel>
 </Window>

@@ -724,6 +724,7 @@ public class CanonDbContext : DbContext
             b.Property(x => x.Dates).HasColumnName("dates");
             b.Property(x => x.Venue).HasColumnName("venue");
             b.Property(x => x.City).HasColumnName("city");
+            b.Property(x => x.State).HasColumnName("state");
             b.Property(x => x.Country).HasColumnName("country");
             b.Property(x => x.EngineersJson).HasColumnName("engineers_json");
             b.Property(x => x.ProducersJson).HasColumnName("producers_json");

@@ -316,6 +316,7 @@ public class SmallEditorViewModelsTests
             Dates     = "1962-Jan",
             Venue     = "Jesus-Christus-Kirche",
             City      = "Berlin",
+            State     = "Berlin",
             Country   = "Germany",
             Engineers = new List<string> { "Karl-Heinz Schneider", "Otto Gerdes" },
             Producers = new List<string> { "John Culshaw" },
@@ -327,9 +328,10 @@ public class SmallEditorViewModelsTests
         Assert.Equal("1962-Jan",                                    vm.Dates);
         Assert.Equal("Jesus-Christus-Kirche",                       vm.Venue);
         Assert.Equal("Berlin",                                      vm.City);
+        Assert.Equal("Berlin",                                      vm.State);
         Assert.Equal("Germany",                                     vm.Country);
-        Assert.Equal("Karl-Heinz Schneider, Otto Gerdes",           vm.Engineers);
-        Assert.Equal("John Culshaw",                                vm.Producers);
+        Assert.Equal(new[] { "Karl-Heinz Schneider", "Otto Gerdes" }, vm.Engineers);
+        Assert.Equal(new[] { "John Culshaw" },                       vm.Producers);
 
         var dest = new RecordingSession();
         vm.SaveToSession(dest);
@@ -337,6 +339,7 @@ public class SmallEditorViewModelsTests
         Assert.Equal("1962-Jan",              dest.Dates);
         Assert.Equal("Jesus-Christus-Kirche", dest.Venue);
         Assert.Equal("Berlin",                dest.City);
+        Assert.Equal("Berlin",                dest.State);
         Assert.Equal("Germany",               dest.Country);
         Assert.Equal(2, dest.Engineers?.Count ?? 0);
         Assert.Equal("Karl-Heinz Schneider", dest.Engineers![0]);
@@ -355,9 +358,10 @@ public class SmallEditorViewModelsTests
         Assert.Equal("", vm.Dates);
         Assert.Equal("", vm.Venue);
         Assert.Equal("", vm.City);
+        Assert.Equal("", vm.State);
         Assert.Equal("", vm.Country);
-        Assert.Equal("", vm.Engineers);
-        Assert.Equal("", vm.Producers);
+        Assert.Empty(vm.Engineers);
+        Assert.Empty(vm.Producers);
     }
 
     [Fact]
@@ -376,9 +380,46 @@ public class SmallEditorViewModelsTests
         Assert.Null(dest.Dates);
         Assert.Null(dest.Venue);
         Assert.Null(dest.City);
+        Assert.Null(dest.State);
         Assert.Null(dest.Country);
         Assert.Null(dest.Engineers);
         Assert.Null(dest.Producers);
+    }
+
+    [Fact]
+    public void Session_LoadReplacesPriorListsRatherThanAppending()
+    {
+        // Defensive: a SessionEditor reused across edits must not accumulate
+        // engineers / producers from previous sessions. LoadFromSession should
+        // Clear() the ObservableCollections before re-populating.
+        var vm = new SessionEditorViewModel();
+        vm.LoadFromSession(new RecordingSession
+        {
+            Engineers = new List<string> { "Alice", "Bob" },
+            Producers = new List<string> { "Pat" },
+        });
+
+        vm.LoadFromSession(new RecordingSession
+        {
+            Engineers = new List<string> { "Carol" },
+        });
+
+        Assert.Equal(new[] { "Carol" }, vm.Engineers);
+        Assert.Empty(vm.Producers);
+    }
+
+    [Fact]
+    public void Session_StateField_RoundTrips()
+    {
+        var src = new RecordingSession { State = "Bavaria" };
+        var vm = new SessionEditorViewModel();
+        vm.LoadFromSession(src);
+        Assert.Equal("Bavaria", vm.State);
+
+        vm.State = "  California  ";
+        var dest = new RecordingSession();
+        vm.SaveToSession(dest);
+        Assert.Equal("California", dest.State);   // trimmed on save
     }
 
     [Theory]

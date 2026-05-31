@@ -18,6 +18,7 @@ public class AlbumSessionRow
     public string? Dates { get; set; }
     public string? Venue { get; set; }
     public string? City { get; set; }
+    public string? State { get; set; }
     public string? Country { get; set; }
 
     /// <summary>JSON array of engineer name strings; null when none.</summary>

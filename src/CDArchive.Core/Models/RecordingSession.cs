@@ -38,6 +38,11 @@ public class RecordingSession
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? City { get; set; }
 
+    /// <summary>State / province — sits between City and Country in display.</summary>
+    [JsonPropertyName("state")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? State { get; set; }
+
     [JsonPropertyName("country")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Country { get; set; }
@@ -58,7 +63,7 @@ public class RecordingSession
     {
         get
         {
-            var parts = new[] { Venue, City, Country }
+            var parts = new[] { Venue, City, State, Country }
                 .Where(s => !string.IsNullOrWhiteSpace(s));
             return string.Join(", ", parts);
         }
