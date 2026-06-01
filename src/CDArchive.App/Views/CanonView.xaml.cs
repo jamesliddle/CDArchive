@@ -355,16 +355,44 @@ public partial class CanonView : UserControl
         while (hit != null && hit is not TreeViewItem)
             hit = System.Windows.Media.VisualTreeHelper.GetParent(hit);
         if (hit is TreeViewItem tvi && tvi.HasItems)
+        {
+            // Pin horizontal scroll across the expand: child realisation +
+            // implicit select-on-click both trigger BringIntoView, which can
+            // scroll right to fit wide children.  Capture now, restore after
+            // layout settles.  See PinHorizontalScrollAcross.
+            var scrollViewer = FindTreeScrollViewer();
+            double offset = scrollViewer?.HorizontalOffset ?? 0;
             tvi.IsExpanded = !tvi.IsExpanded;
+            PinHorizontalScrollAcross(scrollViewer, offset);
+        }
         // Do NOT set e.Handled — let the click also select the item normally.
     }
 
+    private void PinHorizontalScrollAcross(ScrollViewer? scrollViewer, double offset)
+    {
+        if (scrollViewer == null) return;
+        // BringIntoView and child realisation both queue scroll work that
+        // runs after the current dispatcher pass.  Pin immediately AND at
+        // Loaded priority to defeat whichever path actually moves the offset.
+        if (scrollViewer.HorizontalOffset != offset)
+            scrollViewer.ScrollToHorizontalOffset(offset);
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (scrollViewer.HorizontalOffset != offset)
+                scrollViewer.ScrollToHorizontalOffset(offset);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
     // ── Suppress horizontal auto-scroll ──────────────────────────────────────
-    // WPF raises RequestBringIntoView when a TreeViewItem is selected/focused,
-    // causing the ScrollViewer to shift right to show the indented item's full
-    // bounding rect.  We cancel the default event and re-raise it with X forced
-    // to 0 so vertical bring-into-view (keyboard navigation) still works, but
-    // horizontal scrolling never occurs.
+    // WPF raises RequestBringIntoView when a TreeViewItem is selected/focused
+    // (including the implicit select-on-click that fires when the user clicks
+    // an expander arrow).  Default behaviour scrolls the ScrollViewer to fit
+    // the item's full bounding rect, which pushes the composer's expander off
+    // the left of the viewport when a piece with wide content is expanded.
+    // We re-raise with a degenerate (Width=0) vertical-only rect, then pin
+    // the horizontal offset back to where the user had it — so vertical
+    // bring-into-view (keyboard nav, expand) still works, but horizontal
+    // scroll position is preserved.
 
     private bool _suppressBringIntoView;   // prevents the re-raised call from looping
 
@@ -375,12 +403,37 @@ public partial class CanonView : UserControl
 
         e.Handled = true;   // cancel the default horizontal+vertical scroll
 
-        // Re-request with X=0: the ScrollViewer sees the element's left edge,
-        // so it scrolls vertically if needed but never horizontally.
         var rect = e.TargetRect.IsEmpty ? new Rect(target.RenderSize) : e.TargetRect;
+        var scrollViewer = FindTreeScrollViewer();
+        double horizontalOffset = scrollViewer?.HorizontalOffset ?? 0;
+
         _suppressBringIntoView = true;
-        try   { target.BringIntoView(new Rect(0, rect.Y, rect.Width, rect.Height)); }
+        try   { target.BringIntoView(new Rect(0, rect.Y, 0, rect.Height)); }
         finally { _suppressBringIntoView = false; }
+
+        PinHorizontalScrollAcross(scrollViewer, horizontalOffset);
+    }
+
+    private ScrollViewer? FindTreeScrollViewer()
+    {
+        if (ComposerTree.Template?.FindName("PART_ContentHost", ComposerTree) is ScrollViewer sv)
+            return sv;
+        // Template has no x:Name; walk the visual tree.
+        DependencyObject? node = ComposerTree;
+        var queue = new Queue<DependencyObject>();
+        queue.Enqueue(node);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(current);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(current, i);
+                if (child is ScrollViewer found) return found;
+                queue.Enqueue(child);
+            }
+        }
+        return null;
     }
 
     // ── Double-click dispatcher ───────────────────────────────────────────────
@@ -540,10 +593,17 @@ public partial class CanonView : UserControl
         var (header, hits) = ResolveHits(_ctxTarget);
         if (hits.Count == 0) return;
 
-        var dlg = new PieceAlbumsWindow(header, hits) { Owner = Window.GetWindow(this) };
-        if (dlg.ShowDialog() != true || dlg.SelectedAlbum is not CanonAlbum album) return;
+        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+        var dlg = new PieceAlbumsWindow(header, hits, albumsVm.Player)
+        {
+            Owner = Window.GetWindow(this)
+        };
+        if (dlg.ShowDialog() != true) return;
 
-        // User chose an album — open it in the album editor.
+        // Play branch handled playback itself — only open the editor for Open Album.
+        if (dlg.PlayRequested) return;
+        if (dlg.SelectedAlbum is not CanonAlbum album) return;
+
         await OpenAlbumEditorAsync(album);
     }
 

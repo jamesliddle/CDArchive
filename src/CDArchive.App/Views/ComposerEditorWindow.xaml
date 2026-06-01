@@ -54,6 +54,7 @@
                 <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource FieldLabel}" />
                 <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldBox}"
                            x:Name="NameBox"
+                           LostFocus="OnNameLostFocus"
                            Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <TextBlock Grid.Row="1" Text="Sort Name" Style="{StaticResource FieldLabel}" />

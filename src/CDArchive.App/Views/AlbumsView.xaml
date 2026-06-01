@@ -176,16 +176,11 @@
                                     HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding DisplayTitle}"
-                                               TextTrimming="CharacterEllipsis"
-                                               ToolTip="{Binding DisplayTitle}" />
-                                    <TextBlock Text=" (provisional)"
-                                               Foreground="#E65100" FontSize="11" FontStyle="Italic"
-                                               Margin="6,0,0,0" VerticalAlignment="Center"
-                                               Visibility="{Binding IsProvisional,
-                                                            Converter={StaticResource BoolToVis}}" />
-                                </StackPanel>
+                                <TextBlock Text="{Binding DisplayTitle}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding DisplayTitle}"
+                                           Foreground="{Binding IsProvisional,
+                                                        Converter={StaticResource ProvisionalBrush}}" />
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
