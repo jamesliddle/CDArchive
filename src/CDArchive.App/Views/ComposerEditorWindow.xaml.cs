@@ -32,6 +32,20 @@ public partial class ComposerEditorWindow : Window
         _vm.LoadFromComposer(_composer);
     }
 
+    // ── Name → Sort Name auto-fill ───────────────────────────────────────────
+    // When focus leaves the Name field and Sort Name is still empty, default
+    // it to the Name. The convention for composer Name in this project is
+    // already "Lastname, Firstname" (e.g. "Beethoven, Ludwig van"), so a
+    // verbatim copy is correct for the common case. The user can refine it
+    // freely afterwards — we only fire when SortName is currently blank, so
+    // we never overwrite their input.
+
+    private void OnNameLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_vm.SortName))
+            _vm.SortName = _vm.Name?.Trim() ?? string.Empty;
+    }
+
     // ── Aliases list ─────────────────────────────────────────────────────────
 
     private void OnAddAliasClick(object sender, RoutedEventArgs e)

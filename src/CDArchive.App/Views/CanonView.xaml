@@ -294,15 +294,12 @@
                                     </Border>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Composer.Name}"
-                                                   FontWeight="SemiBold" />
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Composer.IsProvisional,
+                                                                Converter={StaticResource ProvisionalBrush}}" />
                                         <TextBlock Text="{Binding Composer.LifeSpan}"
                                                    Foreground="#888888" FontSize="12"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
-                                        <TextBlock Text=" (provisional)"
-                                                   Foreground="#E65100" FontSize="11" FontStyle="Italic"
-                                                   Margin="4,0,0,0" VerticalAlignment="Center"
-                                                   Visibility="{Binding Composer.IsProvisional,
-                                                                Converter={StaticResource BoolToVis}}" />
                                         <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
                                                    Foreground="#2E7D32" FontSize="11"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
@@ -332,7 +329,9 @@
                                     </Border>
                                     <Border Width="4" /> <!-- matches the GridSplitter column -->
                                     <TextBlock Text="{Binding DisplayTitleShort}"
-                                               FontSize="12" Foreground="#333">
+                                               FontSize="12"
+                                               Foreground="{Binding IsProvisional,
+                                                            Converter={StaticResource ProvisionalBrush}}">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding ToolTipText}"
@@ -340,11 +339,6 @@
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
-                                    <TextBlock Text=" (provisional)"
-                                               Foreground="#E65100" FontSize="11" FontStyle="Italic"
-                                               VerticalAlignment="Center"
-                                               Visibility="{Binding IsProvisional,
-                                                            Converter={StaticResource BoolToVis}}" />
                                     <TextBlock Text="{Binding Catalog}"
                                                FontSize="11" Foreground="#888"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
