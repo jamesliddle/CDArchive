@@ -88,6 +88,20 @@ public partial class PieceAlbumsWindow : Window
 
     private void OnOpenClick(object sender, RoutedEventArgs e) => CommitOpen();
 
+    // Custom expander hit target inside the TreeViewItem template.
+    // Walks up to the owning TreeViewItem and toggles IsExpanded.
+    private void OnExpanderHit(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        DependencyObject? d = sender as DependencyObject;
+        while (d != null && d is not TreeViewItem)
+            d = System.Windows.Media.VisualTreeHelper.GetParent(d);
+        if (d is TreeViewItem tvi && tvi.HasItems)
+        {
+            tvi.IsExpanded = !tvi.IsExpanded;
+            e.Handled = true;
+        }
+    }
+
     private void OnTreeDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         // Only treat a double-click as Open when the selection is something

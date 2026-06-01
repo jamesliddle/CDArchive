@@ -1,6 +1,7 @@
 <Window x:Class="CDArchive.App.Views.AlbumEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextElement.FontFamily="{StaticResource AppFontFamily}"
         Title="New Album"
         Width="920" Height="720"
         MinWidth="720" MinHeight="560"
@@ -83,7 +84,7 @@
 
                         <!-- Title -->
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Title *"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <!-- H13 slice 1: TextBoxes TwoWay-bind to AlbumEditorViewModel.X.Value
                              (MixedField<string>). MixedPlaceholder.Apply() in code-behind
@@ -91,59 +92,59 @@
                              on top of the binding. -->
                         <TextBox Grid.Row="0" Grid.Column="1" x:Name="TitleBox"
                                  Text="{Binding Title.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Subtitle -->
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Subtitle"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Row="1" Grid.Column="1" x:Name="SubtitleBox"
                                  Text="{Binding Subtitle.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Label -->
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Label"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <ComboBox Grid.Row="2" Grid.Column="1" x:Name="LabelBox"
                                   IsEditable="True"
                                   Text="{Binding Label.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  FontSize="13" Padding="2,2"
+                                  FontSize="11" Padding="2,2"
                                   Margin="0,0,0,8" />
 
                         <!-- Catalogue Number -->
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="Catalogue Number"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Row="3" Grid.Column="1" x:Name="CatalogueNumberBox"
                                  Text="{Binding CatalogueNumber.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Barcode -->
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Barcode"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Row="4" Grid.Column="1" x:Name="BarcodeBox"
                                  Text="{Binding Barcode.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Archive Folder (subfolder under the archive root, or an absolute path) -->
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="Archive Folder"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0"
                                    ToolTip="Folder containing this album's audio files. Leave blank to use the album Title as the folder name (the standard convention). A bare name resolves under the configured archive root; an absolute path is used as-is." />
                         <TextBox Grid.Row="5" Grid.Column="1" x:Name="ArchiveFolderBox"
                                  Text="{Binding ArchiveFolder.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8"
                                  ToolTip="Leave blank to default to the album Title. Override when the on-disk folder name differs (e.g. 'Beethoven Symphonies 1 3 Bernstein' or 'D:\Music\Singles\track')." />
 
                         <!-- SPARS Code -->
                         <TextBlock Grid.Row="6" Grid.Column="0" Text="SPARS Code"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <ComboBox Grid.Row="6" Grid.Column="1" x:Name="SparsCodeBox"
                                   Width="100" HorizontalAlignment="Left"
-                                  FontSize="13" Margin="0,0,0,8"
+                                  FontSize="11" Margin="0,0,0,8"
                                   SelectionChanged="OnSparsCodeChanged"
                                   ToolTip="D=digital, A=analogue: recording / mixing / mastering">
                             <ComboBoxItem Content="DDD" />
@@ -154,11 +155,11 @@
 
                         <!-- Stereo -->
                         <TextBlock Grid.Row="7" Grid.Column="0" Text="Stereo"
-                                   FontSize="13" VerticalAlignment="Center"
+                                   FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <ComboBox Grid.Row="7" Grid.Column="1" x:Name="StereoBox"
                                   Width="120" HorizontalAlignment="Left"
-                                  FontSize="13" Margin="0,0,0,8"
+                                  FontSize="11" Margin="0,0,0,8"
                                   SelectionChanged="OnStereoChanged">
                             <ComboBoxItem Content="Unknown" />
                             <ComboBoxItem Content="Stereo" />
@@ -167,11 +168,11 @@
 
                         <!-- Notes -->
                         <TextBlock Grid.Row="8" Grid.Column="0" Text="Notes"
-                                   FontSize="13" VerticalAlignment="Top"
+                                   FontSize="11" VerticalAlignment="Top"
                                    Margin="0,4,8,0" />
                         <TextBox Grid.Row="8" Grid.Column="1" x:Name="NotesBox"
                                  Text="{Binding Notes.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Height="60" FontSize="13" Padding="4,3"
+                                 Height="60" FontSize="11" Padding="4,3"
                                  TextWrapping="Wrap" AcceptsReturn="True"
                                  Margin="0,0,0,4" />
                     </Grid>
@@ -186,7 +187,7 @@
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top"
                                    Text="Album-level performers appear on all tracks unless overridden per-track."
-                                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
+                                   FontSize="9" Foreground="#888" TextWrapping="Wrap"
                                    Margin="0,0,0,6" />
                         <Grid Height="175">
                             <Grid.ColumnDefinitions>
@@ -194,8 +195,10 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <ListView x:Name="PerformerList" Grid.Column="0" FontSize="13"
+                            <ListView x:Name="PerformerList" Grid.Column="0" FontSize="11"
                                       BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                      AlternationCount="2"
+                                      ItemContainerStyle="{StaticResource ZebraListViewItemStyle}"
                                       ItemsSource="{Binding Performers}"
                                       SelectionChanged="OnPerformerSelectionChanged">
                                 <ListView.View>
@@ -281,50 +284,50 @@
 
                         <!-- Dates -->
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Dates"
-                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                   FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBox Grid.Row="0" Grid.Column="1" x:Name="SessionDatesBox"
                                  Text="{Binding SessionDates.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8"
                                  ToolTip="Freeform date, e.g. 'March 3–7, 1967', '1955', 'c.1963'." />
 
                         <!-- Venue -->
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Venue"
-                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                   FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBox Grid.Row="1" Grid.Column="1" x:Name="SessionVenueBox"
                                  Text="{Binding SessionVenue.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- City -->
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="City"
-                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                   FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBox Grid.Row="2" Grid.Column="1" x:Name="SessionCityBox"
                                  Text="{Binding SessionCity.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- State -->
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="State"
-                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                   FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBox Grid.Row="3" Grid.Column="1" x:Name="SessionStateBox"
                                  Text="{Binding SessionState.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8"
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8"
                                  ToolTip="State or province (e.g. 'CA', 'New York', 'Bavaria')." />
 
                         <!-- Country -->
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Country"
-                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                   FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBox Grid.Row="4" Grid.Column="1" x:Name="SessionCountryBox"
                                  Text="{Binding SessionCountry.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" Padding="4,3" Margin="0,0,0,8" />
+                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
 
                         <!-- Engineers list -->
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="Engineers"
-                                   FontSize="13" VerticalAlignment="Top" Margin="0,4,8,0" />
+                                   FontSize="11" VerticalAlignment="Top" Margin="0,4,8,0" />
                         <Grid Grid.Row="5" Grid.Column="1" Height="175" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <ListBox x:Name="SessionEngineerList" Grid.Column="0" FontSize="13"
+                            <ListBox x:Name="SessionEngineerList" Grid.Column="0" FontSize="11"
                                      BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
                                      ItemsSource="{Binding SessionEngineers}"
                                      SelectionChanged="OnSessionEngineerSelectionChanged"
@@ -351,13 +354,13 @@
 
                         <!-- Producers list -->
                         <TextBlock Grid.Row="6" Grid.Column="0" Text="Producers"
-                                   FontSize="13" VerticalAlignment="Top" Margin="0,4,8,0" />
+                                   FontSize="11" VerticalAlignment="Top" Margin="0,4,8,0" />
                         <Grid Grid.Row="6" Grid.Column="1" Height="175">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <ListBox x:Name="SessionProducerList" Grid.Column="0" FontSize="13"
+                            <ListBox x:Name="SessionProducerList" Grid.Column="0" FontSize="11"
                                      BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
                                      ItemsSource="{Binding SessionProducers}"
                                      SelectionChanged="OnSessionProducerSelectionChanged"
@@ -392,8 +395,10 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <ListView x:Name="TrackList" Grid.Column="0" FontSize="13"
+                        <ListView x:Name="TrackList" Grid.Column="0" FontSize="11"
                                   BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                  AlternationCount="2"
+                                  ItemContainerStyle="{StaticResource ZebraListViewItemStyle}"
                                   SelectionMode="Extended"
                                   SelectionChanged="OnTrackSelectionChanged"
                                   MouseDoubleClick="OnTrackDoubleClick">

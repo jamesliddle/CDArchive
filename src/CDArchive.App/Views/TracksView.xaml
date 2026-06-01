@@ -34,12 +34,12 @@
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <Button Content="New Track" Padding="12,5" FontSize="13"
+                    <Button Content="New Track" Padding="12,5" FontSize="11"
                             Margin="0,0,6,0"
                             ToolTip="Add a loose track (singleton, no album)"
                             Click="OnNewTrackClick" />
                     <Button x:Name="EditButton"
-                            Content="Edit" Padding="12,5" FontSize="13"
+                            Content="Edit" Padding="12,5" FontSize="11"
                             Margin="0,0,12,0" IsEnabled="False"
                             ToolTip="Edit the selected track (or bulk-edit the multi-selection)"
                             Click="OnEditTracksClick" />
@@ -49,16 +49,16 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Filter:" FontSize="13" VerticalAlignment="Center"
+                    <TextBlock Text="Filter:" FontSize="11" VerticalAlignment="Center"
                                Foreground="#555" Margin="0,0,8,0" />
                     <TextBox x:Name="FilterBox"
-                             Width="280" FontSize="13" Padding="4,4"
+                             Width="280" FontSize="11" Padding="4,4"
                              VerticalContentAlignment="Center"
                              TextChanged="OnFilterTextChanged" />
 
-                    <TextBlock Text="Show:" FontSize="13" Foreground="#555"
+                    <TextBlock Text="Show:" FontSize="11" Foreground="#555"
                                VerticalAlignment="Center" Margin="16,0,8,0" />
-                    <ComboBox x:Name="ShowCombo" FontSize="12" Height="23" Width="100"
+                    <ComboBox x:Name="ShowCombo" FontSize="10" Height="23" Width="100"
                               SelectedIndex="0"
                               SelectionChanged="OnShowFilterChanged">
                         <ComboBoxItem Content="All" />
@@ -74,12 +74,12 @@
         <Border DockPanel.Dock="Bottom"
                 Background="#F0F4F8" BorderBrush="#D0D8E0" BorderThickness="0,1,0,0"
                 Padding="10,5">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#555" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555" />
         </Border>
 
         <!-- ── Tracks list ─────────────────────────────────────────────────── -->
         <ListView x:Name="TrackList"
-                  FontSize="13"
+                  FontSize="11"
                   BorderThickness="0"
                   Background="White"
                   ItemsSource="{Binding Rows}"
@@ -122,9 +122,9 @@
 
             <ListView.Resources>
                 <Style TargetType="ListViewItem">
-                    <Setter Property="Padding"   Value="0,3" />
-                    <Setter Property="MinHeight" Value="26" />
-                    <Setter Property="FontSize"  Value="13" />
+                    <Setter Property="Padding"   Value="0,1" />
+                    <Setter Property="MinHeight" Value="18" />
+                    <Setter Property="FontSize"  Value="11" />
                     <!-- Stretch row presenter so column-width-sized cells honour
                          HorizontalAlignment="Right" — see the *GridView column
                          alignment* lesson in CLAUDE.md. -->
@@ -139,7 +139,7 @@
                                 <Condition Property="ItemsControl.AlternationIndex" Value="1" />
                                 <Condition Property="IsSelected" Value="False" />
                             </MultiTrigger.Conditions>
-                            <Setter Property="Background" Value="#F8F8F8" />
+                            <Setter Property="Background" Value="{StaticResource ZebraRowBrush}" />
                         </MultiTrigger>
                     </Style.Triggers>
                 </Style>
