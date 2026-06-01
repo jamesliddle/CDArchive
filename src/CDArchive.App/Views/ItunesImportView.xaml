@@ -27,27 +27,27 @@
                     IsEnabled="{Binding IsReady}" />
 
             <Button Grid.Column="2"
-                    Content="Import Selected" Padding="12,4" Height="28" FontSize="12"
+                    Content="Import Selected" Padding="12,4" Height="28" FontSize="10"
                     Command="{Binding ImportSelectedTracksCommand}"
                     CommandParameter="{Binding ElementName=TracksGrid, Path=SelectedItems}"
                     IsEnabled="{Binding IsReady}" />
 
             <TextBlock Grid.Column="4"
-                       Text="Filter:" FontSize="12" Foreground="#555"
+                       Text="Filter:" FontSize="10" Foreground="#555"
                        VerticalAlignment="Center" Margin="0,0,8,0" />
             <TextBox Grid.Column="5"
                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                     FontSize="13" Padding="6,4" VerticalAlignment="Center" />
+                     FontSize="11" Padding="6,4" VerticalAlignment="Center" />
 
             <CheckBox Grid.Column="6"
                       Content="Hide already imported"
                       IsChecked="{Binding HideAlreadyImported, Mode=TwoWay}"
-                      FontSize="12" Foreground="#555"
+                      FontSize="10" Foreground="#555"
                       VerticalAlignment="Center" Margin="16,0,0,0"
                       ToolTip="Hide iTunes tracks already in the Album Catalogue (matched on album title + disc # + track #)." />
             <TextBlock Grid.Column="7"
                        VerticalAlignment="Center" Margin="16,0,0,0"
-                       FontSize="12" Foreground="#555">
+                       FontSize="10" Foreground="#555">
                 <Run Text="{Binding ShownCount, Mode=OneWay}" />
                 <Run Text=" of " />
                 <Run Text="{Binding TotalCount, Mode=OneWay}" />
@@ -58,7 +58,7 @@
         <Border DockPanel.Dock="Bottom"
                 Background="#E8E8E8" Padding="10,6"
                 BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#555" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555" />
         </Border>
 
         <!-- Tracks DataGrid -->
@@ -72,8 +72,8 @@
                   SelectionUnit="FullRow"
                   GridLinesVisibility="Horizontal"
                   HorizontalGridLinesBrush="#EEEEEE"
-                  AlternatingRowBackground="#FAFAFA"
-                  FontSize="12"
+                  AlternatingRowBackground="{StaticResource ZebraRowBrush}"
+                  FontSize="11"
                   Sorting="OnGridSorting">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Disc"     Binding="{Binding DiscNumber}"      Width="50"  />

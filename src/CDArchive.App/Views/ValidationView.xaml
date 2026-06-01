@@ -55,7 +55,7 @@
                   BorderBrush="#E0E0E0"
                   Background="White"
                   RowBackground="White"
-                  AlternatingRowBackground="#FAFAFA"
+                  AlternatingRowBackground="{StaticResource ZebraRowBrush}"
                   FontSize="13"
                   Margin="0,12,0,0">
             <DataGrid.Columns>

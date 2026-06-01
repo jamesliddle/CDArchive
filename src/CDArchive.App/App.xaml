@@ -5,6 +5,13 @@
              xmlns:views="clr-namespace:CDArchive.App.Views"
              xmlns:conv="clr-namespace:CDArchive.App.Converters">
     <Application.Resources>
+        <!-- ── Typography ─────────────────────────────────────────────────
+             Segoe UI Variable is the Win11 system font (gracefully falls
+             back to Segoe UI on Win10). Window roots set
+             TextElement.FontFamily="{StaticResource AppFontFamily}" so the
+             value flows through every descendant text element. -->
+        <FontFamily x:Key="AppFontFamily">Segoe UI Variable, Segoe UI</FontFamily>
+
         <!-- ── Shared converters ───────────────────────────────────────────
              Single canonical key. Previously 11 views each declared their
              own <BooleanToVisibilityConverter> inline under three different
@@ -33,6 +40,34 @@
         <SolidColorBrush x:Key="ProvisionalBadgeBrush" Color="#E65100" />
         <SolidColorBrush x:Key="ApprovedBadgeBrush"   Color="#2E7D32" />
         <SolidColorBrush x:Key="DangerBrush"          Color="#D32F2F" />
+
+        <!-- iTunes-style very-light-gray alternating row background.
+             Consumed by ListView ItemContainerStyles via
+             ItemsControl.AlternationIndex MultiTriggers and by DataGrid
+             via AlternatingRowBackground. -->
+        <SolidColorBrush x:Key="ZebraRowBrush"        Color="#F4F4F4" />
+
+        <!-- Reusable zebra-stripe ItemContainerStyle for ListViews that
+             don't need the larger MinHeight/Padding setup AlbumsView and
+             TracksView use. Apply via:
+                 <ListView AlternationCount="2"
+                           ItemContainerStyle="{StaticResource ZebraListViewItemStyle}" /> -->
+        <Style x:Key="ZebraListViewItemStyle" TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#CCE5FF" />
+                    <Setter Property="Foreground" Value="#000" />
+                </Trigger>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="ItemsControl.AlternationIndex" Value="1" />
+                        <Condition Property="IsSelected" Value="False" />
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" Value="{StaticResource ZebraRowBrush}" />
+                </MultiTrigger>
+            </Style.Triggers>
+        </Style>
 
         <!-- ── ViewModel → View DataTemplates ─────────────────────────── -->
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">

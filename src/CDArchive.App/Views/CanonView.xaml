@@ -19,7 +19,7 @@
         <Border DockPanel.Dock="Bottom"
                 Background="#E8E8E8" Padding="10,6"
                 BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#555555" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555555" />
         </Border>
 
         <DockPanel Margin="5,10,5,5">
@@ -63,19 +63,19 @@
                         ToolTip="Reload all data from the database" />
 
                 <Button Grid.Row="0" Grid.Column="2"
-                        Content="New Composer" Padding="12,4" FontSize="12" Height="28"
+                        Content="New Composer" Padding="12,4" FontSize="10" Height="28"
                         Click="OnNewComposerClick" />
 
                 <Button Grid.Row="0" Grid.Column="4"
-                        Content="Delete Composer" Padding="12,4" FontSize="12" Height="28"
+                        Content="Delete Composer" Padding="12,4" FontSize="10" Height="28"
                         Foreground="#D32F2F"
                         Click="OnDeleteComposerClick" />
 
                 <TextBlock Grid.Row="0" Grid.Column="6"
-                           Text="Sort Composers:" FontSize="12" Foreground="#555"
+                           Text="Sort Composers:" FontSize="10" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="0" Grid.Column="7"
-                          FontSize="12" Height="23"
+                          FontSize="10" Height="23"
                           SelectedValuePath="Content"
                           SelectedValue="{Binding ComposerSortColumn}">
                     <ComboBoxItem Content="Pieces" />
@@ -86,17 +86,17 @@
                 </ComboBox>
 
                 <TextBlock Grid.Row="0" Grid.Column="9"
-                           Text="Filter:" FontSize="12" Foreground="#555"
+                           Text="Filter:" FontSize="10" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Grid.Row="0" Grid.Column="10"
                          Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
-                         FontSize="13" Padding="6,4" />
+                         FontSize="11" Padding="6,4" />
 
                 <TextBlock Grid.Row="0" Grid.Column="12"
-                           Text="Show:" FontSize="12" Foreground="#555"
+                           Text="Show:" FontSize="10" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="0" Grid.Column="13"
-                          FontSize="12" Height="23"
+                          FontSize="10" Height="23"
                           SelectedValuePath="Tag"
                           SelectedValue="{Binding ComposerProvisionalFilter}">
                     <ComboBoxItem Content="All"         Tag="{x:Static vm:ProvisionalFilter.All}" />
@@ -107,21 +107,21 @@
                 <!-- ── Row 2: New Piece · Delete Piece · Sort Pieces ── -->
                 <Button Grid.Row="2" Grid.Column="2"
                         x:Name="NewPieceButton" Content="New Piece"
-                        Padding="12,4" FontSize="12" Height="28"
+                        Padding="12,4" FontSize="10" Height="28"
                         IsEnabled="False"
                         Click="OnNewPieceClick" />
 
                 <Button Grid.Row="2" Grid.Column="4"
                         x:Name="DeletePieceButton" Content="Delete Piece"
-                        Padding="12,4" FontSize="12" Height="28"
+                        Padding="12,4" FontSize="10" Height="28"
                         IsEnabled="False" Foreground="#D32F2F"
                         Click="OnDeletePieceClick" />
 
                 <TextBlock Grid.Row="2" Grid.Column="6"
-                           Text="Sort Pieces:" FontSize="12" Foreground="#555"
+                           Text="Sort Pieces:" FontSize="10" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="2" Grid.Column="7"
-                          FontSize="12" Height="23"
+                          FontSize="10" Height="23"
                           SelectedValuePath="Content"
                           SelectedValue="{Binding PieceSortColumn}">
                     <ComboBoxItem Content="Catalogue" />
@@ -132,10 +132,10 @@
                 </ComboBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="12"
-                           Text="Show:" FontSize="12" Foreground="#555"
+                           Text="Show:" FontSize="10" Foreground="#555"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="2" Grid.Column="13"
-                          FontSize="12" Height="23"
+                          FontSize="10" Height="23"
                           SelectedValuePath="Tag"
                           SelectedValue="{Binding PieceProvisionalFilter}">
                     <ComboBoxItem Content="All"         Tag="{x:Static vm:ProvisionalFilter.All}" />
@@ -160,7 +160,7 @@
                         <Border Grid.Column="0" x:Name="LHdrExpander" />
 
                         <Border Grid.Column="1" x:Name="LHdrPieces">
-                            <TextBlock Text="Pieces" FontSize="12" FontWeight="SemiBold"
+                            <TextBlock Text="Pieces" FontSize="10" FontWeight="SemiBold"
                                        Foreground="#555" TextAlignment="Right" Margin="0,0,8,0" />
                         </Border>
 
@@ -169,7 +169,7 @@
                                       Cursor="SizeWE" />
 
                         <Border Grid.Column="3" x:Name="LHdrName">
-                            <TextBlock Text="Name" FontSize="12" FontWeight="SemiBold"
+                            <TextBlock Text="Name" FontSize="10" FontWeight="SemiBold"
                                        Foreground="#555" />
                         </Border>
                     </Grid>
@@ -188,7 +188,8 @@
                          containers on a fully-loaded catalogue. -->
                     <TreeView x:Name="ComposerTree"
                               BorderThickness="0" Background="White"
-                              FontSize="13"
+                              FontSize="11"
+                              AlternationCount="2"
                               SelectedItemChanged="OnComposerTreeSelectionChanged"
                               MouseRightButtonDown="OnTreeMouseRightButtonDown"
                               ContextMenuOpening="OnTreeContextMenuOpening"
@@ -251,12 +252,18 @@
                             <!-- Custom TreeViewItem style -->
                             <Style TargetType="TreeViewItem">
                                 <Setter Property="IsExpanded" Value="False" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="TreeViewItem">
                                             <StackPanel>
-                                                <Border x:Name="Bd" Background="Transparent" Padding="0,1">
-                                                    <ContentPresenter ContentSource="Header" />
+                                                <!-- MinWidth binding makes the zebra row background stretch
+                                                     to the full viewport width while preserving horizontal
+                                                     scrolling when content exceeds the viewport. -->
+                                                <Border x:Name="Bd" Background="Transparent" Padding="0,1"
+                                                        MinWidth="{Binding ViewportWidth,
+                                                                   RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Left" />
                                                 </Border>
                                                 <ItemsPresenter x:Name="ItemsHost"
                                                                 Margin="19,0,0,0"
@@ -266,6 +273,19 @@
                                                 <Trigger Property="IsExpanded" Value="True">
                                                     <Setter TargetName="ItemsHost" Property="Visibility" Value="Visible" />
                                                 </Trigger>
+                                                <!-- iTunes-style zebra stripe.
+                                                     AlternationIndex resets per tree level, so this
+                                                     stripes top-level composer rows cleanly; expanded
+                                                     children alternate among themselves starting at 0
+                                                     (a WPF limitation, not a bug). -->
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="ItemsControl.AlternationIndex" Value="1" />
+                                                        <Condition Property="IsSelected" Value="False" />
+                                                        <Condition Property="IsMouseOver" Value="False" />
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ZebraRowBrush}" />
+                                                </MultiTrigger>
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter TargetName="Bd" Property="Background" Value="#E8F0FE" />
                                                 </Trigger>
@@ -282,7 +302,7 @@
                             <!-- ── Level 1: Composer node ── -->
                             <HierarchicalDataTemplate DataType="{x:Type vm:ComposerTreeNode}"
                                                       ItemsSource="{Binding AllItems}">
-                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
                                     <Border Width="19" Background="Transparent"
                                             MouseLeftButtonDown="OnExpanderBorderMouseDown">
                                         <Path Style="{StaticResource ExpanderArrow}" />
@@ -290,7 +310,7 @@
                                     <Border Width="65">
                                         <TextBlock Text="{Binding Composer.PieceCount}"
                                                    TextAlignment="Right" Margin="0,0,8,0"
-                                                   Foreground="#888888" FontSize="12" />
+                                                   Foreground="#888888" FontSize="10" />
                                     </Border>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Composer.Name}"
@@ -298,10 +318,10 @@
                                                    Foreground="{Binding Composer.IsProvisional,
                                                                 Converter={StaticResource ProvisionalBrush}}" />
                                         <TextBlock Text="{Binding Composer.LifeSpan}"
-                                                   Foreground="#888888" FontSize="12"
+                                                   Foreground="#888888" FontSize="10"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
                                         <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                                   Foreground="#2E7D32" FontSize="11"
+                                                   Foreground="#2E7D32" FontSize="9"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
@@ -310,7 +330,7 @@
                             <!-- ── Level 2: Piece node (expands to show subpieces) ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:CanonPiece}"
                                                       ItemsSource="{Binding TreeChildren}">
-                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,0">
                                     <!--
                                         The TreeViewItem indent is 19 px (= LHdrExpander width).
                                         We mirror the LHdrPieces column with a same-width Border so
@@ -329,21 +349,21 @@
                                     </Border>
                                     <Border Width="4" /> <!-- matches the GridSplitter column -->
                                     <TextBlock Text="{Binding DisplayTitleShort}"
-                                               FontSize="12"
+                                               FontSize="10"
                                                Foreground="{Binding IsProvisional,
                                                             Converter={StaticResource ProvisionalBrush}}">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding ToolTipText}"
-                                                           TextWrapping="Wrap" FontSize="13" />
+                                                           TextWrapping="Wrap" FontSize="11" />
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
-                                               FontSize="11" Foreground="#888"
+                                               FontSize="9" Foreground="#888"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -358,7 +378,7 @@
                             -->
                             <HierarchicalDataTemplate DataType="{x:Type local:SubpieceDisplayNode}"
                                                       ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,0">
                                     <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right"
                                               Background="Transparent"
@@ -370,19 +390,19 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#444">
+                                               FontSize="10" Foreground="#444">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Piece.ToolTipText}"
-                                                           TextWrapping="Wrap" FontSize="13" />
+                                                           TextWrapping="Wrap" FontSize="11" />
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Piece.Category}"
-                                               FontSize="11" Foreground="#999"
+                                               FontSize="9" Foreground="#999"
                                                Margin="10,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -390,7 +410,7 @@
                             <!-- ── Level 3 (alt): Original node — represents the piece's own version ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:PieceOriginalNode}"
                                                       ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,0">
                                     <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right"
                                               Background="Transparent"
@@ -402,9 +422,9 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="Original"
-                                               FontSize="12" Foreground="#555" />
+                                               FontSize="10" Foreground="#555" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -412,7 +432,7 @@
                             <!-- ── Level 3 (alt): Version node ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:VersionDisplayNode}"
                                                       ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,0">
                                     <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right"
                                               Background="Transparent"
@@ -424,9 +444,9 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#666" FontStyle="Italic" />
+                                               FontSize="10" Foreground="#666" FontStyle="Italic" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -434,7 +454,7 @@
                             <!-- ── Contributed works: role + composer group header ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:ContributedRoleGroupNode}"
                                                       ItemsSource="{Binding Pieces}">
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                     <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right"
                                               Background="Transparent"
@@ -444,9 +464,9 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#777" FontStyle="Italic" />
+                                               FontSize="10" Foreground="#777" FontStyle="Italic" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -459,7 +479,7 @@
                                      cross-crediting composer per the seeder rule). ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:CrossComposerSubpieceNode}"
                                                       ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,0">
                                     <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right"
                                               Background="Transparent"
@@ -471,20 +491,20 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#444"
+                                               FontSize="10" Foreground="#444"
                                                FontStyle="Italic">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Subpiece.ToolTipText}"
-                                                           TextWrapping="Wrap" FontSize="13" />
+                                                           TextWrapping="Wrap" FontSize="11" />
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
-                                               FontSize="11" Foreground="#888"
+                                               FontSize="9" Foreground="#888"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -492,7 +512,7 @@
                             <!-- ── Contributed works: piece node under a role group ── -->
                             <HierarchicalDataTemplate DataType="{x:Type local:ContributedPieceNode}"
                                                       ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <StackPanel Orientation="Horizontal" Margin="0,0">
                                     <Border Width="65">
                                         <Grid Width="16" Height="16" HorizontalAlignment="Right"
                                               Background="Transparent"
@@ -504,19 +524,19 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="12" Foreground="#333">
+                                               FontSize="10" Foreground="#333">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Piece.ToolTipText}"
-                                                           TextWrapping="Wrap" FontSize="13" />
+                                                           TextWrapping="Wrap" FontSize="11" />
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
-                                               FontSize="11" Foreground="#888"
+                                               FontSize="9" Foreground="#888"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="11" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="#2E7D32"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
