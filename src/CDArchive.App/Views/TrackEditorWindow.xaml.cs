@@ -8,7 +8,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
+using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 
 namespace CDArchive.App.Views;
@@ -259,7 +261,33 @@ public partial class TrackEditorWindow : Window
         SparsCodeCombo.SelectValue(TrackSparsCodeBox, _vm.SparsCode.Value);
         SetStereoComboFromVm();
 
+        ApplyTrackPerformerRoleColumnVisibility();
         UpdateTitleAndButtons();
+    }
+
+    /// <summary>
+    /// Hide the Role column on the track Performers list when there are no
+    /// cast roles for this track's pieces and no existing performer has a
+    /// Role value. See <c>AlbumEditorWindow.ApplyPerformerRoleColumnVisibility</c>
+    /// for the rationale and the GridView mutation pattern.
+    /// In multi-edit the column stays visible — different tracks in the
+    /// batch may have different cast contexts and hiding based on the union
+    /// would be misleading.
+    /// </summary>
+    private void ApplyTrackPerformerRoleColumnVisibility()
+    {
+        if (TrackPerformerGridView is null || TrackPerformerRoleColumn is null) return;
+        if (_isMixed) return;
+
+        var hasCastRoles = CollectCastRoles().Count > 0;
+        var hasExistingRole = _vm.Performers.Items.Any(p => !string.IsNullOrWhiteSpace(p.Role));
+        var show = hasCastRoles || hasExistingRole;
+
+        var present = TrackPerformerGridView.Columns.Contains(TrackPerformerRoleColumn);
+        if (show && !present)
+            TrackPerformerGridView.Columns.Insert(1, TrackPerformerRoleColumn);
+        else if (!show && present)
+            TrackPerformerGridView.Columns.Remove(TrackPerformerRoleColumn);
     }
 
     private void UpdateTitleAndButtons()
@@ -559,9 +587,15 @@ public partial class TrackEditorWindow : Window
 
     private void OnPieceRefSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var hasSelection = PieceRefList.SelectedItem != null;
-        RemovePieceRefButton.IsEnabled = hasSelection;
-        EditPieceRefButton.IsEnabled   = hasSelection;
+        var idx = PieceRefList.SelectedIndex;
+        var has = idx >= 0;
+        var count = _vm.PieceRefs.Items.Count;
+
+        RemovePieceRefButton.IsEnabled = has;
+        EditPieceRefButton.IsEnabled   = has;
+        EditRootPieceButton.IsEnabled  = has;
+        PieceRefUpButton.IsEnabled     = has && idx > 0;
+        PieceRefDownButton.IsEnabled   = has && idx < count - 1;
     }
 
     private void OnPieceRefDoubleClick(object sender, MouseButtonEventArgs e) =>
@@ -583,26 +617,140 @@ public partial class TrackEditorWindow : Window
         PieceRefList.SelectedIndex = idx;
     }
 
+    private void OnPieceRefMoveUp(object sender, RoutedEventArgs e) =>
+        MovePieceRef(delta: -1);
+
+    private void OnPieceRefMoveDown(object sender, RoutedEventArgs e) =>
+        MovePieceRef(delta: +1);
+
+    private void MovePieceRef(int delta)
+    {
+        var idx    = PieceRefList.SelectedIndex;
+        var target = idx + delta;
+        if (idx < 0 || target < 0 || target >= _vm.PieceRefs.Items.Count) return;
+        _vm.PieceRefs.Items.Move(idx, target);
+        PieceRefList.SelectedIndex = target;
+    }
+
+    /// <summary>
+    /// Opens the <see cref="PieceEditorWindow"/> for the top-level ancestor
+    /// of the selected piece-ref. The ref's <see cref="TrackPieceRef.PieceTitle"/>
+    /// always names a top-level <see cref="CanonPiece"/> for the same
+    /// composer — looked up here by case-insensitive (composer, title).
+    /// <para>
+    /// Persistence routes through <c>CanonViewModel.CompleteEditPieceAsync</c>
+    /// so the piece + pick-list save lands atomically AND any title-rename
+    /// diff propagates to album track refs across the catalogue. Resolves
+    /// CanonViewModel via the service locator — same pattern CanonView uses
+    /// to reach AlbumsViewModel; we accept the anti-pattern here to avoid
+    /// threading CanonViewModel through every TrackEditor ctor call site.
+    /// </para>
+    /// </summary>
+    private async void OnEditRootPiece(object sender, RoutedEventArgs e)
+    {
+        if (PieceRefList.SelectedItem is not TrackPieceRef selected) return;
+
+        var rootPiece = _allPieces.FirstOrDefault(p =>
+            string.Equals(p.Composer,  selected.Composer,   StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(p.Title,     selected.PieceTitle, StringComparison.OrdinalIgnoreCase));
+        if (rootPiece is null)
+        {
+            MessageBox.Show(this,
+                $"Couldn't find the top-level piece \"{selected.Composer} – {selected.PieceTitle}\" " +
+                "in the canon.",
+                "Piece not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var canonVm = App.ServiceProvider.GetRequiredService<CanonViewModel>();
+        if (canonVm.Composers.Count == 0)
+            await canonVm.LoadDataCommand.ExecuteAsync(null);
+
+        var composerNames = canonVm.Composers.Select(c => c.Name).ToList();
+        var composerCatalogs = BuildComposerCatalogDict(canonVm);
+
+        var snapshot = PieceRefPathDiffer.Snapshot(rootPiece);
+        var dlg = new PieceEditorWindow(
+            canonVm.PickLists,
+            rootPiece.Composer ?? "",
+            rootPiece,
+            composerNames,
+            composerCatalogs: composerCatalogs)
+        {
+            Owner = this,
+        };
+
+        if (dlg.ShowDialog() != true) return;
+
+        await canonVm.CompleteEditPieceAsync(rootPiece, snapshot);
+
+        // The piece's title / catalogue display may have changed — re-render
+        // every row in the PieceRefs list so the new DisplaySummary appears.
+        var preserveIdx = PieceRefList.SelectedIndex;
+        var snapshotRefs = _vm.PieceRefs.Items.ToList();
+        _vm.PieceRefs.Items.Clear();
+        foreach (var pr in snapshotRefs) _vm.PieceRefs.Items.Add(pr);
+        PieceRefList.SelectedIndex = preserveIdx;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>>
+        BuildComposerCatalogDict(CanonViewModel vm)
+    {
+        var dict = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in vm.Composers)
+            if (c.CatalogPrefixes is { Count: > 0 })
+                dict[c.Name] = c.CatalogPrefixes;
+        return dict;
+    }
+
     // ── Track performers ──────────────────────────────────────────────────────
     // Consistent shape with the AlbumEditor's Performers list: Add/Edit/
     // Remove/Up/Down on a vertical button stack to the right.
 
     private void OnAddTrackPerformer(object sender, RoutedEventArgs e)
     {
-        var dlg = new PerformerEditorWindow(null, _pickLists.PerformerRoles) { Owner = this };
+        var cast = CollectCastRoles();
+        var dlg = new PerformerEditorWindow(null, _pickLists, cast) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _vm.Performers.Items.Add(dlg.Result);
-        TrackPerformerList.SelectedIndex = _vm.Performers.Items.Count - 1;
+
+        // Insert immediately after the highlighted row when there is one;
+        // otherwise append. Then move selection to the new entry.
+        var anchor = TrackPerformerList.SelectedIndex;
+        var insertAt = anchor >= 0 ? anchor + 1 : _vm.Performers.Items.Count;
+        _vm.Performers.Items.Insert(insertAt, dlg.Result);
+        TrackPerformerList.SelectedIndex = insertAt;
     }
 
     private void OnEditTrackPerformer(object sender, RoutedEventArgs e)
     {
         if (TrackPerformerList.SelectedItem is not AlbumPerformer selected) return;
         var idx = _vm.Performers.Items.IndexOf(selected);
-        var dlg = new PerformerEditorWindow(selected, _pickLists.PerformerRoles) { Owner = this };
+        var cast = CollectCastRoles();
+        var dlg = new PerformerEditorWindow(selected, _pickLists, cast) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _vm.Performers.Items[idx] = dlg.Result;
+
+        // RemoveAt+Insert (not Replace) — AlbumPerformer has no INPC, so
+        // changes to Name/Role/Instrument on the same instance don't notify
+        // the ListView's bindings. See AlbumEditorWindow.OnEditPerformer for
+        // the full rationale.
+        _vm.Performers.Items.RemoveAt(idx);
+        _vm.Performers.Items.Insert(idx, dlg.Result);
         TrackPerformerList.SelectedIndex = idx;
+    }
+
+    /// <summary>
+    /// Cast roles drawn from the pieces referenced by the track(s) being
+    /// edited. Single-edit + loose use the editor's live PieceRefs list
+    /// (so refs added in this same session contribute their cast). Multi-edit
+    /// unions across every track in the batch — sibling tracks on the same
+    /// album typically share refs, but the union is the safe upper bound.
+    /// </summary>
+    private IReadOnlyList<CastRole> CollectCastRoles()
+    {
+        if (_isMixed && _editTracks is not null)
+            return PieceRoleCollector.CollectFromTracks(_editTracks, _allPieces);
+
+        return PieceRoleCollector.CollectFromPieceRefs(_vm.PieceRefs.Items, _allPieces);
     }
 
     private void OnRemoveTrackPerformer(object sender, RoutedEventArgs e)

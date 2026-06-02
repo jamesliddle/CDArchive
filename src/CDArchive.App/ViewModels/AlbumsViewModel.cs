@@ -106,9 +106,22 @@ public partial class AlbumsViewModel : ObservableObject
         }
     }
 
-    public async Task SaveAsync()
+    /// <summary>
+    /// Persists the in-memory album set. When <paramref name="pickLists"/>
+    /// is supplied, both albums and pick lists land atomically via
+    /// <see cref="ICanonDataService.SaveBatchAsync"/> — used after editor
+    /// flows that may have mutated the pick lists (e.g. the Performer
+    /// editor adding a novel Instrument value back to
+    /// <see cref="CanonPickLists.Instruments"/>). null falls back to a
+    /// plain albums-only save.
+    /// </summary>
+    public async Task SaveAsync(CanonPickLists? pickLists = null)
     {
-        await _svc.SaveAlbumsAsync(_allAlbums);
+        if (pickLists is null)
+            await _svc.SaveAlbumsAsync(_allAlbums);
+        else
+            await _svc.SaveBatchAsync(albums: _allAlbums, pickLists: pickLists);
+
         // Track → piece links may have changed; rebuild the cross-reference index
         // using the cached piece instances (see comment in LoadDataAsync).
         try

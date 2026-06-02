@@ -68,6 +68,16 @@
                             <Button x:Name="RemovePieceRefButton" Content="Remove"
                                     Padding="10,4" Margin="6,0,0,0"
                                     IsEnabled="False" Click="OnRemovePieceRef" />
+                            <Button x:Name="PieceRefUpButton" Content="Up"
+                                    Padding="10,4" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnPieceRefMoveUp" />
+                            <Button x:Name="PieceRefDownButton" Content="Down"
+                                    Padding="10,4" Margin="6,0,0,0"
+                                    IsEnabled="False" Click="OnPieceRefMoveDown" />
+                            <Button x:Name="EditRootPieceButton" Content="Edit Root Piece…"
+                                    Padding="10,4" Margin="6,0,0,0"
+                                    ToolTip="Open the top-level ancestor piece in the Piece editor"
+                                    IsEnabled="False" Click="OnEditRootPiece" />
                         </StackPanel>
                         <ListBox x:Name="PieceRefList" MinHeight="80" MaxHeight="160"
                                  BorderThickness="1" BorderBrush="#CCC" Margin="0,6,0,0"
@@ -366,7 +376,7 @@
                                       SelectionChanged="OnTrackPerformerSelectionChanged"
                                       MouseDoubleClick="OnTrackPerformerDoubleClick">
                                 <ListView.View>
-                                    <GridView>
+                                    <GridView x:Name="TrackPerformerGridView">
                                         <GridViewColumn Header="Name" Width="180">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>
@@ -375,7 +385,8 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="Role" Width="120">
+                                        <GridViewColumn x:Name="TrackPerformerRoleColumn"
+                                                        Header="Role" Width="120">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Role}"

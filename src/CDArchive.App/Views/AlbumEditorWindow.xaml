@@ -200,9 +200,10 @@
                                       AlternationCount="2"
                                       ItemContainerStyle="{StaticResource ZebraListViewItemStyle}"
                                       ItemsSource="{Binding Performers}"
-                                      SelectionChanged="OnPerformerSelectionChanged">
+                                      SelectionChanged="OnPerformerSelectionChanged"
+                                      MouseDoubleClick="OnPerformerDoubleClick">
                                 <ListView.View>
-                                    <GridView>
+                                    <GridView x:Name="PerformerGridView">
                                         <GridViewColumn Header="Name" Width="200"
                                                         HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                             <GridViewColumn.CellTemplate>
@@ -212,7 +213,8 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="Role" Width="160"
+                                        <GridViewColumn x:Name="PerformerRoleColumn"
+                                                        Header="Role" Width="160"
                                                         HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>

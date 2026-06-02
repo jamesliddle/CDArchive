@@ -38,19 +38,29 @@
                      FontSize="13" Padding="4,3" Margin="0,0,0,10"
                      Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-            <!-- Role -->
+            <!-- Role.  Hidden when no role suggestions exist and the
+                 existing performer has no Role value to preserve; see
+                 PerformerEditorWindow.ShowRole. -->
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Role:"
-                       VerticalAlignment="Center" Margin="0,0,8,10" />
+                       VerticalAlignment="Center" Margin="0,0,8,10"
+                       Visibility="{Binding ShowRole,
+                                    RelativeSource={RelativeSource AncestorType=Window},
+                                    Converter={StaticResource BoolToVis}}" />
             <ComboBox Grid.Row="1" Grid.Column="1" x:Name="RoleBox"
                       IsEditable="True" FontSize="13" Margin="0,0,0,10"
-                      Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                      Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      Visibility="{Binding ShowRole,
+                                   RelativeSource={RelativeSource AncestorType=Window},
+                                   Converter={StaticResource BoolToVis}}" />
 
-            <!-- Instrument -->
+            <!-- Instrument.  Editable ComboBox bound to the Instruments
+                 pick list; any novel value the user types is added back to
+                 the pick list on OK and persisted with the next save. -->
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Instrument:"
                        VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBox Grid.Row="2" Grid.Column="1" x:Name="InstrumentBox"
-                     FontSize="13" Padding="4,3"
-                     Text="{Binding Instrument, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <ComboBox Grid.Row="2" Grid.Column="1" x:Name="InstrumentBox"
+                      IsEditable="True" FontSize="13"
+                      Text="{Binding Instrument, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
         </Grid>
     </DockPanel>
