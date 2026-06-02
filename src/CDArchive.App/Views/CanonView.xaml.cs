@@ -630,7 +630,7 @@ public partial class CanonView : UserControl
         if (idx >= 0) albumsVm.AllAlbums[idx] = result;
         else          albumsVm.AllAlbums.Add(result);
         albumsVm.ApplyFilter();
-        await albumsVm.SaveAsync();
+        await albumsVm.SaveAsync(pickLists);
     }
 
     // ── Context menu: handlers ────────────────────────────────────────────────

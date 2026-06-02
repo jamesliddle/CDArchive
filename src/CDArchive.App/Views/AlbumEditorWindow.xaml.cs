@@ -166,6 +166,37 @@ public partial class AlbumEditorWindow : Window
 
         SparsCodeCombo.SelectValue(SparsCodeBox, _vm.SparsCode.Value);
         SetStereoComboFromVm();
+
+        ApplyPerformerRoleColumnVisibility();
+    }
+
+    /// <summary>
+    /// The Role column on the Performer list is only useful when the album
+    /// carries pieces with a defined cast (operas, oratorios) or when an
+    /// existing performer already has a Role value (so we don't silently
+    /// hide data the user can no longer see). Pure orchestral albums get a
+    /// tighter two-column Performer list.
+    /// <para>
+    /// GridViewColumn isn't INotifyPropertyChanged-aware and has no
+    /// Visibility property, so we mutate <see cref="PerformerGridView"/>'s
+    /// Columns collection directly. Decided once at editor open — adding a
+    /// piece-ref later in the session doesn't re-show the column. Acceptable
+    /// for now; the user can close + reopen if they need to.
+    /// </para>
+    /// </summary>
+    private void ApplyPerformerRoleColumnVisibility()
+    {
+        if (PerformerGridView is null || PerformerRoleColumn is null) return;
+
+        var hasCastRoles = PieceRoleCollector.CollectFromAlbum(_album, _allPieces).Count > 0;
+        var hasExistingRole = _vm.Performers.Any(p => !string.IsNullOrWhiteSpace(p.Role));
+        var show = hasCastRoles || hasExistingRole;
+
+        var present = PerformerGridView.Columns.Contains(PerformerRoleColumn);
+        if (show && !present)
+            PerformerGridView.Columns.Insert(1, PerformerRoleColumn);
+        else if (!show && present)
+            PerformerGridView.Columns.Remove(PerformerRoleColumn);
     }
 
     private void PopulateMultiDetailsTab()
@@ -290,18 +321,41 @@ public partial class AlbumEditorWindow : Window
 
     private void OnAddPerformer(object sender, RoutedEventArgs e)
     {
-        var dlg = new PerformerEditorWindow(null, _pickLists.PerformerRoles) { Owner = this };
+        var cast = PieceRoleCollector.CollectFromAlbum(_album, _allPieces);
+        var dlg = new PerformerEditorWindow(null, _pickLists, cast) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _vm.Performers.Add(dlg.Result);
+
+        // Insert immediately after the highlighted row when there is one;
+        // otherwise append. Then move selection to the new entry.
+        var anchor = PerformerList.SelectedIndex;
+        var insertAt = anchor >= 0 ? anchor + 1 : _vm.Performers.Count;
+        _vm.Performers.Insert(insertAt, dlg.Result);
+        PerformerList.SelectedIndex = insertAt;
     }
 
     private void OnEditPerformer(object sender, RoutedEventArgs e)
     {
         if (PerformerList.SelectedItem is not AlbumPerformer selected) return;
         var idx = _vm.Performers.IndexOf(selected);
-        var dlg = new PerformerEditorWindow(selected, _pickLists.PerformerRoles) { Owner = this };
+        var cast = PieceRoleCollector.CollectFromAlbum(_album, _allPieces);
+        var dlg = new PerformerEditorWindow(selected, _pickLists, cast) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
-        _vm.Performers[idx] = dlg.Result;
+
+        // The editor mutates the existing AlbumPerformer instance in place
+        // (H31 contract — preserves fields the editor doesn't surface).
+        // AlbumPerformer has no INPC, so Name/Role/Instrument changes don't
+        // notify their bindings; a Replace with the same reference doesn't
+        // force WPF to rebuild the row either. RemoveAt+Insert raises a real
+        // Remove+Add pair, which triggers container rebuild and a fresh bind.
+        _vm.Performers.RemoveAt(idx);
+        _vm.Performers.Insert(idx, dlg.Result);
+        PerformerList.SelectedIndex = idx;
+    }
+
+    private void OnPerformerDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (PerformerList.SelectedIndex < 0) return;
+        OnEditPerformer(sender, e);
     }
 
     private void OnRemovePerformer(object sender, RoutedEventArgs e)
@@ -652,6 +706,14 @@ public partial class AlbumEditorWindow : Window
         if (_isMixed)
         {
             _vm.SaveMulti(_editAlbums!);
+            // Multi-edit Label only lands when it wasn't started Mixed, OR
+            // the user typed a real value over the Mixed sentinel — same
+            // guard SaveMulti applies internally for text fields. Mirror
+            // that here so a left-alone Mixed placeholder doesn't pollute
+            // the Labels pick list.
+            var skipLabel = _vm.Label.StartedMixed &&
+                (_vm.Label.IsMixed || string.IsNullOrEmpty(_vm.Label.Value));
+            if (!skipLabel) CaptureNovelLabel(_vm.Label.Value);
             DialogResult = true;
             return;
         }
@@ -681,9 +743,24 @@ public partial class AlbumEditorWindow : Window
 
             case AlbumEditorViewModel.SaveValidationError.None:
             default:
+                CaptureNovelLabel(_album.Label);
                 Result = _album;
                 DialogResult = true;
                 return;
         }
+    }
+
+    /// <summary>
+    /// Mirrors the Performer editor's novel-Instrument capture: if the user
+    /// typed a Label value not already in the pick list, append it so the
+    /// next save persists it via SaveBatchAsync(pickLists:). Mutates the
+    /// shared CanonPickLists instance the surrounding view handed in.
+    /// </summary>
+    private void CaptureNovelLabel(string? label)
+    {
+        var trimmed = label?.Trim();
+        if (string.IsNullOrEmpty(trimmed)) return;
+        if (_pickLists.Labels.Contains(trimmed, StringComparer.OrdinalIgnoreCase)) return;
+        _pickLists.Labels.Add(trimmed);
     }
 }

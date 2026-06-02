@@ -264,7 +264,9 @@ public partial class TracksView : UserControl
 
         vm.RebuildRows();
         vm.ApplyFilter();
-        await vm.SaveAsync();
+        // Pass pickLists through so a novel Instrument typed during the
+        // edit lands with the same save.
+        await vm.SaveAsync(pickLists);
         ReselectTracks(new[] { row.Track });
     }
 
@@ -287,7 +289,7 @@ public partial class TracksView : UserControl
         vm.AddLooseTrack(fresh);
         vm.RebuildRows();
         vm.ApplyFilter();
-        await vm.SaveLooseTracksAsync();
+        await vm.SaveLooseTracksAsync(pickLists);
     }
 
     // ── Edit button ───────────────────────────────────────────────────────────
@@ -332,7 +334,7 @@ public partial class TracksView : UserControl
 
         vm.RebuildRows();
         vm.ApplyFilter();
-        await vm.SaveAsync();
+        await vm.SaveAsync(pickLists);
         ReselectTracks(tracks);
     }
 

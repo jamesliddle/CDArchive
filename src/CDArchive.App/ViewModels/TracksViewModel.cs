@@ -176,9 +176,12 @@ public partial class TracksViewModel : ObservableObject
     /// disk. Callers that only changed one can still use the targeted methods
     /// below.
     /// </summary>
-    public async Task SaveAsync()
+    public async Task SaveAsync(CanonPickLists? pickLists = null)
     {
-        await _svc.SaveBatchAsync(albums: _albumsVm.AllAlbums, looseTracks: _looseTracks);
+        await _svc.SaveBatchAsync(
+            albums: _albumsVm.AllAlbums,
+            looseTracks: _looseTracks,
+            pickLists: pickLists);
         // Re-rebuild the index so any track-piece ref or loose-track changes
         // are reflected. RebuildContainers uses the in-memory album list so a
         // failed save above would skip this branch anyway.
@@ -194,11 +197,18 @@ public partial class TracksViewModel : ObservableObject
 
     /// <summary>
     /// Persists only the loose tracks. Used by the "New Track" / loose-track
-    /// edit flows that don't touch any album.
+    /// edit flows that don't touch any album. When <paramref name="pickLists"/>
+    /// is supplied, pick lists land in the same transaction — used after
+    /// editor flows that may have mutated them (e.g. a novel Instrument
+    /// value from the Performer editor).
     /// </summary>
-    public async Task SaveLooseTracksAsync()
+    public async Task SaveLooseTracksAsync(CanonPickLists? pickLists = null)
     {
-        await _svc.SaveLooseTracksAsync(_looseTracks);
+        if (pickLists is null)
+            await _svc.SaveLooseTracksAsync(_looseTracks);
+        else
+            await _svc.SaveBatchAsync(looseTracks: _looseTracks, pickLists: pickLists);
+
         try
         {
             _refIndex.RebuildContainers(_albumsVm.AllAlbums, _looseTracks);

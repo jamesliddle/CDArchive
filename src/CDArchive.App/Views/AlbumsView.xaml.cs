@@ -185,7 +185,10 @@ public partial class AlbumsView : UserControl
 
         vm.AllAlbums.Add(result);
         vm.ApplyFilter();
-        await vm.SaveAsync();
+        // Pass pickLists through so any novel pick-list values added during
+        // the editor session (e.g. a freshly-typed Instrument) persist with
+        // the album save.
+        await vm.SaveAsync(pickLists);
     }
 
     // ── Edit selected album(s) ────────────────────────────────────────────────
@@ -227,7 +230,7 @@ public partial class AlbumsView : UserControl
         }
 
         vm.ApplyFilter();
-        await vm.SaveAsync();
+        await vm.SaveAsync(pickLists);
 
         // ApplyFilter() replaces vm.Albums with a new ObservableCollection, which causes
         // WPF to clear the multi-selection down to at most one item (the SelectedItem
