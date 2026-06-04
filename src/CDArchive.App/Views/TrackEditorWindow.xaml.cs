@@ -10,6 +10,7 @@ using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
+using CDArchive.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 
@@ -650,9 +651,15 @@ public partial class TrackEditorWindow : Window
     {
         if (PieceRefList.SelectedItem is not TrackPieceRef selected) return;
 
-        var rootPiece = _allPieces.FirstOrDefault(p =>
-            string.Equals(p.Composer,  selected.Composer,   StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(p.Title,     selected.PieceTitle, StringComparison.OrdinalIgnoreCase));
+        var canonVm = App.ServiceProvider.GetRequiredService<CanonViewModel>();
+        if (canonVm.Composers.Count == 0 || canonVm.Pieces.Count == 0)
+            await canonVm.LoadDataCommand.ExecuteAsync(null);
+
+        // Resolve against canonVm.Pieces — the collection CompleteEditPieceAsync
+        // saves. Resolving against the TrackEditor's own _allPieces snapshot
+        // would return a different-instance piece whose edits the save would
+        // drop (the two are independent loads). See ResolveRootPiece's remarks.
+        var rootPiece = ResolveRootPiece(selected, canonVm.Pieces);
         if (rootPiece is null)
         {
             MessageBox.Show(this,
@@ -661,10 +668,6 @@ public partial class TrackEditorWindow : Window
                 "Piece not found", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-
-        var canonVm = App.ServiceProvider.GetRequiredService<CanonViewModel>();
-        if (canonVm.Composers.Count == 0)
-            await canonVm.LoadDataCommand.ExecuteAsync(null);
 
         var composerNames = canonVm.Composers.Select(c => c.Name).ToList();
         var composerCatalogs = BuildComposerCatalogDict(canonVm);
@@ -691,6 +694,83 @@ public partial class TrackEditorWindow : Window
         _vm.PieceRefs.Items.Clear();
         foreach (var pr in snapshotRefs) _vm.PieceRefs.Items.Add(pr);
         PieceRefList.SelectedIndex = preserveIdx;
+    }
+
+    /// <summary>
+    /// Finds the top-level piece to open for "Edit Root Piece" from the
+    /// selected <paramref name="selected"/> ref, resolving against
+    /// <paramref name="pieces"/>.
+    /// <para>
+    /// The caller MUST pass the piece collection that the subsequent save
+    /// operates on (<c>CanonViewModel.Pieces</c>), NOT the TrackEditor's own
+    /// <c>_allPieces</c> snapshot. Those are two independent loads with
+    /// different instances; <c>CompleteEditPieceAsync</c> persists
+    /// <c>CanonViewModel.Pieces</c>, so editing an instance from a different
+    /// load would silently drop the edit at save time.
+    /// </para>
+    /// <para>
+    /// A plain title-string match fails for refs that point at a member of a
+    /// <c>"set"</c> container (e.g. Beethoven's "Three Piano Sonatas, Op. 31"):
+    /// the member is nested inside the set, not a top-level piece, and on reload
+    /// the ref's <c>PieceTitle</c> is the member's <c>DisplayTitleShort</c>
+    /// ("Piano Sonata #17 in d \"Tempest\""), which equals no top-level piece's
+    /// title. So we resolve the ref through a <see cref="PieceReferenceIndex"/>
+    /// built over <paramref name="pieces"/> (so the resolved instance lives in
+    /// that tree), then walk up to its top-level ancestor — the set. Falls back
+    /// to a direct title-variant match when the resolver can't route the ref.
+    /// </para>
+    /// </summary>
+    private static CanonPiece? ResolveRootPiece(TrackPieceRef selected, IReadOnlyList<CanonPiece> pieces)
+    {
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
+        resolver.BuildResolver(pieces);
+        var resolved = resolver.TryResolve(new TrackPieceRef
+        {
+            Composer   = selected.Composer,
+            PieceTitle = selected.PieceTitle,
+            // No subpath/version: we want the member (or top piece), then its
+            // top-level ancestor — not the movement leaf.
+        });
+        if (resolved is { } r)
+        {
+            var top = FindTopLevelAncestor(r.Piece, pieces);
+            if (top is not null) return top;
+        }
+
+        // Fallback: direct title-variant match against top-level pieces.
+        return pieces.FirstOrDefault(p =>
+            string.Equals(p.Composer, selected.Composer, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(p.Title,             selected.PieceTitle, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(p.DisplayTitle,      selected.PieceTitle, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(p.DisplayTitleShort, selected.PieceTitle, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>
+    /// Returns the top-level piece in <paramref name="all"/> whose subtree
+    /// (subpieces + version subpieces, recursively) contains
+    /// <paramref name="target"/> by reference, or <paramref name="target"/>
+    /// itself when it is already top-level. Null when not found.
+    /// </summary>
+    private static CanonPiece? FindTopLevelAncestor(CanonPiece target, IReadOnlyList<CanonPiece> all)
+    {
+        foreach (var top in all)
+            if (SubtreeContains(top, target))
+                return top;
+        return null;
+    }
+
+    private static bool SubtreeContains(CanonPiece root, CanonPiece target)
+    {
+        if (ReferenceEquals(root, target)) return true;
+        if (root.Subpieces is { } subs)
+            foreach (var s in subs)
+                if (SubtreeContains(s, target)) return true;
+        if (root.Versions is { } vers)
+            foreach (var v in vers)
+                if (v.Subpieces is { } vsubs)
+                    foreach (var s in vsubs)
+                        if (SubtreeContains(s, target)) return true;
+        return false;
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<string>>

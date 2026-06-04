@@ -158,10 +158,45 @@ public partial class App : Application
             .CreateLogger();
     }
 
+    /// <summary>
+    /// Last-resort handler for exceptions that escape every other
+    /// try/catch on the UI thread. Pre-fix this only logged + flushed,
+    /// leaving <c>e.Handled = false</c>, so WPF terminated the process
+    /// without showing the user anything — symptom: "the app just closed".
+    /// Now: show a MessageBox with the exception details + the log-file
+    /// path, then mark Handled so the app stays alive when it safely can.
+    /// Truly fatal failures (stack overflow, out-of-memory) won't reach
+    /// this handler at all, so always-Handled is the right default.
+    /// </summary>
     private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log.Fatal(e.Exception, "Unhandled dispatcher exception");
-        Log.CloseAndFlush();
+
+        try
+        {
+            var logDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "CDArchive", "logs");
+
+            MessageBox.Show(
+                $"An unexpected error occurred:\n\n" +
+                $"{e.Exception.GetType().Name}: {e.Exception.Message}\n\n" +
+                $"The application will try to continue. Full details (including stack trace) " +
+                $"were written to today's log file under:\n{logDir}\n\n" +
+                $"Stack trace:\n{e.Exception}",
+                "Unhandled error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            e.Handled = true;
+        }
+        catch
+        {
+            // MessageBox.Show itself failed (extremely rare — shell down,
+            // session ending, etc). Fall back to the original behaviour:
+            // flush logs and let WPF terminate.
+            Log.CloseAndFlush();
+        }
     }
 
     private static void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)

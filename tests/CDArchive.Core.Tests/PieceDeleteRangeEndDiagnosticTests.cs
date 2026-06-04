@@ -191,6 +191,96 @@ public class PieceDeleteRangeEndDiagnosticTests
         Assert.DoesNotContain("range-end", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Regression: editing a parent piece in the canon view, removing one of
+    /// its subpieces, and clicking OK used to crash with a naked
+    /// <c>FOREIGN KEY constraint failed</c> (SQLite Error 19) when an album
+    /// track ref still pointed at that subpiece. The top-level delete catch
+    /// (M3) didn't fire — subpiece orphan deletes flush through the FIRST
+    /// SaveChangesAsync in SavePiecesCoreAsync, before the M3 catch. The
+    /// dispatcher then terminated the app silently. Post-fix: the first
+    /// SaveChangesAsync is wrapped with the same friendly-message catch, so
+    /// the user sees an actionable error instead of a crash.
+    /// </summary>
+    [Fact]
+    public async Task SavePieces_RemovingSubpieceStillReferencedByAlbumTrack_SurfacesFriendlyMessage()
+    {
+        var svc = NewService(out var factory);
+
+        await svc.SaveComposersAsync(new List<CanonComposer>
+        {
+            new() { Name = "Beethoven, Ludwig van", SortName = "Beethoven, Ludwig van" },
+        });
+
+        // Parent piece with one subpiece. The subpiece is what the album
+        // track will reference and what we'll then try to remove.
+        var parent = new CanonPiece
+        {
+            Composer = "Beethoven, Ludwig van",
+            Title    = "Piano Sonata #15 in D, Op. 28 \"Pastoral\"",
+            Subpieces = new List<CanonPiece>
+            {
+                new()
+                {
+                    Composer    = "Beethoven, Ludwig van",
+                    Title       = "Allegro",
+                    MusicNumber = "1",
+                },
+            },
+        };
+        await svc.SavePiecesAsync(new List<CanonPiece> { parent });
+
+        // Album whose track points at the subpiece — the resolver routes
+        // PieceTitle + SubpiecePath = ["Allegro"] to the subpiece, so the
+        // saved album_track_piece_refs row's piece_id is the subpiece's id,
+        // not the parent's.
+        var album = new CanonAlbum
+        {
+            Title = "Test album",
+            Discs = new List<AlbumDisc>
+            {
+                new()
+                {
+                    DiscNumber = 1,
+                    Tracks = new List<AlbumTrack>
+                    {
+                        new()
+                        {
+                            TrackNumber = 1,
+                            PieceRefs   = new List<TrackPieceRef>
+                            {
+                                new()
+                                {
+                                    Composer     = "Beethoven, Ludwig van",
+                                    PieceTitle   = "Piano Sonata #15 in D, Op. 28 \"Pastoral\"",
+                                    SubpiecePath = new List<string> { "Allegro" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { album });
+
+        // User edits parent in the canon view and removes the "Allegro"
+        // subpiece. SavePiecesAsync runs UpsertPieceTree, which orphan-
+        // deletes the subpiece row. The album's piece_id FK has
+        // OnDelete:Restrict, so the SaveChanges fails with SQLite Error 19.
+        // Pre-fix: raw DbUpdateException → unhandled → app crash.
+        // Post-fix: friendly InvalidOperationException naming the situation.
+        var refreshed = (await svc.LoadPiecesAsync()).Single();
+        refreshed.Subpieces = new List<CanonPiece>(); // remove the only subpiece
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await svc.SavePiecesAsync(new List<CanonPiece> { refreshed }));
+
+        Assert.Contains("referenced by album track refs", ex.Message,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("as the piece itself", ex.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<long> GetPieceIdAsync(IDbContextFactory<CanonDbContext> factory, string title)
     {
         await using var db = await factory.CreateDbContextAsync();

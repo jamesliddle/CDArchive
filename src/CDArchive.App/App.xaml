@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
              xmlns:views="clr-namespace:CDArchive.App.Views"
-             xmlns:conv="clr-namespace:CDArchive.App.Converters">
+             xmlns:conv="clr-namespace:CDArchive.App.Converters"
+             xmlns:helpers="clr-namespace:CDArchive.App.Helpers">
     <Application.Resources>
         <!-- ── Typography ─────────────────────────────────────────────────
              Segoe UI Variable is the Win11 system font (gracefully falls
@@ -67,6 +68,22 @@
                     <Setter Property="Background" Value="{StaticResource ZebraRowBrush}" />
                 </MultiTrigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- ── Keyboard navigation for lists ──────────────────────────────
+             Home / End / PageUp / PageDown drive the list whenever focus is
+             inside it (rows, headers, scrollbar) — not just on a row. Applied
+             app-wide via implicit styles so every ListBox / ListView / DataGrid
+             gets it. ListView derives from ListBox but implicit styles don't
+             inherit across types, so it needs its own style; both base on
+             ListBox's so future ListBox setters flow through. -->
+        <Style x:Key="ListNavBase" TargetType="ListBox">
+            <Setter Property="helpers:ListKeyboardNavigation.Enabled" Value="True" />
+        </Style>
+        <Style TargetType="ListBox" BasedOn="{StaticResource ListNavBase}" />
+        <Style TargetType="ListView" BasedOn="{StaticResource ListNavBase}" />
+        <Style TargetType="DataGrid">
+            <Setter Property="helpers:ListKeyboardNavigation.Enabled" Value="True" />
         </Style>
 
         <!-- ── ViewModel → View DataTemplates ─────────────────────────── -->

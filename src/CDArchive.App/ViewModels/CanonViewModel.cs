@@ -683,6 +683,9 @@ public partial class CanonViewModel : ObservableObject
         }
 
         Composers.Add(composer);
+        // Promote any catalogue prefixes the new composer carries into the
+        // global pick list (see MergeComposerPrefixesIntoGlobalPickList).
+        var addedGlobalPrefixes = MergeComposerPrefixesIntoGlobalPickList(composer);
         DataMutated?.Invoke();
 
         // Snapshot for in-memory rollback if the save fails — same shape as
@@ -692,11 +695,15 @@ public partial class CanonViewModel : ObservableObject
         // reach the save at all.
         try
         {
-            await _canonDataService.SaveComposersAsync(Composers.ToList());
+            if (addedGlobalPrefixes.Count > 0)
+                await _canonDataService.SaveBatchAsync(composers: Composers.ToList(), pickLists: PickLists);
+            else
+                await _canonDataService.SaveComposersAsync(Composers.ToList());
         }
         catch (Exception ex)
         {
             Composers.Remove(composer);
+            foreach (var p in addedGlobalPrefixes) PickLists.CatalogPrefixes.Remove(p);
             DataMutated?.Invoke();
             _dialogs.ShowError(ex.Message, "Cannot add composer");
             StatusMessage = $"Add cancelled: {composer.Name}.";
@@ -719,6 +726,9 @@ public partial class CanonViewModel : ObservableObject
         if (piece is null) return;
 
         Pieces.Add(piece);
+        // Promote any novel Form(s) the piece uses into the global Forms pick
+        // list (persisted in the same SaveBatch via PickLists below).
+        var addedForms = MergePieceFormsIntoGlobalPickList(piece);
         DataMutated?.Invoke();
 
         try
@@ -734,6 +744,7 @@ public partial class CanonViewModel : ObservableObject
         catch (Exception ex)
         {
             Pieces.Remove(piece);
+            foreach (var f in addedForms) PickLists.Forms.Remove(f);
             DataMutated?.Invoke();
             _dialogs.ShowError(ex.Message, "Cannot add piece");
             StatusMessage = $"Add cancelled: {piece.DisplayTitle}.";
@@ -765,6 +776,79 @@ public partial class CanonViewModel : ObservableObject
     /// </summary>
     public static ComposerEditSnapshot CaptureComposerSnapshot(CanonComposer composer) =>
         new(composer.Name, composer.CatalogPrefixes?.ToList() ?? new List<string>());
+
+    /// <summary>
+    /// Ensures every catalogue prefix on <paramref name="composer"/> also exists
+    /// in the global Catalogues pick list (<see cref="CanonPickLists.CatalogPrefixes"/>),
+    /// case-insensitively. Returns the prefixes that were newly added (empty when
+    /// none) so the caller can persist <see cref="PickLists"/> alongside the
+    /// composer and roll the additions back if that save fails.
+    /// <para>
+    /// Keeps a composer-specific prefix (e.g. "Anh." added to Beethoven)
+    /// available everywhere — the global Pick Lists screen and other composers'
+    /// catalogue dropdowns — instead of living only on the one composer.
+    /// </para>
+    /// </summary>
+    private List<string> MergeComposerPrefixesIntoGlobalPickList(CanonComposer composer)
+    {
+        var added = new List<string>();
+        if (composer.CatalogPrefixes is not { Count: > 0 } prefixes) return added;
+
+        var existing = new HashSet<string>(PickLists.CatalogPrefixes, StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in prefixes)
+        {
+            var prefix = raw?.Trim();
+            if (string.IsNullOrEmpty(prefix)) continue;
+            if (existing.Add(prefix))           // false when already present (case-insensitive)
+            {
+                PickLists.CatalogPrefixes.Add(prefix);
+                added.Add(prefix);
+            }
+        }
+        return added;
+    }
+
+    /// <summary>
+    /// Ensures every Form used by <paramref name="root"/> and its subpieces /
+    /// versions (recursively) exists in the global Forms pick list
+    /// (<see cref="CanonPickLists.Forms"/>), case-insensitively. Returns the
+    /// newly-added forms (empty when none) so the caller can persist
+    /// <see cref="PickLists"/> alongside the piece and roll the additions back
+    /// if that save fails. Mirrors <see cref="MergeComposerPrefixesIntoGlobalPickList"/>
+    /// — a Form typed for a piece (e.g. "Sonatina") becomes available app-wide
+    /// in every Form dropdown rather than living only on the one piece.
+    /// </summary>
+    private List<string> MergePieceFormsIntoGlobalPickList(CanonPiece root)
+    {
+        var added = new List<string>();
+        var existing = new HashSet<string>(PickLists.Forms, StringComparer.OrdinalIgnoreCase);
+
+        void Consider(string? form)
+        {
+            var f = form?.Trim();
+            if (string.IsNullOrEmpty(f)) return;
+            if (existing.Add(f))
+            {
+                PickLists.Forms.Add(f);
+                added.Add(f);
+            }
+        }
+
+        void Walk(CanonPiece p)
+        {
+            Consider(p.Form);
+            if (p.Subpieces is { } subs) foreach (var s in subs) Walk(s);
+            if (p.Versions is { } vers)
+                foreach (var v in vers)
+                {
+                    Consider(v.Form);
+                    if (v.Subpieces is { } vsubs) foreach (var s in vsubs) Walk(s);
+                }
+        }
+
+        Walk(root);
+        return added;
+    }
 
     /// <summary>
     /// Completes the EditComposer flow after the editor has mutated
@@ -801,7 +885,14 @@ public partial class CanonViewModel : ObservableObject
         IReadOnlyList<string> prefixesAfter = composer.CatalogPrefixes ?? new List<string>();
         var prefsChanged = !snapshot.CatalogPrefixes.SequenceEqual(prefixesAfter, StringComparer.Ordinal);
 
-        await _canonDataService.SaveComposersAsync(Composers.ToList());
+        // Promote any new per-composer prefixes into the global pick list so
+        // they're available app-wide. When any were added, persist composers +
+        // pick lists in one transaction; otherwise the cheaper composers-only save.
+        var addedGlobalPrefixes = MergeComposerPrefixesIntoGlobalPickList(composer);
+        if (addedGlobalPrefixes.Count > 0)
+            await _canonDataService.SaveBatchAsync(composers: Composers.ToList(), pickLists: PickLists);
+        else
+            await _canonDataService.SaveComposersAsync(Composers.ToList());
 
         // If the preference order changed, reorder every piece of this composer's
         // catalog_info list and propagate any resulting display-title changes to
@@ -859,6 +950,10 @@ public partial class CanonViewModel : ObservableObject
             piece.Composer ?? "",
             catalogRenames);
 
+        // Promote any novel Form(s) into the global Forms pick list (persisted
+        // in the same SaveBatch via PickLists).
+        MergePieceFormsIntoGlobalPickList(piece);
+
         DataMutated?.Invoke();
 
         // SaveBatch (pieces + pick lists atomically) matches the pre-fix
@@ -891,6 +986,14 @@ public partial class CanonViewModel : ObservableObject
     /// </summary>
     public async Task CompleteEditVersionAsync(VersionDisplayNode versionNode)
     {
+        // A version (and its subpieces) may introduce a novel Form — promote.
+        var vForm = versionNode.Version.Form?.Trim();
+        if (!string.IsNullOrEmpty(vForm)
+            && !PickLists.Forms.Contains(vForm, StringComparer.OrdinalIgnoreCase))
+            PickLists.Forms.Add(vForm);
+        if (versionNode.Version.Subpieces is { } vsubs)
+            foreach (var s in vsubs) MergePieceFormsIntoGlobalPickList(s);
+
         DataMutated?.Invoke();
         await _canonDataService.SaveBatchAsync(
             null, Pieces.ToList(), null, null, PickLists);
@@ -906,6 +1009,9 @@ public partial class CanonViewModel : ObservableObject
     /// </summary>
     public async Task CompleteEditSubpieceAsync(CanonPiece subpiece)
     {
+        // A subpiece (and its own subpieces) may introduce a novel Form — promote.
+        MergePieceFormsIntoGlobalPickList(subpiece);
+
         DataMutated?.Invoke();
         await _canonDataService.SaveBatchAsync(
             null, Pieces.ToList(), null, null, PickLists);

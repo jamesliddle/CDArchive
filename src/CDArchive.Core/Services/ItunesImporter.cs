@@ -43,7 +43,8 @@ public static class ItunesImporter
         IReadOnlyList<ItunesTrack> tracks,
         IList<CanonComposer> composers,
         IList<CanonPiece> pieces,
-        IList<CanonAlbum>? existingAlbums = null)
+        IList<CanonAlbum>? existingAlbums = null,
+        IReadOnlyDictionary<int, ItunesImportInference.DotSeparatorInterpretation>? dotInterpretations = null)
     {
         var composerByName = new Dictionary<string, CanonComposer>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in composers)
@@ -116,7 +117,8 @@ public static class ItunesImporter
                 loose.Performers = performers.Select(name => new AlbumPerformer { Name = name }).ToList();
 
             PopulatePieceRefs(t, loose, composers, composerByName, pieces,
-                              resolver, newlyCreatedTopPieces, counters);
+                              resolver, newlyCreatedTopPieces, counters,
+                              LookupDotInterpretation(dotInterpretations, t.TrackId));
 
             newLooseTracks.Add(loose);
         }
@@ -271,7 +273,8 @@ public static class ItunesImporter
                     }
 
                     PopulatePieceRefs(track, albumTrack, composers, composerByName, pieces,
-                                      resolver, newlyCreatedTopPieces, counters);
+                                      resolver, newlyCreatedTopPieces, counters,
+                                      LookupDotInterpretation(dotInterpretations, track.TrackId));
 
                     disc.Tracks.Add(albumTrack);
                 }
@@ -351,6 +354,19 @@ public static class ItunesImporter
     /// to the raw iTunes Name. Also appends to <paramref name="composers"/> /
     /// <paramref name="pieces"/> as needed and bumps the <c>new*</c> counters.
     /// </summary>
+    /// <summary>
+    /// Default fallback when the user dialog hasn't supplied a per-track
+    /// interpretation. SubpieceHierarchy preserves the historical (pre-dialog)
+    /// behaviour for tracks the user didn't review.
+    /// </summary>
+    private static ItunesImportInference.DotSeparatorInterpretation LookupDotInterpretation(
+        IReadOnlyDictionary<int, ItunesImportInference.DotSeparatorInterpretation>? choices,
+        int trackId)
+    {
+        if (choices is not null && choices.TryGetValue(trackId, out var pick)) return pick;
+        return ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy;
+    }
+
     private static void PopulatePieceRefs(
         ItunesTrack source,
         AlbumTrack  target,
@@ -359,7 +375,8 @@ public static class ItunesImporter
         IList<CanonPiece> pieces,
         PieceReferenceIndex resolver,
         Dictionary<(string, string), CanonPiece> newlyCreatedTopPieces,
-        Counters counters)
+        Counters counters,
+        ItunesImportInference.DotSeparatorInterpretation dotInterpretation)
     {
         var parsedComposer = ItunesImportInference.ParseComposer(source.Composer);
         if (parsedComposer is null)
@@ -389,7 +406,21 @@ public static class ItunesImporter
             }
         }
 
-        var parsedName = ItunesImportInference.ParseTrackName(source.Name);
+        var parsedName = ItunesImportInference.ParseTrackName(source.Name, dotInterpretation);
+
+        // When ParseTrackName couldn't extract a top-level piece title (an
+        // iTunes Name that doesn't follow the "Work - Movement" convention,
+        // or one that starts straight with the segment separator), don't
+        // fabricate a piece-ref pointing at an empty title — the resolver
+        // can't route it and the Tracks view renders it as a blank cell.
+        // Fall back to the no-composer behaviour: stash the raw iTunes name
+        // in Description so the user has something visible to triage from.
+        if (string.IsNullOrWhiteSpace(parsedName.PieceTitle))
+        {
+            target.Description = source.Name;
+            return;
+        }
+
         var topPiece = ResolveOrCreateTopPiece(composer, parsedName.PieceTitle,
                                                resolver, pieces, newlyCreatedTopPieces,
                                                contributorComposers, counters);
@@ -410,12 +441,18 @@ public static class ItunesImporter
             target.PieceRefs = new List<TrackPieceRef>(parsedName.SubpieceRefs.Count);
             foreach (var subRef in parsedName.SubpieceRefs)
             {
-                EnsureSubpiecePath(topPiece, subRef.Path, subRef.MusicNumber, subRef.Tempos, counters);
+                // EnsureSubpiecePath returns the segment path that resolves to
+                // the walked subpieces — equal to the parsed path for newly
+                // created subpieces, but the matched node's own identifier for
+                // existing ones (so we don't corrupt curated titles).
+                var refPath = EnsureSubpiecePath(
+                    topPiece, subRef.Path, subRef.MusicNumber, subRef.Tempos,
+                    subRef.TemposFromFormCollapse, counters);
                 target.PieceRefs.Add(new TrackPieceRef
                 {
                     Composer     = composer.Name,
                     PieceTitle   = topPiece.Title ?? parsedName.PieceTitle,
-                    SubpiecePath = subRef.Path.ToList(),
+                    SubpiecePath = refPath,
                 });
             }
         }
@@ -490,9 +527,20 @@ public static class ItunesImporter
 
         var probe = new TrackPieceRef { Composer = composer.Name, PieceTitle = title };
         var resolved = resolver.TryResolve(probe);
+        // The resolver already keys its index by composer, so a hit ALREADY
+        // matched this composer — re-checking the resolved piece's own
+        // Composer is redundant and, worse, wrong for set members. Members of
+        // a "set" container (e.g. Beethoven's "Three Piano Sonatas, WoO 47")
+        // are registered under their parent's (inherited) composer but carry
+        // a null Composer field of their own. The pre-fix re-check
+        // `resolved.Piece.Composer == composer.Name` then failed against null
+        // and the importer created a duplicate top-level piece for every set
+        // member. Accept the hit when the resolved piece's composer is the
+        // expected one OR is blank (inherited from the set parent).
+        var resolvedComposer = resolved?.Piece.Composer;
         if (resolved.HasValue &&
-            string.Equals(resolved.Value.Piece.Composer, composer.Name,
-                          StringComparison.OrdinalIgnoreCase))
+            (string.IsNullOrWhiteSpace(resolvedComposer) ||
+             string.Equals(resolvedComposer, composer.Name, StringComparison.OrdinalIgnoreCase)))
         {
             // The resolver returns the leaf piece for the probe. A no-subpath
             // probe resolves to a top-level piece (or a set member registered
@@ -532,21 +580,37 @@ public static class ItunesImporter
 
     /// <summary>
     /// Walks <paramref name="path"/> from <paramref name="root"/> down, creating any
-    /// missing subpieces. The <paramref name="musicNumberForLeaf"/>, if provided, is
-    /// applied to the leaf (only when the leaf doesn't already carry one).
-    /// <para>When <paramref name="temposForLeaf"/> has more than one entry and
-    /// the leaf has no markers yet, populates the leaf's <see cref="CanonPiece.Markers"/>
-    /// with numbered <see cref="MarkerKind.Tempo"/> entries — one per tempo, in
-    /// order. Lets an iTunes "1. Lento - Allegro agitato" import as a single
-    /// movement carrying two distinct tempo markers.</para>
+    /// missing subpieces, and returns the path of segment strings to store on the
+    /// album <see cref="TrackPieceRef.SubpiecePath"/> so it resolves back to the
+    /// walked subpieces.
+    ///
+    /// <para><b>Created</b> subpieces are titled by the parsed segment, so the ref
+    /// stores that segment (it strict-matches the new title). When
+    /// <paramref name="temposForLeaf"/> has more than one entry the newly-created
+    /// leaf also gets one numbered <see cref="MarkerKind.Tempo"/> marker per tempo
+    /// (e.g. iTunes "1. Lento - Allegro agitato" → one movement, two tempo markers).</para>
+    ///
+    /// <para><b>Matched</b> (already-existing, often user-curated) subpieces are left
+    /// COMPLETELY untouched — no title overwrite, no music-number back-fill, no marker
+    /// enrichment. Pre-fix the leaf's title was overwritten with the parsed tempo
+    /// string, which corrupted a structural movement like "4. Rondo" (stored as
+    /// Title="", Number=4, Form="Rondo") into the ugly
+    /// "Rondo - Allegro, ma non troppo - Più allegro quasi presto". To keep the ref
+    /// resolvable without mutating the node, the stored segment is the matched node's
+    /// own resolvable identifier: its <see cref="CanonPiece.Title"/> when it has one
+    /// (strict match), else its <see cref="CanonPiece.SubpieceDisplayTitle"/> (which
+    /// carries the "N. " number prefix the resolver's loose match keys on AND
+    /// strict-matches the unmutated node).</para>
     /// </summary>
-    private static void EnsureSubpiecePath(
+    private static List<string> EnsureSubpiecePath(
         CanonPiece root,
         IReadOnlyList<string> path,
         string? musicNumberForLeaf,
         IReadOnlyList<string>? temposForLeaf,
+        bool temposFromFormCollapse,
         Counters counters)
     {
+        var refSegments = new List<string>(path.Count);
         var current = root;
         for (int i = 0; i < path.Count; i++)
         {
@@ -554,6 +618,12 @@ public static class ItunesImporter
             var isLeaf = i == path.Count - 1;
             // Leaf number applies only to the final segment of the path.
             var parsedNumber = isLeaf ? musicNumberForLeaf : null;
+
+            // Genuine multi-tempo group worth enriching as Tempo markers. The
+            // FormAndTempo interpretation folds the FORM into the tempo list
+            // (e.g. ["Scherzando", "Allegretto"]), so its values must NOT be
+            // written as tempo markers — only honour real tempo continuations.
+            var hasGenuineTempos = isLeaf && temposForLeaf is { Count: > 1 } && !temposFromFormCollapse;
 
             current.Subpieces ??= new List<CanonPiece>();
             var existing = FindMatchingSubpiece(current.Subpieces, segment, parsedNumber);
@@ -570,46 +640,56 @@ public static class ItunesImporter
                     existing.MusicNumber = parsedNumber;
                 current.Subpieces.Add(existing);
                 counters.Subpieces++;
+
+                if (hasGenuineTempos)
+                    SetTempoMarkers(existing, temposForLeaf!);
+
+                // The ref stores the title we just assigned — strict-matches it.
+                refSegments.Add(segment);
             }
             else
             {
-                // Back-fill: a structured-form subpiece (Number=1, Title="") matched
-                // by-number gets the parsed title written into its Title field so
-                // save-time SubpieceMatch (which checks Title / DisplayTitle /
-                // SubpieceDisplayTitle) can find this same subpiece for the
-                // TrackPieceRef.SubpiecePath we're about to write. Without this,
-                // the in-memory match here wouldn't survive the round-trip.
-                if (string.IsNullOrEmpty(existing.Title) && !string.IsNullOrWhiteSpace(segment))
-                    existing.Title = segment;
-                // Also fill in a missing music number when iTunes provided one.
-                if (isLeaf &&
-                    !string.IsNullOrEmpty(parsedNumber) &&
-                    string.IsNullOrEmpty(existing.MusicNumber))
-                    existing.MusicNumber = parsedNumber;
-            }
+                // Matched an existing subpiece. Don't overwrite its curated
+                // identity (title/number), but DO enrich it with the parsed
+                // tempo markers when it has none — re-importing a multi-tempo
+                // movement should fill in the tempos a structural canon entry
+                // is missing. Skipped for the FormAndTempo collapse (would
+                // plant the form as a bogus tempo) and when markers already
+                // exist (never clobber curated markers).
+                if (hasGenuineTempos && (existing.Markers is null || existing.Markers.Count == 0))
+                    SetTempoMarkers(existing, temposForLeaf!);
 
-            // At the leaf: when a multi-tempo group was parsed, populate the
-            // subpiece's Markers list with one Tempo marker per tempo. Only
-            // happens when the subpiece doesn't already carry markers — an
-            // existing canon entry with its own (possibly user-curated) markers
-            // is left alone.
-            if (isLeaf && temposForLeaf is { Count: > 1 } &&
-                (existing.Markers is null || existing.Markers.Count == 0))
-            {
-                existing.Markers = new List<MusicalMarker>(temposForLeaf.Count);
-                for (int j = 0; j < temposForLeaf.Count; j++)
-                {
-                    existing.Markers.Add(new MusicalMarker
-                    {
-                        Kind   = MarkerKind.Tempo,
-                        Value  = temposForLeaf[j],
-                        Number = j + 1,
-                    });
-                }
+                // Compute the ref segment from the node's CURRENT (post-enrich)
+                // identifier so it still resolves: its Title when it has one,
+                // else its SubpieceDisplayTitle (carries the "N. " prefix the
+                // resolver's loose match keys on, and which now reflects any
+                // markers we just added).
+                refSegments.Add(string.IsNullOrEmpty(existing.Title)
+                    ? existing.SubpieceDisplayTitle
+                    : existing.Title);
             }
 
             current = existing;
         }
+
+        return refSegments;
+    }
+
+    /// <summary>
+    /// Replaces a subpiece's markers with one numbered <see cref="MarkerKind.Tempo"/>
+    /// marker per parsed tempo, in order (e.g. iTunes "1. Lento - Allegro agitato"
+    /// → two tempo markers on one movement).
+    /// </summary>
+    private static void SetTempoMarkers(CanonPiece leaf, IReadOnlyList<string> tempos)
+    {
+        leaf.Markers = new List<MusicalMarker>(tempos.Count);
+        for (int j = 0; j < tempos.Count; j++)
+            leaf.Markers.Add(new MusicalMarker
+            {
+                Kind   = MarkerKind.Tempo,
+                Value  = tempos[j],
+                Number = j + 1,
+            });
     }
 
     /// <summary>
@@ -632,6 +712,69 @@ public static class ItunesImporter
             string.IsNullOrEmpty(sp.Title) &&
             (string.Equals(sp.MusicNumber, parsedNumber, StringComparison.OrdinalIgnoreCase) ||
              (sp.Number.HasValue && sp.Number.Value.ToString() == parsedNumber)));
+    }
+
+    /// <summary>
+    /// Dry-run check used by the import dialog: would importing
+    /// <paramref name="track"/> under <paramref name="interpretation"/> resolve
+    /// entirely against the existing canon WITHOUT creating any new top piece
+    /// or subpiece?
+    ///
+    /// <para>Critically this mirrors what <see cref="Import"/> actually does —
+    /// it walks each parsed subpiece path with the same
+    /// <see cref="FindMatchingSubpiece"/> title-OR-music-number matching the
+    /// real <c>EnsureSubpiecePath</c> uses. A plain
+    /// <see cref="PieceReferenceIndex.TryResolve"/> check (which only matches
+    /// on title/display-string) is too strict: it misses the common case where
+    /// the canon stores a movement structurally (Title="", Form="Rondo",
+    /// Number=4) and the iTunes name carries "4. Rondo. Allegro…" — the
+    /// importer matches movement #4 by its number and creates nothing, but a
+    /// string-only resolve fails and the dialog would needlessly prompt.</para>
+    ///
+    /// <para>Returns false when the top piece doesn't exist, when the parse
+    /// yields no usable title, or when any path segment would have to be
+    /// created.</para>
+    /// </summary>
+    public static bool ResolvesWithoutCreating(
+        ItunesTrack track,
+        string composerName,
+        PieceReferenceIndex resolver,
+        ItunesImportInference.DotSeparatorInterpretation interpretation)
+    {
+        var parsed = ItunesImportInference.ParseTrackName(track.Name, interpretation);
+        if (string.IsNullOrWhiteSpace(parsed.PieceTitle)) return false;
+
+        // The top piece must already exist (no-subpath probe resolves to it).
+        var topResolved = resolver.TryResolve(new TrackPieceRef
+        {
+            Composer   = composerName,
+            PieceTitle = parsed.PieceTitle,
+        });
+        if (topResolved is null) return false;
+        var top = topResolved.Value.Piece;
+
+        // A bare top-level reference with no subpiece path: the top exists, done.
+        if (parsed.SubpieceRefs.Count == 0) return true;
+
+        // Walk every parsed path with the importer's own matching semantics.
+        // Any segment that wouldn't find an existing subpiece means the import
+        // would create new structure → not a clean resolve.
+        foreach (var subRef in parsed.SubpieceRefs)
+        {
+            var current = top;
+            for (int i = 0; i < subRef.Path.Count; i++)
+            {
+                var isLeaf = i == subRef.Path.Count - 1;
+                var num    = isLeaf ? subRef.MusicNumber : null;
+                var subs   = current.Subpieces;
+                var match  = subs is { Count: > 0 }
+                    ? FindMatchingSubpiece(subs, subRef.Path[i], num)
+                    : null;
+                if (match is null) return false;
+                current = match;
+            }
+        }
+        return true;
     }
 
     private sealed class CaseInsensitivePairComparer : IEqualityComparer<(string, string)>

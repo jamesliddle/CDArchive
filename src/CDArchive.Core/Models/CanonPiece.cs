@@ -643,6 +643,27 @@ public class CanonPiece
     }
 
     /// <summary>
+    /// Numeric sub-number sort key — the "#N" part of a catalogue like
+    /// "Op. 2 #1" (leading digits of <see cref="CatalogInfo.CatalogSubnumber"/>).
+    /// Pieces with no sub-number sort as 0, so "Op. 2" precedes "Op. 2 #1" and
+    /// set members order "#1, #2, #3" rather than collapsing to a title
+    /// tiebreak (the bug where "Anh. 5 #2" sorted before "Anh. 5 #1" because the
+    /// sub-number was ignored entirely).
+    /// </summary>
+    [JsonIgnore]
+    public int CatalogSortSubnumber
+    {
+        get
+        {
+            if (CatalogInfo == null || CatalogInfo.Count == 0)
+                return 0;
+            var sub = CatalogInfo[0].CatalogSubnumber ?? "";
+            var digits = new string(sub.TakeWhile(char.IsDigit).ToArray());
+            return int.TryParse(digits, out var n) ? n : 0;
+        }
+    }
+
+    /// <summary>
     /// Title-cased instrumentation category, e.g., "Chamber", "Piano", "Orchestra".
     /// </summary>
     [JsonIgnore]
@@ -1932,9 +1953,10 @@ public class CrossComposerSubpieceNode
     public string? Category => TopPiece.Category;
 
     /// <summary>Catalog sort helpers inherited from the top-level piece.</summary>
-    public string? CatalogSortPrefix => TopPiece.CatalogSortPrefix;
-    public int?    CatalogSortNumber => TopPiece.CatalogSortNumber;
-    public string? CatalogSortSuffix => TopPiece.CatalogSortSuffix;
+    public string? CatalogSortPrefix    => TopPiece.CatalogSortPrefix;
+    public int?    CatalogSortNumber    => TopPiece.CatalogSortNumber;
+    public string? CatalogSortSuffix    => TopPiece.CatalogSortSuffix;
+    public int?    CatalogSortSubnumber => TopPiece.CatalogSortSubnumber;
 
     public override string ToString() => DisplayTitle;
 }

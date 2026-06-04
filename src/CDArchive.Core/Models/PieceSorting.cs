@@ -45,7 +45,8 @@ public static class PieceSorting
         IEnumerable<CanonPiece> ownedPieces,
         IEnumerable<CrossComposerSubpieceNode>? crossComposerNodes,
         PieceSortField field,
-        Func<object, int>? recordingCount = null)
+        Func<object, int>? recordingCount = null,
+        IReadOnlyList<string>? catalogPrefixOrder = null)
     {
         var items = new List<object>();
         foreach (var p in ownedPieces) items.Add(p);
@@ -58,7 +59,7 @@ public static class PieceSorting
             PieceSortField.Category   => OrderByCategory(items),
             PieceSortField.Year       => OrderByYear(items),
             PieceSortField.Recordings => OrderByRecordings(items, recordingCount),
-            _                         => OrderByCatalogue(items),
+            _                         => OrderByCatalogue(items, catalogPrefixOrder),
         };
     }
 
@@ -79,12 +80,44 @@ public static class PieceSorting
 
     // ── Sort implementations ────────────────────────────────────────────────
 
-    private static List<object> OrderByCatalogue(List<object> items) =>
-        items.OrderBy(o => CatPrefix(o), StringComparer.OrdinalIgnoreCase)
+    /// <summary>
+    /// Catalogue order. When <paramref name="catalogPrefixOrder"/> is supplied
+    /// (the composer's own CatalogPrefixes list, e.g. Op. → WoO → Anh.), prefixes
+    /// sort by their position in that list rather than alphabetically — so the
+    /// browse order matches the composer's curated prefix preference. Prefixes
+    /// not in the list (and pieces with no catalogue) rank last, ordered
+    /// alphabetically among themselves for determinism. Within a prefix:
+    /// number → suffix → sub-number → title, so "Op. 2 #1" precedes "Op. 2 #2".
+    /// </summary>
+    private static List<object> OrderByCatalogue(
+        List<object> items, IReadOnlyList<string>? catalogPrefixOrder)
+    {
+        if (catalogPrefixOrder is { Count: > 0 })
+        {
+            var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < catalogPrefixOrder.Count; i++)
+            {
+                var key = catalogPrefixOrder[i].Trim();
+                if (key.Length > 0 && !rank.ContainsKey(key)) rank[key] = i;
+            }
+
+            return items
+                .OrderBy(o => rank.TryGetValue(CatPrefix(o).Trim(), out var i) ? i : int.MaxValue)
+                .ThenBy(o => CatPrefix(o),    StringComparer.OrdinalIgnoreCase)  // tiebreak unranked prefixes
+                .ThenBy(o => CatNumber(o))
+                .ThenBy(o => CatSuffix(o),    StringComparer.OrdinalIgnoreCase)
+                .ThenBy(o => CatSubnumber(o))
+                .ThenBy(o => Title(o),        StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        return items.OrderBy(o => CatPrefix(o), StringComparer.OrdinalIgnoreCase)
              .ThenBy(o => CatNumber(o))
-             .ThenBy(o => CatSuffix(o), StringComparer.OrdinalIgnoreCase)
-             .ThenBy(o => Title(o),     StringComparer.OrdinalIgnoreCase)
+             .ThenBy(o => CatSuffix(o),    StringComparer.OrdinalIgnoreCase)
+             .ThenBy(o => CatSubnumber(o))
+             .ThenBy(o => Title(o),        StringComparer.OrdinalIgnoreCase)
              .ToList();
+    }
 
     private static List<object> OrderByTitle(List<object> items) =>
         items.OrderBy(o => Title(o), StringComparer.OrdinalIgnoreCase)
@@ -95,6 +128,7 @@ public static class PieceSorting
              .ThenBy(o => CatPrefix(o), StringComparer.OrdinalIgnoreCase)
              .ThenBy(o => CatNumber(o))
              .ThenBy(o => CatSuffix(o), StringComparer.OrdinalIgnoreCase)
+             .ThenBy(o => CatSubnumber(o))
              .ThenBy(o => Title(o),     StringComparer.OrdinalIgnoreCase)
              .ToList();
 
@@ -103,6 +137,7 @@ public static class PieceSorting
              .ThenBy(o => CatPrefix(o), StringComparer.OrdinalIgnoreCase)
              .ThenBy(o => CatNumber(o))
              .ThenBy(o => CatSuffix(o), StringComparer.OrdinalIgnoreCase)
+             .ThenBy(o => CatSubnumber(o))
              .ThenBy(o => Title(o),     StringComparer.OrdinalIgnoreCase)
              .ToList();
 
@@ -120,6 +155,7 @@ public static class PieceSorting
                     .ThenBy(o => CatPrefix(o), StringComparer.OrdinalIgnoreCase)
                     .ThenBy(o => CatNumber(o))
                     .ThenBy(o => CatSuffix(o), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(o => CatSubnumber(o))
                     .ThenBy(o => Title(o),     StringComparer.OrdinalIgnoreCase)
                     .ToList();
     }
@@ -148,6 +184,13 @@ public static class PieceSorting
         CanonPiece p                  => p.CatalogSortSuffix,
         CrossComposerSubpieceNode ccn => ccn.CatalogSortSuffix ?? "",
         _                             => "",
+    };
+
+    private static int CatSubnumber(object o) => o switch
+    {
+        CanonPiece p                  => p.CatalogSortSubnumber,
+        CrossComposerSubpieceNode ccn => ccn.CatalogSortSubnumber ?? 0,
+        _                             => 0,
     };
 
     private static string Title(object o) => o switch

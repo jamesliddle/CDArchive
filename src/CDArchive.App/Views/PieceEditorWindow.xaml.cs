@@ -4,6 +4,7 @@ using System.Windows.Input;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
+using CDArchive.Core.Services;
 
 namespace CDArchive.App.Views;
 
@@ -176,18 +177,13 @@ public partial class PieceEditorWindow : Window
         // ComposerCombo.Text via the TwoWay binding, but VM is the canonical
         // source).
         var composerName = _vm.Composer.Trim();
-        IReadOnlyList<string> prefixes = _pickLists.CatalogPrefixes;
 
-        if (_composerCatalogs != null
-            && !string.IsNullOrEmpty(composerName)
-            && _composerCatalogs.TryGetValue(composerName, out var permitted)
-            && permitted.Count > 0)
-        {
-            var permittedSet = new HashSet<string>(permitted, StringComparer.OrdinalIgnoreCase);
-            prefixes = _pickLists.CatalogPrefixes
-                .Where(p => permittedSet.Contains(p))
-                .ToList();
-        }
+        // Use the composer's own (authoritative, user-ordered) prefix list when
+        // present, else the global pick list. CatalogPrefixResolver replaces the
+        // old global∩composer intersection that silently dropped composer-only
+        // prefixes such as a newly-added "Anh." — see its doc comment.
+        var prefixes = CatalogPrefixResolver.Resolve(
+            composerName, _composerCatalogs, _pickLists.CatalogPrefixes);
 
         // Preserve the current text across the reset
         var current = CatalogPrefixCombo.Text;
@@ -300,6 +296,17 @@ public partial class PieceEditorWindow : Window
 
     private void RenumberSubpieces()
     {
+        // Only auto-number when this piece's subpieces are actually numbered.
+        // For a "set" (e.g. "Three Piano Sonatas, Op. 31") NumberedSubpieces is
+        // false: its members are full works carrying their own catalogue
+        // identity (Piano Sonata #16/#17/#18). Renumbering them by position
+        // (1/2/3) would clobber member.Number, change every member's display
+        // title in memory, and break album track refs that point at them by
+        // title — the "Edit Root Piece works once, then 'Couldn't find the
+        // top-level piece'" bug. Same protection for operas etc. where scenes
+        // aren't position-numbered.
+        if (!_vm.NumberedSubpieces) return;
+
         // H13 PieceEditor slice 3: VM owns SubpiecesStart parsing.
         var start = _vm.EffectiveSubpiecesStart;
         for (var i = 0; i < _vm.Subpieces.Count; i++)
@@ -378,8 +385,91 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveSubpieceClick(object sender, RoutedEventArgs e)
     {
         if (SelectedSubpiece is not { } sp) return;
+
+        // Refuse upfront when an album track ref still anchors on this
+        // subpiece (or any of its descendants). Pre-fix the remove was
+        // applied to the in-memory list and the user only saw the failure
+        // on OK as a SQLite FK-restrict error (or a silent app close
+        // before the dispatcher friendly-message fix). Surfacing it at
+        // click time tells the user exactly which albums are blocking the
+        // operation so they can re-anchor the offending refs first.
+        if (TryCollectBlockingAlbums(sp, out var albums))
+        {
+            var shown = albums.Take(8).ToList();
+            var more  = albums.Count > shown.Count
+                ? $"\n…and {albums.Count - shown.Count} more"
+                : "";
+            MessageBox.Show(this,
+                $"Cannot remove '{sp.BuildSubpieceTitle(_vm.NumberedSubpieces)}' — " +
+                $"{albums.Count} album track ref(s) still anchor on this subpiece " +
+                $"(or one of its descendants).\n\n" +
+                $"Album(s) referencing it:\n  • " +
+                string.Join("\n  • ", shown) + more + "\n\n" +
+                $"Re-anchor or remove those track refs first, then try again.",
+                "Subpiece in use",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         _vm.Subpieces.Remove(sp);
         RefreshSubpieceList();
+    }
+
+    /// <summary>
+    /// Walks <paramref name="root"/> + all descendant subpieces/versions and
+    /// asks <see cref="PieceReferenceIndex.Current"/> whether any album or
+    /// loose track references them. Returns true with the distinct list of
+    /// blocking container display names when at least one ref blocks the
+    /// remove; false (and an empty list) when the subtree is safe to drop.
+    /// </summary>
+    private static bool TryCollectBlockingAlbums(CanonPiece root, out IReadOnlyList<string> albums)
+    {
+        albums = Array.Empty<string>();
+        var index = PieceReferenceIndex.Current;
+        if (index is null) return false; // safety net — never null in production DI
+
+        var seenPieces = new HashSet<CanonPiece>();
+        var seenLabels = new HashSet<string>(StringComparer.Ordinal);
+        var result     = new List<string>();
+
+        void Collect(CanonPiece piece)
+        {
+            if (!seenPieces.Add(piece)) return;
+
+            foreach (var hit in index.HitsForPiece(piece))
+            {
+                var label = hit.Album?.Title
+                            ?? hit.Track?.Description
+                            ?? "(unnamed loose track)";
+                if (seenLabels.Add(label)) result.Add(label);
+            }
+
+            if (piece.Subpieces is { Count: > 0 })
+                foreach (var sub in piece.Subpieces)
+                    Collect(sub);
+
+            if (piece.Versions is { Count: > 0 })
+            {
+                foreach (var v in piece.Versions)
+                {
+                    foreach (var hit in index.HitsForVersion(v))
+                    {
+                        var label = hit.Album?.Title
+                                    ?? hit.Track?.Description
+                                    ?? "(unnamed loose track)";
+                        if (seenLabels.Add(label)) result.Add(label);
+                    }
+                    if (v.Subpieces is { Count: > 0 })
+                        foreach (var sub in v.Subpieces)
+                            Collect(sub);
+                }
+            }
+        }
+
+        Collect(root);
+        albums = result;
+        return result.Count > 0;
     }
 
     private void OnMoveSubpieceUpClick(object sender, RoutedEventArgs e)
@@ -672,25 +762,41 @@ public partial class PieceEditorWindow : Window
     {
         CatalogList.Items.Clear();
         foreach (var cat in _vm.CatalogEntries)
-        {
-            var label = $"{cat.Catalog} {cat.CatalogNumber}".Trim();
-            CatalogList.Items.Add(new ListBoxItem { Content = label, Tag = cat });
-        }
+            CatalogList.Items.Add(new ListBoxItem { Content = FormatCatalogEntry(cat), Tag = cat });
+    }
+
+    /// <summary>
+    /// Renders a catalogue entry the same way <see cref="CanonPiece.Catalog"/>
+    /// does — "Prefix Number #Subnumber" — so the editor list matches what the
+    /// tree shows. Pre-fix the list dropped the sub-number entirely.
+    /// </summary>
+    private static string FormatCatalogEntry(CatalogInfo cat)
+    {
+        var hasNum = !string.IsNullOrEmpty(cat.CatalogNumber);
+        var hasSub = !string.IsNullOrEmpty(cat.CatalogSubnumber);
+        if (hasNum && hasSub) return $"{cat.Catalog} {cat.CatalogNumber} #{cat.CatalogSubnumber}".Trim();
+        if (hasNum)           return $"{cat.Catalog} {cat.CatalogNumber}".Trim();
+        if (hasSub)           return $"{cat.Catalog} #{cat.CatalogSubnumber}".Trim();
+        return cat.Catalog.Trim();
     }
 
     private void OnAddCatalogClick(object sender, RoutedEventArgs e)
     {
-        var prefix = CatalogPrefixCombo.Text.Trim();
-        var number = CatalogNumberBox.Text.Trim();
-        if (string.IsNullOrEmpty(prefix) && string.IsNullOrEmpty(number)) return;
+        var prefix    = CatalogPrefixCombo.Text.Trim();
+        var number    = CatalogNumberBox.Text.Trim();
+        var subnumber = CatalogSubnumberBox.Text.Trim();
+        if (string.IsNullOrEmpty(prefix) && string.IsNullOrEmpty(number) && string.IsNullOrEmpty(subnumber))
+            return;
         _vm.CatalogEntries.Add(new CatalogInfo
         {
-            Catalog = prefix,
-            CatalogNumber = string.IsNullOrEmpty(number) ? null : number
+            Catalog          = prefix,
+            CatalogNumber    = string.IsNullOrEmpty(number)    ? null : number,
+            CatalogSubnumber = string.IsNullOrEmpty(subnumber) ? null : subnumber,
         });
         RefreshCatalogList();
-        CatalogPrefixCombo.Text = "";
-        CatalogNumberBox.Text = "";
+        CatalogPrefixCombo.Text   = "";
+        CatalogNumberBox.Text     = "";
+        CatalogSubnumberBox.Text  = "";
     }
 
     private void OnRemoveCatalogClick(object sender, RoutedEventArgs e)

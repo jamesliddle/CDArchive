@@ -135,10 +135,16 @@ public static class ItunesImportInference
     ///   component is the joined tempi (e.g. <c>"Lento - Allegro agitato"</c>).
     ///   Null or single-element means a regular single-tempo subpiece (the
     ///   leaf's title is its only tempo, conventionally implicit).</param>
+    /// <param name="TemposFromFormCollapse">True when <see cref="Tempos"/> was
+    ///   produced by the FormAndTempo interpretation collapsing a "Form. Tempo"
+    ///   segment — so <c>Tempos[0]</c> is the FORM, not a tempo. The importer
+    ///   uses this to avoid writing the form onto a matched curated movement as
+    ///   a bogus tempo marker.</param>
     public record ParsedSubpieceRef(
         string? MusicNumber,
         IReadOnlyList<string> Path,
-        IReadOnlyList<string>? Tempos = null);
+        IReadOnlyList<string>? Tempos = null,
+        bool TemposFromFormCollapse = false);
 
     public record ParsedTrackName(string PieceTitle, IReadOnlyList<ParsedSubpieceRef> SubpieceRefs);
 
@@ -181,7 +187,83 @@ public static class ItunesImportInference
     /// a period followed by a space (e.g. <c>"Aria of St. Peter"</c>) will be over-split. Edit
     /// such tracks in iTunes or the piece tree directly after import.</para>
     /// </summary>
+    /// <summary>
+    /// How to interpret a <c>. </c> separator within a single iTunes
+    /// segment after the number prefix. The default
+    /// <see cref="SubpieceHierarchy"/> matches the historical Verdi-Requiem
+    /// shape ("2b. Dies irae. Tuba mirum" → Dies irae &gt; Tuba mirum).
+    /// <see cref="FormAndTempo"/> matches the instrumental-sonata shape
+    /// ("3. Scherzando. Allegretto" → one movement, form "Scherzando",
+    /// tempo "Allegretto") — the piece becomes a single subpiece whose
+    /// title is the joined segment and whose Tempos list carries the
+    /// individual components.
+    /// </summary>
+    public enum DotSeparatorInterpretation
+    {
+        SubpieceHierarchy,
+        FormAndTempo,
+    }
+
+    /// <summary>
+    /// One ambiguous segment found in an iTunes track name — used by
+    /// <see cref="FindAmbiguousSegments"/> to drive the import-time
+    /// confirmation dialog.
+    /// </summary>
+    /// <param name="Segment">The full segment after the number prefix
+    /// (e.g. <c>"Scherzando. Allegretto, ma non troppo"</c>).</param>
+    /// <param name="Components">The <c>. </c>-split components (e.g.
+    /// <c>["Scherzando", "Allegretto, ma non troppo"]</c>).</param>
+    public record AmbiguousSegment(string Segment, IReadOnlyList<string> Components);
+
+    /// <summary>
+    /// Scans a track name for segments that contain <c>. </c> after the
+    /// number prefix — the ambiguous shape that could mean either a
+    /// subpiece hierarchy (Requiem-style) or a form-and-tempo combination
+    /// (instrumental-sonata style). Returns one entry per such segment;
+    /// empty when the name has no ambiguous segments.
+    /// </summary>
+    public static IReadOnlyList<AmbiguousSegment> FindAmbiguousSegments(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return Array.Empty<AmbiguousSegment>();
+
+        var segments = name.Split(new[] { " - " }, StringSplitOptions.None);
+        var result = new List<AmbiguousSegment>();
+
+        for (int i = 1; i < segments.Length; i++)
+        {
+            var raw = segments[i].Trim();
+            if (raw.Length == 0) continue;
+
+            var segment = raw;
+            var numMatch = NumberPrefixRegex.Match(segment);
+            if (numMatch.Success)
+                segment = segment[numMatch.Length..];
+
+            var components = segment
+                .Split(new[] { ". " }, StringSplitOptions.None)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
+
+            if (components.Count > 1)
+                result.Add(new AmbiguousSegment(segment, components));
+        }
+
+        return result;
+    }
+
     public static ParsedTrackName ParseTrackName(string name)
+        => ParseTrackName(name, DotSeparatorInterpretation.SubpieceHierarchy);
+
+    /// <summary>
+    /// Overload that lets the caller pick how to interpret <c>. </c>
+    /// separators within a segment (see <see cref="DotSeparatorInterpretation"/>).
+    /// The interpretation applies to every ambiguous segment in this name;
+    /// callers that want per-segment control should resolve the choice
+    /// upstream (e.g. via the iTunes-import dialog) and pass a single
+    /// effective value per track.
+    /// </summary>
+    public static ParsedTrackName ParseTrackName(string name, DotSeparatorInterpretation dotInterpretation)
     {
         if (string.IsNullOrEmpty(name)) return new ParsedTrackName("", Array.Empty<ParsedSubpieceRef>());
 
@@ -210,6 +292,26 @@ public static class ItunesImportInference
                 .Where(s => s.Length > 0)
                 .ToList();
 
+            // FormAndTempo: collapse a multi-component segment to ONE leaf
+            // whose title is the unsplit segment and whose Tempos list
+            // carries the split components. The caller picked this when the
+            // segment is instrumental-style ("Scherzando. Allegretto, ma non
+            // troppo" — one movement) rather than vocal-style
+            // ("Dies irae. Tuba mirum" — two subpieces).
+            if (dotInterpretation == DotSeparatorInterpretation.FormAndTempo
+                && components.Count > 1)
+            {
+                var leaf = segment.Trim();
+                var tempos = components;
+                // TemposFromFormCollapse: components[0] is the FORM, not a tempo
+                // — the importer must not write these onto a matched curated
+                // movement as tempo markers.
+                refs.Add(new ParsedSubpieceRef(musicNumber, new[] { leaf }, tempos,
+                    TemposFromFormCollapse: true));
+                previousPath = new[] { leaf };
+                continue;
+            }
+
             // Tempo continuation: an unnumbered single-component segment
             // following a numbered single-component movement gets folded into
             // the previous ref as an additional tempo, rather than becoming a
@@ -229,7 +331,12 @@ public static class ItunesImportInference
                 existing.Add(components[0]);
                 var joined = string.Join(" - ", existing);
                 var newPath = new List<string> { joined };
-                refs[^1] = new ParsedSubpieceRef(prev.MusicNumber, newPath, existing);
+                // Preserve the form-collapse flag: when prev came from a
+                // FormAndTempo collapse (its Tempos[0] is the form), a trailing
+                // continuation must stay flagged so the importer still won't
+                // write those values onto a matched curated movement.
+                refs[^1] = new ParsedSubpieceRef(
+                    prev.MusicNumber, newPath, existing, prev.TemposFromFormCollapse);
                 previousPath = newPath;
                 continue;
             }

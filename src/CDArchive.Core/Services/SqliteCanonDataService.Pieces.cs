@@ -478,7 +478,71 @@ public partial class SqliteCanonDataService
             UpsertPieceTree(db, input, row, composerId, position: i, matched, matchedVersions);
         }
 
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        // Some of the UpsertPieceTree calls above may have queued subpiece
+        // deletes (orphans whose parent is being edited — a movement
+        // removed from a Sonata's subpiece list, e.g. the "1. Allegro"
+        // duplicate from a previous broken import). Those go through the
+        // first SaveChanges below. The album_track_piece_refs FK is
+        // OnDelete:Restrict, so if any album track still references one
+        // of those subpieces the delete fails with SQLite Error 19 —
+        // pre-fix the user saw "FOREIGN KEY constraint failed" and the
+        // app died (the dispatcher killed the process). Mirror the
+        // top-level delete's catch (M3) so the failure surfaces a
+        // human-readable message naming what's blocking it.
+        var pendingPieceDeleteIds = db.ChangeTracker.Entries<PieceRow>()
+            .Where(e => e.State == EntityState.Deleted && e.Entity.Id != 0)
+            .Select(e => e.Entity.Id)
+            .ToList();
+
+        try
+        {
+            await db.SaveChangesAsync().ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex) when (pendingPieceDeleteIds.Count > 0)
+        {
+            // Detach the doomed deletes so subsequent save attempts in the
+            // same scope don't re-trigger the same constraint failure.
+            foreach (var entry in db.ChangeTracker.Entries<PieceRow>()
+                                    .Where(e => e.State == EntityState.Deleted &&
+                                                pendingPieceDeleteIds.Contains(e.Entity.Id))
+                                    .ToList())
+            {
+                entry.State = EntityState.Unchanged;
+            }
+
+            // Count blocking album track refs the same way the top-level
+            // delete path does (M3): break out start-refs vs range-end
+            // markers so the user knows which kind to chase.
+            var startRefCount = await db.AlbumTrackPieceRefs.AsNoTracking()
+                .Where(r => pendingPieceDeleteIds.Contains(r.PieceId))
+                .CountAsync().ConfigureAwait(false);
+            var endRefCount = await db.AlbumTrackPieceRefs.AsNoTracking()
+                .Where(r => r.EndPieceId != null &&
+                            pendingPieceDeleteIds.Contains(r.EndPieceId.Value))
+                .CountAsync().ConfigureAwait(false);
+
+            var doomedTitles = await db.Pieces.AsNoTracking()
+                .Where(p => pendingPieceDeleteIds.Contains(p.Id))
+                .Select(p => p.Title)
+                .ToListAsync().ConfigureAwait(false);
+            var titles = string.Join(", ",
+                doomedTitles.Where(t => !string.IsNullOrEmpty(t))
+                            .Select(t => $"'{t}'")
+                            .Take(3));
+
+            var reasons = new List<string>();
+            if (startRefCount > 0) reasons.Add($"{startRefCount} as the piece itself");
+            if (endRefCount   > 0) reasons.Add($"{endRefCount} as a range-end marker");
+            var reasonClause = reasons.Count > 0
+                ? $" ({string.Join("; ", reasons)})"
+                : "";
+
+            var titleClause = titles.Length > 0 ? $" ({titles}…)" : "";
+            throw new InvalidOperationException(
+                $"Cannot delete {pendingPieceDeleteIds.Count} piece(s){titleClause} — they are still " +
+                $"referenced by album track refs{reasonClause}. Remove those album references first.",
+                ex);
+        }
 
         // ── Delete top-level rows that the input no longer references. ──
         // Without this pass, removing a piece from CanonViewModel.Pieces and saving
@@ -887,7 +951,16 @@ public partial class SqliteCanonDataService
         CanonDbContext db,
         Action<PieceMarkerRow> attachToPiece)
     {
-        var existingById = existing.ToDictionary(m => m.Id);
+        // Snapshot the original list before pass 1 mutates `existing` via
+        // attachToPiece. Without this, pass 2's orphan walk picks up the
+        // freshly-added markers — their Id is still 0 (or EF's temporary
+        // value once detect-changes catches them via the navigation
+        // property) and not in keepIds, so RemoveMarkerTree tries to Delete
+        // a never-persisted row and EF throws InvalidOperationException
+        // ("temporary value while attempting to change the entity's state
+        // to 'Deleted'"). Mirrors the pattern in ReconcileSubMarkers below.
+        var originalExisting = existing.ToList();
+        var existingById = originalExisting.ToDictionary(m => m.Id);
         var keepIds = new HashSet<long>();
 
         // Pass 1: walk the incoming list in order; update or create each marker.
@@ -919,10 +992,10 @@ public partial class SqliteCanonDataService
             }
         }
 
-        // Pass 2: remove anything in the existing list not retained.
+        // Pass 2: remove anything in the original list not retained.
         // Have to traverse subtrees so nested rows get explicitly Remove()d
         // — the CHECK constraint refuses null-FK orphans (same trap as tempos).
-        foreach (var orphan in existing.ToList())
+        foreach (var orphan in originalExisting)
         {
             if (keepIds.Contains(orphan.Id)) continue;
             RemoveMarkerTree(orphan, db);

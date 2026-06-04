@@ -46,7 +46,7 @@ public class PieceReferenceIndex
     /// <see cref="RebuildContainers"/> call returned 0, which is the
     /// "badges flicker to zero mid-save" symptom Rework H7 described.
     /// </summary>
-    internal PieceReferenceIndex(bool registerAsCurrent)
+    public PieceReferenceIndex(bool registerAsCurrent)
     {
         if (registerAsCurrent) Current = this;
     }

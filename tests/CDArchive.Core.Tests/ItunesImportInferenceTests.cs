@@ -143,4 +143,63 @@ public class ItunesImportInferenceTests
         Assert.Null(parsed.SubpieceRefs[0].Tempos);
         Assert.Null(parsed.SubpieceRefs[1].Tempos);
     }
+
+    /// <summary>
+    /// FormAndTempo interpretation collapses a <c>". "</c>-split segment to
+    /// ONE leaf whose Path component is the unsplit segment and whose Tempos
+    /// list carries the components. This is the instrumental-sonata reading
+    /// the user requested in the import dialog ("Scherzando. Allegretto, ma
+    /// non troppo" = one movement, form "Scherzando", tempo
+    /// "Allegretto, ma non troppo").
+    /// </summary>
+    [Fact]
+    public void ParseTrackName_FormAndTempo_CollapsesSegmentToOneLeafWithTempos()
+    {
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Piano Sonata in D, WoO 47 #3 - 3. Scherzando. Allegretto, ma non troppo",
+            ItunesImportInference.DotSeparatorInterpretation.FormAndTempo);
+
+        Assert.Equal("Piano Sonata in D, WoO 47 #3", parsed.PieceTitle);
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal("3", sub.MusicNumber);
+        Assert.Equal(new[] { "Scherzando. Allegretto, ma non troppo" }, sub.Path);
+        Assert.Equal(new[] { "Scherzando", "Allegretto, ma non troppo" }, sub.Tempos);
+    }
+
+    /// <summary>
+    /// SubpieceHierarchy (the default and pre-existing behaviour) keeps the
+    /// segment split into multiple Path components — the Verdi-Requiem
+    /// reading. This is the same input as the test above with the
+    /// interpretation flipped; the output diverges so the contract is
+    /// double-pinned.
+    /// </summary>
+    [Fact]
+    public void ParseTrackName_SubpieceHierarchy_KeepsSegmentSplitAsPath()
+    {
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Piano Sonata in D, WoO 47 #3 - 3. Scherzando. Allegretto, ma non troppo",
+            ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy);
+
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal(new[] { "Scherzando", "Allegretto, ma non troppo" }, sub.Path);
+        Assert.Null(sub.Tempos);
+    }
+
+    /// <summary>
+    /// FindAmbiguousSegments returns the segments-after-number-prefix that
+    /// contain <c>". "</c> — exactly the segments the dialog should ask the
+    /// user about. Non-ambiguous names produce an empty result.
+    /// </summary>
+    [Fact]
+    public void FindAmbiguousSegments_PicksUpDotSeparatorSegments_AndSkipsCleanOnes()
+    {
+        Assert.Empty(ItunesImportInference.FindAmbiguousSegments(
+            "Piano Sonata in f, WoO 47 #2 - 2. Andante"));
+
+        var found = ItunesImportInference.FindAmbiguousSegments(
+            "Piano Sonata in D, WoO 47 #3 - 3. Scherzando. Allegretto, ma non troppo");
+        var seg = Assert.Single(found);
+        Assert.Equal("Scherzando. Allegretto, ma non troppo", seg.Segment);
+        Assert.Equal(new[] { "Scherzando", "Allegretto, ma non troppo" }, seg.Components);
+    }
 }

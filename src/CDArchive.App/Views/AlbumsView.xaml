@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:helpers="clr-namespace:CDArchive.App.Helpers"
              mc:Ignorable="d"
              Loaded="OnLoaded"
              d:DataContext="{d:DesignInstance Type=vm:AlbumsViewModel}">
@@ -104,6 +105,7 @@
                   FontSize="11"
                   BorderThickness="0"
                   Background="White"
+                  helpers:AutoSelectFirst.Enabled="True"
                   ItemsSource="{Binding Albums}"
                   SelectedItem="{Binding SelectedAlbum, Mode=TwoWay}"
                   SelectionMode="Extended"

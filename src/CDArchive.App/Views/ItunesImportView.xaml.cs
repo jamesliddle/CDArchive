@@ -50,6 +50,15 @@ public partial class ItunesImportView : UserControl
         var primary = column.SortMemberPath;
         if (string.IsNullOrEmpty(primary)) return;
 
+        // Snapshot the current selection. Re-sorting the view below runs
+        // through CollectionView.Refresh (via DeferRefresh), which raises a
+        // CollectionChanged Reset; WPF's Selector clears SelectedItems on a
+        // Reset, so without restoring it the highlighted row(s) would lose
+        // their selection on every header click. The items themselves survive
+        // (only their order changes), so we re-select the same instances after.
+        var selectedSnapshot = grid.SelectedItems.Cast<object>().ToList();
+        var primarySelected  = grid.SelectedItem;
+
         // Toggle direction if the user re-clicks the active column, otherwise
         // start ascending. Mirrors the DataGrid's own behaviour.
         var newDir = column.SortDirection switch
@@ -85,28 +94,47 @@ public partial class ItunesImportView : UserControl
         // multi-key sort above.
         e.Handled = true;
 
-        // Anchor the scroll on the first selected row's new position.
-        if (grid.SelectedItems.Count == 0) return;
+        if (selectedSnapshot.Count == 0) return;
+
+        // Restore selection + anchor scroll AFTER the grid has finished
+        // reacting to the view's Reset. The Reset (raised by the re-sort's
+        // DeferRefresh) clears selection AND regenerates the row containers for
+        // the new order; that regeneration runs at Render priority. Restoring
+        // selection synchronously here — before regeneration — leaves the fresh
+        // containers showing unselected. Background priority runs AFTER Render,
+        // so by now the containers exist and assigning SelectedItems /
+        // SelectedItem actually paints the highlight.
         Dispatcher.BeginInvoke(new System.Action(() =>
         {
-            object? anchor = null;
-            foreach (var item in grid.Items)
-            {
-                if (grid.SelectedItems.Contains(item)) { anchor = item; break; }
-            }
-            if (anchor == null) return;
+            grid.SelectedItems.Clear();
+            foreach (var item in selectedSnapshot) grid.SelectedItems.Add(item);
+            grid.SelectedItem = primarySelected ?? selectedSnapshot[0];
 
             grid.UpdateLayout();
-            var idx = grid.Items.IndexOf(anchor);
-            if (idx < 0) return;
 
-            // DataGrid's row panel runs in virtualizing item-unit mode by
-            // default, so vertical offset is measured in item indices.
-            var sv = grid.FindVisualChild<ScrollViewer>();
-            if (sv != null)
-                sv.ScrollToVerticalOffset(idx);
-            else
-                grid.ScrollIntoView(anchor);
+            // Anchor the scroll on the first selected row's new position.
+            var anchor = grid.SelectedItem;
+            var idx = grid.Items.IndexOf(anchor);
+            if (idx >= 0)
+            {
+                // DataGrid's row panel runs in virtualizing item-unit mode by
+                // default, so vertical offset is measured in item indices.
+                var sv = grid.FindVisualChild<ScrollViewer>();
+                if (sv != null)
+                    sv.ScrollToVerticalOffset(idx);
+                else
+                    grid.ScrollIntoView(anchor);
+            }
+
+            // Belt-and-suspenders: force the selected visual on any realized
+            // row containers in case the regenerated container didn't sync its
+            // IsSelected from SelectedItems.
+            grid.UpdateLayout();
+            foreach (var item in selectedSnapshot)
+            {
+                if (grid.ItemContainerGenerator.ContainerFromItem(item) is DataGridRow row)
+                    row.IsSelected = true;
+            }
         }), DispatcherPriority.Background);
     }
 }
