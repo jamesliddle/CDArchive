@@ -397,4 +397,246 @@ public class ItunesImporterTests
         Assert.Equal("Alfano, Franco",     preserved.Name);
         Assert.Equal("compl. (revised)",   preserved.Role);
     }
+
+    /// <summary>
+    /// Regression: when ParseTrackName couldn't extract a top-level piece
+    /// title (an iTunes Name that doesn't follow the "Work - Movement"
+    /// convention, or one that opens with the separator and so has an empty
+    /// leading segment), the importer used to fabricate a piece-ref with
+    /// <c>PieceTitle = ""</c>. The Tracks view rendered that as a blank
+    /// cell, and Description was never populated either, so the user saw
+    /// two empty columns with no clue what the iTunes row was. The new
+    /// behaviour mirrors the no-composer fallback: stash the raw iTunes
+    /// Name in Description and skip the PieceRef.
+    /// </summary>
+    [Fact]
+    public void TrackWithComposerButUnparseableName_FallsBackToDescription()
+    {
+        var tracks = new[]
+        {
+            // Leading " - " makes the first segment empty → PieceTitle = "".
+            Track(1, " - 1. Allegro", album: "Some Album",
+                  composer: "Beethoven, Ludwig van (1770-1827)",
+                  trackNumber: 1, discNumber: 1),
+        };
+
+        var result = ItunesImporter.Import(tracks,
+            new List<CanonComposer>(), new List<CanonPiece>());
+
+        var album   = Assert.Single(result.NewAlbums);
+        var disc    = Assert.Single(album.Discs);
+        var imported = Assert.Single(disc.Tracks);
+
+        // Pre-fix: imported.PieceRefs == [TrackPieceRef{PieceTitle=""}] and
+        // imported.Description == null. Post-fix: PieceRefs null, Description
+        // carries the raw iTunes Name for the user to triage.
+        Assert.True(imported.PieceRefs is null || imported.PieceRefs.Count == 0,
+            "Expected no piece refs when the parse yields an empty piece title.");
+        Assert.Equal(" - 1. Allegro", imported.Description);
+    }
+
+    /// <summary>
+    /// Regression: importing a track whose movement matches a CURATED
+    /// structural subpiece (Title="", Number=4, Form="Rondo") must not mutate
+    /// that subpiece. Pre-fix, EnsureSubpiecePath back-filled the empty Title
+    /// with the parsed segment, corrupting "4. Rondo" into the full tempo run
+    /// "Rondo - Allegro, ma non troppo - Più allegro quasi presto", and could
+    /// plant a bogus "Rondo" tempo marker. The album ref must still resolve to
+    /// the existing movement (no new subpiece created).
+    /// </summary>
+    [Fact]
+    public void ImportMatchingCuratedStructuralMovement_DoesNotMutateIt()
+    {
+        var sonata = new CanonPiece
+        {
+            Composer    = "Beethoven, Ludwig van",
+            Form        = "Piano Sonata",
+            Number      = 15,
+            KeyTonality = "D",
+            Nickname    = "Pastoral",
+            CatalogInfo = new List<CatalogInfo> { new() { Catalog = "Op.", CatalogNumber = "28" } },
+            Subpieces   = new List<CanonPiece>
+            {
+                new() { Composer = "Beethoven, Ludwig van", Number = 1 },
+                new() { Composer = "Beethoven, Ludwig van", Number = 2 },
+                new() { Composer = "Beethoven, Ludwig van", Form = "Scherzo", Number = 3 },
+                new() { Composer = "Beethoven, Ludwig van", Form = "Rondo",   Number = 4 },
+            },
+        };
+        var rondo = sonata.Subpieces![3];
+
+        var pieces    = new List<CanonPiece> { sonata };
+        var composers = new List<CanonComposer>
+        {
+            new() { Name = "Beethoven, Ludwig van", SortName = "Beethoven, Ludwig van" },
+        };
+
+        var track = Track(19,
+            "Piano Sonata #15 in D, Op. 28 \"Pastoral\" - 4. Rondo. Allegro, ma non troppo - Più allegro quasi presto",
+            album: "Beethoven Piano Sonatas Jandó 10",
+            trackNumber: 19, discNumber: 1,
+            composer: "Beethoven, Ludwig van (1770-1827)");
+
+        // Force FormAndTempo (what the dialog auto-picks for this track).
+        var dotChoices = new Dictionary<int, ItunesImportInference.DotSeparatorInterpretation>
+        {
+            [19] = ItunesImportInference.DotSeparatorInterpretation.FormAndTempo,
+        };
+
+        var result = ItunesImporter.Import(track is null ? Array.Empty<ItunesTrack>() : new[] { track },
+            composers, pieces, existingAlbums: null, dotInterpretations: dotChoices);
+
+        // The curated movement is untouched.
+        Assert.Equal("", rondo.Title ?? "");
+        Assert.Equal(4, rondo.Number);
+        Assert.Equal("Rondo", rondo.Form);
+        Assert.True(rondo.Markers is null || rondo.Markers.Count == 0,
+            "Matched curated movement must not gain tempo markers.");
+
+        // No new subpiece was created under the sonata.
+        Assert.Equal(4, sonata.Subpieces!.Count);
+        Assert.Equal(0, result.NewSubpieces);
+
+        // The album track ref resolves back to the existing movement #4.
+        var album      = Assert.Single(result.NewAlbums);
+        var albumTrack = album.Discs[0].Tracks[0];
+        var pieceRef   = Assert.Single(albumTrack.PieceRefs!);
+        var resolver   = new PieceReferenceIndex(registerAsCurrent: false);
+        resolver.BuildResolver(pieces);
+        var resolved = resolver.TryResolve(pieceRef);
+        Assert.NotNull(resolved);
+        Assert.Same(rondo, resolved!.Value.Piece);
+    }
+
+    /// <summary>
+    /// Regression: a track whose title matches a MEMBER of a "set" container
+    /// (e.g. "Three Piano Sonatas, WoO 47") must reuse that member, not create
+    /// a duplicate top-level piece. Set members carry a null Composer of their
+    /// own (they inherit it from the set parent), so the importer's
+    /// resolved-piece composer-equality re-check used to fail against null and
+    /// fabricate a duplicate. The resolver already keys by the inherited
+    /// composer, so the hit is valid.
+    /// </summary>
+    [Fact]
+    public void ImportSetMemberWithInheritedComposer_ReusesMember_NoDuplicate()
+    {
+        // A "set" of three piano sonatas; members have empty Title + null
+        // Composer, identified structurally by Form + catalog (WoO 47 #N) +
+        // key — exactly how the curated canon stores them.
+        CanonPiece Member(string key, string sub) => new()
+        {
+            // Composer deliberately left null — inherited from the set parent.
+            Form        = "Piano Sonata",
+            KeyTonality = key,
+            CatalogInfo = new List<CatalogInfo>
+            {
+                new() { Catalog = "WoO", CatalogNumber = "47", CatalogSubnumber = sub },
+            },
+        };
+
+        var set = new CanonPiece
+        {
+            Composer    = "Beethoven, Ludwig van",
+            Form        = "Set",
+            CatalogInfo = new List<CatalogInfo> { new() { Catalog = "WoO", CatalogNumber = "47" } },
+            Subpieces   = new List<CanonPiece>
+            {
+                Member("E-flat", "1"),
+                Member("f",      "2"),
+                Member("D",      "3"),
+            },
+        };
+
+        var pieces    = new List<CanonPiece> { set };
+        var composers = new List<CanonComposer>
+        {
+            new() { Name = "Beethoven, Ludwig van", SortName = "Beethoven, Ludwig van" },
+        };
+
+        var tracks = new[]
+        {
+            Track(1, "Piano Sonata in E-flat, WoO 47 #1 - 1. Allegro cantabile",
+                  album: "Beethoven Piano Sonatas Jandó 10",
+                  trackNumber: 1, discNumber: 1,
+                  composer: "Beethoven, Ludwig van (1770-1827)"),
+        };
+
+        var result = ItunesImporter.Import(tracks, composers, pieces);
+
+        // No new TOP-LEVEL piece was created — only the existing set remains.
+        Assert.Single(pieces);
+        Assert.Same(set, pieces[0]);
+        Assert.DoesNotContain(pieces, p => p.Title == "Piano Sonata in E-flat, WoO 47 #1");
+
+        // The album ref resolves to the set member (its movement), not a duplicate.
+        var album      = Assert.Single(result.NewAlbums);
+        var albumTrack = album.Discs[0].Tracks[0];
+        var pieceRef   = Assert.Single(albumTrack.PieceRefs!);
+        var resolver   = new PieceReferenceIndex(registerAsCurrent: false);
+        resolver.BuildResolver(pieces);
+        var resolved = resolver.TryResolve(pieceRef);
+        Assert.NotNull(resolved);
+        // The resolved leaf is under the E-flat member, which is under the set.
+        var eFlatMember = set.Subpieces![0];
+        Assert.True(ReferenceEquals(resolved!.Value.Piece, eFlatMember) ||
+                    (eFlatMember.Subpieces?.Contains(resolved.Value.Piece) ?? false),
+            "Album ref should resolve to the set member (or its movement), not a duplicate top piece.");
+    }
+
+    /// <summary>
+    /// Re-importing a GENUINE multi-tempo movement ("1. Lento - Allegro agitato")
+    /// that matches an existing marker-less structural movement enriches that
+    /// movement with the parsed tempo markers (it was missing them). Tempo
+    /// continuation is genuine (not a FormAndTempo collapse), so it's safe.
+    /// </summary>
+    [Fact]
+    public void ImportGenuineMultiTempo_MatchedMovementWithNoMarkers_GetsEnriched()
+    {
+        var movement = new CanonPiece { Composer = "X", Number = 1 };  // structural, no title, no markers
+        var top = new CanonPiece { Composer = "X", Title = "Symphony Test", Subpieces = new() { movement } };
+        var pieces = new List<CanonPiece> { top };
+        var composers = new List<CanonComposer> { new() { Name = "X", SortName = "X" } };
+
+        var track = Track(1, "Symphony Test - 1. Lento - Allegro agitato",
+            album: "A", trackNumber: 1, discNumber: 1, composer: "X");
+
+        ItunesImporter.Import(new[] { track }, composers, pieces);
+
+        Assert.Single(top.Subpieces!);              // no new subpiece created
+        Assert.NotNull(movement.Markers);
+        Assert.Equal(2, movement.Markers!.Count);
+        Assert.Equal("Lento",           movement.Markers[0].Value);
+        Assert.Equal("Allegro agitato", movement.Markers[1].Value);
+        Assert.All(movement.Markers, m => Assert.Equal(MarkerKind.Tempo, m.Kind));
+    }
+
+    /// <summary>
+    /// The FormAndTempo collapse must NOT enrich a matched curated movement —
+    /// its "tempos" list leads with the FORM ("Rondo"), which as a tempo marker
+    /// would corrupt curated data. Mirrors
+    /// <see cref="ImportMatchingCuratedStructuralMovement_DoesNotMutateIt"/> but
+    /// pins specifically that the no-markers movement stays marker-less.
+    /// </summary>
+    [Fact]
+    public void ImportFormAndTempo_MatchedMovementWithNoMarkers_StaysMarkerless()
+    {
+        var rondo = new CanonPiece { Composer = "X", Form = "Rondo", Number = 4 };  // no markers
+        var top = new CanonPiece { Composer = "X", Title = "Sonata Test", Subpieces = new() { rondo } };
+        var pieces = new List<CanonPiece> { top };
+        var composers = new List<CanonComposer> { new() { Name = "X", SortName = "X" } };
+
+        var track = Track(1, "Sonata Test - 4. Rondo. Allegretto, ma non troppo",
+            album: "A", trackNumber: 1, discNumber: 1, composer: "X");
+        var dotChoices = new Dictionary<int, ItunesImportInference.DotSeparatorInterpretation>
+        {
+            [1] = ItunesImportInference.DotSeparatorInterpretation.FormAndTempo,
+        };
+
+        ItunesImporter.Import(new[] { track }, composers, pieces, existingAlbums: null,
+            dotInterpretations: dotChoices);
+
+        Assert.Single(top.Subpieces!);
+        Assert.True(rondo.Markers is null || rondo.Markers.Count == 0,
+            "FormAndTempo must not plant the form as a bogus tempo marker on a matched movement.");
+    }
 }

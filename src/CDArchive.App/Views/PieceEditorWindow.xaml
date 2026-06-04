@@ -187,14 +187,23 @@
                         <Grid Margin="4,4,4,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="70" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="60" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ComboBox Grid.Column="0" Style="{StaticResource FieldCombo}"
-                                      x:Name="CatalogPrefixCombo" Margin="0,0,4,0" />
+                                      x:Name="CatalogPrefixCombo" Margin="0,0,4,0"
+                                      ToolTip="Catalogue prefix, e.g. Op., WoO, Anh." />
                             <TextBox  Grid.Column="1" Style="{StaticResource FieldBox}"
-                                      x:Name="CatalogNumberBox" />
-                            <Button   Grid.Column="2" Content="Add" Padding="8,3" FontSize="11"
+                                      x:Name="CatalogNumberBox"
+                                      ToolTip="Catalogue number, e.g. 2" />
+                            <TextBlock Grid.Column="2" Text="#" VerticalAlignment="Center"
+                                       Margin="4,0,4,0" Foreground="#888" />
+                            <TextBox  Grid.Column="3" Style="{StaticResource FieldBox}"
+                                      x:Name="CatalogSubnumberBox"
+                                      ToolTip="Optional sub-number, e.g. 1 in &quot;Op. 2 #1&quot;" />
+                            <Button   Grid.Column="4" Content="Add" Padding="8,3" FontSize="11"
                                       Margin="4,3,0,3" Click="OnAddCatalogClick" />
                         </Grid>
                     </StackPanel>

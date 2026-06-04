@@ -284,4 +284,90 @@ public class PieceSortingTests
         Assert.Same(fanfareNode, result[0]);
         Assert.Same(bolero,      result[1]);
     }
+
+    // ── Composer prefix-order + sub-number ──────────────────────────────────
+
+    /// <summary>Builds a piece with prefix + number + sub-number.</summary>
+    private static CanonPiece PSub(string title, string catPrefix, string catNumber, string? sub) => new()
+    {
+        Title       = title,
+        CatalogInfo = [new CatalogInfo
+        {
+            Catalog          = catPrefix,
+            CatalogNumber    = catNumber,
+            CatalogSubnumber = sub,
+        }],
+    };
+
+    [Fact]
+    public void Catalogue_HonoursComposerPrefixOrder_NotAlphabetical()
+    {
+        // Beethoven's curated order is Op. → WoO → Anh.; alphabetical would put
+        // Anh. first. The composer's CatalogPrefixes list must drive the order.
+        var op   = PSub("Sonata",   "Op.",  "2",  "1");
+        var woo  = PSub("Bagatelle","WoO",  "59", null);
+        var anh  = PSub("Sonatina", "Anh.", "5",  "1");
+
+        var result = PieceSorting.Sort(
+            new[] { anh, woo, op }, null, PieceSortField.Catalogue,
+            catalogPrefixOrder: new[] { "Op.", "WoO", "Anh." });
+
+        Assert.Equal(new object[] { op, woo, anh }, result);
+    }
+
+    [Fact]
+    public void Catalogue_SubnumberOrders_WithinSamePrefixAndNumber()
+    {
+        // The reported bug: "Anh. 5 #2" sorted before "Anh. 5 #1" because the
+        // sub-number was ignored and the title tiebreak (F < G) won.
+        var anh5_2 = PSub("Sonatina in F", "Anh.", "5", "2");
+        var anh5_1 = PSub("Sonatina in G", "Anh.", "5", "1");
+
+        var result = PieceSorting.Sort(
+            new[] { anh5_2, anh5_1 }, null, PieceSortField.Catalogue,
+            catalogPrefixOrder: new[] { "Anh." });
+
+        Assert.Equal(new object[] { anh5_1, anh5_2 }, result);
+    }
+
+    [Fact]
+    public void Catalogue_SubnumberOrders_EvenWithoutPrefixOrder()
+    {
+        // Sub-number tiebreak applies in the plain (alphabetical-prefix) path too.
+        var op2_2 = PSub("B-piece", "Op.", "2", "2");
+        var op2_1 = PSub("A-piece... wait Z", "Op.", "2", "1");
+
+        var result = PieceSorting.Sort(new[] { op2_2, op2_1 }, null, PieceSortField.Catalogue);
+
+        Assert.Equal(new object[] { op2_1, op2_2 }, result);
+    }
+
+    [Fact]
+    public void Catalogue_UnrankedPrefix_SortsAfterRankedOnes()
+    {
+        // A prefix not in the composer's list (here "Hess") ranks last, after
+        // every listed prefix.
+        var op   = PSub("Sonata",  "Op.",  "2",  null);
+        var hess = PSub("Fragment","Hess", "40", null);
+
+        var result = PieceSorting.Sort(
+            new[] { hess, op }, null, PieceSortField.Catalogue,
+            catalogPrefixOrder: new[] { "Op.", "WoO" });
+
+        Assert.Equal(new object[] { op, hess }, result);
+    }
+
+    [Fact]
+    public void Catalogue_NoPrefixOrder_FallsBackToAlphabetical()
+    {
+        // Without a composer prefix list, the historical alphabetical-prefix
+        // behaviour is preserved (Anh. < Op. < WoO).
+        var op  = PSub("Sonata",   "Op.",  "2", null);
+        var woo = PSub("Bagatelle","WoO",  "59", null);
+        var anh = PSub("Sonatina", "Anh.", "5", null);
+
+        var result = PieceSorting.Sort(new[] { op, woo, anh }, null, PieceSortField.Catalogue);
+
+        Assert.Equal(new object[] { anh, op, woo }, result);
+    }
 }

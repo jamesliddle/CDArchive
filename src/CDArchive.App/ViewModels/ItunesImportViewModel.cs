@@ -77,6 +77,11 @@ public partial class ItunesImportViewModel : ObservableObject
         {
             IsBusy = true;
             StatusMessage = "Reading iTunes library…";
+            // Invalidate the cached XML parse so the click actually re-reads
+            // the library file. Without this the cache built on first click
+            // is reused forever, and the refresh button only re-applies the
+            // "already imported" filter.
+            _itunes.Refresh();
             var loaded = await _itunes.LoadAllTracksAsync();
             // Default sort: most-recently-added first, then album, then disc, then
             // track. Stored on _allTracks so ApplyFilter's text/provisional pass
@@ -139,6 +144,79 @@ public partial class ItunesImportViewModel : ObservableObject
             return;
         }
 
+        // Pre-scan for ambiguous '. ' separators. When any are found, first
+        // try to settle the ambiguity against the existing canon — if either
+        // interpretation resolves to canon entries that already exist (top
+        // piece + subpath all matched), use that interpretation
+        // automatically without asking. The user only sees the dialog for
+        // tracks where the import will create new structure under both
+        // interpretations and the shape genuinely needs picking.
+        IReadOnlyDictionary<int, ItunesImportInference.DotSeparatorInterpretation>? dotChoices = null;
+        var ambiguous = selected
+            .Select(t => (Track: t, Segments: ItunesImportInference.FindAmbiguousSegments(t.Name)))
+            .Where(p => p.Segments.Count > 0)
+            .ToList();
+        if (ambiguous.Count > 0)
+        {
+            // Build a throwaway resolver from current canon for the
+            // pre-resolve pass. registerAsCurrent:false so we don't disturb
+            // the live PieceReferenceIndex singleton (H7).
+            var canonPieces = (await _data.LoadPiecesAsync()).ToList();
+            var preResolver = new PieceReferenceIndex(registerAsCurrent: false);
+            preResolver.BuildResolver(canonPieces);
+
+            var autoChoices = new Dictionary<int, ItunesImportInference.DotSeparatorInterpretation>();
+            var needsDialog = new List<(ItunesTrack Track, IReadOnlyList<ItunesImportInference.AmbiguousSegment> Segments)>();
+
+            foreach (var (track, segments) in ambiguous)
+            {
+                // A track with no composer field never gets piece-refs — it
+                // falls back to Description in PopulatePieceRefs. No
+                // disambiguation needed.
+                var composerName = ItunesImportInference.ParseComposer(track.Composer)?.Name;
+                if (composerName is null) continue;
+
+                // Use the importer's OWN dry-run resolver so the pre-check
+                // agrees with what Import actually does — title-OR-music-number
+                // subpiece matching, not just PieceReferenceIndex's string
+                // match. This is what lets "4. Rondo. Allegro…" resolve
+                // silently to a canon movement stored structurally as #4
+                // (Rondo) rather than landing in the dialog.
+                var formResolves = ItunesImporter.ResolvesWithoutCreating(
+                    track, composerName, preResolver,
+                    ItunesImportInference.DotSeparatorInterpretation.FormAndTempo);
+                var hierResolves = ItunesImporter.ResolvesWithoutCreating(
+                    track, composerName, preResolver,
+                    ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy);
+
+                if (formResolves && !hierResolves)
+                    autoChoices[track.TrackId] = ItunesImportInference.DotSeparatorInterpretation.FormAndTempo;
+                else if (hierResolves && !formResolves)
+                    autoChoices[track.TrackId] = ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy;
+                else if (formResolves && hierResolves)
+                    // Both interpretations land on existing canon entries.
+                    // Either choice produces a valid ref; default to
+                    // SubpieceHierarchy (the pre-dialog behaviour) so the
+                    // import is deterministic without bothering the user.
+                    autoChoices[track.TrackId] = ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy;
+                else
+                    needsDialog.Add((track, segments));
+            }
+
+            if (needsDialog.Count > 0)
+            {
+                var dlg = new Views.AmbiguousDotSeparatorWindow(needsDialog)
+                {
+                    Owner = System.Windows.Application.Current?.MainWindow,
+                };
+                if (dlg.ShowDialog() != true) return;
+                foreach (var (k, v) in dlg.Result)
+                    autoChoices[k] = v;
+            }
+
+            dotChoices = autoChoices.Count > 0 ? autoChoices : null;
+        }
+
         try
         {
             IsBusy = true;
@@ -156,7 +234,7 @@ public partial class ItunesImportViewModel : ObservableObject
             // duplicates. NewAlbums in the result is now only the genuinely
             // new ones — existing-album merges mutated `albums` instances in
             // place.
-            var result = ItunesImporter.Import(selected, composers, pieces, albums);
+            var result = ItunesImporter.Import(selected, composers, pieces, albums, dotChoices);
 
             // Append the new albums + loose tracks and persist everything that changed.
             foreach (var newAlbum in result.NewAlbums)

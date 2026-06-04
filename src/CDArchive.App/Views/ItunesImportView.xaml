@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:helpers="clr-namespace:CDArchive.App.Helpers"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:ItunesImportViewModel}">
     <DockPanel>
@@ -64,6 +65,7 @@
         <!-- Tracks DataGrid -->
         <DataGrid x:Name="TracksGrid"
                   ItemsSource="{Binding Tracks}"
+                  helpers:AutoSelectFirst.Enabled="True"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
@@ -75,6 +77,18 @@
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
                   FontSize="11"
                   Sorting="OnGridSorting">
+            <!-- Make the selected-row highlight clearly visible even when the
+                 grid is NOT focused. After clicking a column header (which moves
+                 focus to the header), Win10/11 otherwise paints the selected row
+                 with the near-invisible inactive-selection brush — so the row
+                 looked unselected. Pin both active and inactive selection to the
+                 same light-blue used elsewhere in the app. -->
+            <DataGrid.Resources>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"                          Color="#CCE5FF" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}"                      Color="Black" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}"         Color="#CCE5FF" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}"     Color="Black" />
+            </DataGrid.Resources>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Disc"     Binding="{Binding DiscNumber}"      Width="50"  />
                 <DataGridTextColumn Header="Track"    Binding="{Binding TrackNumber}"     Width="60"  />

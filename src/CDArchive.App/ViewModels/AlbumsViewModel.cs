@@ -123,15 +123,57 @@ public partial class AlbumsViewModel : ObservableObject
             await _svc.SaveBatchAsync(albums: _allAlbums, pickLists: pickLists);
 
         // Track → piece links may have changed; rebuild the cross-reference index
-        // using the cached piece instances (see comment in LoadDataAsync).
+        // using the cached piece instances (see comment in LoadDataAsync). We
+        // explicitly LOAD loose tracks and pass them through RebuildContainers
+        // — the pre-fix call to RebuildAlbums forwarded an empty loose-track
+        // collection (it's the documented behaviour of that helper) which
+        // silently wiped every piece's loose-track hits on each album save.
+        // Symptom: navigate away from CanonView and back after an album save,
+        // every piece referenced only by loose tracks drops to a zero badge
+        // until a full Refresh restored them. RebuildContainers preserves
+        // both kinds of container, matching what TracksViewModel.SaveAsync
+        // already does.
         try
         {
-            _refIndex.RebuildAlbums(_allAlbums);
+            var looseTracks = await _svc.LoadLooseTracksAsync();
+            _refIndex.RebuildContainers(_allAlbums, looseTracks);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "PieceReferenceIndex album rebuild failed after SaveAlbums; badge counts may be stale");
         }
+    }
+
+    /// <summary>
+    /// Resolves <paramref name="candidate"/> to the canonical instance in
+    /// <see cref="AllAlbums"/>. Editor entry points that obtain an album from
+    /// somewhere other than this VM's own list — notably <c>CanonView</c>,
+    /// which hands over the album instance carried on a
+    /// <c>PieceReferenceIndex</c> hit — must edit the AllAlbums instance, not
+    /// the foreign one. The index is routinely built from a different album
+    /// instance set than <see cref="AllAlbums"/> (CanonViewModel does its own
+    /// fresh DB load for the index when the Albums view hasn't initialised
+    /// yet), so a plain reference match misses and the caller would otherwise
+    /// treat the album as new — appending the edited clone as a duplicate.
+    ///
+    /// <para>Resolution order: reference equality first (fast path when the
+    /// instances do coincide), then <see cref="CanonAlbum.IdentityKey"/>
+    /// (the same composite the save-side dedup uses). Returns
+    /// <paramref name="candidate"/> unchanged when nothing matches — a genuinely
+    /// new album.</para>
+    /// </summary>
+    public CanonAlbum ResolveLiveAlbum(CanonAlbum candidate)
+    {
+        var byRef = _allAlbums.FirstOrDefault(a => ReferenceEquals(a, candidate));
+        if (byRef is not null) return byRef;
+
+        if (candidate.IdentityKey is { } key)
+        {
+            var byKey = _allAlbums.FirstOrDefault(a => a.IdentityKey == key);
+            if (byKey is not null) return byKey;
+        }
+
+        return candidate;
     }
 
     // ── Filtering ────────────────────────────────────────────────────────────

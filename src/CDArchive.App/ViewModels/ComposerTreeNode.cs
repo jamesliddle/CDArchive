@@ -73,7 +73,11 @@ public class ComposerTreeNode
     /// </summary>
     public void RebuildAllItems(PieceSortField field, Func<object, int>? recordingCount = null)
     {
-        var sorted = PieceSorting.Sort(Pieces, CrossComposerNodes, field, recordingCount);
+        // Pass the composer's own CatalogPrefixes so catalogue-order sorting
+        // follows the composer's curated prefix sequence (e.g. Beethoven:
+        // Op. → WoO → Anh.) rather than alphabetical.
+        var sorted = PieceSorting.Sort(
+            Pieces, CrossComposerNodes, field, recordingCount, Composer.CatalogPrefixes);
         if (ContributedGroups.Count > 0)
             sorted.AddRange(ContributedGroups);
         AllItems = sorted;

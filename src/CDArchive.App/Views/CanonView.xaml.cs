@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using CDArchive.App.Helpers;
 using CDArchive.App.ViewModels;
 using CDArchive.Core.Helpers;
@@ -90,10 +91,77 @@ public partial class CanonView : UserControl
             idx.Indexed += OnIndexRebuilt;
         }
 
+        // CanonView is a permanent element shown/hidden via Visibility (it's
+        // never recreated), so OnLoaded — and the initial SelectFirstComposer
+        // below — runs only once. Navigating away collapses the tree, which can
+        // drop the selected (virtualized) container; on return nothing was
+        // re-selecting it. Re-establish selection + focus each time the view
+        // becomes visible so it's always keyboard-ready.
+        IsVisibleChanged -= OnCanonVisibleChanged;
+        IsVisibleChanged += OnCanonVisibleChanged;
+
         // Initial data load.
         await vm.LoadDataCommand.ExecuteAsync(null);
         UpdatePieceCounts(vm);
         ApplySortedFilter(vm);
+
+        // Select the first composer so the tree is immediately keyboard-
+        // navigable on open (matches the single-list views' AutoSelectFirst).
+        // Only on this initial load — NOT inside ApplySortedFilter, which also
+        // runs on every sort/filter change and must not reset the user's
+        // selection. Deferred so the first TreeViewItem container exists.
+        _ = Dispatcher.BeginInvoke(new Action(SelectFirstComposer), DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Selects + focuses the first composer node in the tree when nothing is
+    /// selected yet, so Home/End/PageUp/PageDown work without a prior click.
+    /// Skips focusing if the user is already typing (e.g. in the filter box).
+    /// </summary>
+    private void SelectFirstComposer()
+    {
+        if (ComposerTree.Items.Count == 0) return;
+        if (ComposerTree.SelectedItem is not null) return;   // respect an existing selection
+
+        ComposerTree.UpdateLayout();
+        if (ComposerTree.ItemContainerGenerator.ContainerFromIndex(0) is not TreeViewItem tvi)
+            return;
+
+        tvi.IsSelected = true;
+        if (Keyboard.FocusedElement is not System.Windows.Controls.Primitives.TextBoxBase)
+            tvi.Focus();
+    }
+
+    /// <summary>
+    /// Re-establishes the tree's selection + focus when CanonView becomes
+    /// visible again after navigating away. If the selection survived the
+    /// hidden period, re-focus it (so it shows active rather than the greyed
+    /// inactive-selection colour and the nav keys work); if it was lost
+    /// (containers virtualized away while collapsed), select the first composer.
+    /// </summary>
+    private void OnCanonVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is not true) return;
+        _ = Dispatcher.BeginInvoke(new Action(EnsureTreeSelectionFocused), DispatcherPriority.Loaded);
+    }
+
+    private void EnsureTreeSelectionFocused()
+    {
+        if (ComposerTree.Items.Count == 0) return;
+        ComposerTree.UpdateLayout();
+
+        if (ComposerTree.SelectedItem is null)
+        {
+            SelectFirstComposer();
+            return;
+        }
+
+        // Selection persisted — re-focus its container so it's active +
+        // keyboard-ready. Don't steal focus from a text input the user is using.
+        if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return;
+        if (ComposerTree.ItemContainerGenerator.ContainerFromItem(ComposerTree.SelectedItem)
+                is TreeViewItem tvi)
+            tvi.Focus();
     }
 
     /// <summary>
@@ -112,18 +180,48 @@ public partial class CanonView : UserControl
 
     private void OnIndexRebuilt(object? sender, EventArgs e)
     {
-        // Converters don't re-fire when a static index changes; nudge the tree.
-        // Items.Refresh() regenerates every TreeViewItem container, which wipes
-        // expansion state — so save and restore it around the refresh. Without
-        // this, opening the Albums screen (which triggers a rebuild) would
-        // collapse the Canon tree and lose the user's current context.
-        Dispatcher.BeginInvoke(new Action(() =>
+        // Re-render the tree so every HitCountBadge binding re-runs against
+        // the freshly-populated index. The badge converter reads the static
+        // PieceReferenceIndex.Current and has no INotifyPropertyChanged
+        // source, so WPF won't re-evaluate it on its own when the index's
+        // internal hit dictionaries change.
+        //
+        // Two parts:
+        //  1. ApplySortedFilter rebuilds the node list with fresh
+        //     ComposerTreeNode instances and assigns ItemsSource — WPF
+        //     recycles containers for reference-equal items, so new node
+        //     objects are required to force re-binding at the composer level.
+        //  2. Null-and-back on ItemsSource tears down every container
+        //     (WPF can't recycle through a null source), which also forces
+        //     the inner CanonPiece-keyed TreeViewItems to re-realise even
+        //     though vm.Pieces hands back the same instances across rebuilds.
+        //
+        // NB: the "new count increments but old count stays" symptom was NOT
+        // a UI-refresh problem — it was a stale duplicate album lingering in
+        // AllAlbums (see OpenAlbumEditorAsync). Once the index is correct,
+        // this refresh shows both the increment and the decrement.
+        //
+        // Runs synchronously: Indexed fires from RebuildInternal on the UI
+        // thread, so there's no cross-thread concern and deferring via
+        // BeginInvoke only opened a window for stale intermediate layout.
+        if (DataContext is not CanonViewModel vm) return;
+
+        // Refresh the per-composer piece counts too. They live on
+        // composer.PieceCount (set only by UpdatePieceCounts), and a fresh
+        // LoadData replaces Composers with instances whose PieceCount defaults
+        // to 0 — so an index rebuild that runs without a following
+        // UpdatePieceCounts would leave every count at zero. Cheap (reads
+        // vm.Pieces) and keeps everything the tree shows in lockstep.
+        UpdatePieceCounts(vm);
+
+        ApplySortedFilter(vm);
+        if (ComposerTree.ItemsSource is IEnumerable<ComposerTreeNode> nodes)
         {
-            _expansionState.Save(ComposerTree);
-            ComposerTree.Items.Refresh();
-            if (ComposerTree.ItemsSource is IEnumerable<ComposerTreeNode> nodes)
-                _expansionState.Restore(ComposerTree, nodes);
-        }));
+            var snapshot = nodes.ToList();
+            ComposerTree.ItemsSource = null;
+            ComposerTree.ItemsSource = snapshot;
+            _expansionState.Restore(ComposerTree, snapshot);
+        }
     }
 
     /// <summary>
@@ -148,7 +246,20 @@ public partial class CanonView : UserControl
         }
 
         if (e.PropertyName != nameof(CanonViewModel.IsLoading)) return;
-        if (vm.IsLoading) return;   // only act on the transition to false
+        if (vm.IsLoading)
+        {
+            // A fresh load/operation is starting. Clear any leftover suppress
+            // flag so THIS operation's end-of-load rebuild can never be skipped
+            // by a flag a PRIOR command left set. Concretely: the reject command
+            // fires DataMutated AFTER its own IsLoading=false transition, so
+            // OnVmDataMutated sets _suppressAutoRefresh=true with nothing left to
+            // consume it. Without this reset, the very next Refresh would skip
+            // UpdatePieceCounts — and since LoadData replaces Composers with
+            // fresh instances whose PieceCount defaults to 0, every composer's
+            // piece count rendered as zero until a second Refresh.
+            _suppressAutoRefresh = false;
+            return;   // only act on the transition to false
+        }
 
         // VM commands raise DataMutated before their save's await; the
         // OnVmDataMutated handler ran ApplySortedFilter synchronously and set
@@ -617,7 +728,29 @@ public partial class CanonView : UserControl
         var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
         // Ensure we're editing the live in-memory instance (not a stale copy from the index).
         if (albumsVm.AllAlbums.Count == 0) await albumsVm.LoadDataCommand.ExecuteAsync(null);
-        var liveAlbum = albumsVm.AllAlbums.FirstOrDefault(a => ReferenceEquals(a, album)) ?? album;
+
+        // Resolve the live AllAlbums instance. Reference-equality alone is NOT
+        // enough: the `album` passed in comes from PieceReferenceIndex hits,
+        // and the index is frequently built from a DIFFERENT album instance
+        // set than albumsVm.AllAlbums. That happens on the normal startup
+        // order — CanonView is the default view, so CanonViewModel.LoadDataAsync
+        // runs while albumsVm.HasLoaded is still false and
+        // GetContainersForRebuildAsync does its own fresh DB load (instance
+        // set A) for the index, while AllAlbums later loads set B.
+        //
+        // Pre-fix, the reference-equality miss left `liveAlbum` pointing at the
+        // index's set-A instance, which isn't in AllAlbums. The IndexOf below
+        // then returned -1 and the edited clone was ADDED as a second album —
+        // AllAlbums ended up with the original (still carrying the old piece
+        // ref) PLUS the edited clone. The next RebuildContainers walked both,
+        // so the removed piece-ref's badge never decremented (its hit survived
+        // on the duplicate original) even though the new ref's badge went up.
+        // Symptom: "new count increments, old count stays" until a full reload.
+        //
+        // ResolveLiveAlbum falls back to IdentityKey, resolving `album` to the
+        // matching AllAlbums instance so the editor mutates the live instance
+        // and the IndexOf replace below swaps it in place — no duplicate.
+        var liveAlbum = albumsVm.ResolveLiveAlbum(album);
 
         var (pieces, pickLists) = await albumsVm.LoadEditorDataAsync();
         var dlg = new AlbumEditorWindow(pickLists, pieces, albumsVm.Player, liveAlbum)
