@@ -75,7 +75,8 @@ public partial class PerformerEditorWindow : Window
                 _voiceTypeByRole[r.Name] = r.VoiceType;
 
         RoleBox.ItemsSource       = MergeRoles(castRoles, pickLists.PerformerRoles);
-        InstrumentBox.ItemsSource = pickLists.Instruments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        InstrumentBox.ItemsSource = MergeInstrumentsAndEnsembles(
+            pickLists.Instruments, pickLists.Ensembles);
 
         _working = existing ?? new AlbumPerformer();
         _vm.LoadFromPerformer(_working);
@@ -103,6 +104,30 @@ public partial class PerformerEditorWindow : Window
             if (!string.IsNullOrWhiteSpace(r.Name) && seen.Add(r.Name)) merged.Add(r.Name);
         foreach (var r in pickListRoles)
             if (!string.IsNullOrWhiteSpace(r) && seen.Add(r)) merged.Add(r);
+        return merged;
+    }
+
+    /// <summary>
+    /// Merges the Instruments pick list with the names of every
+    /// <see cref="CanonPickLists.Ensembles"/> entry so the Performer editor's
+    /// Instrument dropdown lets the user pick an ensemble (e.g. "Boston
+    /// Symphony Orchestra") in place of a literal instrument. Dedupe is
+    /// case-insensitive; the result is sorted A-Z for readability.
+    /// </summary>
+    private static IReadOnlyList<string> MergeInstrumentsAndEnsembles(
+        IReadOnlyList<string> instruments,
+        IReadOnlyList<EnsembleDefinition>? ensembles)
+    {
+        var seen   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var merged = new List<string>();
+
+        foreach (var i in instruments)
+            if (!string.IsNullOrWhiteSpace(i) && seen.Add(i)) merged.Add(i);
+        if (ensembles is { Count: > 0 })
+            foreach (var e in ensembles)
+                if (!string.IsNullOrWhiteSpace(e.Name) && seen.Add(e.Name)) merged.Add(e.Name);
+
+        merged.Sort(StringComparer.OrdinalIgnoreCase);
         return merged;
     }
 
@@ -143,14 +168,32 @@ public partial class PerformerEditorWindow : Window
         // list, add it so future opens of any Performer editor suggest it.
         // Mutates the shared CanonPickLists instance; the surrounding album /
         // track save flow persists it via SaveBatchAsync(pickLists:).
+        //
+        // Two cases we DON'T add: (a) the value already exists in
+        // Instruments; (b) it matches an ensemble name — the user picked an
+        // ensemble from the dropdown and we don't want to silently promote
+        // ensemble names into the Instruments pick list.
         var instrument = _working.Instrument?.Trim();
         if (!string.IsNullOrEmpty(instrument) &&
-            !_pickLists.Instruments.Contains(instrument, StringComparer.OrdinalIgnoreCase))
+            !_pickLists.Instruments.Contains(instrument, StringComparer.OrdinalIgnoreCase) &&
+            !IsKnownEnsembleName(instrument, _pickLists.Ensembles))
         {
             _pickLists.Instruments.Add(instrument);
         }
 
         Result = _working;
         DialogResult = true;
+    }
+
+    private static bool IsKnownEnsembleName(
+        string candidate, IReadOnlyList<EnsembleDefinition>? ensembles)
+    {
+        if (ensembles is null or { Count: 0 }) return false;
+        foreach (var e in ensembles)
+        {
+            if (string.Equals(e.Name, candidate, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }

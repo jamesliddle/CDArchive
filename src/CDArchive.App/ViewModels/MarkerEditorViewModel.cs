@@ -46,7 +46,6 @@ public partial class MarkerEditorViewModel : ObservableObject
     public static string FormatKind(MarkerKind kind) => kind switch
     {
         MarkerKind.Tempo         => "Tempo indication",
-        MarkerKind.FirstLine     => "First line",
         MarkerKind.RehearsalMark => "Rehearsal mark",
         MarkerKind.BarNumber     => "Bar number",
         MarkerKind.Section       => "Section label",

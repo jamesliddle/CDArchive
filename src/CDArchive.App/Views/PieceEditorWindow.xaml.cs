@@ -77,6 +77,13 @@ public partial class PieceEditorWindow : Window
 
         PopulateDropdowns();
         LoadFromPiece();
+
+        // MBID linkage lives on top-level pieces only — subpieces and versions
+        // don't carry their own MB work ID. Only surface it when editing a
+        // top-level piece (Piece mode); HasId on the control collapses the
+        // row when null so subpiece-mode just doesn't show it.
+        if (mode == PieceEditorMode.Piece)
+            MbidDisplay.Mbid = _piece.MusicBrainzWorkId;
     }
 
     // ── Version constructor ───────────────────────────────────────────────────
@@ -684,7 +691,6 @@ public partial class PieceEditorWindow : Window
     private static string KindShort(MarkerKind k) => k switch
     {
         MarkerKind.Tempo         => "Tempo",
-        MarkerKind.FirstLine     => "First line",
         MarkerKind.RehearsalMark => "Rehearsal",
         MarkerKind.BarNumber     => "Bar",
         MarkerKind.Section       => "Section",

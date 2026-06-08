@@ -14,11 +14,13 @@
                 <ColumnDefinition Width="Auto" />  <!-- 0: Load button -->
                 <ColumnDefinition Width="8" />     <!-- 1 -->
                 <ColumnDefinition Width="Auto" />  <!-- 2: Import button -->
-                <ColumnDefinition Width="16" />    <!-- 3 -->
-                <ColumnDefinition Width="Auto" />  <!-- 4: Filter label -->
-                <ColumnDefinition Width="*" />     <!-- 5: Filter textbox -->
-                <ColumnDefinition Width="Auto" />  <!-- 6: Hide-imported checkbox -->
-                <ColumnDefinition Width="Auto" />  <!-- 7: count -->
+                <ColumnDefinition Width="8" />     <!-- 3 -->
+                <ColumnDefinition Width="Auto" />  <!-- 4: Import-with-MB button -->
+                <ColumnDefinition Width="16" />    <!-- 5 -->
+                <ColumnDefinition Width="Auto" />  <!-- 6: Filter label -->
+                <ColumnDefinition Width="*" />     <!-- 7: Filter textbox -->
+                <ColumnDefinition Width="Auto" />  <!-- 8: Hide-imported checkbox -->
+                <ColumnDefinition Width="Auto" />  <!-- 9: count -->
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0"
@@ -33,20 +35,27 @@
                     CommandParameter="{Binding ElementName=TracksGrid, Path=SelectedItems}"
                     IsEnabled="{Binding IsReady}" />
 
-            <TextBlock Grid.Column="4"
+            <Button Grid.Column="4"
+                    Content="Import with MusicBrainz…" Padding="12,4" Height="28" FontSize="10"
+                    Command="{Binding ImportSelectedTracksWithEnrichmentCommand}"
+                    CommandParameter="{Binding ElementName=TracksGrid, Path=SelectedItems}"
+                    IsEnabled="{Binding IsMusicBrainzEnrichmentEnabled}"
+                    ToolTip="Run the MusicBrainz enrichment pre-pass before importing. Enable in Settings → MusicBrainz Import Enrichment." />
+
+            <TextBlock Grid.Column="6"
                        Text="Filter:" FontSize="10" Foreground="#555"
                        VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBox Grid.Column="5"
+            <TextBox Grid.Column="7"
                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                      FontSize="11" Padding="6,4" VerticalAlignment="Center" />
 
-            <CheckBox Grid.Column="6"
+            <CheckBox Grid.Column="8"
                       Content="Hide already imported"
                       IsChecked="{Binding HideAlreadyImported, Mode=TwoWay}"
                       FontSize="10" Foreground="#555"
                       VerticalAlignment="Center" Margin="16,0,0,0"
                       ToolTip="Hide iTunes tracks already in the Album Catalogue (matched on album title + disc # + track #)." />
-            <TextBlock Grid.Column="7"
+            <TextBlock Grid.Column="9"
                        VerticalAlignment="Center" Margin="16,0,0,0"
                        FontSize="10" Foreground="#555">
                 <Run Text="{Binding ShownCount, Mode=OneWay}" />

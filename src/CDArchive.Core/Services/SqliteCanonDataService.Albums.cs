@@ -121,6 +121,7 @@ public partial class SqliteCanonDataService
             Notes            = ar.Notes,
             ArchiveFolder    = ar.ArchiveFolder,
             IsProvisional    = ar.IsProvisional,
+            MusicBrainzReleaseId = ar.MusicBrainzReleaseId,
             SessionDates     = ar.SessionDates,
             SessionVenue     = ar.SessionVenue,
             SessionCity      = ar.SessionCity,
@@ -744,6 +745,7 @@ public partial class SqliteCanonDataService
         row.Notes           = album.Notes;
         row.ArchiveFolder   = album.ArchiveFolder;
         row.IsProvisional   = album.IsProvisional;
+        row.MusicBrainzReleaseId = album.MusicBrainzReleaseId;
 
         // Session fields: post-refactor these are flat columns on AlbumRow.
         row.SessionDates          = album.SessionDates;
@@ -1169,6 +1171,7 @@ public partial class SqliteCanonDataService
             Notes                 = album.Notes,
             ArchiveFolder         = album.ArchiveFolder,
             IsProvisional         = album.IsProvisional,
+            MusicBrainzReleaseId  = album.MusicBrainzReleaseId,
             SessionDates          = album.SessionDates,
             SessionVenue          = album.SessionVenue,
             SessionCity           = album.SessionCity,

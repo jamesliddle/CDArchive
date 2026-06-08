@@ -652,8 +652,15 @@ public partial class TrackEditorWindow : Window
         if (PieceRefList.SelectedItem is not TrackPieceRef selected) return;
 
         var canonVm = App.ServiceProvider.GetRequiredService<CanonViewModel>();
-        if (canonVm.Composers.Count == 0 || canonVm.Pieces.Count == 0)
-            await canonVm.LoadDataCommand.ExecuteAsync(null);
+        // Always reload — the previous "only reload when empty" condition
+        // missed the case where the user has visited the Composers view
+        // before importing an album with new pieces: canonVm.Pieces holds the
+        // pre-import snapshot, ResolveRootPiece can't find the freshly-
+        // created piece, and the user sees "Piece not found". Edit Root
+        // Piece is a per-click action; one DB reload per click is well
+        // under the noise floor and the post-condition is "always reflects
+        // the latest DB state" regardless of which path mutated it.
+        await canonVm.LoadDataCommand.ExecuteAsync(null);
 
         // Resolve against canonVm.Pieces — the collection CompleteEditPieceAsync
         // saves. Resolving against the TrackEditor's own _allPieces snapshot

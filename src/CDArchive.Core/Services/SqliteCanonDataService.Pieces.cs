@@ -264,6 +264,7 @@ public partial class SqliteCanonDataService
             SubpiecesStart          = r.SubpiecesStart,
             Notes                   = r.Notes,
             IsProvisional           = r.IsProvisional,
+            MusicBrainzWorkId       = r.MusicBrainzWorkId,
 
             Instrumentation  = ParseJsonElement(r.InstrumentationJson),
             CompositionYears = ParseJsonElement(r.CompositionYearsJson),
@@ -830,6 +831,7 @@ public partial class SqliteCanonDataService
         row.SubpiecesStart          = m.SubpiecesStart;
         row.Notes                   = m.Notes;
         row.IsProvisional           = m.IsProvisional;
+        row.MusicBrainzWorkId       = m.MusicBrainzWorkId;
 
         row.InstrumentationJson  = RawJson(m.Instrumentation);
         row.CompositionYearsJson = RawJson(m.CompositionYears);

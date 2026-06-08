@@ -30,6 +30,12 @@ public partial class ComposerEditorWindow : Window
         CatalogPrefixCombo.ItemsSource = pickLists.CatalogPrefixes;
 
         _vm.LoadFromComposer(_composer);
+
+        // MBID display is bound directly to the model — it's read-only and
+        // doesn't participate in the editor's commit cycle. Setting it after
+        // LoadFromComposer means a freshly-edited (in-session) MBID would
+        // surface too, but the editor doesn't mutate the field today.
+        MbidDisplay.Mbid = _composer.MusicBrainzArtistId;
     }
 
     // ── Name → Sort Name auto-fill ───────────────────────────────────────────

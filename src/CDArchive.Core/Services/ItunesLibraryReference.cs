@@ -194,6 +194,15 @@ public class ItunesLibraryReference : ICatalogueReference
             if (string.IsNullOrEmpty(name))
                 continue;
 
+            // MBID shortcut path: Picard writes "MusicBrainz Album Id" /
+            // "MusicBrainz Track Id" / "MusicBrainz Work Id" tags to the
+            // file, which iTunes surfaces via the Comments field (one
+            // per line, "Key: value" or similar). Parse them out so the
+            // planner can skip the MB search step entirely when MBIDs
+            // are present.
+            var comments = props.GetValueOrDefault("Comments", "");
+            var (mbRelease, mbRecording, mbWork) = ParseMbIdsFromComments(comments);
+
             // Build the ItunesTrack projection used by the import view.
             tracks.Add(new ItunesTrack(
                 TrackId:      trackId,
@@ -208,7 +217,10 @@ public class ItunesLibraryReference : ICatalogueReference
                 AlbumArtist:  NullIfEmpty(props.GetValueOrDefault("Album Artist")),
                 Artist:       NullIfEmpty(props.GetValueOrDefault("Artist")),
                 DateAdded:    ParseDateOrNull(props.GetValueOrDefault("Date Added")),
-                Location:     NullIfEmpty(props.GetValueOrDefault("Location"))));
+                Location:     NullIfEmpty(props.GetValueOrDefault("Location")),
+                MbReleaseId:   mbRelease,
+                MbRecordingId: mbRecording,
+                MbWorkId:      mbWork));
 
             // Composer / works indexing only considers tracks under the
             // user's archive folder. An empty filter (no settings injected
@@ -241,6 +253,55 @@ public class ItunesLibraryReference : ICatalogueReference
 
     private static string? NullIfEmpty(string? s) =>
         string.IsNullOrEmpty(s) ? null : s;
+
+    // MusicBrainz UUID — 36 chars, 8-4-4-4-12 hex with dashes. We don't
+    // need a strict validator; a length / hex-ish check keeps obviously-
+    // malformed values out without rejecting real MBIDs.
+    private static readonly System.Text.RegularExpressions.Regex MbidRegex = new(
+        @"\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+        | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Best-effort parse of MusicBrainz IDs out of an iTunes Comments
+    /// field. MusicBrainz Picard writes lines like:
+    /// <code>
+    ///   MusicBrainz Album Id: 3e0c2f88-9bf9-4f4a-bd95-b6f9b87d3a8e
+    ///   MusicBrainz Track Id: ...
+    ///   MusicBrainz Work Id: ...
+    /// </code>
+    /// Returns (release, recording, work) — any combination of nulls.
+    /// Tolerant to label variations ("MusicBrainz Release Id" / Picard's
+    /// older "MusicBrainz Album Id"; "Track Id" / "Recording Id"; etc.).
+    /// </summary>
+    internal static (string? MbRelease, string? MbRecording, string? MbWork)
+        ParseMbIdsFromComments(string? comments)
+    {
+        if (string.IsNullOrWhiteSpace(comments)) return (null, null, null);
+
+        string? release = null, recording = null, work = null;
+        foreach (var rawLine in comments.Split(new[] { '\n', '\r' },
+                                                StringSplitOptions.RemoveEmptyEntries))
+        {
+            var line = rawLine.Trim();
+            // Find a UUID anywhere on the line first; if none, skip.
+            var idMatch = MbidRegex.Match(line);
+            if (!idMatch.Success) continue;
+            var id = idMatch.Value.ToLowerInvariant();
+
+            // Determine which slot it belongs to by the label substring.
+            // Picard's "Album" maps to MB's "release" entity.
+            var lower = line.ToLowerInvariant();
+            if (release is null && (lower.Contains("album id") || lower.Contains("release id")))
+                release = id;
+            else if (recording is null && (lower.Contains("track id") || lower.Contains("recording id")))
+                recording = id;
+            else if (work is null && lower.Contains("work id"))
+                work = id;
+        }
+
+        return (release, recording, work);
+    }
 
     private static bool IsTaggedTrue(Dictionary<string, string> p, string key) =>
         string.Equals(p.GetValueOrDefault(key), "true", StringComparison.OrdinalIgnoreCase);

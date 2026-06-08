@@ -94,10 +94,12 @@ public partial class AlbumEditorWindow : Window
         }
         else
         {
-            // Sensible defaults for a new album; pre-populate Disc 1 / Track 1
-            _album = new CanonAlbum { IsStereo = true };
+            // Sensible defaults for a new album: DDD-stereo digital (the
+            // dominant convention for the user's modern-era acquisitions);
+            // pre-populate Disc 1 / Track 1.
+            _album = new CanonAlbum { SparsCode = "DDD", IsStereo = true };
             var disc1 = new AlbumDisc { DiscNumber = 1 };
-            disc1.Tracks.Add(new AlbumTrack { TrackNumber = 1 });
+            disc1.Tracks.Add(new AlbumTrack { TrackNumber = 1, SparsCode = "DDD", IsStereo = true });
             _album.Discs.Add(disc1);
         }
 
@@ -166,6 +168,11 @@ public partial class AlbumEditorWindow : Window
 
         SparsCodeCombo.SelectValue(SparsCodeBox, _vm.SparsCode.Value);
         SetStereoComboFromVm();
+
+        // MBID linkage is bound straight to the model — it doesn't participate
+        // in the editor's commit cycle. Multi-edit hides this (each album has
+        // its own MBID; conflating them in a Mixed sentinel adds no value).
+        MbidDisplay.Mbid = _album.MusicBrainzReleaseId;
 
         ApplyPerformerRoleColumnVisibility();
     }
@@ -544,7 +551,10 @@ public partial class AlbumEditorWindow : Window
     {
         var nextDisc = (_album.Discs.Count > 0 ? _album.Discs.Max(d => d.DiscNumber) : 0) + 1;
         var disc  = new AlbumDisc { DiscNumber = nextDisc };
-        var track = new AlbumTrack { TrackNumber = 1 };
+        // Match the new-album convention: DDD-stereo digital. User can
+        // override per-track; the editor's propagator pushes album-level
+        // changes down to every track on save.
+        var track = new AlbumTrack { TrackNumber = 1, SparsCode = "DDD", IsStereo = true };
         disc.Tracks.Add(track);
         _album.Discs.Add(disc);
         PopulateTrackGrid(track);

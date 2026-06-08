@@ -1,6 +1,7 @@
 <Window x:Class="CDArchive.App.Views.AlbumEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:CDArchive.App.Views.Controls"
         TextElement.FontFamily="{StaticResource AppFontFamily}"
         Title="New Album"
         Width="920" Height="720"
@@ -124,9 +125,16 @@
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Barcode"
                                    FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
-                        <TextBox Grid.Row="4" Grid.Column="1" x:Name="BarcodeBox"
-                                 Text="{Binding Barcode.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="11" Padding="4,3" Margin="0,0,0,8" />
+                        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Vertical">
+                            <TextBox x:Name="BarcodeBox"
+                                     Text="{Binding Barcode.Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="11" Padding="4,3" Margin="0,0,0,4" />
+                            <!-- MusicBrainz Release ID (read-only). Collapses when the
+                                 album has no MB linkage. -->
+                            <controls:MusicBrainzIdDisplay x:Name="MbidDisplay"
+                                                           EntityKind="release"
+                                                           Margin="0,0,0,8" />
+                        </StackPanel>
 
                         <!-- Archive Folder (subfolder under the archive root, or an absolute path) -->
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="Archive Folder"

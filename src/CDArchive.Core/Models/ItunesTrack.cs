@@ -19,6 +19,11 @@ namespace CDArchive.Core.Models;
 /// <param name="Artist">Track-level artist.</param>
 /// <param name="DateAdded">When the track was added to iTunes.</param>
 /// <param name="Location">File URI ("file://…") or empty for streaming-only tracks.</param>
+/// <param name="MbReleaseId">Optional MusicBrainz Release ID parsed from the iTunes Comments
+///   field (populated by MusicBrainz Picard or similar). When present, the import
+///   planner skips the MB release-search and fetches the release by MBID directly.</param>
+/// <param name="MbRecordingId">Optional MusicBrainz Recording ID parsed from the iTunes Comments.</param>
+/// <param name="MbWorkId">Optional MusicBrainz Work ID parsed from the iTunes Comments.</param>
 public record ItunesTrack(
     int TrackId,
     string? PersistentId,
@@ -32,7 +37,10 @@ public record ItunesTrack(
     string? AlbumArtist,
     string? Artist,
     DateTime? DateAdded,
-    string? Location)
+    string? Location,
+    string? MbReleaseId = null,
+    string? MbRecordingId = null,
+    string? MbWorkId = null)
 {
     /// <summary>"m:ss" or "h:mm:ss" display, or empty when duration is unknown.</summary>
     public string DurationDisplay

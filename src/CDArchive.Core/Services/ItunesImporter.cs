@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using CDArchive.Core.Helpers;
 using CDArchive.Core.Models;
 
@@ -44,8 +45,16 @@ public static class ItunesImporter
         IList<CanonComposer> composers,
         IList<CanonPiece> pieces,
         IList<CanonAlbum>? existingAlbums = null,
-        IReadOnlyDictionary<int, ItunesImportInference.DotSeparatorInterpretation>? dotInterpretations = null)
+        IReadOnlyDictionary<int, ItunesImportInference.DotSeparatorInterpretation>? dotInterpretations = null,
+        EnrichmentChoices? enrichment = null,
+        IReadOnlyCollection<string>? forms = null)
     {
+        // Slice 4 of the MB integration: the optional enrichment snapshot is
+        // the user's review-pane decisions, plumbed through to create-time on
+        // composers / albums / pieces. null preserves the legacy non-MB path
+        // verbatim — the apply rules silently no-op when no choice is found.
+        enrichment ??= EnrichmentChoices.Empty;
+
         var composerByName = new Dictionary<string, CanonComposer>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in composers)
             composerByName[c.Name] = c;
@@ -108,6 +117,11 @@ public static class ItunesImporter
                 TrackNumber   = 0,           // sentinel for "loose"
                 Duration      = string.IsNullOrEmpty(t.DurationDisplay) ? null : t.DurationDisplay,
                 IsProvisional = true,
+                // Default to DDD-stereo digital; matches the new-album +
+                // editor-new-track defaults so freshly-imported content lands
+                // in a consistent state.
+                SparsCode     = "DDD",
+                IsStereo      = true,
             };
 
             // Performers come straight from the track's own Artist field —
@@ -118,7 +132,8 @@ public static class ItunesImporter
 
             PopulatePieceRefs(t, loose, composers, composerByName, pieces,
                               resolver, newlyCreatedTopPieces, counters,
-                              LookupDotInterpretation(dotInterpretations, t.TrackId));
+                              LookupDotInterpretation(dotInterpretations, t.TrackId),
+                              enrichment, forms);
 
             newLooseTracks.Add(loose);
         }
@@ -164,11 +179,13 @@ public static class ItunesImporter
             // are intentionally not modified — the user's curation wins.
             CanonAlbum album;
             bool isExistingAlbum = false;
+            bool isExistingProvisionalAlbum = false;
             var dedupKey = TryBuildAlbumDedupKey(albumTitle);
             if (dedupKey is { } k && existingAlbumByKey.TryGetValue(k, out var match))
             {
                 album = match;
                 isExistingAlbum = true;
+                isExistingProvisionalAlbum = match.IsProvisional;
                 modifiedAlbums++;
             }
             else
@@ -177,6 +194,13 @@ public static class ItunesImporter
                 {
                     Title         = albumTitle,
                     IsProvisional = true,
+                    // Sensible defaults for a freshly-imported album: DDD-
+                    // stereo digital — the dominant convention for the user's
+                    // modern-era acquisitions. The user can override per-album
+                    // (and the editor's propagator will push the new value to
+                    // every track on save).
+                    SparsCode     = "DDD",
+                    IsStereo      = true,
                 };
 
                 if (commonPerformers.Count > 0)
@@ -188,6 +212,22 @@ public static class ItunesImporter
                     album.Performers = orderedCommon
                         .Select(name => new AlbumPerformer { Name = name })
                         .ToList();
+                }
+            }
+
+            // Apply rule: album enrichment lands when creating fresh OR when
+            // merging into a still-provisional canon album. Approved canon
+            // albums are never overwritten — the user already curated them.
+            // The lookup key matches the planner's BuildAlbumKey shape, so
+            // a planner proposal and an applied choice round-trip cleanly.
+            if (!isExistingAlbum || isExistingProvisionalAlbum)
+            {
+                var firstTrack = albumGroup.First();
+                var albumKey = ItunesImportEnrichmentPlanner.BuildAlbumKey(
+                    albumTitle, firstTrack.AlbumArtist);
+                if (enrichment.AlbumsByKey.TryGetValue(albumKey, out var albumChoice))
+                {
+                    ApplyAlbumChoiceToAlbum(album, albumChoice);
                 }
             }
 
@@ -232,7 +272,18 @@ public static class ItunesImporter
                 // sequentially 1..N, preserving iTunes order.
                 // When merging into an existing disc, also include the existing
                 // tracks in the collision check so we don't clobber them.
-                var orderedTracks = discGroup.OrderBy(t => t.TrackNumber ?? 0).ToList();
+                // Sort nulls LAST (?? int.MaxValue), not first. A track with no
+                // iTunes TrackNumber — common for hand-added imports, e.g. the
+                // "Clari - Home! Sweet Home!" arrangement on "Sutherland An
+                // Evening to Remember" — used to sort to position 0 because the
+                // old `?? 0` collapsed null to 0. The disc-wide renumber below
+                // then assigned it TrackNumber=1 and pushed every genuinely-
+                // numbered track up by one. Sorting nulls last keeps the
+                // numbered tracks in their iTunes order; the unnumbered track
+                // lands at the end and gets the highest renumbered position.
+                var orderedTracks = discGroup.OrderBy(t => t.TrackNumber ?? int.MaxValue).ToList();
+                // rawNumbers still uses ?? 0 so anyNonPositive correctly
+                // detects the missing number and triggers the renumber.
                 var rawNumbers = orderedTracks.Select(t => t.TrackNumber ?? 0).ToList();
                 var anyNonPositive = rawNumbers.Any(n => n < 1);
                 var existingNumbers = isExistingDisc
@@ -254,6 +305,11 @@ public static class ItunesImporter
                         TrackNumber   = renumber ? seq++ : (track.TrackNumber ?? 0),
                         Duration      = string.IsNullOrEmpty(track.DurationDisplay) ? null : track.DurationDisplay,
                         IsProvisional = true,
+                        // Default to DDD-stereo digital; matches the album
+                        // defaults set above and saves the user a per-track
+                        // override pass post-import.
+                        SparsCode     = "DDD",
+                        IsStereo      = true,
                     };
 
                     // Track-level performer override when this track's set differs
@@ -274,7 +330,8 @@ public static class ItunesImporter
 
                     PopulatePieceRefs(track, albumTrack, composers, composerByName, pieces,
                                       resolver, newlyCreatedTopPieces, counters,
-                                      LookupDotInterpretation(dotInterpretations, track.TrackId));
+                                      LookupDotInterpretation(dotInterpretations, track.TrackId),
+                                      enrichment, forms);
 
                     disc.Tracks.Add(albumTrack);
                 }
@@ -376,7 +433,9 @@ public static class ItunesImporter
         PieceReferenceIndex resolver,
         Dictionary<(string, string), CanonPiece> newlyCreatedTopPieces,
         Counters counters,
-        ItunesImportInference.DotSeparatorInterpretation dotInterpretation)
+        ItunesImportInference.DotSeparatorInterpretation dotInterpretation,
+        EnrichmentChoices enrichment,
+        IReadOnlyCollection<string>? forms)
     {
         var parsedComposer = ItunesImportInference.ParseComposer(source.Composer);
         if (parsedComposer is null)
@@ -386,7 +445,7 @@ public static class ItunesImporter
             return;
         }
 
-        var composer = GetOrCreateComposer(parsedComposer, composers, composerByName, counters);
+        var composer = GetOrCreateComposer(parsedComposer, composers, composerByName, counters, enrichment);
 
         // Ensure each contributor (e.g. "compl. Franco Alfano") has a
         // CanonComposer entry — their works often live in the canon too.
@@ -401,12 +460,12 @@ public static class ItunesImporter
                 var contribParsed = new ItunesImportInference.ParsedComposer(
                     c.Name, c.BirthYear, c.DeathYear);
                 var contribComposer = GetOrCreateComposer(
-                    contribParsed, composers, composerByName, counters);
+                    contribParsed, composers, composerByName, counters, enrichment);
                 contributorComposers.Add((contribComposer, c.Role));
             }
         }
 
-        var parsedName = ItunesImportInference.ParseTrackName(source.Name, dotInterpretation);
+        var parsedName = ItunesImportInference.ParseTrackName(source.Name, dotInterpretation, forms);
 
         // When ParseTrackName couldn't extract a top-level piece title (an
         // iTunes Name that doesn't follow the "Work - Movement" convention,
@@ -423,7 +482,7 @@ public static class ItunesImporter
 
         var topPiece = ResolveOrCreateTopPiece(composer, parsedName.PieceTitle,
                                                resolver, pieces, newlyCreatedTopPieces,
-                                               contributorComposers, counters);
+                                               contributorComposers, counters, enrichment);
 
         if (parsedName.SubpieceRefs.Count == 0)
         {
@@ -439,6 +498,13 @@ public static class ItunesImporter
         else
         {
             target.PieceRefs = new List<TrackPieceRef>(parsedName.SubpieceRefs.Count);
+            // Tracks the compound base numbers whose head ref we've already
+            // emitted for THIS track. When a later part of the same compound
+            // sits in the same track (the combined-track case), it doesn't get
+            // its own ref — the head ref already covers it. A part arriving on
+            // its own track (the separate-track case) has no head ref here, so
+            // it emits a ref pinned to its Section marker.
+            var emittedCompoundHeads = new HashSet<int>();
             foreach (var subRef in parsedName.SubpieceRefs)
             {
                 // EnsureSubpiecePath returns the segment path that resolves to
@@ -447,7 +513,29 @@ public static class ItunesImporter
                 // existing ones (so we don't corrupt curated titles).
                 var refPath = EnsureSubpiecePath(
                     topPiece, subRef.Path, subRef.MusicNumber, subRef.Tempos,
-                    subRef.TemposFromFormCollapse, counters);
+                    subRef.TemposFromFormCollapse, subRef.LeafForm, counters,
+                    out var compound);
+
+                if (compound is { IsHead: false } nonHead)
+                {
+                    // Later compound part. Skip when its head ref is already on
+                    // this track (combined track); otherwise emit a marker-pinned
+                    // ref (this part is on its own track).
+                    if (emittedCompoundHeads.Contains(nonHead.BaseNumber))
+                        continue;
+                    target.PieceRefs.Add(new TrackPieceRef
+                    {
+                        Composer     = composer.Name,
+                        PieceTitle   = topPiece.Title ?? parsedName.PieceTitle,
+                        SubpiecePath = refPath,
+                        StartMarker  = nonHead.Marker,
+                    });
+                    continue;
+                }
+
+                if (compound is { IsHead: true } headInfo)
+                    emittedCompoundHeads.Add(headInfo.BaseNumber);
+
                 target.PieceRefs.Add(new TrackPieceRef
                 {
                     Composer     = composer.Name,
@@ -476,10 +564,30 @@ public static class ItunesImporter
         ItunesImportInference.ParsedComposer parsed,
         IList<CanonComposer> composers,
         Dictionary<string, CanonComposer> byName,
-        Counters counters)
+        Counters counters,
+        EnrichmentChoices enrichment)
     {
+        // Look up the user's artist enrichment choice (if any) once — used
+        // for both the fresh-create and the back-fill-on-provisional paths.
+        AppliedArtistEnrichment? artistChoice = null;
+        if (enrichment.ArtistsByName.TryGetValue(parsed.Name, out var c) && c.Apply)
+            artistChoice = c;
+
         if (byName.TryGetValue(parsed.Name, out var existing))
+        {
+            // Apply rule: only when the existing row is provisional with a
+            // blank BirthDate. Approved canon is never overwritten — the
+            // user's curation wins (the planner won't even propose, but the
+            // apply-time guard is the defensive backstop in case planner +
+            // importer drift apart).
+            if (artistChoice is not null
+                && existing.IsProvisional
+                && string.IsNullOrEmpty(existing.BirthDate))
+            {
+                ApplyArtistChoiceToComposer(existing, artistChoice.Candidate);
+            }
             return existing;
+        }
 
         var fresh = new CanonComposer
         {
@@ -489,10 +597,52 @@ public static class ItunesImporter
             DeathDate     = parsed.DeathYear?.ToString(),
             IsProvisional = true,
         };
+
+        // Fresh composer + artist choice → apply MB's fields. iTunes-derived
+        // parsed years (from "(YYYY-YYYY)" in the composer string) win when
+        // present; MB fills the gaps. Same shape as
+        // ApplyArtistChoiceToComposer's blank-field guard so the two paths
+        // stay consistent.
+        if (artistChoice is not null)
+            ApplyArtistChoiceToComposer(fresh, artistChoice.Candidate);
+
         composers.Add(fresh);
         byName[fresh.Name] = fresh;
         counters.Composers++;
         return fresh;
+    }
+
+    /// <summary>
+    /// Defensive: only fills blank fields. So if the iTunes composer field
+    /// parsed years, those win; MB only contributes when the field is empty.
+    /// SortName is overwritten when the existing row had the placeholder
+    /// (= Name) and MB's SortName differs — that's MB-canonical surname-first
+    /// form, an upgrade for the user.
+    /// </summary>
+    private static void ApplyArtistChoiceToComposer(CanonComposer target, MbArtistSuggestion candidate)
+    {
+        if (string.IsNullOrEmpty(target.BirthDate) && candidate.BirthYear is { } b)
+            target.BirthDate = b.ToString();
+        if (string.IsNullOrEmpty(target.DeathDate) && candidate.DeathYear is { } d)
+            target.DeathDate = d.ToString();
+        if (string.IsNullOrEmpty(target.BirthPlace) && !string.IsNullOrEmpty(candidate.BirthPlace))
+            target.BirthPlace = candidate.BirthPlace;
+        if (string.IsNullOrEmpty(target.DeathPlace) && !string.IsNullOrEmpty(candidate.DeathPlace))
+            target.DeathPlace = candidate.DeathPlace;
+
+        // SortName upgrade: a fresh composer was constructed with
+        // SortName=Name as a placeholder. When MB's SortName is non-empty
+        // AND differs from Name, prefer MB's canonical form.
+        if (!string.IsNullOrEmpty(candidate.SortName)
+            && (string.IsNullOrEmpty(target.SortName)
+                || string.Equals(target.SortName, target.Name, StringComparison.Ordinal)))
+        {
+            target.SortName = candidate.SortName;
+        }
+
+        // MBID — overwrite even if already set; the user explicitly picked
+        // this candidate in the review pane, that's the authoritative value.
+        target.MusicBrainzArtistId = candidate.MbArtistId;
     }
 
     /// <summary>
@@ -519,7 +669,8 @@ public static class ItunesImporter
         IList<CanonPiece> pieces,
         Dictionary<(string, string), CanonPiece> newlyCreated,
         IReadOnlyList<(CanonComposer Composer, string Role)>? contributors,
-        Counters counters)
+        Counters counters,
+        EnrichmentChoices enrichment)
     {
         var key = (composer.Name, title);
         if (newlyCreated.TryGetValue(key, out var fromBatch))
@@ -572,10 +723,163 @@ public static class ItunesImporter
                 .ToList();
         }
 
+        // Apply rule: only at fresh-create time, only when the user has
+        // chosen a work for this (composer, parsed-title). Existing canon
+        // pieces are never overwritten — the resolved-from-canon path
+        // above returns early before we reach here.
+        var workKey = EnrichmentChoices.BuildWorkKey(composer.Name, title);
+        if (enrichment.WorksByKey.TryGetValue(workKey, out var workChoice))
+        {
+            ApplyWorkChoiceToPiece(fresh, workChoice, counters);
+        }
+
         pieces.Add(fresh);
         newlyCreated[key] = fresh;
         counters.Pieces++;
         return fresh;
+    }
+
+    /// <summary>
+    /// Applies the user's album-enrichment choice to an album row. Called
+    /// for newly-created albums and for merges into still-provisional
+    /// canon albums; approved canon albums never reach here.
+    /// <para>
+    /// Defensive: only fills blank scalar fields, and only when the user
+    /// ticked the corresponding per-aspect checkbox (Metadata / Performers /
+    /// Recording session). MBID is always stamped — the user chose this
+    /// candidate explicitly, that's the authoritative value.
+    /// </para>
+    /// </summary>
+    private static void ApplyAlbumChoiceToAlbum(CanonAlbum target, AppliedAlbumEnrichment choice)
+    {
+        target.MusicBrainzReleaseId = choice.Candidate.MbReleaseId;
+
+        if (choice.ApplyMetadata)
+        {
+            if (string.IsNullOrEmpty(target.Label) && !string.IsNullOrEmpty(choice.Candidate.Label))
+                target.Label = choice.Candidate.Label;
+            if (string.IsNullOrEmpty(target.CatalogueNumber) && !string.IsNullOrEmpty(choice.Candidate.CatalogueNumber))
+                target.CatalogueNumber = choice.Candidate.CatalogueNumber;
+            if (string.IsNullOrEmpty(target.Barcode) && !string.IsNullOrEmpty(choice.Candidate.Barcode))
+                target.Barcode = choice.Candidate.Barcode;
+        }
+
+        if (choice.ApplyRecordingSession && choice.Candidate.RecordingEvents.Count > 0)
+        {
+            // Use the first recording event — MB releases that aggregate
+            // multiple sessions sometimes return several; the album model
+            // carries one session's worth of fields and the user can edit
+            // post-import. Don't overwrite values the importer / user has
+            // already set.
+            var evt = choice.Candidate.RecordingEvents[0];
+            if (string.IsNullOrEmpty(target.SessionDates)   && !string.IsNullOrEmpty(evt.Date))    target.SessionDates   = evt.Date;
+            if (string.IsNullOrEmpty(target.SessionVenue)   && !string.IsNullOrEmpty(evt.Venue))   target.SessionVenue   = evt.Venue;
+            if (string.IsNullOrEmpty(target.SessionCity)    && !string.IsNullOrEmpty(evt.City))    target.SessionCity    = evt.City;
+            if (string.IsNullOrEmpty(target.SessionCountry) && !string.IsNullOrEmpty(evt.Country)) target.SessionCountry = evt.Country;
+            if (evt.Engineers.Count > 0 && (target.SessionEngineers is null or { Count: 0 }))
+                target.SessionEngineers = evt.Engineers.ToList();
+            if (evt.Producers.Count > 0 && (target.SessionProducers is null or { Count: 0 }))
+                target.SessionProducers = evt.Producers.ToList();
+        }
+
+        if (choice.ApplyPerformers && choice.Candidate.Credits.Count > 0)
+        {
+            // MB credits carry Name + Role + Instrument; map straight onto
+            // AlbumPerformer. Only when the album doesn't already have
+            // performers — the iTunes Artist-field-derived performers may
+            // already be there and shouldn't be clobbered.
+            if (target.Performers is null or { Count: 0 })
+            {
+                target.Performers = choice.Candidate.Credits
+                    .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+                    .Select(c => new AlbumPerformer
+                    {
+                        Name       = c.Name,
+                        Role       = c.Role,
+                        Instrument = c.Instrument,
+                    })
+                    .ToList();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies the user's work-enrichment choice to a freshly-created piece.
+    /// <para>
+    /// <c>ApplyScalars</c>: title is upgraded to MB's canonical form when the
+    /// parsed-from-iTunes title and MB's title differ — this is where you
+    /// get "Piano Sonata No. 14 in C♯ minor, Op. 27 No. 2 'Moonlight'" in
+    /// place of the iTunes-abbreviated "Piano Sonata #14". KeyTonality /
+    /// KeyMode fill blanks. MBID is always stamped (the user chose this
+    /// candidate explicitly).
+    /// </para>
+    /// <para>
+    /// <c>ApplyMovementList</c>: replaces the piece's <see cref="CanonPiece.Subpieces"/>
+    /// list with MB's canonical movements. Subsequent per-track
+    /// <c>EnsureSubpiecePath</c> calls will then resolve into the MB-titled
+    /// subpieces (via title or music-number match). If the iTunes track
+    /// titles disagree with MB enough that the matcher misses, those tracks
+    /// fall through to "create a new subpiece" — which doubles up but isn't
+    /// destructive. The review pane's movement-count-mismatch detector
+    /// guards against this for the common case (auto-unchecks the box).
+    /// </para>
+    /// </summary>
+    private static void ApplyWorkChoiceToPiece(
+        CanonPiece target, AppliedWorkEnrichment choice, Counters counters)
+    {
+        // MBID — always stamp on the user's chosen candidate.
+        target.MusicBrainzWorkId = choice.Candidate.MbWorkId;
+
+        if (choice.ApplyScalars)
+        {
+            if (!string.IsNullOrWhiteSpace(choice.Candidate.Title))
+                target.Title = choice.Candidate.Title;
+            if (string.IsNullOrEmpty(target.KeyTonality)
+                && !string.IsNullOrEmpty(choice.Candidate.KeyTonality))
+                target.KeyTonality = choice.Candidate.KeyTonality;
+            if (string.IsNullOrEmpty(target.KeyMode)
+                && !string.IsNullOrEmpty(choice.Candidate.KeyMode))
+                target.KeyMode = choice.Candidate.KeyMode;
+            // Catalogue: MB may carry a "Op. 27 No. 2" string; if so, parse
+            // into a CatalogInfo entry. Defer the actual parser to a future
+            // slice — the current MB enricher leaves Catalogue null, so this
+            // branch is dormant in slice 4.
+        }
+
+        if (choice.ApplyMovementList && choice.Candidate.Movements.Count > 0)
+        {
+            // Replace any subpieces (the freshly-created piece has none yet)
+            // with MB's canonical movements. NumberedSubpieces=true matches
+            // the dominant classical convention; tempo markers are sourced
+            // from MB's per-movement Tempo field when present.
+            target.NumberedSubpieces = true;
+            target.SubpiecesStart    = 1;
+            target.Subpieces = choice.Candidate.Movements
+                .OrderBy(m => m.Number)
+                .Select(m =>
+                {
+                    var sub = new CanonPiece
+                    {
+                        Title         = m.Title,
+                        Number        = m.Number,
+                        IsProvisional = true,
+                    };
+                    if (!string.IsNullOrWhiteSpace(m.Tempo))
+                    {
+                        sub.Markers =
+                        [
+                            new MusicalMarker
+                            {
+                                Kind  = MarkerKind.Tempo,
+                                Value = m.Tempo!,
+                            }
+                        ];
+                    }
+                    counters.Subpieces++;
+                    return sub;
+                })
+                .ToList();
+        }
     }
 
     /// <summary>
@@ -608,8 +912,11 @@ public static class ItunesImporter
         string? musicNumberForLeaf,
         IReadOnlyList<string>? temposForLeaf,
         bool temposFromFormCollapse,
-        Counters counters)
+        string? leafForm,
+        Counters counters,
+        out CompoundLeafInfo? compound)
     {
+        compound = null;
         var refSegments = new List<string>(path.Count);
         var current = root;
         for (int i = 0; i < path.Count; i++)
@@ -619,13 +926,88 @@ public static class ItunesImporter
             // Leaf number applies only to the final segment of the path.
             var parsedNumber = isLeaf ? musicNumberForLeaf : null;
 
+            current.Subpieces ??= new List<CanonPiece>();
+
+            // ── Compound parts (letter-suffixed number, "7a"/"7b") ──────────
+            // When the leaf number carries a letter suffix, the parts sharing a
+            // base number collapse into one canon piece. The first to arrive is
+            // the head; later parts append their form and contribute a Section
+            // marker rather than creating their own subpiece.
+            var compoundMatch = isLeaf && !string.IsNullOrEmpty(parsedNumber)
+                ? CompoundNumberRegex.Match(parsedNumber!)
+                : Match.Empty;
+            if (compoundMatch.Success)
+            {
+                var baseNumber = int.Parse(compoundMatch.Groups["base"].Value);
+                var head = current.Subpieces.FirstOrDefault(sp => sp.Number == baseNumber);
+
+                // Non-head: a head with this base already exists AND it isn't
+                // simply this same part re-imported (title differs).
+                if (head is not null
+                    && !string.Equals(head.Title, segment, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrEmpty(leafForm))
+                        head.Form = CombineForms(head.Form, leafForm);
+
+                    // Add (or reuse) a Section marker holding this part's title.
+                    head.Markers ??= new List<MusicalMarker>();
+                    var marker = head.Markers.FirstOrDefault(m =>
+                        m.Kind == MarkerKind.Section &&
+                        string.Equals(m.Value, segment, StringComparison.OrdinalIgnoreCase));
+                    if (marker is null)
+                    {
+                        marker = new MusicalMarker { Kind = MarkerKind.Section, Value = segment };
+                        head.Markers.Add(marker);
+                    }
+
+                    var headId = string.IsNullOrEmpty(head.Title)
+                        ? head.SubpieceDisplayTitle : head.Title;
+                    refSegments.Add(headId);
+                    compound = new CompoundLeafInfo(baseNumber, IsHead: false,
+                        new MarkerReference { Kind = MarkerKind.Section, Value = segment });
+                    current = head;
+                    continue;
+                }
+
+                if (head is not null)
+                {
+                    // Same head part re-imported — idempotent match.
+                    refSegments.Add(string.IsNullOrEmpty(head.Title)
+                        ? head.SubpieceDisplayTitle : head.Title);
+                    compound = new CompoundLeafInfo(baseNumber, IsHead: true, null);
+                    current = head;
+                    continue;
+                }
+
+                // First part for this base → create it as the head, numbered by
+                // the base (the suffix is dropped from the canon Number).
+                var newHead = new CanonPiece
+                {
+                    Title         = segment,
+                    Composer      = root.Composer,
+                    IsProvisional = true,
+                    Number        = baseNumber,
+                };
+                if (!string.IsNullOrEmpty(leafForm))
+                {
+                    newHead.Form = leafForm;
+                    if (string.Equals(segment, leafForm, StringComparison.OrdinalIgnoreCase))
+                        newHead.Title = null;
+                }
+                current.Subpieces.Add(newHead);
+                counters.Subpieces++;
+                refSegments.Add(string.IsNullOrEmpty(newHead.Title) ? segment : newHead.Title);
+                compound = new CompoundLeafInfo(baseNumber, IsHead: true, null);
+                current = newHead;
+                continue;
+            }
+
             // Genuine multi-tempo group worth enriching as Tempo markers. The
             // FormAndTempo interpretation folds the FORM into the tempo list
             // (e.g. ["Scherzando", "Allegretto"]), so its values must NOT be
             // written as tempo markers — only honour real tempo continuations.
             var hasGenuineTempos = isLeaf && temposForLeaf is { Count: > 1 } && !temposFromFormCollapse;
 
-            current.Subpieces ??= new List<CanonPiece>();
             var existing = FindMatchingSubpiece(current.Subpieces, segment, parsedNumber);
 
             if (existing is null)
@@ -636,8 +1018,31 @@ public static class ItunesImporter
                     Composer      = root.Composer,
                     IsProvisional = true,
                 };
+                // A purely-numeric prefix lands in the integer Number field
+                // (leading zeros stripped) so subpieces sort numerically without
+                // the user having to zero-pad in iTunes. A prefix carrying a
+                // letter suffix ("7a") can't be an int and keeps its raw form in
+                // MusicNumber — those are the compound-signal case.
                 if (!string.IsNullOrEmpty(parsedNumber))
-                    existing.MusicNumber = parsedNumber;
+                {
+                    if (int.TryParse(parsedNumber, out var orderingNumber))
+                        existing.Number = orderingNumber;
+                    else
+                        existing.MusicNumber = parsedNumber;
+                }
+
+                // Form-leaf classifier: the leaf led with a recognised form
+                // ("Air. Every valley…"). Set Form on the created leaf so the
+                // canon movement is Form=Air / Title="Every valley…". When the
+                // leaf was form-only ("Part I. Sinfonia") the segment IS the
+                // form, so clear the Title to avoid form-in-title duplication.
+                if (isLeaf && !string.IsNullOrEmpty(leafForm))
+                {
+                    existing.Form = leafForm;
+                    if (string.Equals(segment, leafForm, StringComparison.OrdinalIgnoreCase))
+                        existing.Title = null;
+                }
+
                 current.Subpieces.Add(existing);
                 counters.Subpieces++;
 
@@ -645,7 +1050,9 @@ public static class ItunesImporter
                     SetTempoMarkers(existing, temposForLeaf!);
 
                 // The ref stores the title we just assigned — strict-matches it.
-                refSegments.Add(segment);
+                // For a form-only leaf (Title cleared) store the form so the
+                // ref still resolves against the node's identifier.
+                refSegments.Add(string.IsNullOrEmpty(existing.Title) ? segment : existing.Title);
             }
             else
             {
@@ -673,6 +1080,36 @@ public static class ItunesImporter
         }
 
         return refSegments;
+    }
+
+    /// <summary>
+    /// Outcome of a compound-leaf (letter-suffixed number, e.g. "7a"/"7b")
+    /// during <see cref="EnsureSubpiecePath"/>. A compound groups parts that
+    /// share a base number under one canon piece: the first part ("7a") is the
+    /// head (its title becomes the piece title, its form the first form); each
+    /// later part ("7b") appends its form to the compound and contributes a
+    /// <see cref="MarkerKind.Section"/> marker holding its own title, so that a
+    /// part imported on its own track can pin to that marker.
+    /// </summary>
+    private readonly record struct CompoundLeafInfo(
+        int BaseNumber,
+        bool IsHead,
+        MarkerReference? Marker);
+
+    private static readonly Regex CompoundNumberRegex = new(
+        @"^(?<base>\d+)(?<suffix>[A-Za-z]+)$", RegexOptions.Compiled);
+
+    /// <summary>Combines two form names into a compound ("Chorus" + "Recitative"
+    /// → "Chorus and Recitative"), skipping the append when the addition is
+    /// already present (idempotent re-import).</summary>
+    private static string CombineForms(string? existingForm, string addition)
+    {
+        if (string.IsNullOrWhiteSpace(existingForm)) return addition;
+        var parts = existingForm.Split(" and ", StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim());
+        if (parts.Any(p => string.Equals(p, addition, StringComparison.OrdinalIgnoreCase)))
+            return existingForm;
+        return existingForm + " and " + addition;
     }
 
     /// <summary>
@@ -708,10 +1145,14 @@ public static class ItunesImporter
 
         if (string.IsNullOrEmpty(parsedNumber)) return null;
 
+        // Numeric prefixes match the integer Number field regardless of leading
+        // zeros ("08" ↔ Number 8); letter-suffixed prefixes ("7a") only match a
+        // string MusicNumber.
+        var parsedIsNumeric = int.TryParse(parsedNumber, out var parsedInt);
         return subpieces.FirstOrDefault(sp =>
             string.IsNullOrEmpty(sp.Title) &&
             (string.Equals(sp.MusicNumber, parsedNumber, StringComparison.OrdinalIgnoreCase) ||
-             (sp.Number.HasValue && sp.Number.Value.ToString() == parsedNumber)));
+             (parsedIsNumeric && sp.Number.HasValue && sp.Number.Value == parsedInt)));
     }
 
     /// <summary>
@@ -739,9 +1180,10 @@ public static class ItunesImporter
         ItunesTrack track,
         string composerName,
         PieceReferenceIndex resolver,
-        ItunesImportInference.DotSeparatorInterpretation interpretation)
+        ItunesImportInference.DotSeparatorInterpretation interpretation,
+        IReadOnlyCollection<string>? forms = null)
     {
-        var parsed = ItunesImportInference.ParseTrackName(track.Name, interpretation);
+        var parsed = ItunesImportInference.ParseTrackName(track.Name, interpretation, forms);
         if (string.IsNullOrWhiteSpace(parsed.PieceTitle)) return false;
 
         // The top piece must already exist (no-subpath probe resolves to it).

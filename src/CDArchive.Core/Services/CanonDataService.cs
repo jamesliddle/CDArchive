@@ -111,15 +111,18 @@ public class CanonDataService : ICanonDataService
 
     /// <summary>
     /// Walks a piece (and its subpieces / versions / version-subpieces) and
-    /// synthesises kind=Tempo / kind=FirstLine entries on <see cref="CanonPiece.Markers"/>
-    /// from the legacy <see cref="CanonPiece.Tempos"/> / <see cref="CanonPiece.FirstLine"/>
-    /// fields when they aren't already represented. Mirrors the seeder's
+    /// synthesises kind=Tempo entries on <see cref="CanonPiece.Markers"/>
+    /// from the legacy <see cref="CanonPiece.Tempos"/> field when they aren't
+    /// already represented. Mirrors the seeder's
     /// <c>SynthesizeLegacyAnchorMarkers</c> so JSON loaded directly through
     /// this service ends up in the same shape as JSON loaded via the seeder.
+    /// <para>FirstLine folding was retired — the legacy <c>first_line</c> key
+    /// folds into <see cref="CanonPiece.Title"/> at deserialize, so there's
+    /// no first-line value left to migrate into a marker here.</para>
     /// </summary>
     private static void MigrateLegacyAnchorsToMarkers(CanonPiece piece)
     {
-        piece.Markers = FoldLegacyAnchors(piece.Tempos, piece.FirstLine, piece.Markers);
+        piece.Markers = FoldLegacyAnchors(piece.Tempos, piece.Markers);
 
         if (piece.Subpieces is { Count: > 0 })
             foreach (var sub in piece.Subpieces) MigrateLegacyAnchorsToMarkers(sub);
@@ -127,54 +130,40 @@ public class CanonDataService : ICanonDataService
         if (piece.Versions is { Count: > 0 })
             foreach (var v in piece.Versions)
             {
-                v.Markers = FoldLegacyAnchors(v.Tempos, v.FirstLine, v.Markers);
+                v.Markers = FoldLegacyAnchors(v.Tempos, v.Markers);
                 if (v.Subpieces is { Count: > 0 })
                     foreach (var sub in v.Subpieces) MigrateLegacyAnchorsToMarkers(sub);
             }
     }
 
     /// <summary>
-    /// Returns a markers list with kind=Tempo / kind=FirstLine entries
-    /// synthesised from the legacy fields when missing, deduping on
-    /// (kind, value, number) so repeated reseeds don't double up.
-    /// Returns null only when nothing's accumulated.
+    /// Returns a markers list with kind=Tempo entries synthesised from the
+    /// legacy <c>tempos</c> field when missing, deduping on (kind, value,
+    /// number) so repeated reseeds don't double up. Returns null only when
+    /// nothing's accumulated.
     /// </summary>
     private static List<MusicalMarker>? FoldLegacyAnchors(
-        List<TempoInfo>? tempos, string? firstLine, List<MusicalMarker>? markers)
+        List<TempoInfo>? tempos, List<MusicalMarker>? markers)
     {
-        if ((tempos is null or { Count: 0 }) && string.IsNullOrWhiteSpace(firstLine))
+        if (tempos is null or { Count: 0 })
             return markers;
 
         markers ??= [];
 
-        if (tempos is { Count: > 0 })
+        foreach (var t in tempos)
         {
-            foreach (var t in tempos)
-            {
-                if (string.IsNullOrEmpty(t.Description)) continue;
-                int? num = t.Number == 0 ? null : t.Number;
-                if (markers.Any(m => m.Kind == MarkerKind.Tempo &&
-                    string.Equals(m.Value, t.Description, StringComparison.OrdinalIgnoreCase) &&
-                    m.Number == num))
-                    continue;
+            if (string.IsNullOrEmpty(t.Description)) continue;
+            int? num = t.Number == 0 ? null : t.Number;
+            if (markers.Any(m => m.Kind == MarkerKind.Tempo &&
+                string.Equals(m.Value, t.Description, StringComparison.OrdinalIgnoreCase) &&
+                m.Number == num))
+                continue;
 
-                markers.Add(new MusicalMarker
-                {
-                    Kind   = MarkerKind.Tempo,
-                    Value  = t.Description,
-                    Number = num,
-                });
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(firstLine) &&
-            !markers.Any(m => m.Kind == MarkerKind.FirstLine &&
-                string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
-        {
             markers.Add(new MusicalMarker
             {
-                Kind  = MarkerKind.FirstLine,
-                Value = firstLine.Trim(),
+                Kind   = MarkerKind.Tempo,
+                Value  = t.Description,
+                Number = num,
             });
         }
 

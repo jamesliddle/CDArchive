@@ -277,7 +277,6 @@ public partial class PieceRefDetailsWindow : Window
         var kind = m.Kind switch
         {
             MarkerKind.Tempo         => "Tempo",
-            MarkerKind.FirstLine     => "First line",
             MarkerKind.RehearsalMark => "Rehearsal",
             MarkerKind.BarNumber     => "Bar",
             MarkerKind.Section       => "Section",
