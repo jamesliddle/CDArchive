@@ -84,6 +84,7 @@ public class CanonDbContext : DbContext
             // earlier migration set DEFAULT 0. Always include the value in the
             // INSERT so the C# property is the single source of truth.
             b.Property(x => x.IsProvisional).HasColumnName("is_provisional");
+            b.Property(x => x.MusicBrainzArtistId).HasColumnName("musicbrainz_artist_id");
 
             b.HasIndex(x => x.Name).IsUnique();
             b.HasIndex(x => x.SortName);
@@ -264,6 +265,7 @@ public class CanonDbContext : DbContext
             // earlier migration set DEFAULT 0. Always include the value in the
             // INSERT so the C# property is the single source of truth.
             b.Property(x => x.IsProvisional).HasColumnName("is_provisional");
+            b.Property(x => x.MusicBrainzWorkId).HasColumnName("musicbrainz_work_id");
 
             b.Property(x => x.InstrumentationJson).HasColumnName("instrumentation_json");
             b.Property(x => x.CompositionYearsJson).HasColumnName("composition_years_json");
@@ -523,6 +525,7 @@ public class CanonDbContext : DbContext
             // earlier migration set DEFAULT 0. Always include the value in the
             // INSERT so the C# property is the single source of truth.
             b.Property(x => x.IsProvisional).HasColumnName("is_provisional");
+            b.Property(x => x.MusicBrainzReleaseId).HasColumnName("musicbrainz_release_id");
 
             // Filtered unique index: uniqueness only enforced when both columns are non-null.
             b.HasIndex(x => new { x.Label, x.CatalogueNumber })

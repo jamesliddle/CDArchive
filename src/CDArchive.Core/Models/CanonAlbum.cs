@@ -65,6 +65,16 @@ public class CanonAlbum
     public bool IsProvisional { get; set; } = true;
 
     /// <summary>
+    /// MusicBrainz Release ID (36-char UUID). Set when this album was
+    /// matched against — or accepted from — a MusicBrainz release suggestion
+    /// during iTunes import. Used to short-circuit future MB lookups for
+    /// this album; surfaced read-only in the album editor.
+    /// </summary>
+    [JsonPropertyName("musicbrainz_release_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MusicBrainzReleaseId { get; set; }
+
+    /// <summary>
     /// Optional volume grouping for large box sets (e.g. the Brilliant Classics Bach Edition).
     /// null for single-disc albums and ordinary multi-disc sets.
     /// Each <see cref="AlbumDisc"/> references its volume via <see cref="AlbumDisc.VolumeNumber"/>.

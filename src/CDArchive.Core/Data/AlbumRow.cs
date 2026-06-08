@@ -27,6 +27,12 @@ public class AlbumRow
     /// <summary>True until explicitly approved. Defaults true for new albums.</summary>
     public bool IsProvisional { get; set; } = true;
 
+    /// <summary>
+    /// MusicBrainz Release ID (36-char UUID), or null if this album has not
+    /// been linked to a MusicBrainz release entry.
+    /// </summary>
+    public string? MusicBrainzReleaseId { get; set; }
+
     // ── Recording session fields (formerly the album_sessions table) ─────────
     // One session-worth of fields directly on the album. Per-track copies
     // live on AlbumTrackRow. Engineers + Producers are name lists serialized

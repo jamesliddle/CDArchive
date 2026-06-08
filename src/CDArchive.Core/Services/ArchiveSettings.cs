@@ -45,6 +45,14 @@ public class ArchiveSettings : IArchiveSettings
     public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
     public float PlayerVolume { get; set; } = 1.0f;
 
+    // MusicBrainz import enrichment (slice 6).
+    public bool EnableMusicBrainzImportEnrichment { get; set; } = false;
+    public int  MusicBrainzCandidatesPerProposal { get; set; } = 3;
+    public bool ApplyMbAlbumMetadata           { get; set; } = true;
+    public bool ApplyMbPerformerCredits        { get; set; } = true;
+    public bool ApplyMbRecordingSessions       { get; set; } = true;
+    public bool ApplyMbCanonicalWorkStructure  { get; set; } = true;
+
     /// <summary>
     /// Production ctor used by DI. Reads no I/O — the host must call
     /// <see cref="Initialize"/> once before consumers read property values.
@@ -99,6 +107,21 @@ public class ArchiveSettings : IArchiveSettings
                 PreferredAudioFormat = format;
             if (TryReadFloat(root, nameof(SettingsData.PlayerVolume)) is float v)
                 PlayerVolume = Math.Clamp(v, 0f, 1f);
+
+            // MB enrichment block — each parsed independently so a bad value
+            // in one doesn't reset every other setting (M10 pattern).
+            if (TryReadBool(root, nameof(SettingsData.EnableMusicBrainzImportEnrichment)) is { } enable)
+                EnableMusicBrainzImportEnrichment = enable;
+            if (TryReadInt(root, nameof(SettingsData.MusicBrainzCandidatesPerProposal)) is int cpp && cpp > 0)
+                MusicBrainzCandidatesPerProposal = Math.Clamp(cpp, 1, 25);
+            if (TryReadBool(root, nameof(SettingsData.ApplyMbAlbumMetadata)) is { } amd)
+                ApplyMbAlbumMetadata = amd;
+            if (TryReadBool(root, nameof(SettingsData.ApplyMbPerformerCredits)) is { } apc)
+                ApplyMbPerformerCredits = apc;
+            if (TryReadBool(root, nameof(SettingsData.ApplyMbRecordingSessions)) is { } ars)
+                ApplyMbRecordingSessions = ars;
+            if (TryReadBool(root, nameof(SettingsData.ApplyMbCanonicalWorkStructure)) is { } acw)
+                ApplyMbCanonicalWorkStructure = acw;
         }
         catch (Exception ex)
         {
@@ -128,6 +151,17 @@ public class ArchiveSettings : IArchiveSettings
     {
         if (!root.TryGetProperty(property, out var el)) return null;
         return el.ValueKind == JsonValueKind.Number && el.TryGetSingle(out var v) ? v : null;
+    }
+
+    private static bool? TryReadBool(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var el)) return null;
+        return el.ValueKind switch
+        {
+            JsonValueKind.True  => true,
+            JsonValueKind.False => false,
+            _                   => null,
+        };
     }
 
     /// <summary>
@@ -189,11 +223,17 @@ public class ArchiveSettings : IArchiveSettings
         };
         var json = JsonSerializer.Serialize(new SettingsData
         {
-            ArchiveRootPath = ArchiveRootPath,
-            FfmpegPath = FfmpegPath,
-            Mp3Bitrate = Mp3Bitrate,
-            PreferredAudioFormat = PreferredAudioFormat,
-            PlayerVolume = PlayerVolume
+            ArchiveRootPath                    = ArchiveRootPath,
+            FfmpegPath                         = FfmpegPath,
+            Mp3Bitrate                         = Mp3Bitrate,
+            PreferredAudioFormat               = PreferredAudioFormat,
+            PlayerVolume                       = PlayerVolume,
+            EnableMusicBrainzImportEnrichment  = EnableMusicBrainzImportEnrichment,
+            MusicBrainzCandidatesPerProposal   = MusicBrainzCandidatesPerProposal,
+            ApplyMbAlbumMetadata               = ApplyMbAlbumMetadata,
+            ApplyMbPerformerCredits            = ApplyMbPerformerCredits,
+            ApplyMbRecordingSessions           = ApplyMbRecordingSessions,
+            ApplyMbCanonicalWorkStructure      = ApplyMbCanonicalWorkStructure,
         }, options);
 
         // Atomic write: temp sibling in the same directory (same volume → atomic
@@ -228,5 +268,14 @@ public class ArchiveSettings : IArchiveSettings
         public int Mp3Bitrate { get; set; }
         public PreferredAudioFormat? PreferredAudioFormat { get; set; }
         public float? PlayerVolume { get; set; }
+
+        // Names mirror the property names exactly so the TryReadX(root,
+        // nameof(SettingsData.Foo)) calls round-trip.
+        public bool? EnableMusicBrainzImportEnrichment { get; set; }
+        public int?  MusicBrainzCandidatesPerProposal  { get; set; }
+        public bool? ApplyMbAlbumMetadata          { get; set; }
+        public bool? ApplyMbPerformerCredits       { get; set; }
+        public bool? ApplyMbRecordingSessions      { get; set; }
+        public bool? ApplyMbCanonicalWorkStructure { get; set; }
     }
 }

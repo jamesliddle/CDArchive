@@ -69,6 +69,17 @@ public class CanonPiece
     public bool IsProvisional { get; set; } = true;
 
     /// <summary>
+    /// MusicBrainz Work ID (36-char UUID). Set when this piece was matched
+    /// against — or accepted from — a MusicBrainz work suggestion during
+    /// iTunes import. Surfaced read-only in the piece editor.
+    /// Only top-level pieces carry an MBID; movements (subpieces) and versions
+    /// don't have separate MB work identifiers in the canonical model.
+    /// </summary>
+    [JsonPropertyName("musicbrainz_work_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MusicBrainzWorkId { get; set; }
+
+    /// <summary>
     /// Explicit override controlling whether subpieces display a sequence number.
     /// When null the default applies: Opera → unnumbered, everything else → numbered.
     /// Serialised only when set, so the JSON stays clean for the common case.
@@ -137,7 +148,12 @@ public class CanonPiece
     }
 
     /// <summary>
-    /// Legacy single first-line. Same JSON-read-only treatment as Tempos.
+    /// Legacy <c>first_line</c> JSON key — deserialize-only back-compat shim.
+    /// FirstLine was retired as a marker kind; the text now lives in
+    /// <see cref="Title"/>. An old JSON snapshot that still carries
+    /// <c>first_line</c> folds it into Title (set-if-empty) so the value
+    /// survives a re-seed. The getter returns null so the key is never
+    /// written back out.
     /// </summary>
     [JsonInclude]
     [JsonPropertyName("first_line")]
@@ -145,7 +161,7 @@ public class CanonPiece
     internal string? FirstLine
     {
         get => null;
-        set => MirrorFirstLineIntoMarkers(value);
+        set { if (string.IsNullOrEmpty(Title) && !string.IsNullOrWhiteSpace(value)) Title = value.Trim(); }
     }
 
     private void MirrorTemposIntoMarkers(List<TempoInfo>? tempos)
@@ -174,20 +190,6 @@ public class CanonPiece
         }
     }
 
-    private void MirrorFirstLineIntoMarkers(string? firstLine)
-    {
-        if (string.IsNullOrWhiteSpace(firstLine)) return;
-        Markers ??= [];
-        if (Markers.Any(m => m.Kind == MarkerKind.FirstLine &&
-            string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
-            return;
-
-        Markers.Add(new MusicalMarker
-        {
-            Kind  = MarkerKind.FirstLine,
-            Value = firstLine.Trim(),
-        });
-    }
 
     /// <summary>
     /// Track-anchor markers (tempos, first lines, rehearsal marks, bar numbers, …)
@@ -335,16 +337,9 @@ public class CanonPiece
             return $"{prefix}{tempo}";
         }
 
-        // Vocal number with a first line but no tempo indication
-        // e.g., "1. Duet. Jetzt, Schätzchen, jetzt sind wir allein"
-        if (!string.IsNullOrEmpty(FirstLine))
-        {
-            var prefix = isSubpiece ? SubpiecePrefix(showNumber)
-                       : Number.HasValue ? $"{Number}. " : "";
-            if (!string.IsNullOrEmpty(Form))
-                return $"{prefix}{TitleCase(Form)}. {FirstLine}";
-            return $"{prefix}{FirstLine}";
-        }
+        // (Retired) The FirstLine display branch lived here. FirstLine was
+        // never readable (its getter returned null) so this branch was dead;
+        // first-line text now lives in Title and renders via the title path.
 
         // Derive a title from form + number + key + optionally catalog.
         // Top-level pieces and sub-works (subpieces that have their own movements):
@@ -925,8 +920,10 @@ public enum MarkerKind
 {
     /// <summary>Tempo / character indication (e.g. "Allegro non troppo").</summary>
     Tempo,
-    /// <summary>First line of a sung passage (e.g. "Wenn mein Schatz Hochzeit macht").</summary>
-    FirstLine,
+    // FirstLine retired: first-line text now lives directly in the piece's
+    // Title (a startup migration folded existing kind=FirstLine markers into
+    // Title and deleted them). The enum value is gone so no new FirstLine
+    // markers can be created. Old DBs are migrated before EF reads them.
     /// <summary>Score rehearsal mark (e.g. "A", "47", "Cue 12").</summary>
     RehearsalMark,
     /// <summary>An absolute bar number used as a track-start anchor.</summary>
@@ -1542,14 +1539,15 @@ public class CanonPieceVersion
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? SubpiecesStart { get; set; }
 
-    /// <summary>Legacy first_line JSON read — see CanonPiece.FirstLine.</summary>
+    /// <summary>Legacy <c>first_line</c> JSON shim — folds into <see cref="Title"/>
+    /// (set-if-empty). See <see cref="CanonPiece.FirstLine"/>.</summary>
     [JsonInclude]
     [JsonPropertyName("first_line")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     internal string? FirstLine
     {
         get => null;
-        set => MirrorFirstLineIntoMarkers(value);
+        set { if (string.IsNullOrEmpty(Title) && !string.IsNullOrWhiteSpace(value)) Title = value.Trim(); }
     }
 
     [JsonPropertyName("notes")]
@@ -1603,20 +1601,6 @@ public class CanonPieceVersion
                 Number = num,
             });
         }
-    }
-
-    private void MirrorFirstLineIntoMarkers(string? firstLine)
-    {
-        if (string.IsNullOrWhiteSpace(firstLine)) return;
-        Markers ??= [];
-        if (Markers.Any(m => m.Kind == MarkerKind.FirstLine &&
-            string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
-            return;
-        Markers.Add(new MusicalMarker
-        {
-            Kind  = MarkerKind.FirstLine,
-            Value = firstLine.Trim(),
-        });
     }
 
     [JsonPropertyName("subpieces")]

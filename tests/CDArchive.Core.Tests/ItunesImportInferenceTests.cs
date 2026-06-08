@@ -9,6 +9,244 @@ namespace CDArchive.Core.Tests;
 /// </summary>
 public class ItunesImportInferenceTests
 {
+    /// <summary>Stand-in Forms pick list — the classifier now reads form names
+    /// from the caller's curated list rather than a built-in lexicon, so the
+    /// Phase-2 tests supply their own.</summary>
+    private static readonly string[] Forms =
+        { "Air", "Recitative", "Sinfonia", "Aria", "Chorus", "March" };
+
+    // ── Phase 1: smart dot-tokenizer (ellipsis + abbreviation protection) ───
+
+    [Fact]
+    public void SplitDotComponents_NormalSeparators_Split()
+    {
+        Assert.Equal(
+            new[] { "Dies irae", "Tuba mirum" },
+            ItunesImportInference.SplitDotComponents("Dies irae. Tuba mirum"));
+
+        Assert.Equal(
+            new[] { "Scherzando", "Allegretto, ma non troppo" },
+            ItunesImportInference.SplitDotComponents("Scherzando. Allegretto, ma non troppo"));
+
+        // Three-way split (Phase 2 will classify these; Phase 1 just tokenizes).
+        Assert.Equal(
+            new[] { "Part I", "Air", "Every valley shall be exalted" },
+            ItunesImportInference.SplitDotComponents("Part I. Air. Every valley shall be exalted"));
+    }
+
+    [Fact]
+    public void SplitDotComponents_SpacedEllipsis_NotSplit()
+    {
+        // "Seis danzas afro-cubanas - 3. ¡ . . . Y la negra bailaba!" — after
+        // the "3. " number prefix the segment is the ellipsis title. The
+        // spaced ". . ." must stay intact as a single component.
+        Assert.Equal(
+            new[] { "¡ . . . Y la negra bailaba!" },
+            ItunesImportInference.SplitDotComponents("¡ . . . Y la negra bailaba!"));
+    }
+
+    [Fact]
+    public void SplitDotComponents_TightEllipsisAndUnicode_NotSplit()
+    {
+        // Tight "...Y" — dot followed by dot, never a separator.
+        Assert.Equal(
+            new[] { "...Y la negra bailaba!" },
+            ItunesImportInference.SplitDotComponents("...Y la negra bailaba!"));
+
+        // Unicode ellipsis is not a dot at all.
+        Assert.Equal(
+            new[] { "¡…Y la negra bailaba!" },
+            ItunesImportInference.SplitDotComponents("¡…Y la negra bailaba!"));
+    }
+
+    [Fact]
+    public void SplitDotComponents_Abbreviations_NotSplit()
+    {
+        // The documented over-split limitation: "Aria of St. Peter" must
+        // stay one component.
+        Assert.Equal(
+            new[] { "Aria of St. Peter" },
+            ItunesImportInference.SplitDotComponents("Aria of St. Peter"));
+
+        Assert.Equal(
+            new[] { "Variation No. 5" },
+            ItunesImportInference.SplitDotComponents("Variation No. 5"));
+
+        // Abbreviation mid-name doesn't suppress a genuine later separator.
+        Assert.Equal(
+            new[] { "St. Anne", "Fugue" },
+            ItunesImportInference.SplitDotComponents("St. Anne. Fugue"));
+    }
+
+    [Fact]
+    public void ParseTrackName_EllipsisTitle_StaysIntact()
+    {
+        // End-to-end: the ellipsis title survives parsing as a single leaf.
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Seis danzas afro-cubanas - 3. ¡ . . . Y la negra bailaba!");
+
+        Assert.Equal("Seis danzas afro-cubanas", parsed.PieceTitle);
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal("3", sub.MusicNumber);
+        Assert.Equal(new[] { "¡ . . . Y la negra bailaba!" }, sub.Path);
+    }
+
+    [Fact]
+    public void FindAmbiguousSegments_EllipsisTitle_NotFlagged()
+    {
+        // The ellipsis title is no longer over-split into multiple components,
+        // so it's no longer flagged as ambiguous → no dialog for it.
+        var ambiguous = ItunesImportInference.FindAmbiguousSegments(
+            "Seis danzas afro-cubanas - 3. ¡ . . . Y la negra bailaba!");
+        Assert.Empty(ambiguous);
+    }
+
+    // ── Phase 2: form-leaf classifier (mixed subpiece + form) ───────────────
+
+    [Fact]
+    public void ParseTrackName_MixedStructuralAndForm_Messiah()
+    {
+        // "Messiah - 03. Part I. Air. Every valley shall be exalted"
+        //   Part I → structural subpiece
+        //   Air    → leaf form
+        //   Every valley shall be exalted → leaf title
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Messiah - 03. Part I. Air. Every valley shall be exalted",
+            ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy, Forms);
+
+        Assert.Equal("Messiah", parsed.PieceTitle);
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal("03", sub.MusicNumber);
+        Assert.Equal(new[] { "Part I", "Every valley shall be exalted" }, sub.Path);
+        Assert.Equal("Air", sub.LeafForm);
+    }
+
+    [Fact]
+    public void ParseTrackName_StructuralHierarchyInherited_AcrossSegments_Beecham()
+    {
+        // "Messiah - 12b. Part I. Recitative. There were shepherds… -
+        //           13a. Recitative. And lo, the angel of the Lord"
+        // The user states the "Part I" hierarchy once on the first piece and
+        // does not repeat it; the second piece inherits it.
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Messiah - 12b. Part I. Recitative. There were shepherds abiding in the field" +
+            " - 13a. Recitative. And lo, the angel of the Lord",
+            ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy, Forms);
+
+        Assert.Equal("Messiah", parsed.PieceTitle);
+        Assert.Equal(2, parsed.SubpieceRefs.Count);
+
+        var first = parsed.SubpieceRefs[0];
+        Assert.Equal("12b", first.MusicNumber);
+        Assert.Equal(new[] { "Part I", "There were shepherds abiding in the field" }, first.Path);
+        Assert.Equal("Recitative", first.LeafForm);
+
+        var second = parsed.SubpieceRefs[1];
+        Assert.Equal("13a", second.MusicNumber);
+        // "Part I" inherited from the first segment.
+        Assert.Equal(new[] { "Part I", "And lo, the angel of the Lord" }, second.Path);
+        Assert.Equal("Recitative", second.LeafForm);
+    }
+
+    [Fact]
+    public void ParseTrackName_CompoundForm_RecognisedAsSingleLeaf()
+    {
+        // "Part I. Air and Chorus. O thou that tellest…" — "Air and Chorus"
+        // is a compound of two pick-list forms, so it's the leaf's (compound)
+        // form, NOT a subpiece nesting over its own title.
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Messiah - 08. Part I. Air and Chorus. O thou that tellest good tidings to Zion",
+            ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy, Forms);
+
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal("08", sub.MusicNumber);
+        Assert.Equal(new[] { "Part I", "O thou that tellest good tidings to Zion" }, sub.Path);
+        Assert.Equal("Air and Chorus", sub.LeafForm);
+    }
+
+    [Fact]
+    public void ParseTrackName_BareFormLeaf_NoStructuralPrefix()
+    {
+        // "Air. Every valley shall be exalted" — no Part prefix. The classifier
+        // still treats it as one leaf (Form=Air), NOT two nested subpieces
+        // (which plain SubpieceHierarchy would wrongly produce).
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Messiah - 9. Air. Every valley shall be exalted",
+            ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy, Forms);
+
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal(new[] { "Every valley shall be exalted" }, sub.Path);
+        Assert.Equal("Air", sub.LeafForm);
+    }
+
+    [Fact]
+    public void ParseTrackName_StructuralPrefix_NonFormLeaf_NestsAsHierarchy()
+    {
+        // "Part I. Tuba mirum" — structural prefix + non-form leaf. The leaf
+        // isn't a known form, so it nests as a plain subpiece (no LeafForm).
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Requiem - 2. Part I. Tuba mirum");
+
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal(new[] { "Part I", "Tuba mirum" }, sub.Path);
+        Assert.Null(sub.LeafForm);
+    }
+
+    [Fact]
+    public void ParseTrackName_NonFormTwoComponents_FallsThroughToInterpretation()
+    {
+        // "Dies irae. Tuba mirum" — neither token is a known form and there's
+        // no structural prefix, so the classifier does NOT fire; the binary
+        // SubpieceHierarchy interpretation produces two nested subpieces.
+        var parsed = ItunesImportInference.ParseTrackName(
+            "Requiem - 2. Dies irae. Tuba mirum",
+            ItunesImportInference.DotSeparatorInterpretation.SubpieceHierarchy);
+
+        var sub = Assert.Single(parsed.SubpieceRefs);
+        Assert.Equal(new[] { "Dies irae", "Tuba mirum" }, sub.Path);
+        Assert.Null(sub.LeafForm);
+    }
+
+    [Fact]
+    public void FindAmbiguousSegments_ClassifierResolved_NotFlagged()
+    {
+        // The mixed/form-leaf shapes the classifier handles must NOT surface
+        // the subpiece-vs-form-and-tempo dialog.
+        Assert.Empty(ItunesImportInference.FindAmbiguousSegments(
+            "Messiah - 03. Part I. Air. Every valley shall be exalted", Forms));
+        Assert.Empty(ItunesImportInference.FindAmbiguousSegments(
+            "Messiah - 9. Air. Every valley shall be exalted", Forms));
+
+        // But a genuinely ambiguous non-form segment is still flagged.
+        Assert.NotEmpty(ItunesImportInference.FindAmbiguousSegments(
+            "Requiem - 2. Dies irae. Tuba mirum", Forms));
+    }
+
+    [Fact]
+    public void ClassifyFormSegment_FormOnlyLeafUnderStructural()
+    {
+        // "Part I. Sinfonia" — form-only leaf (no title text). Structural part
+        // holds "Part I"; the form word stands in as the leaf; LeafForm set.
+        var formSet = new HashSet<string>(Forms, StringComparer.OrdinalIgnoreCase);
+        var result = ItunesImportInference.ClassifyFormSegment(
+            new[] { "Part I", "Sinfonia" }, formSet);
+        Assert.NotNull(result);
+        Assert.Equal(new[] { "Part I" }, result!.StructuralPrefixes);
+        Assert.Equal(new[] { "Sinfonia" }, result.LeafPath);
+        Assert.Equal("Sinfonia", result.LeafForm);
+    }
+
+    [Fact]
+    public void ClassifyFormSegment_SingleNonFormToken_ReturnsNull()
+    {
+        var formSet = new HashSet<string>(Forms, StringComparer.OrdinalIgnoreCase);
+        // A single ordinary token isn't a classifier case.
+        Assert.Null(ItunesImportInference.ClassifyFormSegment(new[] { "Allegro" }, formSet));
+        // A single form word alone ("Aria") also doesn't fire — left to the
+        // existing single-component handling so we don't change that behaviour.
+        Assert.Null(ItunesImportInference.ClassifyFormSegment(new[] { "Aria" }, formSet));
+    }
+
     // ── Baseline cases ────────────────────────────────────────────────────
 
     [Fact]

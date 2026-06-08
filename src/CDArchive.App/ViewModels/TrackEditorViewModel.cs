@@ -128,8 +128,11 @@ public partial class TrackEditorViewModel : ObservableObject
         Description.InitUnanimous("");
         FlacPath.InitUnanimous("");
         Mp3Path.InitUnanimous("");
-        SparsCode.InitUnanimous(SparsCodeToString(null));
-        IsStereo.InitUnanimous(IsStereoToString(null));
+        // Default to DDD-stereo digital — the dominant convention for the
+        // user's modern-era acquisitions. Matches the new-album defaults so
+        // a freshly-created album + track align without per-row editing.
+        SparsCode.InitUnanimous(SparsCodeToString("DDD"));       // "DDD"
+        IsStereo.InitUnanimous(IsStereoToString(true));          // "Stereo"
 
         SessionDates.InitUnanimous(defaultsFromAlbum?.SessionDates ?? "");
         SessionVenue.InitUnanimous(defaultsFromAlbum?.SessionVenue ?? "");

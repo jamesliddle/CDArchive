@@ -9,6 +9,7 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}">
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel MaxWidth="600" HorizontalAlignment="Left">
         <Grid>
             <Grid.ColumnDefinitions>
@@ -108,6 +109,95 @@
             </ComboBox>
         </Grid>
 
+        <!-- MusicBrainz import enrichment section (slice 6) -->
+        <GroupBox Header="MusicBrainz Import Enrichment" Margin="0,30,0,0" Padding="10" FontSize="13">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,10">
+                    When enabled, the iTunes import flow runs an optional
+                    pre-pass that queries MusicBrainz for album, composer, and
+                    work metadata. A review pane lets you accept or reject each
+                    suggestion before the import is applied. Disabled by default.
+                </TextBlock>
+
+                <CheckBox Content="Enable MusicBrainz import enrichment"
+                          IsChecked="{Binding EnableMusicBrainzImportEnrichment, Mode=TwoWay}"
+                          FontSize="13" Margin="0,0,0,8" />
+
+                <Grid Margin="20,0,0,0"
+                      IsEnabled="{Binding EnableMusicBrainzImportEnrichment}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="8" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               Text="Candidates per proposal" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                              SelectedItem="{Binding MusicBrainzCandidatesPerProposal, Mode=TwoWay}"
+                              FontSize="12" Width="80" HorizontalAlignment="Left">
+                        <sys:Int32>1</sys:Int32>
+                        <sys:Int32>2</sys:Int32>
+                        <sys:Int32>3</sys:Int32>
+                        <sys:Int32>5</sys:Int32>
+                        <sys:Int32>10</sys:Int32>
+                        <sys:Int32>15</sys:Int32>
+                        <sys:Int32>20</sys:Int32>
+                        <sys:Int32>25</sys:Int32>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                               Text="Default apply state in review pane:"
+                               FontSize="12" Foreground="#555" Margin="0,6,0,4" />
+
+                    <CheckBox Grid.Row="3" Grid.ColumnSpan="2"
+                              Content="Album metadata (Label / Catalogue Number / Barcode)"
+                              IsChecked="{Binding ApplyMbAlbumMetadata, Mode=TwoWay}"
+                              FontSize="12" Margin="0,2" />
+                    <CheckBox Grid.Row="4" Grid.ColumnSpan="2"
+                              Content="Album performer credits (conductor / orchestra / soloists)"
+                              IsChecked="{Binding ApplyMbPerformerCredits, Mode=TwoWay}"
+                              FontSize="12" Margin="0,2" />
+                    <StackPanel Grid.Row="5" Grid.ColumnSpan="2">
+                        <CheckBox Content="Album recording session (date / venue / engineers)"
+                                  IsChecked="{Binding ApplyMbRecordingSessions, Mode=TwoWay}"
+                                  FontSize="12" Margin="0,2" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Connectivity diagnostic — does NOT require master switch.
+                     Lets the user verify MB is reachable + the query format
+                     works against real data, independent of the iTunes import
+                     workflow. -->
+                <Border BorderBrush="#D0D0D0" BorderThickness="0,1,0,0"
+                        Padding="0,10,0,0" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="12"
+                                   Foreground="#555" Margin="0,0,0,4" />
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#666" Margin="0,0,0,6">
+                            Runs a real MusicBrainz release-search ("Beethoven Symphony 9, Karajan")
+                            and reports the outcome. Use this to verify connectivity + query format
+                            when imports yield no matches.
+                        </TextBlock>
+                        <Button Content="Test MusicBrainz connectivity"
+                                Command="{Binding TestMbConnectivityCommand}"
+                                FontSize="12" Padding="10,4" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding MbConnectivityStatus}"
+                                   TextWrapping="Wrap" FontSize="11" Foreground="#444"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </GroupBox>
+
         <!-- Save Button -->
         <Button Content="Save Settings"
                 Command="{Binding SaveCommand}"
@@ -126,4 +216,5 @@
                    Foreground="#555555"
                    TextWrapping="Wrap" />
     </StackPanel>
+    </ScrollViewer>
 </UserControl>

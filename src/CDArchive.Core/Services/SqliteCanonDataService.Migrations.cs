@@ -117,6 +117,83 @@ public partial class SqliteCanonDataService
         await EnsureCheckConstraintAsync(db, "pieces", "ck_pieces_has_identity",
             recreate: RecreatePiecesWithIdentityCheckAsync)
             .ConfigureAwait(false);
+
+        // MusicBrainz linkage IDs (slice 1 of the MB integration). All three
+        // are nullable TEXT — populated only when the user accepts an MB
+        // suggestion (or via the MBID shortcut path when iTunes carries MB
+        // tags). No FK or uniqueness constraint: MB IDs are opaque 36-char
+        // UUIDs, treated as plain reference data.
+        await EnsureColumnAsync(db, "composers", "musicbrainz_artist_id", "TEXT NULL")
+            .ConfigureAwait(false);
+        await EnsureColumnAsync(db, "pieces", "musicbrainz_work_id", "TEXT NULL")
+            .ConfigureAwait(false);
+        await EnsureColumnAsync(db, "albums", "musicbrainz_release_id", "TEXT NULL")
+            .ConfigureAwait(false);
+
+        // FirstLine retirement: fold any kind='FirstLine' markers into the
+        // owning piece/version Title (set-if-empty), then delete them. MUST
+        // run as raw SQL here — the MarkerKind enum no longer has a FirstLine
+        // member, and the column persists the kind as TEXT, so EF would fail
+        // to materialise these rows on the next read. Idempotent: once the
+        // markers are gone, the UPDATE/DELETE match nothing.
+        await MigrateFirstLineMarkersToTitleAsync(db).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// One-shot fold of legacy <c>kind='FirstLine'</c> markers into the
+    /// owning piece's / version's title. For each owner whose title is
+    /// null/empty, copies the earliest (by position) first-line marker's
+    /// value into the title; then deletes every first-line marker. Runs
+    /// before any EF read so the retired enum value never reaches the
+    /// materialiser.
+    /// </summary>
+    private static async Task MigrateFirstLineMarkersToTitleAsync(CanonDbContext db)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        // Fast exit when there are no first-line markers (the common case on
+        // every launch after the first migrated one).
+        await using (var probe = conn.CreateCommand())
+        {
+            probe.CommandText =
+                "SELECT EXISTS(SELECT 1 FROM piece_markers WHERE kind='FirstLine')";
+            var any = await probe.ExecuteScalarAsync().ConfigureAwait(false);
+            if (any is null || Convert.ToInt64(any) == 0) return;
+        }
+
+        // Pieces: set title from the earliest first-line marker when blank.
+        await ExecAsync(conn,
+            """
+            UPDATE pieces
+               SET title = (
+                   SELECT m.value FROM piece_markers m
+                    WHERE m.piece_id = pieces.id AND m.kind='FirstLine'
+                    ORDER BY m.position LIMIT 1)
+             WHERE (title IS NULL OR title='')
+               AND EXISTS (
+                   SELECT 1 FROM piece_markers m
+                    WHERE m.piece_id = pieces.id AND m.kind='FirstLine')
+            """).ConfigureAwait(false);
+
+        // Versions: same, against piece_versions.
+        await ExecAsync(conn,
+            """
+            UPDATE piece_versions
+               SET title = (
+                   SELECT m.value FROM piece_markers m
+                    WHERE m.version_id = piece_versions.id AND m.kind='FirstLine'
+                    ORDER BY m.position LIMIT 1)
+             WHERE (title IS NULL OR title='')
+               AND EXISTS (
+                   SELECT 1 FROM piece_markers m
+                    WHERE m.version_id = piece_versions.id AND m.kind='FirstLine')
+            """).ConfigureAwait(false);
+
+        // Drop every first-line marker now that the text is preserved in titles.
+        await ExecAsync(conn, "DELETE FROM piece_markers WHERE kind='FirstLine'")
+            .ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(

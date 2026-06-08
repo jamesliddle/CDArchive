@@ -277,7 +277,14 @@ public partial class TracksView : UserControl
         if (DataContext is not TracksViewModel vm) return;
 
         var (pieces, pickLists) = await vm.LoadEditorDataAsync();
-        var fresh = new AlbumTrack { IsProvisional = true };
+        // Defaults match the new-album / iTunes-import convention so a fresh
+        // loose track lands as DDD-stereo digital without per-row editing.
+        var fresh = new AlbumTrack
+        {
+            IsProvisional = true,
+            SparsCode     = "DDD",
+            IsStereo      = true,
+        };
         var dlg = new TrackEditorWindow(
             disc: null, trackIndex: -1, looseTrack: fresh,
             pickLists, pieces, defaultsFromAlbum: null)

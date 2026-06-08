@@ -58,7 +58,7 @@ public class MarkerTests
     {
         // A freshly-constructed marker (Id == 0) should not write its id, so
         // human-edited JSON files don't carry a meaningless "id": 0 noise.
-        var marker = new MusicalMarker { Kind = MarkerKind.FirstLine, Value = "Wenn mein Schatz" };
+        var marker = new MusicalMarker { Kind = MarkerKind.Section, Value = "Wenn mein Schatz" };
         var json = JsonSerializer.Serialize(marker, WriteOpts);
         Assert.DoesNotContain("\"id\"", json);
         Assert.Contains("\"kind\":", json);
@@ -83,8 +83,8 @@ public class MarkerTests
             PieceTitle      = "La bohème",
             SubpiecePath    = ["Act III", "3j. Addio, senza rancor!"],
             EndSubpiecePath = ["Act III", "3l. Addio, dolce svegliare alla mattina"],
-            StartMarker     = new MarkerReference { Kind = MarkerKind.FirstLine, Value = "Addio, senza rancor!" },
-            EndMarker       = new MarkerReference { Kind = MarkerKind.FirstLine, Value = "Addio, dolce svegliare alla mattina" },
+            StartMarker     = new MarkerReference { Kind = MarkerKind.Section, Value = "Addio, senza rancor!" },
+            EndMarker       = new MarkerReference { Kind = MarkerKind.Section, Value = "Addio, dolce svegliare alla mattina" },
         };
 
         var summary = pieceRef.DisplaySummary;

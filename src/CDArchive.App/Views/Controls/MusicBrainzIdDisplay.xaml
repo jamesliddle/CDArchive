@@ -1,0 +1,31 @@
+<UserControl x:Class="CDArchive.App.Views.Controls.MusicBrainzIdDisplay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <!--
+        Read-only display of a MusicBrainz entity ID (artist / work / release).
+        The full 36-char UUID is too wide for the editor surface, so we render
+        the first 8 chars + ellipsis with the full ID surfaced in the tooltip.
+        Two adjacent buttons let the user copy the full ID to the clipboard or
+        open the MB browse URL in the system browser.
+        Whole control collapses when the Mbid property is null/empty so the
+        editor doesn't waste a row on absent linkage.
+    -->
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                Visibility="{Binding ElementName=Root, Path=HasId,
+                             Converter={StaticResource BoolToVis}}">
+        <TextBlock Text="MusicBrainz ID" Foreground="#555" FontSize="11"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <TextBlock x:Name="IdDisplayText"
+                   FontFamily="Consolas, Cascadia Mono, monospace"
+                   FontSize="11" Foreground="#333"
+                   VerticalAlignment="Center"
+                   ToolTip="{Binding ElementName=Root, Path=Mbid}" />
+        <Button Content="📋" Width="22" Height="22" Padding="0" FontSize="11"
+                Margin="4,0,0,0" Click="OnCopyClick"
+                ToolTip="Copy the full MusicBrainz ID to the clipboard" />
+        <Button Content="🔗" Width="22" Height="22" Padding="0" FontSize="11"
+                Margin="2,0,0,0" Click="OnOpenClick"
+                ToolTip="Open this MusicBrainz entity in your browser" />
+    </StackPanel>
+</UserControl>

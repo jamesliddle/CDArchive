@@ -33,6 +33,230 @@ public class ItunesImporterTests
             Location:     null);
 
     /// <summary>
+    /// Freshly-imported albums default to SPARS code "DDD" and stereo, which
+    /// matches the dominant convention for the user's modern-era classical
+    /// acquisitions. Saves the user from per-album editing the most common
+    /// case; non-DDD / mono albums get edited per the existing flow.
+    /// </summary>
+    [Fact]
+    public void FreshAlbum_DefaultsToDddStereo_OnAlbumAndEveryTrack()
+    {
+        var tracks = new[]
+        {
+            Track(1, "T1", composer: "Beethoven (1770-1827)",
+                  album: "Some Album", trackNumber: 1),
+            Track(2, "T2", composer: "Beethoven (1770-1827)",
+                  album: "Some Album", trackNumber: 2),
+        };
+        var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), new List<CanonPiece>());
+
+        var album = Assert.Single(result.NewAlbums);
+        Assert.Equal("DDD", album.SparsCode);
+        Assert.Equal(true,  album.IsStereo);
+
+        // Every album-bound track explicitly carries the same defaults so
+        // displays don't have to fall back on the album-inherit semantic.
+        foreach (var t in album.Discs.SelectMany(d => d.Tracks))
+        {
+            Assert.Equal("DDD", t.SparsCode);
+            Assert.Equal(true,  t.IsStereo);
+        }
+    }
+
+    [Fact]
+    public void FreshLooseTrack_DefaultsToDddStereo()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Solo Piece", composer: "Glinka (1804-1857)"),
+        };
+        var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), new List<CanonPiece>());
+
+        var loose = Assert.Single(result.NewLooseTracks);
+        Assert.Equal("DDD", loose.SparsCode);
+        Assert.Equal(true,  loose.IsStereo);
+    }
+
+    /// <summary>
+    /// Phase 2 end-to-end: importing "Messiah - 03. Part I. Air. Every valley
+    /// shall be exalted" creates Messiah › Part I › leaf, where the leaf is
+    /// Form="Air" / Title="Every valley shall be exalted" (not a nested
+    /// Air › Every-valley pair, and not a title with the form jammed in).
+    /// </summary>
+    [Fact]
+    public void Import_MixedStructuralAndForm_CreatesSubpieceThenFormLeaf()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Messiah - 03. Part I. Air. Every valley shall be exalted",
+                  album: "Messiah", trackNumber: 3,
+                  composer: "Handel, George Frideric (1685-1759)"),
+        };
+        var pieces = new List<CanonPiece>();
+        var forms = new[] { "Air", "Recitative", "Chorus" };
+
+        ItunesImporter.Import(tracks, new List<CanonComposer>(), pieces,
+            existingAlbums: null, dotInterpretations: null, enrichment: null, forms: forms);
+
+        var messiah = Assert.Single(pieces);
+        Assert.Equal("Messiah", messiah.Title);
+        var partI = Assert.Single(messiah.Subpieces!);
+        Assert.Equal("Part I", partI.Title);
+        var leaf = Assert.Single(partI.Subpieces!);
+        Assert.Equal("Air", leaf.Form);
+        Assert.Equal("Every valley shall be exalted", leaf.Title);
+    }
+
+    /// <summary>
+    /// Compound form: "Air and Chorus" (both pick-list forms) becomes the
+    /// created leaf's Form, with the following text as its Title — not a
+    /// subpiece "Air and Chorus" nesting over "O thou that tellest…".
+    /// </summary>
+    [Fact]
+    public void Import_CompoundForm_CreatesSingleFormLeaf()
+    {
+        var tracks = new[]
+        {
+            Track(1,
+                "Messiah - 08. Part I. Air and Chorus. O thou that tellest good tidings to Zion",
+                album: "Messiah", trackNumber: 8,
+                composer: "Handel, George Frideric (1685-1759)"),
+        };
+        var pieces = new List<CanonPiece>();
+        var forms = new[] { "Air", "Recitative", "Chorus" };
+
+        ItunesImporter.Import(tracks, new List<CanonComposer>(), pieces,
+            existingAlbums: null, dotInterpretations: null, enrichment: null, forms: forms);
+
+        var messiah = Assert.Single(pieces);
+        var partI = Assert.Single(messiah.Subpieces!);
+        Assert.Equal("Part I", partI.Title);
+        var leaf = Assert.Single(partI.Subpieces!);
+        Assert.Equal("Air and Chorus", leaf.Form);
+        Assert.Equal("O thou that tellest good tidings to Zion", leaf.Title);
+    }
+
+    /// <summary>
+    /// Letter-suffixed compound in ONE combined track: "7a. Chorus…" and
+    /// "07b. Recitative…" within a single iTunes Name collapse into one canon
+    /// piece #7, Form="Chorus and Recitative", Title from the 'a' part, with a
+    /// Section marker for the 'b' part's title. The combined track gets ONE
+    /// piece-ref (the head covers the whole compound).
+    /// </summary>
+    [Fact]
+    public void Import_CompoundLetterSuffix_CombinedTrack_MergesIntoOnePiece()
+    {
+        var tracks = new[]
+        {
+            Track(1,
+                "Messiah - 7a. Chorus. And He shall purify" +
+                " - 07b. Recitative. Behold, a virgin shall conceive",
+                album: "Messiah", trackNumber: 7,
+                composer: "Handel, George Frideric (1685-1759)"),
+        };
+        var pieces = new List<CanonPiece>();
+        var forms = new[] { "Air", "Recitative", "Chorus" };
+
+        var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), pieces,
+            existingAlbums: null, dotInterpretations: null, enrichment: null, forms: forms);
+
+        var messiah = Assert.Single(pieces);
+        var seven = Assert.Single(messiah.Subpieces!);
+        Assert.Equal(7, seven.Number);
+        Assert.Null(seven.MusicNumber);
+        Assert.Equal("And He shall purify", seven.Title);
+        Assert.Equal("Chorus and Recitative", seven.Form);
+
+        // Section marker for the 'b' part's title.
+        var marker = Assert.Single(seven.Markers!);
+        Assert.Equal(MarkerKind.Section, marker.Kind);
+        Assert.Equal("Behold, a virgin shall conceive", marker.Value);
+
+        // Combined track → ONE ref to the head piece (no marker pin).
+        var track = result.NewAlbums.Single().Discs[0].Tracks.Single();
+        var pieceRef = Assert.Single(track.PieceRefs!);
+        Assert.Equal(new[] { "And He shall purify" }, pieceRef.SubpiecePath);
+        Assert.Null(pieceRef.StartMarker);
+    }
+
+    /// <summary>
+    /// Same compound spread across SEPARATE tracks: track 7 carries "7a", track
+    /// 8 carries "07b". Both merge into canon piece #7; the 'b' track's ref pins
+    /// to the Section marker so it resolves to its own slice of the compound.
+    /// </summary>
+    [Fact]
+    public void Import_CompoundLetterSuffix_SeparateTracks_MergeWithMarkerRef()
+    {
+        var tracks = new[]
+        {
+            Track(1, "Messiah - 7a. Chorus. And He shall purify",
+                  album: "Messiah", trackNumber: 7,
+                  composer: "Handel, George Frideric (1685-1759)"),
+            Track(2, "Messiah - 07b. Recitative. Behold, a virgin shall conceive",
+                  album: "Messiah", trackNumber: 8,
+                  composer: "Handel, George Frideric (1685-1759)"),
+        };
+        var pieces = new List<CanonPiece>();
+        var forms = new[] { "Air", "Recitative", "Chorus" };
+
+        var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), pieces,
+            existingAlbums: null, dotInterpretations: null, enrichment: null, forms: forms);
+
+        var messiah = Assert.Single(pieces);
+        var seven = Assert.Single(messiah.Subpieces!);
+        Assert.Equal(7, seven.Number);
+        Assert.Equal("And He shall purify", seven.Title);
+        Assert.Equal("Chorus and Recitative", seven.Form);
+        Assert.Equal("Behold, a virgin shall conceive", Assert.Single(seven.Markers!).Value);
+
+        var disc = result.NewAlbums.Single().Discs[0];
+        // 'a' track → plain ref, no marker.
+        var aRef = Assert.Single(disc.Tracks[0].PieceRefs!);
+        Assert.Equal(new[] { "And He shall purify" }, aRef.SubpiecePath);
+        Assert.Null(aRef.StartMarker);
+
+        // 'b' track → ref to the same head piece, pinned to the Section marker.
+        var bRef = Assert.Single(disc.Tracks[1].PieceRefs!);
+        Assert.Equal(new[] { "And He shall purify" }, bRef.SubpiecePath);
+        Assert.NotNull(bRef.StartMarker);
+        Assert.Equal(MarkerKind.Section, bRef.StartMarker!.Kind);
+        Assert.Equal("Behold, a virgin shall conceive", bRef.StartMarker.Value);
+    }
+
+    /// <summary>
+    /// Beecham-style multi-piece track: the structural hierarchy ("Part I") is
+    /// stated once on the first piece and inherited by the second, which omits
+    /// it. Both pieces should land under Messiah › Part I.
+    /// </summary>
+    [Fact]
+    public void Import_StructuralHierarchyInherited_AcrossSegments_Beecham()
+    {
+        var tracks = new[]
+        {
+            Track(1,
+                "Messiah - 12b. Part I. Recitative. There were shepherds abiding in the field" +
+                " - 13a. Recitative. And lo, the angel of the Lord",
+                album: "Messiah", trackNumber: 12,
+                composer: "Handel, George Frideric (1685-1759)"),
+        };
+        var pieces = new List<CanonPiece>();
+        var forms = new[] { "Air", "Recitative", "Chorus" };
+
+        ItunesImporter.Import(tracks, new List<CanonComposer>(), pieces,
+            existingAlbums: null, dotInterpretations: null, enrichment: null, forms: forms);
+
+        var messiah = Assert.Single(pieces);
+        var partI = Assert.Single(messiah.Subpieces!);
+        Assert.Equal("Part I", partI.Title);
+        // Both recitatives nested under the single inherited "Part I".
+        Assert.Equal(2, partI.Subpieces!.Count);
+        Assert.Equal("There were shepherds abiding in the field", partI.Subpieces![0].Title);
+        Assert.Equal("Recitative", partI.Subpieces![0].Form);
+        Assert.Equal("And lo, the angel of the Lord", partI.Subpieces![1].Title);
+        Assert.Equal("Recitative", partI.Subpieces![1].Form);
+    }
+
+    /// <summary>
     /// Tracks with no Album field become loose tracks (singletons, no album
     /// wrapping), not synthetic one-track albums. The composer / piece
     /// resolution path is identical to the album-bound case.
@@ -165,6 +389,38 @@ public class ItunesImporterTests
         var disc = Assert.Single(only.Discs);
         Assert.All(disc.Tracks, t => Assert.True(t.TrackNumber >= 1));
         Assert.Equal(disc.Tracks.Count, disc.Tracks.Select(t => t.TrackNumber).Distinct().Count());
+    }
+
+    /// <summary>
+    /// Regression for "Sutherland An Evening to Remember": one track (the
+    /// last, an arrangement) had no iTunes TrackNumber. The old sort collapsed
+    /// null → 0, which sorted it FIRST; the disc-wide renumber then made it
+    /// track 1 and pushed the user's numbered tracks 1-13 up to 2-14. The fix
+    /// sorts nulls LAST, so the numbered tracks keep their iTunes order and
+    /// the unnumbered track lands at the end.
+    /// </summary>
+    [Fact]
+    public void Album_NullTrackNumber_SortsLast_NotFirst()
+    {
+        var tracks = new[]
+        {
+            Track(1, "First",  album: "Recital", trackNumber: 1,    composer: "X, Y (1900-2000)"),
+            Track(2, "Second", album: "Recital", trackNumber: 2,    composer: "X, Y (1900-2000)"),
+            Track(3, "Third",  album: "Recital", trackNumber: 3,    composer: "X, Y (1900-2000)"),
+            // The unnumbered arrangement, last in the user's intended order.
+            Track(4, "Encore", album: "Recital", trackNumber: null, composer: "X, Y (1900-2000)"),
+        };
+
+        var result = ItunesImporter.Import(tracks, new List<CanonComposer>(), new List<CanonPiece>());
+
+        var disc = Assert.Single(Assert.Single(result.NewAlbums).Discs);
+        // After renumber the tracks are 1..4 in the original iTunes order —
+        // the unnumbered "Encore" is LAST (track 4), not first.
+        var ordered = disc.Tracks.OrderBy(t => t.TrackNumber).ToList();
+        Assert.Equal(4, ordered.Count);
+        Assert.Equal("First",  ordered[0].Description ?? ordered[0].PieceRefs?[0].PieceTitle);
+        Assert.Equal("Encore", ordered[3].Description ?? ordered[3].PieceRefs?[0].PieceTitle);
+        Assert.Equal(4, ordered[3].TrackNumber);
     }
 
     // ── Contributor credits (composer + completer / arranger / etc.) ──────────
@@ -306,7 +562,10 @@ public class ItunesImporterTests
 
         var sub = Assert.Single(piece.Subpieces!);
         Assert.Equal("Lento - Allegro agitato", sub.Title);
-        Assert.Equal("1", sub.MusicNumber);
+        // Numeric prefix now lands in the integer Number field (leading zeros
+        // stripped) for correct numeric sorting, not the MusicNumber string.
+        Assert.Equal(1, sub.Number);
+        Assert.Null(sub.MusicNumber);
 
         // Two Tempo markers, numbered 1 and 2, in order.
         Assert.NotNull(sub.Markers);

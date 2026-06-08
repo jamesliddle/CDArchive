@@ -49,6 +49,13 @@ public class PieceRow
     /// </summary>
     public bool IsProvisional { get; set; } = true;
 
+    /// <summary>
+    /// MusicBrainz Work ID (36-char UUID), or null if this piece has not been
+    /// linked to a MusicBrainz work entry. Only top-level pieces carry an MBID;
+    /// subpieces and versions don't have separate MB work identifiers.
+    /// </summary>
+    public string? MusicBrainzWorkId { get; set; }
+
     // ── Heterogeneous / free-shape fields stored as JSON text ────────────────
     public string? InstrumentationJson { get; set; }
     public string? CompositionYearsJson { get; set; }

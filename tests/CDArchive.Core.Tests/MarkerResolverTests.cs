@@ -117,7 +117,7 @@ public class MarkerResolverTests
         var marker = new MusicalMarker
         {
             Id    = 42,
-            Kind  = MarkerKind.FirstLine,
+            Kind  = MarkerKind.Section,
             Value = "Addio, senza rancor!",
         };
         var sub = MakeSubpiece("3j. Addio, senza rancor!");
@@ -136,7 +136,7 @@ public class MarkerResolverTests
             Composer     = "Puccini, Giacomo",
             PieceTitle   = "La bohème",
             SubpiecePath = ["Act III", sub.Title!],
-            StartMarker  = new MarkerReference { Id = 42, Kind = MarkerKind.FirstLine },
+            StartMarker  = new MarkerReference { Id = 42, Kind = MarkerKind.Section },
         };
         var album = new CanonAlbum
         {

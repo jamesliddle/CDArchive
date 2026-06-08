@@ -57,6 +57,7 @@ public partial class SqliteCanonDataService
         DeathCountry   = r.DeathCountry,
         Notes          = r.Notes,
         IsProvisional  = r.IsProvisional,
+        MusicBrainzArtistId = r.MusicBrainzArtistId,
         Aliases         = r.Aliases.Count == 0
                           ? null
                           : r.Aliases.OrderBy(a => a.Position).Select(a => a.Alias).ToList(),
@@ -127,6 +128,7 @@ public partial class SqliteCanonDataService
             row.DeathCountry  = m.DeathCountry;
             row.Notes         = m.Notes;
             row.IsProvisional = m.IsProvisional;
+            row.MusicBrainzArtistId = m.MusicBrainzArtistId;
 
             row.Aliases.Clear();
             if (m.Aliases is { Count: > 0 })

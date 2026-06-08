@@ -20,6 +20,38 @@ public interface IArchiveSettings
     /// </summary>
     float PlayerVolume { get; set; }
 
+    // ── MusicBrainz import enrichment (slice 6) ──────────────────────────────
+    // All MB-side settings default off (the EnableXxx master) so users opt in
+    // once they've seen the workflow. The per-aspect Apply* defaults
+    // initialise the review pane's per-row checkboxes; the user can override
+    // any subset per-import.
+
+    /// <summary>Master switch. When false the existing import path runs
+    /// unchanged — no planner, no review pane. Defaults false.</summary>
+    bool EnableMusicBrainzImportEnrichment { get; set; }
+
+    /// <summary>How many MB candidates the planner surfaces per
+    /// proposal. The review pane shows the top-N. Defaults 3.</summary>
+    int MusicBrainzCandidatesPerProposal { get; set; }
+
+    /// <summary>Initial state of the review pane's per-album "Metadata"
+    /// checkbox (Label / CatalogueNumber / Barcode). Defaults true.</summary>
+    bool ApplyMbAlbumMetadata { get; set; }
+
+    /// <summary>Initial state of the review pane's per-album "Performers"
+    /// checkbox. Defaults true.</summary>
+    bool ApplyMbPerformerCredits { get; set; }
+
+    /// <summary>Initial state of the review pane's per-album "Recording
+    /// session" checkbox. Defaults true.</summary>
+    bool ApplyMbRecordingSessions { get; set; }
+
+    /// <summary>Initial state of the review pane's per-piece "Movement
+    /// list" checkbox. Defaults true (user decision); the planner's
+    /// MovementCountMismatch detection still auto-unchecks per-row when
+    /// MB and iTunes disagree on count.</summary>
+    bool ApplyMbCanonicalWorkStructure { get; set; }
+
     void Save();
 
     /// <summary>

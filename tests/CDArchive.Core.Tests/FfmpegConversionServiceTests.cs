@@ -35,6 +35,12 @@ public class FfmpegConversionServiceTests : IDisposable
         public int Mp3Bitrate { get; set; } = 320;
         public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
         public float PlayerVolume { get; set; } = 1.0f;
+        public bool EnableMusicBrainzImportEnrichment { get; set; }
+        public int  MusicBrainzCandidatesPerProposal  { get; set; } = 3;
+        public bool ApplyMbAlbumMetadata          { get; set; } = true;
+        public bool ApplyMbPerformerCredits       { get; set; } = true;
+        public bool ApplyMbRecordingSessions      { get; set; } = true;
+        public bool ApplyMbCanonicalWorkStructure { get; set; } = true;
         public void Save() { }
         public void Initialize() { }
     }

@@ -26,13 +26,13 @@ public class MarkerEditorViewModelTests
     }
 
     [Fact]
-    public void KindOptions_ContainsAllFiveMarkerKinds()
+    public void KindOptions_ContainsAllMarkerKinds_NoRetiredFirstLine()
     {
         var vm = new MarkerEditorViewModel();
 
-        Assert.Equal(5, vm.KindOptions.Count);
+        // FirstLine was retired — 4 kinds remain.
+        Assert.Equal(4, vm.KindOptions.Count);
         Assert.Contains(vm.KindOptions, o => o.Kind == MarkerKind.Tempo);
-        Assert.Contains(vm.KindOptions, o => o.Kind == MarkerKind.FirstLine);
         Assert.Contains(vm.KindOptions, o => o.Kind == MarkerKind.RehearsalMark);
         Assert.Contains(vm.KindOptions, o => o.Kind == MarkerKind.BarNumber);
         Assert.Contains(vm.KindOptions, o => o.Kind == MarkerKind.Section);
@@ -40,7 +40,6 @@ public class MarkerEditorViewModelTests
 
     [Theory]
     [InlineData(MarkerKind.Tempo,         "Tempo indication")]
-    [InlineData(MarkerKind.FirstLine,     "First line")]
     [InlineData(MarkerKind.RehearsalMark, "Rehearsal mark")]
     [InlineData(MarkerKind.BarNumber,     "Bar number")]
     [InlineData(MarkerKind.Section,       "Section label")]
@@ -105,7 +104,7 @@ public class MarkerEditorViewModelTests
         var marker = new MusicalMarker();
         var vm = new MarkerEditorViewModel
         {
-            Kind        = MarkerKind.FirstLine,
+            Kind        = MarkerKind.Section,
             Value       = "Wenn mein Schatz Hochzeit macht",
             BarNumber   = "12",
             Number      = "3",
@@ -114,7 +113,7 @@ public class MarkerEditorViewModelTests
 
         vm.SaveToMarker(marker);
 
-        Assert.Equal(MarkerKind.FirstLine,                marker.Kind);
+        Assert.Equal(MarkerKind.Section,                  marker.Kind);
         Assert.Equal("Wenn mein Schatz Hochzeit macht",   marker.Value);
         Assert.Equal(12,                                  marker.BarNumber);
         Assert.Equal(3,                                   marker.Number);

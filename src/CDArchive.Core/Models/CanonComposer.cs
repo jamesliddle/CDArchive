@@ -58,6 +58,16 @@ public class CanonComposer
     public bool IsProvisional { get; set; } = true;
 
     /// <summary>
+    /// MusicBrainz Artist ID (36-char UUID). Set when this composer was
+    /// matched against — or accepted from — a MusicBrainz suggestion during
+    /// iTunes import. Used to short-circuit future MB lookups for this
+    /// composer; surfaced read-only in the composer editor.
+    /// </summary>
+    [JsonPropertyName("musicbrainz_artist_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MusicBrainzArtistId { get; set; }
+
+    /// <summary>
     /// Extracts just the year from a date string like "1803-07-24" or returns the birth_notes.
     /// </summary>
     [JsonIgnore]

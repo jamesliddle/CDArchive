@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         TextElement.FontFamily="{StaticResource AppFontFamily}"
         Title="Resolve ambiguous '. ' separators"
-        Width="820" Height="540"
+        Width="895" Height="540"
         WindowStartupLocation="CenterOwner">
     <DockPanel Margin="12">
         <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="11">

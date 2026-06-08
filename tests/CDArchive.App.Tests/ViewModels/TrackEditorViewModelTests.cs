@@ -312,14 +312,18 @@ public class TrackEditorViewModelTests
     }
 
     [Fact]
-    public void LoadNew_SparsCodeAndIsStereo_DefaultToUnknown()
+    public void LoadNew_SparsCodeAndIsStereo_DefaultToDddStereo()
     {
+        // Defaults align with the new-album convention so a freshly-added
+        // track lands as DDD-stereo digital without per-row editing. User
+        // can override via the dropdowns; the Mixed sentinel never appears
+        // for the single-track add path.
         var disc = new AlbumDisc { DiscNumber = 1 };
         var vm = new TrackEditorViewModel();
         vm.LoadNew(disc);
 
-        Assert.Equal("Unknown", vm.SparsCode.Value);
-        Assert.Equal("Unknown", vm.IsStereo.Value);
+        Assert.Equal("DDD",    vm.SparsCode.Value);
+        Assert.Equal("Stereo", vm.IsStereo.Value);
         Assert.False(vm.SparsCode.IsMixed);
         Assert.False(vm.IsStereo.IsMixed);
     }

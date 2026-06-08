@@ -30,6 +30,14 @@ public class ComposerRow
     /// </summary>
     public bool IsProvisional { get; set; } = true;
 
+    /// <summary>
+    /// MusicBrainz Artist ID (36-char UUID), or null if this composer has not
+    /// been linked to a MusicBrainz entry. Populated by iTunes import when
+    /// the user accepts an MB suggestion (or via the MBID shortcut path when
+    /// iTunes carries MB tags).
+    /// </summary>
+    public string? MusicBrainzArtistId { get; set; }
+
     public List<ComposerAliasRow> Aliases { get; set; } = [];
     public List<ComposerCatalogPrefixRow> CatalogPrefixes { get; set; } = [];
     public List<PieceRow> Pieces { get; set; } = [];

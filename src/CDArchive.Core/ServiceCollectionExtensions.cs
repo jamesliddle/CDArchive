@@ -50,6 +50,16 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         });
         services.AddSingleton<MusicBrainzReference>();
+        // MusicBrainzImportEnricher is the import-shaped query surface — it
+        // composes MusicBrainzReference's rate-limited GET (so both flows
+        // share one process-wide gate) and adds the per-session URL cache
+        // that amortises re-imports of the same iTunes data in one session.
+        // Singleton because the cache must outlive any one import.
+        services.AddSingleton<IMusicBrainzImportEnricher, MusicBrainzImportEnricher>();
+        // The planner is transient: each iTunes import session builds its own.
+        // The enricher (singleton) owns the cross-session URL cache; the
+        // planner is just orchestration over the enricher with no own state.
+        services.AddTransient<ItunesImportEnrichmentPlanner>();
         services.AddSingleton<CompositeCatalogueReference>();
         // CataloguingService takes ICatalogueReference (Rework H26) so tests
         // can stub the lookup; in production the interface resolves to the

@@ -1,6 +1,7 @@
 <Window x:Class="CDArchive.App.Views.ComposerEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:CDArchive.App.Views.Controls"
         TextElement.FontFamily="{StaticResource AppFontFamily}"
         Title="Edit Composer" Width="480" Height="680"
         WindowStartupLocation="CenterOwner"
@@ -111,6 +112,12 @@
                            Height="60" VerticalScrollBarVisibility="Auto"
                            Text="{Binding Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
+
+            <!-- MusicBrainz Artist ID — populated by iTunes import enrichment.
+                 Whole control collapses when the composer has no MB linkage. -->
+            <controls:MusicBrainzIdDisplay x:Name="MbidDisplay"
+                                           EntityKind="artist"
+                                           Margin="0,8,0,0" />
 
             <!-- Aliases / AKAs section -->
             <TextBlock Text="Aliases / AKAs" FontWeight="SemiBold" FontSize="12"

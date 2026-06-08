@@ -40,8 +40,30 @@ public class LegacyJsonReadTests
     }
 
     [Fact]
-    public void LegacyFirstLineKey_IsMigratedIntoMarkers()
+    public void LegacyFirstLineKey_FoldsIntoTitle_WhenTitleEmpty()
     {
+        // FirstLine was retired as a marker kind: an old JSON snapshot's
+        // `first_line` key now folds into Title (set-if-empty), not into a
+        // marker. With no title in the JSON, the first line becomes the title.
+        const string legacyJson = """
+        {
+          "first_line": "Wenn mein Schatz Hochzeit macht"
+        }
+        """;
+
+        var piece = JsonSerializer.Deserialize<CanonPiece>(legacyJson, ReadOptions);
+        Assert.NotNull(piece);
+        Assert.Equal("Wenn mein Schatz Hochzeit macht", piece!.Title);
+        // No FirstLine marker is synthesised any more.
+        Assert.True(piece.Markers is null or { Count: 0 });
+    }
+
+    [Fact]
+    public void LegacyFirstLineKey_TitlePresent_KeepsTitle_DropsFirstLine()
+    {
+        // When the snapshot already carries a real title, the set-if-empty
+        // shim leaves it alone and the first line is dropped (the migration
+        // contract: don't clobber an existing title).
         const string legacyJson = """
         {
           "title": "Aria",
@@ -51,25 +73,23 @@ public class LegacyJsonReadTests
 
         var piece = JsonSerializer.Deserialize<CanonPiece>(legacyJson, ReadOptions);
         Assert.NotNull(piece);
-        var marker = Assert.Single(piece!.Markers ?? new());
-        Assert.Equal(MarkerKind.FirstLine, marker.Kind);
-        Assert.Equal("Wenn mein Schatz Hochzeit macht", marker.Value);
+        Assert.Equal("Aria", piece!.Title);
+        Assert.True(piece.Markers is null or { Count: 0 });
     }
 
     [Fact]
-    public void LegacyKeysAndNewMarkers_Coexist_WithoutDuplication()
+    public void LegacyTemposKeyAndNewMarkers_Coexist_WithoutDuplication()
     {
-        // A JSON that has both the legacy `tempos` shape AND a `markers` array
-        // (which would be the case for a snapshot exported during the migration
-        // window). The mirror setter dedups on (kind, value, number) so the
-        // result is the same set, no duplicates.
+        // A JSON that has both the legacy `tempos` shape AND a `markers` array.
+        // The Tempo mirror setter dedups on (kind, value, number) so the
+        // result is the same set, no duplicates. (FirstLine markers are no
+        // longer part of this picture — that kind is retired.)
         const string mixedJson = """
         {
           "title": "Movement",
           "tempos": [{ "number": 1, "tempo_description": "Allegro" }],
           "markers": [
-            { "kind": "Tempo", "value": "Allegro", "number": 1 },
-            { "kind": "FirstLine", "value": "Erbarme dich" }
+            { "kind": "Tempo", "value": "Allegro", "number": 1 }
           ]
         }
         """;
@@ -77,10 +97,10 @@ public class LegacyJsonReadTests
         var piece = JsonSerializer.Deserialize<CanonPiece>(mixedJson, ReadOptions);
         Assert.NotNull(piece);
         Assert.NotNull(piece!.Markers);
-        Assert.Equal(2, piece.Markers!.Count);
-        Assert.Single(piece.Markers, m => m.Kind == MarkerKind.Tempo &&
-                                          m.Value == "Allegro" && m.Number == 1);
-        Assert.Single(piece.Markers, m => m.Kind == MarkerKind.FirstLine);
+        var marker = Assert.Single(piece.Markers!);
+        Assert.Equal(MarkerKind.Tempo, marker.Kind);
+        Assert.Equal("Allegro", marker.Value);
+        Assert.Equal(1, marker.Number);
     }
 
     [Fact]
@@ -91,8 +111,7 @@ public class LegacyJsonReadTests
             Title = "Round-trip test",
             Markers =
             [
-                new MusicalMarker { Kind = MarkerKind.Tempo,     Value = "Allegro" },
-                new MusicalMarker { Kind = MarkerKind.FirstLine, Value = "Hello" },
+                new MusicalMarker { Kind = MarkerKind.Tempo, Value = "Allegro" },
             ],
         };
 

@@ -99,7 +99,8 @@ public class CanonDbSeeder
                 // so every reseed reset every approval the user had ever
                 // applied — silent loss of months of curation on the
                 // documented recovery path.
-                IsProvisional = c.IsProvisional,
+                IsProvisional       = c.IsProvisional,
+                MusicBrainzArtistId = c.MusicBrainzArtistId,
             };
 
             if (c.Aliases is { Count: > 0 })
@@ -247,6 +248,7 @@ public class CanonDbSeeder
             // recursively for subpieces, so the fix automatically propagates
             // through the whole piece tree.
             IsProvisional           = src.IsProvisional,
+            MusicBrainzWorkId       = src.MusicBrainzWorkId,
 
             InstrumentationJson     = RawJson(src.Instrumentation),
             CompositionYearsJson    = RawJson(src.CompositionYears),
@@ -268,7 +270,7 @@ public class CanonDbSeeder
         // pipeline (track anchors, picker UI) sees the data without the user
         // re-entering it. piece_tempos and pieces.first_line stay populated
         // for now — Stage 3 will retire them once consumers are migrated.
-        SynthesizeLegacyAnchorMarkers(row.Markers, src.Tempos, src.FirstLine);
+        SynthesizeLegacyAnchorMarkers(row.Markers, src.Tempos);
         AddComposerCredits(row.ComposerCredits, src.Composers);
         AddVariants(row.Variants, src.Variants);
 
@@ -359,7 +361,7 @@ public class CanonDbSeeder
 
         AddCatalogEntries(row.CatalogEntries, src.CatalogInfo);
         AddMarkers(row.Markers, src.Markers);
-        SynthesizeLegacyAnchorMarkers(row.Markers, src.Tempos, src.FirstLine);
+        SynthesizeLegacyAnchorMarkers(row.Markers, src.Tempos);
         AddComposerCredits(row.ComposerCredits, src.Composers);
         AddVariants(row.Variants, src.Variants);
 
@@ -434,23 +436,23 @@ public class CanonDbSeeder
     }
 
     /// <summary>
-    /// Stage-1 migration: synthesises kind=Tempo / kind=FirstLine markers from
-    /// the legacy <see cref="CanonPiece.Tempos"/> and <see cref="CanonPiece.FirstLine"/>
-    /// fields when they aren't already represented in <paramref name="target"/>.
-    /// Idempotent under reseed: if the user has already authored markers with
-    /// the same kind+value, the legacy entry is skipped — preventing duplicates
-    /// on subsequent runs after the editor has touched the data.
+    /// Stage-1 migration: synthesises kind=Tempo markers from the legacy
+    /// <see cref="CanonPiece.Tempos"/> field when they aren't already
+    /// represented in <paramref name="target"/>. Idempotent under reseed: if
+    /// the user has already authored markers with the same kind+value, the
+    /// legacy entry is skipped — preventing duplicates on subsequent runs
+    /// after the editor has touched the data.
     /// <para>
-    /// Once Stage 3 retires the legacy <c>piece_tempos</c> / <c>pieces.first_line</c>
-    /// storage, this helper goes away — by then every legacy entry will already
-    /// live in <c>piece_markers</c> with a stable id, and the JSON read path
-    /// will fold the legacy keys directly into <see cref="CanonPiece.Markers"/>.
+    /// FirstLine synthesis was retired: the legacy <c>first_line</c> JSON key
+    /// now folds directly into <see cref="CanonPiece.Title"/> at deserialize
+    /// (see <see cref="CanonPiece.FirstLine"/>), so by the time the seeder
+    /// maps a piece there's no first-line value left to synthesise a marker
+    /// from.
     /// </para>
     /// </summary>
     private static void SynthesizeLegacyAnchorMarkers(
         List<PieceMarkerRow> target,
-        List<TempoInfo>? tempos,
-        string? firstLine)
+        List<TempoInfo>? tempos)
     {
         // Continue numbering after any markers AddMarkers already appended,
         // so positions stay sequential and explicit-marker order wins.
@@ -480,20 +482,6 @@ public class CanonDbSeeder
                     Kind     = MarkerKind.Tempo,
                     Value    = t.Description,
                     Number   = num,
-                });
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(firstLine))
-        {
-            if (!target.Any(m => m.Kind == MarkerKind.FirstLine &&
-                string.Equals(m.Value, firstLine, StringComparison.OrdinalIgnoreCase)))
-            {
-                target.Add(new PieceMarkerRow
-                {
-                    Position = position++,
-                    Kind     = MarkerKind.FirstLine,
-                    Value    = firstLine.Trim(),
                 });
             }
         }
@@ -550,6 +538,7 @@ public class CanonDbSeeder
                 Notes                 = album.Notes,
                 // Rework H42: preserve JSON IsProvisional. See SeedComposers.
                 IsProvisional         = album.IsProvisional,
+                MusicBrainzReleaseId  = album.MusicBrainzReleaseId,
                 // Session-as-fields: flat columns. Legacy JSON snapshots with
                 // sessions[] get session[0]'s fields copied up by
                 // CanonAlbum.LegacySessions's setter before we get here.
