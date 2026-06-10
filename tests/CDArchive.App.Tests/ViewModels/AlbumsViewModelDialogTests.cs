@@ -33,7 +33,8 @@ public class AlbumsViewModelDialogTests
         var player   = new PlayerViewModel(
             Substitute.For<IAudioPlayerService>(),
             Substitute.For<IArchiveAudioLocator>(),
-            Substitute.For<IArchiveSettings>());
+            Substitute.For<IArchiveSettings>(),
+            Substitute.For<ICanonDataService>());
         var dialogs  = new RecordingDialogService();
 
         var vm = new AlbumsViewModel(svc, refIndex, player, dialogs);

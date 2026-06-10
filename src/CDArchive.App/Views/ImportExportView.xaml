@@ -10,9 +10,9 @@
     <StackPanel MaxWidth="520" HorizontalAlignment="Left">
 
         <!-- Export section -->
-        <TextBlock Text="Export" FontSize="15" FontWeight="SemiBold"
+        <TextBlock Text="Export" FontSize="13" FontWeight="SemiBold"
                    Foreground="#333" Margin="0,0,0,8" />
-        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
+        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="10" Margin="0,0,0,12">
             Save the current data to a JSON file of your choosing.
             The default filename and location match the canonical data files.
         </TextBlock>
@@ -34,9 +34,9 @@
         <Separator Margin="0,20,0,16" />
 
         <!-- Import section -->
-        <TextBlock Text="Import" FontSize="15" FontWeight="SemiBold"
+        <TextBlock Text="Import" FontSize="13" FontWeight="SemiBold"
                    Foreground="#333" Margin="0,0,0,8" />
-        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
+        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="10" Margin="0,0,0,12">
             Merge records from a JSON file into the current data.
             Only records not already present will be added — existing records are never modified.
             Composers are matched by name; pieces are matched by composer + title.
@@ -54,9 +54,9 @@
         <Separator Margin="0,20,0,16" />
 
         <!-- Restore section -->
-        <TextBlock Text="Restore" FontSize="15" FontWeight="SemiBold"
+        <TextBlock Text="Restore" FontSize="13" FontWeight="SemiBold"
                    Foreground="#333" Margin="0,0,0,8" />
-        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="12" Margin="0,0,0,12">
+        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="10" Margin="0,0,0,12">
             Overwrite the canonical data files with files you select.
             Use this to restore from a backup. The current data will be replaced.
         </TextBlock>
@@ -69,7 +69,7 @@
         <!-- Status bar -->
         <Border Margin="0,24,0,0" Background="#F0F4F8" BorderBrush="#D0D8E0"
                 BorderThickness="1" CornerRadius="3" Padding="12,8">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12"
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10"
                        Foreground="#333" TextWrapping="Wrap" />
         </Border>
 

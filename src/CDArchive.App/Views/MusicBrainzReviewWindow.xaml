@@ -93,7 +93,7 @@
                 BorderThickness="0,0,0,1" Padding="14,10"
                 Visibility="{Binding AllAlbumsLackCandidates, Converter={StaticResource BoolToVis}}">
             <StackPanel>
-                <TextBlock FontWeight="SemiBold" FontSize="12" Foreground="#7A1F1F"
+                <TextBlock FontWeight="SemiBold" FontSize="10" Foreground="#7A1F1F"
                            Text="No MusicBrainz matches" Margin="0,0,0,4" />
                 <TextBlock FontSize="11" Foreground="#7A1F1F" TextWrapping="Wrap">
                     MusicBrainz returned zero candidates for every album in this import.
@@ -117,7 +117,7 @@
                 <Border x:Name="AlbumsSectionAnchor"
                         Background="{StaticResource SectionHeaderBrush}"
                         Padding="10,6" Margin="0,0,0,4">
-                    <TextBlock FontWeight="SemiBold" FontSize="12">
+                    <TextBlock FontWeight="SemiBold" FontSize="10">
                         <Run Text="Albums ("/><Run Text="{Binding AlbumsTotal, Mode=OneWay}"/>
                         <Run Text=" proposals)"/>
                     </TextBlock>

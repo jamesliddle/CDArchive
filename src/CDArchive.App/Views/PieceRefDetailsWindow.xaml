@@ -9,25 +9,25 @@
     <StackPanel Margin="16">
 
         <!-- Summary banner (read-only) -->
-        <TextBlock Text="Reference" FontWeight="SemiBold" FontSize="12"
+        <TextBlock Text="Reference" FontWeight="SemiBold" FontSize="10"
                    Foreground="#555" Margin="0,0,0,4" />
         <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
                 Padding="8" Margin="0,0,0,8">
             <TextBlock x:Name="SummaryText"
-                       FontSize="13" TextWrapping="Wrap"
+                       FontSize="11" TextWrapping="Wrap"
                        Foreground="#222" />
         </Border>
 
         <!-- Range -->
-        <CheckBox x:Name="RangeCheck" FontSize="12"
+        <CheckBox x:Name="RangeCheck" FontSize="10"
                   Content="This track covers a range of sibling subpieces"
                   Checked="OnRangeChanged" Unchecked="OnRangeChanged" />
 
         <DockPanel x:Name="RangePanel" LastChildFill="True" Margin="0,6,0,0" IsEnabled="False">
             <TextBlock Text="End subpiece:" VerticalAlignment="Center"
-                       FontSize="12" Foreground="#555"
+                       FontSize="10" Foreground="#555"
                        DockPanel.Dock="Left" Margin="0,0,8,0" />
-            <ComboBox x:Name="EndSubpieceCombo" FontSize="12" Padding="4,3"
+            <ComboBox x:Name="EndSubpieceCombo" FontSize="10" Padding="4,3"
                       SelectionChanged="OnEndSubpieceChanged" />
         </DockPanel>
         <TextBlock x:Name="RangeNote"
@@ -36,17 +36,17 @@
                    Text="The range covers every leaf subpiece from the start path through the chosen end subpiece, inclusive." />
 
         <!-- Start marker -->
-        <TextBlock Text="Start marker" FontWeight="SemiBold" FontSize="12"
+        <TextBlock Text="Start marker" FontWeight="SemiBold" FontSize="10"
                    Foreground="#555" Margin="0,14,0,4" />
-        <ComboBox x:Name="StartMarkerCombo" FontSize="12" Padding="4,3" />
+        <ComboBox x:Name="StartMarkerCombo" FontSize="10" Padding="4,3" />
         <TextBlock x:Name="StartMarkerHint"
                    FontSize="10" Foreground="#888" Margin="0,2,0,0"
                    TextWrapping="Wrap" />
 
         <!-- End marker -->
-        <TextBlock Text="End marker" FontWeight="SemiBold" FontSize="12"
+        <TextBlock Text="End marker" FontWeight="SemiBold" FontSize="10"
                    Foreground="#555" Margin="0,12,0,4" />
-        <ComboBox x:Name="EndMarkerCombo" FontSize="12" Padding="4,3" />
+        <ComboBox x:Name="EndMarkerCombo" FontSize="10" Padding="4,3" />
         <TextBlock x:Name="EndMarkerHint"
                    FontSize="10" Foreground="#888" Margin="0,2,0,0"
                    TextWrapping="Wrap" />

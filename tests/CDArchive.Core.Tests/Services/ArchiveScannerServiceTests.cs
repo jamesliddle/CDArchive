@@ -19,6 +19,11 @@ public class ArchiveScannerServiceTests
         public int Mp3Bitrate { get; set; } = 320;
         public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
         public float PlayerVolume { get; set; } = 1.0f;
+        public bool StopAfterCurrentTrack { get; set; }
+        public bool ShowPlayingFilePath { get; set; }
+        public int SeekForwardSeconds { get; set; } = 10;
+        public int SeekBackwardSeconds { get; set; } = 10;
+        public int PreviousRestartThresholdSeconds { get; set; } = 2;
         public bool EnableMusicBrainzImportEnrichment { get; set; }
         public int  MusicBrainzCandidatesPerProposal  { get; set; } = 3;
         public bool ApplyMbAlbumMetadata          { get; set; } = true;

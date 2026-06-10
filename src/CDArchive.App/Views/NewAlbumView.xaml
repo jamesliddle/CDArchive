@@ -10,23 +10,23 @@
     <StackPanel MaxWidth="500" HorizontalAlignment="Left">
         <!-- Album Name -->
         <TextBlock Text="Album Name"
-                   FontSize="14"
+                   FontSize="12"
                    FontWeight="SemiBold"
                    Foreground="#333333"
                    Margin="0,0,0,5" />
         <TextBox Text="{Binding AlbumName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                 FontSize="14"
+                 FontSize="12"
                  Padding="8,6"
                  Margin="0,0,0,15" />
 
         <!-- Disc Count -->
         <TextBlock Text="Disc Count"
-                   FontSize="14"
+                   FontSize="12"
                    FontWeight="SemiBold"
                    Foreground="#333333"
                    Margin="0,0,0,5" />
         <TextBox Text="{Binding DiscCount, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                 FontSize="14"
+                 FontSize="12"
                  Padding="8,6"
                  Width="100"
                  HorizontalAlignment="Left"
@@ -35,7 +35,7 @@
         <!-- Create Button -->
         <Button Content="Create Album"
                 Command="{Binding CreateAlbumCommand}"
-                FontSize="14"
+                FontSize="12"
                 Padding="20,8"
                 HorizontalAlignment="Left"
                 Background="#007ACC"
@@ -57,7 +57,7 @@
                             Margin="0,0,0,5">
                         <TextBlock Text="{Binding}"
                                    Foreground="#856404"
-                                   FontSize="13"
+                                   FontSize="11"
                                    TextWrapping="Wrap" />
                     </Border>
                 </DataTemplate>
@@ -66,7 +66,7 @@
 
         <!-- Status Message -->
         <TextBlock Text="{Binding StatusMessage}"
-                   FontSize="14"
+                   FontSize="12"
                    TextWrapping="Wrap"
                    Margin="0,5,0,0">
             <TextBlock.Style>

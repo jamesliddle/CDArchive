@@ -12,7 +12,7 @@
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,15">
             <Button Content="Refresh"
                     Command="{Binding RefreshCommand}"
-                    FontSize="14"
+                    FontSize="12"
                     Padding="20,8"
                     Background="#007ACC"
                     Foreground="White"
@@ -23,7 +23,7 @@
         <!-- Status Message -->
         <TextBlock DockPanel.Dock="Bottom"
                    Text="{Binding StatusMessage}"
-                   FontSize="13"
+                   FontSize="11"
                    Foreground="#555555"
                    Margin="0,10,0,0" />
 
@@ -40,7 +40,7 @@
                   Background="White"
                   RowBackground="White"
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
-                  FontSize="13">
+                  FontSize="11">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Album Name"
                                     Binding="{Binding AlbumName}"

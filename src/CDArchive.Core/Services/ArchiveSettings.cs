@@ -44,6 +44,11 @@ public class ArchiveSettings : IArchiveSettings
     public int Mp3Bitrate { get; set; } = 320;
     public PreferredAudioFormat PreferredAudioFormat { get; set; } = PreferredAudioFormat.Flac;
     public float PlayerVolume { get; set; } = 1.0f;
+    public bool StopAfterCurrentTrack { get; set; } = false;
+    public bool ShowPlayingFilePath { get; set; } = false;
+    public int SeekForwardSeconds { get; set; } = 10;
+    public int SeekBackwardSeconds { get; set; } = 10;
+    public int PreviousRestartThresholdSeconds { get; set; } = 2;
 
     // MusicBrainz import enrichment (slice 6).
     public bool EnableMusicBrainzImportEnrichment { get; set; } = false;
@@ -107,6 +112,16 @@ public class ArchiveSettings : IArchiveSettings
                 PreferredAudioFormat = format;
             if (TryReadFloat(root, nameof(SettingsData.PlayerVolume)) is float v)
                 PlayerVolume = Math.Clamp(v, 0f, 1f);
+            if (TryReadBool(root, nameof(SettingsData.StopAfterCurrentTrack)) is { } stopAfter)
+                StopAfterCurrentTrack = stopAfter;
+            if (TryReadBool(root, nameof(SettingsData.ShowPlayingFilePath)) is { } showPath)
+                ShowPlayingFilePath = showPath;
+            if (TryReadInt(root, nameof(SettingsData.SeekForwardSeconds)) is int sf && sf >= 1)
+                SeekForwardSeconds = Math.Clamp(sf, 1, 60);
+            if (TryReadInt(root, nameof(SettingsData.SeekBackwardSeconds)) is int sb && sb >= 1)
+                SeekBackwardSeconds = Math.Clamp(sb, 1, 60);
+            if (TryReadInt(root, nameof(SettingsData.PreviousRestartThresholdSeconds)) is int rt && rt >= 0)
+                PreviousRestartThresholdSeconds = Math.Clamp(rt, 0, 60);
 
             // MB enrichment block — each parsed independently so a bad value
             // in one doesn't reset every other setting (M10 pattern).
@@ -228,6 +243,11 @@ public class ArchiveSettings : IArchiveSettings
             Mp3Bitrate                         = Mp3Bitrate,
             PreferredAudioFormat               = PreferredAudioFormat,
             PlayerVolume                       = PlayerVolume,
+            StopAfterCurrentTrack              = StopAfterCurrentTrack,
+            ShowPlayingFilePath                = ShowPlayingFilePath,
+            SeekForwardSeconds                 = SeekForwardSeconds,
+            SeekBackwardSeconds                = SeekBackwardSeconds,
+            PreviousRestartThresholdSeconds    = PreviousRestartThresholdSeconds,
             EnableMusicBrainzImportEnrichment  = EnableMusicBrainzImportEnrichment,
             MusicBrainzCandidatesPerProposal   = MusicBrainzCandidatesPerProposal,
             ApplyMbAlbumMetadata               = ApplyMbAlbumMetadata,
@@ -268,6 +288,11 @@ public class ArchiveSettings : IArchiveSettings
         public int Mp3Bitrate { get; set; }
         public PreferredAudioFormat? PreferredAudioFormat { get; set; }
         public float? PlayerVolume { get; set; }
+        public bool? StopAfterCurrentTrack { get; set; }
+        public bool? ShowPlayingFilePath { get; set; }
+        public int? SeekForwardSeconds { get; set; }
+        public int? SeekBackwardSeconds { get; set; }
+        public int? PreviousRestartThresholdSeconds { get; set; }
 
         // Names mirror the property names exactly so the TryReadX(root,
         // nameof(SettingsData.Foo)) calls round-trip.

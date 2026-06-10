@@ -11,15 +11,15 @@
         <!-- Toolbar: Filter + New Piece + Delete Piece -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
             <Button x:Name="DeletePieceButton" Content="Delete Piece" DockPanel.Dock="Right"
-                    Padding="12,4" Margin="8,0,0,0" FontSize="12"
+                    Padding="12,4" Margin="8,0,0,0" FontSize="10"
                     IsEnabled="False"
                     Click="OnDeletePieceClick" />
             <Button Content="New Piece" DockPanel.Dock="Right"
-                    Padding="12,4" Margin="8,0,0,0" FontSize="12"
+                    Padding="12,4" Margin="8,0,0,0" FontSize="10"
                     Click="OnNewPieceClick" />
             <TextBlock Text="Filter:" VerticalAlignment="Center"
-                       Margin="0,0,8,0" FontSize="12" Foreground="#555" />
-            <TextBox x:Name="FilterBox" FontSize="13" Padding="6,4"
+                       Margin="0,0,8,0" FontSize="10" Foreground="#555" />
+            <TextBox x:Name="FilterBox" FontSize="11" Padding="6,4"
                      TextChanged="OnFilterChanged" />
         </DockPanel>
 
@@ -50,7 +50,7 @@
                             Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                             Tag="Title">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Title" FontSize="12"
+                            <TextBlock Text="Title" FontSize="10"
                                        FontWeight="SemiBold" Foreground="#555" />
                             <TextBlock x:Name="SortTitle" FontSize="10" Margin="4,0,0,0"
                                        Foreground="#999" VerticalAlignment="Center" />
@@ -63,7 +63,7 @@
                             Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                             Tag="Catalog">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Catalogue" FontSize="12"
+                            <TextBlock Text="Catalogue" FontSize="10"
                                        FontWeight="SemiBold" Foreground="#555" />
                             <TextBlock x:Name="SortCatalog" FontSize="10" Margin="4,0,0,0"
                                        Foreground="#999" VerticalAlignment="Center" />
@@ -76,7 +76,7 @@
                             Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                             Tag="Category">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Category" FontSize="12"
+                            <TextBlock Text="Category" FontSize="10"
                                        FontWeight="SemiBold" Foreground="#555" />
                             <TextBlock x:Name="SortCategory" FontSize="10" Margin="4,0,0,0"
                                        Foreground="#999" VerticalAlignment="Center" />
@@ -89,7 +89,7 @@
                             Background="Transparent" MouseLeftButtonUp="OnColumnHeaderClick"
                             Tag="Year">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Year" FontSize="12"
+                            <TextBlock Text="Year" FontSize="10"
                                        FontWeight="SemiBold" Foreground="#555" />
                             <TextBlock x:Name="SortYear" FontSize="10" Margin="4,0,0,0"
                                        Foreground="#999" VerticalAlignment="Center" />
@@ -102,7 +102,7 @@
                 <!-- TreeView -->
                 <TreeView x:Name="PiecesTree"
                           BorderThickness="0" Background="White" Padding="0"
-                          FontSize="12"
+                          FontSize="10"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           SelectedItemChanged="OnTreeSelectionChanged"
                           KeyDown="OnTreeKeyDown">
@@ -199,7 +199,7 @@
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding ToolTipText}"
-                                                           TextWrapping="Wrap" FontSize="13" />
+                                                           TextWrapping="Wrap" FontSize="11" />
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
@@ -239,7 +239,7 @@
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Piece.ToolTipText}"
-                                                           TextWrapping="Wrap" FontSize="13" />
+                                                           TextWrapping="Wrap" FontSize="11" />
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>

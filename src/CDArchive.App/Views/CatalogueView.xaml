@@ -9,7 +9,7 @@
 
     <UserControl.Resources>
         <Style x:Key="RuleButtonStyle" TargetType="Button">
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="10" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="0,0,8,0" />
             <Setter Property="Background" Value="#5C6BC0" />
@@ -18,7 +18,7 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="20,8" />
             <Setter Property="Background" Value="#007ACC" />
             <Setter Property="Foreground" Value="White" />
@@ -39,7 +39,7 @@
                 <ComboBox ItemsSource="{Binding Albums}"
                           SelectedItem="{Binding SelectedAlbum}"
                           DisplayMemberPath="Name"
-                          FontSize="14"
+                          FontSize="12"
                           VerticalContentAlignment="Center"
                           Height="36" />
             </DockPanel>
@@ -60,7 +60,7 @@
                 Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <TextBlock Text="Bulk Fields (applied to all tracks)"
-                           FontSize="14"
+                           FontSize="12"
                            FontWeight="SemiBold"
                            Margin="0,0,0,8" />
                 <Grid>
@@ -77,19 +77,19 @@
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Artist:" VerticalAlignment="Center" Margin="0,4" />
                     <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding BulkArtist, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="13" Margin="4" Padding="4,3" />
+                             FontSize="11" Margin="4" Padding="4,3" />
 
                     <TextBlock Grid.Row="0" Grid.Column="2" Text="Album:" VerticalAlignment="Center" Margin="8,4,0,4" />
                     <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding BulkAlbum, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="13" Margin="4" Padding="4,3" />
+                             FontSize="11" Margin="4" Padding="4,3" />
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Genre:" VerticalAlignment="Center" Margin="0,4" />
                     <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding BulkGenre, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="13" Margin="4" Padding="4,3" />
+                             FontSize="11" Margin="4" Padding="4,3" />
 
                     <TextBlock Grid.Row="1" Grid.Column="2" Text="Year:" VerticalAlignment="Center" Margin="8,4,0,4" />
                     <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding BulkYear, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="13" Margin="4" Padding="4,3" />
+                             FontSize="11" Margin="4" Padding="4,3" />
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -112,7 +112,7 @@
                             ToolTip="Auto-pads movement numbers when a work has more than 9 movements" />
                     <TextBox x:Name="MaxCatalogueCount"
                              Width="45"
-                             FontSize="12"
+                             FontSize="10"
                              Padding="4,4"
                              VerticalContentAlignment="Center"
                              ToolTip="Max works of this type in composer's catalogue" />
@@ -134,7 +134,7 @@
                     Margin="10,0,0,0"
                     Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}}" />
             <TextBlock Text="{Binding StatusMessage}"
-                       FontSize="13"
+                       FontSize="11"
                        Foreground="#555555"
                        VerticalAlignment="Center" />
         </DockPanel>
@@ -152,7 +152,7 @@
                   Background="White"
                   RowBackground="White"
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
-                  FontSize="13"
+                  FontSize="11"
                   CanUserSortColumns="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#"

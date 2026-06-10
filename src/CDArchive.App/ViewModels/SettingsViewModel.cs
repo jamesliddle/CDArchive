@@ -27,6 +27,39 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private PreferredAudioFormat _preferredAudioFormat = PreferredAudioFormat.Flac;
 
+    /// <summary>
+    /// When true, the player stops at the end of the current track instead of
+    /// auto-advancing to the next track on the album. Defaults false.
+    /// </summary>
+    [ObservableProperty]
+    private bool _stopAfterCurrentTrack;
+
+    /// <summary>
+    /// When true, the player caption shows a third line with the full path of
+    /// the file currently playing. Defaults false.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showPlayingFilePath;
+
+    /// <summary>Seconds the player skips forward per seek-forward press (1–60).</summary>
+    [ObservableProperty]
+    private int _seekForwardSeconds = 10;
+
+    /// <summary>Seconds the player skips back per seek-back press (1–60).</summary>
+    [ObservableProperty]
+    private int _seekBackwardSeconds = 10;
+
+    /// <summary>Seconds into the track before Previous restarts instead of going
+    /// to the previous track (0–60).</summary>
+    [ObservableProperty]
+    private int _previousRestartThresholdSeconds = 2;
+
+    /// <summary>1–60, for the seek-duration dropdowns.</summary>
+    public static IReadOnlyList<int> SeekRange { get; } = Enumerable.Range(1, 60).ToList();
+
+    /// <summary>0–60, for the restart-threshold dropdown.</summary>
+    public static IReadOnlyList<int> RestartThresholdRange { get; } = Enumerable.Range(0, 61).ToList();
+
     // ── MusicBrainz import enrichment (slice 6) ──────────────────────────────
 
     [ObservableProperty] private bool _enableMusicBrainzImportEnrichment;
@@ -56,15 +89,29 @@ public partial class SettingsViewModel : ObservableObject
     public event Action? BrowseArchivePathRequested;
     public event Action? BrowseFfmpegPathRequested;
 
-    public SettingsViewModel(IArchiveSettings settings, IMusicBrainzImportEnricher? mbEnricher = null)
+    // Optional — when present, a settings save pings the player so the
+    // "show playing file path" toggle takes effect on the current track
+    // immediately rather than only on the next one.
+    private readonly PlayerViewModel? _player;
+
+    public SettingsViewModel(
+        IArchiveSettings settings,
+        IMusicBrainzImportEnricher? mbEnricher = null,
+        PlayerViewModel? player = null)
     {
         _settings = settings;
         _mbEnricher = mbEnricher;
+        _player = player;
 
         ArchiveRootPath = _settings.ArchiveRootPath;
         FfmpegPath = _settings.FfmpegPath;
         Mp3Bitrate = _settings.Mp3Bitrate;
         PreferredAudioFormat = _settings.PreferredAudioFormat;
+        StopAfterCurrentTrack = _settings.StopAfterCurrentTrack;
+        ShowPlayingFilePath = _settings.ShowPlayingFilePath;
+        SeekForwardSeconds = _settings.SeekForwardSeconds;
+        SeekBackwardSeconds = _settings.SeekBackwardSeconds;
+        PreviousRestartThresholdSeconds = _settings.PreviousRestartThresholdSeconds;
 
         EnableMusicBrainzImportEnrichment = _settings.EnableMusicBrainzImportEnrichment;
         MusicBrainzCandidatesPerProposal  = _settings.MusicBrainzCandidatesPerProposal;
@@ -83,6 +130,11 @@ public partial class SettingsViewModel : ObservableObject
             _settings.FfmpegPath = FfmpegPath;
             _settings.Mp3Bitrate = Mp3Bitrate;
             _settings.PreferredAudioFormat = PreferredAudioFormat;
+            _settings.StopAfterCurrentTrack = StopAfterCurrentTrack;
+            _settings.ShowPlayingFilePath = ShowPlayingFilePath;
+            _settings.SeekForwardSeconds = SeekForwardSeconds;
+            _settings.SeekBackwardSeconds = SeekBackwardSeconds;
+            _settings.PreviousRestartThresholdSeconds = PreviousRestartThresholdSeconds;
 
             _settings.EnableMusicBrainzImportEnrichment = EnableMusicBrainzImportEnrichment;
             _settings.MusicBrainzCandidatesPerProposal  = MusicBrainzCandidatesPerProposal;
@@ -92,6 +144,11 @@ public partial class SettingsViewModel : ObservableObject
             _settings.ApplyMbCanonicalWorkStructure = ApplyMbCanonicalWorkStructure;
 
             _settings.Save();
+
+            // Apply player settings (caption line, seek-step glyphs, restart
+            // threshold) to the currently-playing track now, not just the next.
+            _player?.OnSettingsChanged();
+
             StatusMessage = "Settings saved successfully.";
         }
         catch (Exception ex)

@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CDArchive.App.ViewModels"
+             xmlns:controls="clr-namespace:CDArchive.App.Views.Controls"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PlayerViewModel}">
 
@@ -38,6 +39,10 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Cursor" Value="Arrow" />
+                                <!-- Grey the glyph/content when disabled (the
+                                     custom template doesn't inherit WPF's default
+                                     disabled appearance). -->
+                                <Setter TargetName="BorderElement" Property="Opacity" Value="0.35" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -56,46 +61,6 @@
                     <Setter Property="Content" Value="⏸" />
                 </DataTrigger>
             </Style.Triggers>
-        </Style>
-
-        <!-- ToggleButton variant of TransportButtonStyle — needed because
-             ToggleButton isn't a Button (shared base only), so it can't BaseOn
-             the Button style. Distinguishing visual state: a darker background
-             when IsChecked so the user can see at a glance that the toggle
-             is active. -->
-        <Style x:Key="TransportToggleButtonStyle" TargetType="ToggleButton">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Foreground" Value="#333333" />
-            <Setter Property="FontFamily" Value="Segoe UI Symbol" />
-            <Setter Property="FontSize" Value="20" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Width" Value="40" />
-            <Setter Property="Height" Value="32" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="BorderElement"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BorderElement" Property="Background" Value="#E5E5E5" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="BorderElement" Property="Background" Value="#FFE08A" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Cursor" Value="Arrow" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
     </UserControl.Resources>
@@ -125,39 +90,50 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Transport buttons (left) -->
+            <!-- Transport buttons (left): prev-track · seek-back · play/pause ·
+                 seek-forward · next-track. The prev/next buttons use the
+                 ⏮ / ⏭ glyphs (two triangles + bar) and disable when there's no
+                 adjacent track. The seek buttons use the circular-arrow
+                 SeekGlyph showing the step count. -->
             <StackPanel Grid.Column="0"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="0,0,20,0">
                 <Button Style="{StaticResource TransportButtonStyle}"
-                        Content="⏪"
-                        ToolTip="Seek back 10 seconds"
+                        Content="⏮"
+                        ToolTip="Previous track (restarts the current track when past the restart threshold)"
+                        IsEnabled="{Binding CanPreviousTrack}"
+                        Command="{Binding PreviousTrackCommand}" />
+                <Button Style="{StaticResource TransportButtonStyle}"
+                        ToolTip="Skip back"
                         IsEnabled="{Binding IsTrackLoaded}"
-                        Command="{Binding SeekBackCommand}" />
+                        Command="{Binding SeekBackCommand}">
+                    <controls:SeekGlyph Seconds="{Binding SeekBackSeconds}" />
+                </Button>
                 <Button Style="{StaticResource PlayPauseButtonStyle}"
                         ToolTip="Play / Pause"
                         IsEnabled="{Binding IsTrackLoaded}"
                         Command="{Binding PlayPauseCommand}" />
                 <Button Style="{StaticResource TransportButtonStyle}"
-                        Content="⏩"
-                        ToolTip="Seek forward 10 seconds"
+                        ToolTip="Skip forward"
                         IsEnabled="{Binding IsTrackLoaded}"
-                        Command="{Binding SeekForwardCommand}" />
+                        Command="{Binding SeekForwardCommand}">
+                    <controls:SeekGlyph Seconds="{Binding SeekForwardSeconds}" Mirror="True" />
+                </Button>
+                <Button Style="{StaticResource TransportButtonStyle}"
+                        Content="⏭"
+                        ToolTip="Next track"
+                        IsEnabled="{Binding HasNextTrack}"
+                        Command="{Binding NextTrackCommand}" />
             </StackPanel>
 
-            <!-- Right controls: stop-after-current toggle + volume. -->
+            <!-- Right controls: volume. ("Stop after current track" is now a
+                 persisted player setting on the Settings screen, not a
+                 transport-bar toggle.) -->
             <StackPanel Grid.Column="2"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="20,0,0,0">
-                <ToggleButton Style="{StaticResource TransportToggleButtonStyle}"
-                              Content="⏹"
-                              FontSize="18"
-                              ToolTip="Stop after current track (auto-advance off)"
-                              IsEnabled="{Binding IsTrackLoaded}"
-                              IsChecked="{Binding StopAfterCurrent, Mode=TwoWay}" />
-
                 <TextBlock Text="🔈" FontFamily="Segoe UI Symbol" FontSize="14"
                            Foreground="#555" VerticalAlignment="Center"
                            Margin="10,0,4,0" />
@@ -178,15 +154,39 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Track info line — VM joins Title / Composer / Album with " — ". -->
-                <TextBlock Grid.Row="0"
-                           Text="{Binding TrackInfoLine}"
-                           FontWeight="SemiBold"
-                           FontSize="13"
-                           Foreground="#333333"
-                           HorizontalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           Margin="0,0,0,4" />
+                <!-- Two-line caption: title (primary font) over a smaller
+                     composer / performers / album line. Each line scrolls left
+                     on a loop when it's too wide for the centre column; when it
+                     fits it sits static and centred.
+
+                     The hover ToolTip on the whole caption is a complete
+                     multi-line track summary (album / composer / piece tree /
+                     performers); null when nothing is loaded, so no tooltip
+                     appears. ShowDuration is bumped so a long summary stays up
+                     long enough to read. -->
+                <StackPanel Grid.Row="0" Margin="0,0,0,4"
+                            Background="Transparent"
+                            ToolTip="{Binding TrackTooltip}"
+                            ToolTipService.ShowDuration="30000">
+                    <controls:MarqueeTextBlock Text="{Binding TrackTitleLine}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#333333" />
+                    <controls:MarqueeTextBlock Text="{Binding TrackDetailLine}"
+                                               FontSize="11"
+                                               Foreground="#555555"
+                                               Margin="0,1,0,0"
+                                               Visibility="{Binding HasTrackDetail,
+                                                            Converter={StaticResource BoolToVis}}" />
+                    <!-- Line 3: full file path — opt-in via the "Show playing
+                         file path" setting. -->
+                    <controls:MarqueeTextBlock Text="{Binding PlayingFilePath}"
+                                               FontSize="10"
+                                               Foreground="#888888"
+                                               Margin="0,1,0,0"
+                                               Visibility="{Binding ShowFilePath,
+                                                            Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
 
                 <!-- Time labels + slider — hidden until a track is loaded so an
                      empty slider with Maximum=0 doesn't render the thumb pinned
@@ -212,12 +212,11 @@
                             Minimum="0"
                             Maximum="{Binding DurationSeconds}"
                             Value="{Binding SliderValue, Mode=TwoWay}"
-                            IsMoveToPointEnabled="True"
                             IsEnabled="{Binding IsTrackLoaded}"
                             VerticalAlignment="Center"
                             Thumb.DragStarted="ProgressSlider_DragStarted"
                             Thumb.DragCompleted="ProgressSlider_DragCompleted"
-                            PreviewMouseLeftButtonUp="ProgressSlider_PreviewMouseLeftButtonUp" />
+                            PreviewMouseLeftButtonDown="ProgressSlider_PreviewMouseLeftButtonDown" />
 
                     <TextBlock Grid.Column="2"
                                Text="{Binding RemainingDisplay}"

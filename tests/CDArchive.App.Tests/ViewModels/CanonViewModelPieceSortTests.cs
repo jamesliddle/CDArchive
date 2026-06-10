@@ -34,7 +34,8 @@ public class CanonViewModelPieceSortTests
         var player   = new PlayerViewModel(
             Substitute.For<IAudioPlayerService>(),
             Substitute.For<IArchiveAudioLocator>(),
-            Substitute.For<IArchiveSettings>());
+            Substitute.For<IArchiveSettings>(),
+            Substitute.For<ICanonDataService>());
         var dialogs  = new RecordingDialogService();
         var albumsVm = new AlbumsViewModel(svc, refIndex, player, dialogs);
         var tracksVm = new TracksViewModel(albumsVm, svc, refIndex, player, dialogs);

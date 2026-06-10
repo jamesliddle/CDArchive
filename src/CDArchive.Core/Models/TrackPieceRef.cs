@@ -92,24 +92,35 @@ public class TrackPieceRef
     /// Marker anchors and end-paths/markers are appended when present.
     /// </summary>
     [JsonIgnore]
-    public string DisplaySummary
+    public string DisplaySummary => BuildSummary(includeComposer: true);
+
+    /// <summary>
+    /// Like <see cref="DisplaySummary"/> but omits the leading "Composer – "
+    /// prefix. Used where the composer is shown separately (e.g. the player
+    /// caption, whose second line already carries the composer). When a
+    /// <see cref="DisplayLabel"/> override is set it is returned verbatim —
+    /// the label is the user's own wording and isn't decomposed.
+    /// </summary>
+    [JsonIgnore]
+    public string DisplaySummaryWithoutComposer => BuildSummary(includeComposer: false);
+
+    private string BuildSummary(bool includeComposer)
     {
-        get
-        {
-            if (!string.IsNullOrWhiteSpace(DisplayLabel)) return DisplayLabel;
-            var sb = new System.Text.StringBuilder(Composer).Append(" – ").Append(PieceTitle);
-            if (!string.IsNullOrWhiteSpace(VersionDescription))
-                sb.Append(" (").Append(VersionDescription).Append(')');
-            if (SubpiecePath is { Count: > 0 })
-                sb.Append(": ").Append(string.Join(" › ", SubpiecePath));
-            if (StartMarker is not null)
-                sb.Append(" [from ").Append(StartMarker).Append(']');
-            if (EndSubpiecePath is { Count: > 0 })
-                sb.Append(" through ").Append(string.Join(" › ", EndSubpiecePath));
-            if (EndMarker is not null)
-                sb.Append(" [to ").Append(EndMarker).Append(']');
-            return sb.ToString();
-        }
+        if (!string.IsNullOrWhiteSpace(DisplayLabel)) return DisplayLabel;
+        var sb = new System.Text.StringBuilder();
+        if (includeComposer) sb.Append(Composer).Append(" – ");
+        sb.Append(PieceTitle);
+        if (!string.IsNullOrWhiteSpace(VersionDescription))
+            sb.Append(" (").Append(VersionDescription).Append(')');
+        if (SubpiecePath is { Count: > 0 })
+            sb.Append(": ").Append(string.Join(" › ", SubpiecePath));
+        if (StartMarker is not null)
+            sb.Append(" [from ").Append(StartMarker).Append(']');
+        if (EndSubpiecePath is { Count: > 0 })
+            sb.Append(" through ").Append(string.Join(" › ", EndSubpiecePath));
+        if (EndMarker is not null)
+            sb.Append(" [to ").Append(EndMarker).Append(']');
+        return sb.ToString();
     }
 
     /// <summary>True if the ref points at the whole piece (no subpiece path).</summary>

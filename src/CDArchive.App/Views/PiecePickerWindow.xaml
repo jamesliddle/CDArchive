@@ -35,13 +35,13 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Text="Composer:" VerticalAlignment="Center"
-                       FontSize="13" Foreground="#555" Margin="0,0,6,0" />
-            <ComboBox Grid.Column="1" x:Name="ComposerBox" FontSize="13"
+                       FontSize="11" Foreground="#555" Margin="0,0,6,0" />
+            <ComboBox Grid.Column="1" x:Name="ComposerBox" FontSize="11"
                       SelectionChanged="OnComposerFilterChanged" />
 
             <TextBlock Grid.Column="3" Text="Sort:" VerticalAlignment="Center"
-                       FontSize="13" Foreground="#555" Margin="0,0,6,0" />
-            <ComboBox Grid.Column="4" x:Name="SortBox" FontSize="13"
+                       FontSize="11" Foreground="#555" Margin="0,0,6,0" />
+            <ComboBox Grid.Column="4" x:Name="SortBox" FontSize="11"
                       SelectionChanged="OnSortChanged">
                 <ComboBoxItem Content="Catalogue" IsSelected="True" />
                 <ComboBoxItem Content="Title" />
@@ -50,15 +50,15 @@
             </ComboBox>
 
             <TextBlock Grid.Column="6" Text="Search:" VerticalAlignment="Center"
-                       FontSize="13" Foreground="#555" Margin="0,0,6,0" />
-            <TextBox Grid.Column="7" x:Name="SearchBox" FontSize="13" Padding="4,4"
+                       FontSize="11" Foreground="#555" Margin="0,0,6,0" />
+            <TextBox Grid.Column="7" x:Name="SearchBox" FontSize="11" Padding="4,4"
                      VerticalContentAlignment="Center"
                      TextChanged="OnSearchChanged" />
         </Grid>
 
         <!-- Hint -->
         <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6"
-                   FontSize="11" Foreground="#888" TextWrapping="Wrap"
+                   FontSize="9" Foreground="#888" TextWrapping="Wrap"
                    Text="Select a piece for a whole-work link, or expand to select a specific movement or version." />
 
         <!-- Tree -->
@@ -72,7 +72,7 @@
                  could lose. -->
             <TreeView x:Name="PieceTree"
                       BorderThickness="0" Background="White"
-                      FontSize="13"
+                      FontSize="11"
                       SelectedItemChanged="OnTreeSelectionChanged"
                       MouseDoubleClick="OnTreeDoubleClick"
                       KeyDown="OnTreeKeyDown">
@@ -143,10 +143,10 @@
                             <TextBlock Text="{Binding Name}"
                                        FontWeight="SemiBold" />
                             <TextBlock Text="{Binding LifeSpan}"
-                                       Foreground="#888" FontSize="12"
+                                       Foreground="#888" FontSize="10"
                                        Margin="6,0,0,0" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding PieceCountLabel}"
-                                       Foreground="#AAA" FontSize="11"
+                                       Foreground="#AAA" FontSize="9"
                                        Margin="8,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
@@ -163,16 +163,16 @@
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
                             <TextBlock Text="{Binding DisplayTitle}"
-                                       FontSize="13" Foreground="#333">
+                                       FontSize="11" Foreground="#333">
                                 <TextBlock.ToolTip>
                                     <ToolTip MaxWidth="600">
                                         <TextBlock Text="{Binding ToolTipText}"
-                                                   TextWrapping="Wrap" FontSize="13" />
+                                                   TextWrapping="Wrap" FontSize="11" />
                                     </ToolTip>
                                 </TextBlock.ToolTip>
                             </TextBlock>
                             <TextBlock Text="{Binding Catalog}"
-                                       FontSize="11" Foreground="#888"
+                                       FontSize="9" Foreground="#888"
                                        Margin="8,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
@@ -188,7 +188,7 @@
                                       Visibility="{Binding HasChildren,
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
-                            <TextBlock Text="Original" FontSize="13" Foreground="#555" />
+                            <TextBlock Text="Original" FontSize="11" Foreground="#555" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
 
@@ -204,7 +204,7 @@
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
                             <TextBlock Text="{Binding DisplayTitle}"
-                                       FontSize="13" Foreground="#4472C4" FontStyle="Italic" />
+                                       FontSize="11" Foreground="#4472C4" FontStyle="Italic" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
 
@@ -220,7 +220,7 @@
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
                             <TextBlock Text="{Binding DisplayTitle}"
-                                       FontSize="12" Foreground="#444" />
+                                       FontSize="10" Foreground="#444" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
 
