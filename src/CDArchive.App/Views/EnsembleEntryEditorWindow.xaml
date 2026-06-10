@@ -11,7 +11,7 @@
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Foreground" Value="#555" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="10" />
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
     </Window.Resources>
@@ -26,7 +26,7 @@
         </StackPanel>
 
         <StackPanel>
-            <TextBlock x:Name="EnsembleNameLabel" FontSize="14" FontWeight="SemiBold"
+            <TextBlock x:Name="EnsembleNameLabel" FontSize="12" FontWeight="SemiBold"
                        Margin="0,0,0,8"
                        Text="{Binding EnsembleName, Mode=OneWay}" />
 
@@ -51,7 +51,7 @@
                         <Button Content="↓" Padding="6,1" FontSize="10"
                                 Click="OnMoveMemberDownClick" />
                     </StackPanel>
-                    <ListBox x:Name="MembersList" FontSize="12"
+                    <ListBox x:Name="MembersList" FontSize="10"
                              BorderThickness="1" BorderBrush="#CCC"
                              ItemsSource="{Binding Members}">
                         <ListBox.ItemTemplate>
@@ -73,7 +73,7 @@
                 <DockPanel Grid.Column="2">
                     <TextBlock DockPanel.Dock="Top" Text="Available" FontSize="10"
                                Foreground="#888" Margin="0,0,0,2" />
-                    <ListBox x:Name="AvailableList" FontSize="12"
+                    <ListBox x:Name="AvailableList" FontSize="10"
                              BorderThickness="1" BorderBrush="#CCC"
                              MouseDoubleClick="OnAvailableDoubleClick" />
                 </DockPanel>

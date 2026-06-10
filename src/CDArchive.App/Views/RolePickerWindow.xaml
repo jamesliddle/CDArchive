@@ -17,11 +17,11 @@
 
         <TextBlock DockPanel.Dock="Top"
                    Text="Select one or more roles from the cast:"
-                   FontSize="12" Foreground="#555" Margin="0,0,0,8" />
+                   FontSize="10" Foreground="#555" Margin="0,0,0,8" />
 
         <ListBox x:Name="RoleList"
                  SelectionMode="Extended"
-                 FontSize="12"
+                 FontSize="10"
                  BorderThickness="1" BorderBrush="#CCC" />
     </DockPanel>
 </Window>

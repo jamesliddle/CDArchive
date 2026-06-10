@@ -417,4 +417,15 @@ public class AlbumTrack
         IsCatalogued
             ? string.Join(" / ", PieceRefs!.Select(r => r.DisplaySummary))
             : Description ?? "(no description)";
+
+    /// <summary>
+    /// Like <see cref="DisplaySummary"/> but drops the "Composer – " prefix
+    /// from each piece ref — for callers that surface the composer separately
+    /// (e.g. the player caption title line).
+    /// </summary>
+    [JsonIgnore]
+    public string DisplaySummaryWithoutComposer =>
+        IsCatalogued
+            ? string.Join(" / ", PieceRefs!.Select(r => r.DisplaySummaryWithoutComposer))
+            : Description ?? "(no description)";
 }

@@ -30,19 +30,19 @@
             <!-- Archive Root Path -->
             <TextBlock Grid.Row="0" Grid.Column="0"
                        Text="Archive Root Path"
-                       FontSize="14"
+                       FontSize="12"
                        FontWeight="SemiBold"
                        Foreground="#333333"
                        VerticalAlignment="Center" />
             <TextBox Grid.Row="0" Grid.Column="1"
                      Text="{Binding ArchiveRootPath, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                     FontSize="14"
+                     FontSize="12"
                      Padding="8,6"
                      Margin="0,0,10,0" />
             <Button Grid.Row="0" Grid.Column="2"
                     Content="Browse..."
                     Command="{Binding BrowseArchivePathCommand}"
-                    FontSize="13"
+                    FontSize="11"
                     Padding="15,6"
                     Background="#555555"
                     Foreground="White"
@@ -52,19 +52,19 @@
             <!-- FFmpeg Path -->
             <TextBlock Grid.Row="2" Grid.Column="0"
                        Text="FFmpeg Path"
-                       FontSize="14"
+                       FontSize="12"
                        FontWeight="SemiBold"
                        Foreground="#333333"
                        VerticalAlignment="Center" />
             <TextBox Grid.Row="2" Grid.Column="1"
                      Text="{Binding FfmpegPath, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                     FontSize="14"
+                     FontSize="12"
                      Padding="8,6"
                      Margin="0,0,10,0" />
             <Button Grid.Row="2" Grid.Column="2"
                     Content="Browse..."
                     Command="{Binding BrowseFfmpegPathCommand}"
-                    FontSize="13"
+                    FontSize="11"
                     Padding="15,6"
                     Background="#555555"
                     Foreground="White"
@@ -74,13 +74,13 @@
             <!-- MP3 Bitrate -->
             <TextBlock Grid.Row="4" Grid.Column="0"
                        Text="MP3 Bitrate"
-                       FontSize="14"
+                       FontSize="12"
                        FontWeight="SemiBold"
                        Foreground="#333333"
                        VerticalAlignment="Center" />
             <ComboBox Grid.Row="4" Grid.Column="1"
                       SelectedItem="{Binding Mp3Bitrate, Mode=TwoWay}"
-                      FontSize="14"
+                      FontSize="12"
                       Padding="8,6"
                       Width="120"
                       HorizontalAlignment="Left">
@@ -93,14 +93,14 @@
             <!-- Preferred audio format for the music player -->
             <TextBlock Grid.Row="6" Grid.Column="0"
                        Text="Player Format"
-                       FontSize="14"
+                       FontSize="12"
                        FontWeight="SemiBold"
                        Foreground="#333333"
                        VerticalAlignment="Center"
                        ToolTip="Format the music player prefers when both FLAC and MP3 exist for a track. Falls back to the other format if the preferred one is missing." />
             <ComboBox Grid.Row="6" Grid.Column="1"
                       SelectedItem="{Binding PreferredAudioFormat, Mode=TwoWay}"
-                      FontSize="14"
+                      FontSize="12"
                       Padding="8,6"
                       Width="120"
                       HorizontalAlignment="Left">
@@ -109,10 +109,64 @@
             </ComboBox>
         </Grid>
 
+        <!-- Player: stop-after-current-track. Was a transport-bar toggle;
+             now a persisted setting. Read live by PlayerViewModel at each
+             track boundary. -->
+        <CheckBox Content="Stop after current track"
+                  IsChecked="{Binding StopAfterCurrentTrack, Mode=TwoWay}"
+                  FontSize="11"
+                  Margin="0,16,0,0"
+                  ToolTip="When checked, the player stops at the end of the current track instead of auto-advancing to the next track on the album." />
+
+        <!-- Player: show the playing file's full path as a third caption line. -->
+        <CheckBox Content="Show playing file path in the player"
+                  IsChecked="{Binding ShowPlayingFilePath, Mode=TwoWay}"
+                  FontSize="11"
+                  Margin="0,8,0,0"
+                  ToolTip="When checked, the player caption shows a third line with the full path and name of the audio file currently playing." />
+
+        <!-- Player: seek durations + Previous restart threshold. -->
+        <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="6" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="6" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Skip back (seconds)"
+                       FontSize="11" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="0" Grid.Column="1" Width="64" FontSize="11"
+                      HorizontalAlignment="Left"
+                      ItemsSource="{x:Static vm:SettingsViewModel.SeekRange}"
+                      SelectedItem="{Binding SeekBackwardSeconds, Mode=TwoWay}" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Skip forward (seconds)"
+                       FontSize="11" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="2" Grid.Column="1" Width="64" FontSize="11"
+                      HorizontalAlignment="Left"
+                      ItemsSource="{x:Static vm:SettingsViewModel.SeekRange}"
+                      SelectedItem="{Binding SeekForwardSeconds, Mode=TwoWay}" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0"
+                       Text="Previous restarts track after (seconds)"
+                       FontSize="11" VerticalAlignment="Center"
+                       ToolTip="When the current position is past this many seconds, the Previous button restarts the current track instead of skipping to the previous track. 0 = always go to the previous track." />
+            <ComboBox Grid.Row="4" Grid.Column="1" Width="64" FontSize="11"
+                      HorizontalAlignment="Left"
+                      ItemsSource="{x:Static vm:SettingsViewModel.RestartThresholdRange}"
+                      SelectedItem="{Binding PreviousRestartThresholdSeconds, Mode=TwoWay}" />
+        </Grid>
+
         <!-- MusicBrainz import enrichment section (slice 6) -->
-        <GroupBox Header="MusicBrainz Import Enrichment" Margin="0,30,0,0" Padding="10" FontSize="13">
+        <GroupBox Header="MusicBrainz Import Enrichment" Margin="0,30,0,0" Padding="10" FontSize="11">
             <StackPanel>
-                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,10">
+                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="#555" Margin="0,0,0,10">
                     When enabled, the iTunes import flow runs an optional
                     pre-pass that queries MusicBrainz for album, composer, and
                     work metadata. A review pane lets you accept or reject each
@@ -121,7 +175,7 @@
 
                 <CheckBox Content="Enable MusicBrainz import enrichment"
                           IsChecked="{Binding EnableMusicBrainzImportEnrichment, Mode=TwoWay}"
-                          FontSize="13" Margin="0,0,0,8" />
+                          FontSize="11" Margin="0,0,0,8" />
 
                 <Grid Margin="20,0,0,0"
                       IsEnabled="{Binding EnableMusicBrainzImportEnrichment}">
@@ -139,11 +193,11 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0"
-                               Text="Candidates per proposal" FontSize="12"
+                               Text="Candidates per proposal" FontSize="10"
                                VerticalAlignment="Center" />
                     <ComboBox Grid.Row="0" Grid.Column="1"
                               SelectedItem="{Binding MusicBrainzCandidatesPerProposal, Mode=TwoWay}"
-                              FontSize="12" Width="80" HorizontalAlignment="Left">
+                              FontSize="10" Width="80" HorizontalAlignment="Left">
                         <sys:Int32>1</sys:Int32>
                         <sys:Int32>2</sys:Int32>
                         <sys:Int32>3</sys:Int32>
@@ -156,20 +210,20 @@
 
                     <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
                                Text="Default apply state in review pane:"
-                               FontSize="12" Foreground="#555" Margin="0,6,0,4" />
+                               FontSize="10" Foreground="#555" Margin="0,6,0,4" />
 
                     <CheckBox Grid.Row="3" Grid.ColumnSpan="2"
                               Content="Album metadata (Label / Catalogue Number / Barcode)"
                               IsChecked="{Binding ApplyMbAlbumMetadata, Mode=TwoWay}"
-                              FontSize="12" Margin="0,2" />
+                              FontSize="10" Margin="0,2" />
                     <CheckBox Grid.Row="4" Grid.ColumnSpan="2"
                               Content="Album performer credits (conductor / orchestra / soloists)"
                               IsChecked="{Binding ApplyMbPerformerCredits, Mode=TwoWay}"
-                              FontSize="12" Margin="0,2" />
+                              FontSize="10" Margin="0,2" />
                     <StackPanel Grid.Row="5" Grid.ColumnSpan="2">
                         <CheckBox Content="Album recording session (date / venue / engineers)"
                                   IsChecked="{Binding ApplyMbRecordingSessions, Mode=TwoWay}"
-                                  FontSize="12" Margin="0,2" />
+                                  FontSize="10" Margin="0,2" />
                     </StackPanel>
                 </Grid>
 
@@ -180,18 +234,18 @@
                 <Border BorderBrush="#D0D0D0" BorderThickness="0,1,0,0"
                         Padding="0,10,0,0" Margin="0,10,0,0">
                     <StackPanel>
-                        <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="12"
+                        <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="10"
                                    Foreground="#555" Margin="0,0,0,4" />
-                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#666" Margin="0,0,0,6">
+                        <TextBlock TextWrapping="Wrap" FontSize="9" Foreground="#666" Margin="0,0,0,6">
                             Runs a real MusicBrainz release-search ("Beethoven Symphony 9, Karajan")
                             and reports the outcome. Use this to verify connectivity + query format
                             when imports yield no matches.
                         </TextBlock>
                         <Button Content="Test MusicBrainz connectivity"
                                 Command="{Binding TestMbConnectivityCommand}"
-                                FontSize="12" Padding="10,4" HorizontalAlignment="Left" />
+                                FontSize="10" Padding="10,4" HorizontalAlignment="Left" />
                         <TextBlock Text="{Binding MbConnectivityStatus}"
-                                   TextWrapping="Wrap" FontSize="11" Foreground="#444"
+                                   TextWrapping="Wrap" FontSize="9" Foreground="#444"
                                    Margin="0,6,0,0" />
                     </StackPanel>
                 </Border>
@@ -201,7 +255,7 @@
         <!-- Save Button -->
         <Button Content="Save Settings"
                 Command="{Binding SaveCommand}"
-                FontSize="14"
+                FontSize="12"
                 Padding="20,8"
                 HorizontalAlignment="Left"
                 Background="#007ACC"
@@ -212,7 +266,7 @@
 
         <!-- Status Message -->
         <TextBlock Text="{Binding StatusMessage}"
-                   FontSize="14"
+                   FontSize="12"
                    Foreground="#555555"
                    TextWrapping="Wrap" />
     </StackPanel>

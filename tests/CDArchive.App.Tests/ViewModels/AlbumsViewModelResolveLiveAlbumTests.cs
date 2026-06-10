@@ -28,7 +28,8 @@ public class AlbumsViewModelResolveLiveAlbumTests
         var player   = new PlayerViewModel(
             Substitute.For<IAudioPlayerService>(),
             Substitute.For<IArchiveAudioLocator>(),
-            Substitute.For<IArchiveSettings>());
+            Substitute.For<IArchiveSettings>(),
+            Substitute.For<ICanonDataService>());
         var dialogs  = new Infrastructure.RecordingDialogService();
         return new AlbumsViewModel(svc, refIndex, player, dialogs);
     }

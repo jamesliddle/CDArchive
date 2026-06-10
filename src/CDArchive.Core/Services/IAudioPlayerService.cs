@@ -57,10 +57,31 @@ public interface IAudioPlayerService : IDisposable
     event EventHandler? DurationKnown;
 
     /// <summary>
-    /// Raised when the current track reaches its natural end (not when stopped
-    /// programmatically). Used by the player VM to advance to the next track.
+    /// Raised when playback reaches its natural end with no gapless next track
+    /// queued (end of the queued run, or stop-after-current). Used by the player
+    /// VM to advance gaplessly-impossible cases / stop.
     /// </summary>
     event EventHandler? PlaybackEnded;
+
+    /// <summary>
+    /// Raised when the output transitions gaplessly from the current track to a
+    /// track previously supplied via <see cref="QueueNext"/>. By the time this
+    /// fires, <see cref="Position"/> / <see cref="Duration"/> /
+    /// <see cref="CurrentFilePath"/> already reflect the new track. The player VM
+    /// uses this to update the now-playing display and queue the following track.
+    /// </summary>
+    event EventHandler? TrackTransitioned;
+
+    /// <summary>
+    /// Pre-loads <paramref name="filePath"/> so playback continues into it
+    /// <em>gaplessly</em> when the current track ends (no device teardown). The
+    /// next track must share the current output format (sample rate / channels /
+    /// bit depth); returns false when it doesn't, the file is missing, or nothing
+    /// is currently loaded — in which case the caller falls back to a normal
+    /// <see cref="Load"/> at end of track. Pass <c>null</c> to clear a previously
+    /// queued next track. Replaces any already-queued next.
+    /// </summary>
+    bool QueueNext(string? filePath);
 
     /// <summary>
     /// Load a track from <paramref name="filePath"/>. Stops any current playback,

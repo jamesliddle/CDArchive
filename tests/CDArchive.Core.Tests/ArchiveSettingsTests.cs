@@ -111,6 +111,100 @@ public class ArchiveSettingsTests : IDisposable
         Assert.Equal("ffmpeg", settings.FfmpegPath);
     }
 
+    /// <summary>
+    /// New "Stop after current track" player setting defaults to false and
+    /// survives a settings.json that doesn't mention it (back-compat with
+    /// files written before the setting existed).
+    /// </summary>
+    [Fact]
+    public void StopAfterCurrentTrack_DefaultsFalse_AndSurvivesMissingProperty()
+    {
+        var fresh = new ArchiveSettings(_settingsPath);
+        Assert.False(fresh.StopAfterCurrentTrack);
+
+        // A pre-existing file with no StopAfterCurrentTrack key must leave the
+        // default untouched.
+        File.WriteAllText(_settingsPath, """
+            { "ArchiveRootPath": "E:\\Music\\CDs" }
+            """);
+        var loaded = new ArchiveSettings(_settingsPath);
+        loaded.Initialize();
+
+        Assert.False(loaded.StopAfterCurrentTrack);
+    }
+
+    [Fact]
+    public void StopAfterCurrentTrack_RoundTripsThroughSaveAndInitialize()
+    {
+        var writer = new ArchiveSettings(_settingsPath) { StopAfterCurrentTrack = true };
+        writer.Save();
+
+        var reader = new ArchiveSettings(_settingsPath);
+        reader.Initialize();
+
+        Assert.True(reader.StopAfterCurrentTrack);
+    }
+
+    [Fact]
+    public void ShowPlayingFilePath_DefaultsFalse_AndRoundTrips()
+    {
+        Assert.False(new ArchiveSettings(_settingsPath).ShowPlayingFilePath);
+
+        // Missing key in an older file leaves the default untouched.
+        File.WriteAllText(_settingsPath, """{ "ArchiveRootPath": "E:\\X" }""");
+        var loaded = new ArchiveSettings(_settingsPath);
+        loaded.Initialize();
+        Assert.False(loaded.ShowPlayingFilePath);
+
+        // Round-trip true.
+        var writer = new ArchiveSettings(_settingsPath) { ShowPlayingFilePath = true };
+        writer.Save();
+        var reader = new ArchiveSettings(_settingsPath);
+        reader.Initialize();
+        Assert.True(reader.ShowPlayingFilePath);
+    }
+
+    [Fact]
+    public void SeekAndRestartSettings_DefaultsAndRoundTrip()
+    {
+        var fresh = new ArchiveSettings(_settingsPath);
+        Assert.Equal(10, fresh.SeekForwardSeconds);
+        Assert.Equal(10, fresh.SeekBackwardSeconds);
+        Assert.Equal(2, fresh.PreviousRestartThresholdSeconds);
+
+        var writer = new ArchiveSettings(_settingsPath)
+        {
+            SeekForwardSeconds = 30,
+            SeekBackwardSeconds = 15,
+            PreviousRestartThresholdSeconds = 5,
+        };
+        writer.Save();
+
+        var reader = new ArchiveSettings(_settingsPath);
+        reader.Initialize();
+        Assert.Equal(30, reader.SeekForwardSeconds);
+        Assert.Equal(15, reader.SeekBackwardSeconds);
+        Assert.Equal(5, reader.PreviousRestartThresholdSeconds);
+    }
+
+    [Fact]
+    public void SeekSettings_OutOfRange_AreClampedOnLoad()
+    {
+        File.WriteAllText(_settingsPath, """
+            {
+              "SeekForwardSeconds": 999,
+              "SeekBackwardSeconds": 0,
+              "PreviousRestartThresholdSeconds": 200
+            }
+            """);
+        var s = new ArchiveSettings(_settingsPath);
+        s.Initialize();
+
+        Assert.Equal(60, s.SeekForwardSeconds);   // clamped to max
+        Assert.Equal(10, s.SeekBackwardSeconds);  // 0 < 1 → ignored, keeps default
+        Assert.Equal(60, s.PreviousRestartThresholdSeconds); // clamped to max
+    }
+
     [Fact]
     public void Save_CreatesFile_AndRoundTripsThroughInitialize()
     {

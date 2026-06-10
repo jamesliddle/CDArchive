@@ -112,6 +112,30 @@ public class NAudioPlayerServiceTests : IDisposable
         Assert.Equal(TimeSpan.Zero, svc.Position);
     }
 
+    /// <summary>
+    /// After a mid-track seek, Position reflects the seek target. For FLAC the
+    /// reader is wrapped in <see cref="DecodeSeekStream"/>, which reports the
+    /// target immediately and (during playback) decodes to it exactly — the
+    /// accuracy of that decode is covered directly in
+    /// <see cref="DecodeSeekStreamTests"/>. Here this confirms the player
+    /// surfaces the seek target as the position.
+    /// </summary>
+    [Fact]
+    public void Seek_AnchorsPositionToTarget()
+    {
+        var path = Path.Combine(_tempDir, "silence5.wav");
+        WriteSilentWav(path, seconds: 5.0);
+
+        using var svc = new NAudioPlayerService();
+        svc.Load(path);
+
+        svc.Seek(TimeSpan.FromSeconds(3.0));
+        Assert.InRange(svc.Position.TotalSeconds, 2.99, 3.01);
+
+        svc.Seek(TimeSpan.FromSeconds(1.25));
+        Assert.InRange(svc.Position.TotalSeconds, 1.24, 1.26);
+    }
+
     [Fact]
     public void Pause_BeforePlay_IsNoOp()
     {

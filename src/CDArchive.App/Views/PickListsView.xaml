@@ -12,8 +12,8 @@
         <!-- Selector row -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,16">
             <TextBlock Text="Pick List:" VerticalAlignment="Center"
-                       FontSize="13" Foreground="#555" Margin="0,0,10,0" />
-            <ComboBox FontSize="13" Width="200"
+                       FontSize="11" Foreground="#555" Margin="0,0,10,0" />
+            <ComboBox FontSize="11" Width="200"
                       ItemsSource="{x:Static vm:PickListsViewModel.PickListNames}"
                       SelectedIndex="{Binding SelectedListIndex}" />
         </StackPanel>
@@ -23,13 +23,13 @@
             <Button DockPanel.Dock="Left" Content="Save" Width="80" Padding="0,6"
                     Command="{Binding SaveCommand}" />
             <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center"
-                       FontSize="12" Foreground="#555" Margin="12,0,0,0"
+                       FontSize="10" Foreground="#555" Margin="12,0,0,0"
                        TextWrapping="Wrap" />
         </DockPanel>
 
         <!-- Edit controls: TextBox + buttons row above list -->
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-            <TextBox x:Name="EditBox" FontSize="13" Padding="4,4"
+            <TextBox x:Name="EditBox" FontSize="11" Padding="4,4"
                      Text="{Binding EditText, UpdateSourceTrigger=PropertyChanged}"
                      Margin="0,0,0,6" />
             <StackPanel Orientation="Horizontal">
@@ -49,7 +49,7 @@
         </StackPanel>
 
         <!-- Values list (fills remaining space) -->
-        <ListBox FontSize="13"
+        <ListBox FontSize="11"
                  ItemsSource="{Binding CurrentItems}"
                  SelectedIndex="{Binding SelectedItemIndex}" />
 

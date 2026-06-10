@@ -1,0 +1,32 @@
+<UserControl x:Class="CDArchive.App.Views.Controls.MarqueeTextBlock"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+
+    <!-- Viewport clips the overflow. Font (size / weight / foreground / family)
+         inherits from this UserControl via TextElement property inheritance, so
+         callers style the control instance and the inner TextBlocks follow. -->
+    <Grid x:Name="Viewport" ClipToBounds="True" HorizontalAlignment="Stretch">
+
+        <!-- Sizer + fits-case display: drives the control height and, when the
+             text fits, shows it centred (no scroll). Hidden (kept for layout)
+             while scrolling. -->
+        <TextBlock x:Name="PrimaryText" TextWrapping="NoWrap"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Text="{Binding Text, ElementName=Root}" />
+
+        <!-- Scroll layer: two absolutely-positioned copies moved by one shared
+             TranslateTransform. A Canvas renders its children at their offsets
+             regardless of viewport width, so the trailing copy reliably shows as
+             it slides in. Collapsed when the text fits. -->
+        <Canvas x:Name="ScrollCanvas" Visibility="Collapsed">
+            <Canvas.RenderTransform>
+                <TranslateTransform x:Name="Translate" X="0" />
+            </Canvas.RenderTransform>
+            <TextBlock x:Name="ScrollA" Canvas.Left="0" Canvas.Top="0"
+                       TextWrapping="NoWrap" Text="{Binding Text, ElementName=Root}" />
+            <TextBlock x:Name="ScrollB" Canvas.Top="0"
+                       TextWrapping="NoWrap" Text="{Binding Text, ElementName=Root}" />
+        </Canvas>
+    </Grid>
+</UserControl>

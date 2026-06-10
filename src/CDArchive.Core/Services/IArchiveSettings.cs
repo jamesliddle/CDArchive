@@ -20,6 +20,36 @@ public interface IArchiveSettings
     /// </summary>
     float PlayerVolume { get; set; }
 
+    /// <summary>
+    /// When true, the player stops at the end of the current track instead of
+    /// auto-advancing to the next track on the album. Persisted across
+    /// sessions. Defaults false (auto-advance on). Read live by
+    /// <c>PlayerViewModel</c> at end-of-track so a settings change takes effect
+    /// on the next track boundary without restarting playback.
+    /// </summary>
+    bool StopAfterCurrentTrack { get; set; }
+
+    /// <summary>
+    /// When true, the player caption shows a third line with the full path and
+    /// name of the audio file currently playing. Persisted across sessions.
+    /// Defaults false. Useful as a diagnostic for confirming which on-disk file
+    /// a track resolved to.
+    /// </summary>
+    bool ShowPlayingFilePath { get; set; }
+
+    /// <summary>Seconds the player skips forward per seek-forward press (1–60). Defaults 10.</summary>
+    int SeekForwardSeconds { get; set; }
+
+    /// <summary>Seconds the player skips back per seek-back press (1–60). Defaults 10.</summary>
+    int SeekBackwardSeconds { get; set; }
+
+    /// <summary>
+    /// How many seconds into the current track the position must be before the
+    /// Previous button restarts the track instead of skipping to the previous
+    /// track (0–60). Defaults 2. 0 means "always go to the previous track".
+    /// </summary>
+    int PreviousRestartThresholdSeconds { get; set; }
+
     // ── MusicBrainz import enrichment (slice 6) ──────────────────────────────
     // All MB-side settings default off (the EnableXxx master) so users opt in
     // once they've seen the workflow. The per-aspect Apply* defaults

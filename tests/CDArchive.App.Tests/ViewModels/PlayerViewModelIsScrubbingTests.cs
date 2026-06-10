@@ -18,7 +18,8 @@ public class PlayerViewModelIsScrubbingTests
     private static PlayerViewModel Build() => new(
         Substitute.For<IAudioPlayerService>(),
         Substitute.For<IArchiveAudioLocator>(),
-        Substitute.For<IArchiveSettings>());
+        Substitute.For<IArchiveSettings>(),
+        Substitute.For<ICanonDataService>());
 
     [Fact]
     public void BeginScrub_RaisesPropertyChanged_ForIsScrubbing()
