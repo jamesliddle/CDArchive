@@ -959,8 +959,10 @@ public partial class CanonViewModel : ObservableObject
         // SaveBatch (pieces + pick lists atomically) matches the pre-fix
         // two-call SaveAllAsync (SavePiecesCommand + SavePickListsCommand)
         // but closes the inter-call window — same argument as NewPieceCommand.
-        await _canonDataService.SaveBatchAsync(
-            null, Pieces.ToList(), null, null, PickLists);
+        // On a rejected save (e.g. a removed variant/subpiece still referenced
+        // by a recording) TrySavePieceEditAsync surfaces a friendly dialog and
+        // reloads; we bail before the rename propagation runs.
+        if (!await TrySavePieceEditAsync("Cannot save piece")) return;
         StatusMessage = $"Updated piece: {piece.DisplayTitle}.";
 
         // Propagate any title renames (path changes + catalog-reorder
@@ -995,8 +997,7 @@ public partial class CanonViewModel : ObservableObject
             foreach (var s in vsubs) MergePieceFormsIntoGlobalPickList(s);
 
         DataMutated?.Invoke();
-        await _canonDataService.SaveBatchAsync(
-            null, Pieces.ToList(), null, null, PickLists);
+        if (!await TrySavePieceEditAsync("Cannot save changes")) return;
         StatusMessage = $"Updated version: {versionNode.Version.Description ?? "(no description)"}.";
     }
 
@@ -1013,9 +1014,36 @@ public partial class CanonViewModel : ObservableObject
         MergePieceFormsIntoGlobalPickList(subpiece);
 
         DataMutated?.Invoke();
-        await _canonDataService.SaveBatchAsync(
-            null, Pieces.ToList(), null, null, PickLists);
+        if (!await TrySavePieceEditAsync("Cannot save changes")) return;
         StatusMessage = $"Updated: {subpiece.SubpieceDisplayTitle}.";
+    }
+
+    /// <summary>
+    /// Saves pieces + pick lists for an edit-completion flow, surfacing a
+    /// friendly dialog (not the global unhandled-error handler) when the save
+    /// is rejected — e.g. the user removed a variant or subpiece that an album
+    /// track recording still references (the pre-flight diagnostic / FK
+    /// Restrict). The piece editor mutates the model in place across many
+    /// fields, so a precise in-memory rollback isn't available; instead we
+    /// reload the canon so the tree matches the DB and the rejected edit is
+    /// discarded. Returns true on success, false (already handled) on failure.
+    /// </summary>
+    private async Task<bool> TrySavePieceEditAsync(string failTitle)
+    {
+        try
+        {
+            await _canonDataService.SaveBatchAsync(null, Pieces.ToList(), null, null, PickLists);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Piece edit save rejected");
+            _dialogs.ShowError(ex.Message, failTitle);
+            // Discard the rejected in-memory edit and restore DB truth.
+            await LoadDataAsync();
+            StatusMessage = "Edit not saved — the change was rejected.";
+            return false;
+        }
     }
 
     /// <summary>
