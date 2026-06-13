@@ -130,6 +130,12 @@ public partial class SqliteCanonDataService
         await EnsureColumnAsync(db, "albums", "musicbrainz_release_id", "TEXT NULL")
             .ConfigureAwait(false);
 
+        // Variants on recordings: the album_track_piece_ref_variants join table
+        // records which variant(s) a recording uses. EF's EnsureCreatedAsync adds
+        // it to fresh DBs; existing DBs need an explicit CREATE TABLE. Idempotent
+        // via CREATE TABLE IF NOT EXISTS (+ indexes). See feature/variants slice 2.
+        await CreateAlbumTrackPieceRefVariantsTableAsync(db).ConfigureAwait(false);
+
         // FirstLine retirement: fold any kind='FirstLine' markers into the
         // owning piece/version Title (set-if-empty), then delete them. MUST
         // run as raw SQL here — the MarkerKind enum no longer has a FirstLine
@@ -194,6 +200,44 @@ public partial class SqliteCanonDataService
         // Drop every first-line marker now that the text is preserved in titles.
         await ExecAsync(conn, "DELETE FROM piece_markers WHERE kind='FirstLine'")
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Idempotently creates the <c>album_track_piece_ref_variants</c> join table
+    /// (and its two indexes) on an existing DB. Fresh DBs get it from EF's
+    /// <c>EnsureCreatedAsync</c>; this brings older DBs up to date. The
+    /// schema matches the EF entity config: <c>ref_id</c> Cascade,
+    /// <c>variant_id</c> Restrict. <c>CREATE … IF NOT EXISTS</c> makes every
+    /// part a safe no-op re-run.
+    /// </summary>
+    private static async Task CreateAlbumTrackPieceRefVariantsTableAsync(CanonDbContext db)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync().ConfigureAwait(false);
+
+        if (await TableExistsAsync(conn, "album_track_piece_ref_variants").ConfigureAwait(false))
+            return;
+
+        await ExecAsync(conn, """
+            CREATE TABLE IF NOT EXISTS album_track_piece_ref_variants (
+                id         INTEGER NOT NULL CONSTRAINT PK_album_track_piece_ref_variants PRIMARY KEY AUTOINCREMENT,
+                ref_id     INTEGER NOT NULL,
+                variant_id INTEGER NOT NULL,
+                position   INTEGER NOT NULL,
+                CONSTRAINT FK_album_track_piece_ref_variants_album_track_piece_refs_ref_id
+                    FOREIGN KEY (ref_id)     REFERENCES album_track_piece_refs (id) ON DELETE CASCADE,
+                CONSTRAINT FK_album_track_piece_ref_variants_piece_variants_variant_id
+                    FOREIGN KEY (variant_id) REFERENCES piece_variants         (id) ON DELETE RESTRICT
+            )
+            """).ConfigureAwait(false);
+
+        await ExecAsync(conn,
+            "CREATE INDEX IF NOT EXISTS IX_album_track_piece_ref_variants_RefId_Position " +
+            "ON album_track_piece_ref_variants (ref_id, position)").ConfigureAwait(false);
+        await ExecAsync(conn,
+            "CREATE INDEX IF NOT EXISTS IX_album_track_piece_ref_variants_VariantId " +
+            "ON album_track_piece_ref_variants (variant_id)").ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(

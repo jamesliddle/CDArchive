@@ -46,4 +46,12 @@ public class AlbumTrackPieceRefRow
 
     /// <summary>Optional display override when the CD's title differs from the canonical title.</summary>
     public string? DisplayLabel { get; set; }
+
+    /// <summary>
+    /// Variants this recording uses, as join rows into <c>piece_variants</c>.
+    /// Empty when no variant has been identified (a valid state). Cascade-deleted
+    /// with the owning ref; each join row's <c>variant_id</c> is Restrict so a
+    /// referenced variant can't be silently deleted out from under it.
+    /// </summary>
+    public List<AlbumTrackPieceRefVariantRow> Variants { get; set; } = new();
 }

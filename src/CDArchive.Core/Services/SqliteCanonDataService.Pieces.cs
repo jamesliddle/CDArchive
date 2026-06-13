@@ -497,6 +497,48 @@ public partial class SqliteCanonDataService
             .Select(e => e.Entity.Id)
             .ToList();
 
+        // Pre-flight: a variant the user removed from a piece (so ReconcileVariants
+        // queued its row for deletion) may still be identified on an album-track
+        // recording. album_track_piece_ref_variants.variant_id is OnDelete:Restrict,
+        // so the SaveChanges below would fail with a raw "FOREIGN KEY constraint
+        // failed". Catch it here and surface which variants are blocking, the same
+        // friendly-diagnostic style as the piece-delete paths (M3).
+        var pendingVariantDeleteIds = db.ChangeTracker.Entries<PieceVariantRow>()
+            .Where(e => e.State == EntityState.Deleted && e.Entity.Id != 0)
+            .Select(e => e.Entity.Id)
+            .ToList();
+        if (pendingVariantDeleteIds.Count > 0)
+        {
+            var blockedVariantIds = await db.AlbumTrackPieceRefVariants.AsNoTracking()
+                .Where(x => pendingVariantDeleteIds.Contains(x.VariantId))
+                .Select(x => x.VariantId)
+                .Distinct()
+                .ToListAsync().ConfigureAwait(false);
+            if (blockedVariantIds.Count > 0)
+            {
+                // Detach the doomed variant deletes so a retry in the same scope
+                // doesn't re-trigger the same failure.
+                foreach (var entry in db.ChangeTracker.Entries<PieceVariantRow>()
+                                        .Where(e => e.State == EntityState.Deleted &&
+                                                    blockedVariantIds.Contains(e.Entity.Id))
+                                        .ToList())
+                    entry.State = EntityState.Unchanged;
+
+                var descs = await db.PieceVariants.AsNoTracking()
+                    .Where(v => blockedVariantIds.Contains(v.Id))
+                    .Select(v => v.Description)
+                    .ToListAsync().ConfigureAwait(false);
+                var names = string.Join(", ",
+                    descs.Where(d => !string.IsNullOrEmpty(d)).Select(d => $"'{d}'").Take(3));
+                var nameClause = names.Length > 0 ? $" ({names}…)" : "";
+
+                throw new InvalidOperationException(
+                    $"Cannot delete {blockedVariantIds.Count} variant(s){nameClause} — they are still " +
+                    "identified on one or more album track recordings. Clear those variant " +
+                    "selections first.");
+            }
+        }
+
         try
         {
             await db.SaveChangesAsync().ConfigureAwait(false);

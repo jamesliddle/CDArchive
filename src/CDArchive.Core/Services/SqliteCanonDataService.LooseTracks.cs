@@ -44,11 +44,14 @@ public partial class SqliteCanonDataService
         var markerRowById = await db.PieceMarkers.AsNoTracking()
             .ToDictionaryAsync(m => m.Id)
             .ConfigureAwait(false);
+        var variantRowById = await db.PieceVariants.AsNoTracking()
+            .ToDictionaryAsync(v => v.Id)
+            .ConfigureAwait(false);
 
         var rows = await db.AlbumTracks
             .AsNoTracking()
             .Where(t => t.DiscId == null)
-            .Include(t => t.PieceRefs)
+            .Include(t => t.PieceRefs).ThenInclude(r => r.Variants)
             .Include(t => t.Performers)
             .OrderBy(t => t.Id)
             .ToListAsync()
@@ -93,7 +96,7 @@ public partial class SqliteCanonDataService
                     var refModel = BuildTrackPieceRef(pr,
                         pieceRowById, versionRowById,
                         pieceModelByRowId, versionModelByRowId,
-                        composerNameById, markerRowById);
+                        composerNameById, markerRowById, variantRowById);
                     if (refModel is not null) refs.Add(refModel);
                 }
                 if (refs.Count > 0) track.PieceRefs = refs;
@@ -143,7 +146,7 @@ public partial class SqliteCanonDataService
 
         var existing = await db.AlbumTracks
             .Where(t => t.DiscId == null)
-            .Include(t => t.PieceRefs)
+            .Include(t => t.PieceRefs).ThenInclude(r => r.Variants)
             .Include(t => t.Performers)
             .ToListAsync()
             .ConfigureAwait(false);
