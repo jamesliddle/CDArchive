@@ -723,48 +723,11 @@ public partial class CanonView : UserControl
     /// flow used by <see cref="AlbumsView"/> so saves persist back to storage and
     /// the Canon-side cross-reference index is refreshed.
     /// </summary>
-    private async Task OpenAlbumEditorAsync(CanonAlbum album, Window? owner = null)
-    {
-        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
-        // Ensure we're editing the live in-memory instance (not a stale copy from the index).
-        if (albumsVm.AllAlbums.Count == 0) await albumsVm.LoadDataCommand.ExecuteAsync(null);
-
-        // Resolve the live AllAlbums instance. Reference-equality alone is NOT
-        // enough: the `album` passed in comes from PieceReferenceIndex hits,
-        // and the index is frequently built from a DIFFERENT album instance
-        // set than albumsVm.AllAlbums. That happens on the normal startup
-        // order — CanonView is the default view, so CanonViewModel.LoadDataAsync
-        // runs while albumsVm.HasLoaded is still false and
-        // GetContainersForRebuildAsync does its own fresh DB load (instance
-        // set A) for the index, while AllAlbums later loads set B.
-        //
-        // Pre-fix, the reference-equality miss left `liveAlbum` pointing at the
-        // index's set-A instance, which isn't in AllAlbums. The IndexOf below
-        // then returned -1 and the edited clone was ADDED as a second album —
-        // AllAlbums ended up with the original (still carrying the old piece
-        // ref) PLUS the edited clone. The next RebuildContainers walked both,
-        // so the removed piece-ref's badge never decremented (its hit survived
-        // on the duplicate original) even though the new ref's badge went up.
-        // Symptom: "new count increments, old count stays" until a full reload.
-        //
-        // ResolveLiveAlbum falls back to IdentityKey, resolving `album` to the
-        // matching AllAlbums instance so the editor mutates the live instance
-        // and the IndexOf replace below swaps it in place — no duplicate.
-        var liveAlbum = albumsVm.ResolveLiveAlbum(album);
-
-        var (pieces, pickLists) = await albumsVm.LoadEditorDataAsync();
-        var dlg = new AlbumEditorWindow(pickLists, pieces, albumsVm.Player, liveAlbum)
-        {
-            Owner = owner ?? Window.GetWindow(this)
-        };
-        if (dlg.ShowDialog() != true || dlg.Result is not CanonAlbum result) return;
-
-        var idx = albumsVm.AllAlbums.IndexOf(liveAlbum);
-        if (idx >= 0) albumsVm.AllAlbums[idx] = result;
-        else          albumsVm.AllAlbums.Add(result);
-        albumsVm.ApplyFilter();
-        await albumsVm.SaveAsync(pickLists);
-    }
+    private Task OpenAlbumEditorAsync(CanonAlbum album, Window? owner = null) =>
+        VariantUsages.OpenAlbumEditorAsync(
+            owner ?? Window.GetWindow(this)!,
+            album,
+            App.ServiceProvider.GetRequiredService<AlbumsViewModel>());
 
     // ── Context menu: handlers ────────────────────────────────────────────────
 
@@ -855,42 +818,8 @@ public partial class CanonView : UserControl
     private async Task ShowVariantUsagesAsync(Window owner, VariantInfo variant)
     {
         if (DataContext is not CanonViewModel vm) return;
-        try
-        {
-            var hits = await vm.GetVariantUsageHitsAsync(variant.Id);
-            if (hits.Count == 0)
-            {
-                MessageBox.Show(owner,
-                    $"No recordings currently identify the variant \"{variant.Description}\".",
-                    "Recordings", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var dlg = new PieceAlbumsWindow(
-                $"Recordings using variant: {variant.Description}", hits, vm.Player)
-            {
-                Owner = owner
-            };
-            dlg.ShowDialog();
-
-            // "Open Album" → edit the album on top of the still-open piece
-            // editor (owned by it, so no piece edits are lost). The user clears
-            // the variant from that recording there; on return we refresh the
-            // editor's click-time usage snapshot so the now-removable variant
-            // isn't still blocked by stale data. Playback (Play button) is
-            // handled inside the window and leaves SelectedAlbum null.
-            if (dlg.SelectedAlbum is CanonAlbum album)
-            {
-                await OpenAlbumEditorAsync(album, owner);
-                if (owner is PieceEditorWindow pe)
-                    pe.VariantUsageCounts = await vm.GetReferencedVariantCountsAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(owner, ex.Message, "Recordings",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+        await VariantUsages.ShowAsync(owner, variant, vm, albumsVm);
     }
 
     private async Task EditPieceAsync(CanonPiece piece)
