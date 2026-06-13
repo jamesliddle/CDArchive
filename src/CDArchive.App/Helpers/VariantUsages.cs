@@ -44,6 +44,22 @@ internal static class VariantUsages
 
             if (dlg.SelectedAlbum is CanonAlbum album)
             {
+                // Re-entrancy guard: refuse to open a second AlbumEditor on top of
+                // one already in the stack (e.g. AlbumEditor → Edit Track → Edit
+                // Root Piece → Recordings → Open Album). Editing the same album at
+                // two stack levels would orphan the outer editor's clone — its
+                // stale copy would re-Add as a duplicate and overwrite this edit on
+                // the outer OK. No safe merge exists, so block + explain.
+                if (AlbumEditorWindow.IsAnyOpen)
+                {
+                    MessageBox.Show(owner,
+                        $"\"{album.DisplayTitle}\" can't be opened from here because an album " +
+                        "editor is already open.\n\nFinish (or cancel) that album edit first, then " +
+                        "open this album from the Albums or Tracks view to clear the variant.",
+                        "Album already open", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
                 await OpenAlbumEditorAsync(owner, album, albumsVm);
                 if (owner is PieceEditorWindow pe)
                     pe.VariantUsageCounts = await canonVm.GetReferencedVariantCountsAsync();
