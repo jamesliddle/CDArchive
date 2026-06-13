@@ -723,7 +723,7 @@ public partial class CanonView : UserControl
     /// flow used by <see cref="AlbumsView"/> so saves persist back to storage and
     /// the Canon-side cross-reference index is refreshed.
     /// </summary>
-    private async Task OpenAlbumEditorAsync(CanonAlbum album)
+    private async Task OpenAlbumEditorAsync(CanonAlbum album, Window? owner = null)
     {
         var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
         // Ensure we're editing the live in-memory instance (not a stale copy from the index).
@@ -755,7 +755,7 @@ public partial class CanonView : UserControl
         var (pieces, pickLists) = await albumsVm.LoadEditorDataAsync();
         var dlg = new AlbumEditorWindow(pickLists, pieces, albumsVm.Player, liveAlbum)
         {
-            Owner = Window.GetWindow(this)
+            Owner = owner ?? Window.GetWindow(this)
         };
         if (dlg.ShowDialog() != true || dlg.Result is not CanonAlbum result) return;
 
@@ -871,10 +871,20 @@ public partial class CanonView : UserControl
             {
                 Owner = owner
             };
-            // Informational from this context — playback is handled inside the
-            // window; we don't open the album editor on top of the open piece
-            // editor (that mid-edit modal stack would be confusing).
             dlg.ShowDialog();
+
+            // "Open Album" → edit the album on top of the still-open piece
+            // editor (owned by it, so no piece edits are lost). The user clears
+            // the variant from that recording there; on return we refresh the
+            // editor's click-time usage snapshot so the now-removable variant
+            // isn't still blocked by stale data. Playback (Play button) is
+            // handled inside the window and leaves SelectedAlbum null.
+            if (dlg.SelectedAlbum is CanonAlbum album)
+            {
+                await OpenAlbumEditorAsync(album, owner);
+                if (owner is PieceEditorWindow pe)
+                    pe.VariantUsageCounts = await vm.GetReferencedVariantCountsAsync();
+            }
         }
         catch (Exception ex)
         {
