@@ -464,9 +464,16 @@
                                                     HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Track.DisplaySummary}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           ToolTip="{Binding Track.DisplaySummary}" />
+                                                <DockPanel LastChildFill="True">
+                                                    <TextBlock DockPanel.Dock="Left"
+                                                               Text="⚑" Margin="0,0,5,0"
+                                                               Foreground="#C77A00"
+                                                               ToolTip="This piece has variants — none identified for this recording"
+                                                               Visibility="{Binding Track, Converter={StaticResource RefNeedsVariant}}" />
+                                                    <TextBlock Text="{Binding Track.DisplaySummary}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding Track.DisplaySummary}" />
+                                                </DockPanel>
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>

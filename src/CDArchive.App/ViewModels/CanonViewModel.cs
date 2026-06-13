@@ -1055,6 +1055,19 @@ public partial class CanonViewModel : ObservableObject
         => _canonDataService.GetReferencedVariantCountsAsync();
 
     /// <summary>
+    /// The album / loose-track recordings that identify the variant with
+    /// <paramref name="variantId"/>, as <see cref="PieceAlbumHit"/> rows for
+    /// the <see cref="Views.PieceAlbumsWindow"/>. Ensures the album + loose-track
+    /// containers are loaded, then scans them via
+    /// <see cref="VariantUsageFinder"/>.
+    /// </summary>
+    public async Task<IReadOnlyList<PieceAlbumHit>> GetVariantUsageHitsAsync(long variantId)
+    {
+        var (albums, looseTracks) = await GetContainersForRebuildAsync();
+        return VariantUsageFinder.Find(albums, looseTracks, variantId);
+    }
+
+    /// <summary>
     /// Applies the composer's <c>preferredPrefixes</c> to each target piece's
     /// <see cref="CanonPiece.CatalogInfo"/>, and emits a <see cref="PieceRename"/>
     /// for every piece whose display title changed as a result. Two renames are

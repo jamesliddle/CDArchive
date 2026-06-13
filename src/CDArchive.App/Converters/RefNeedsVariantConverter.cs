@@ -7,11 +7,12 @@ using CDArchive.Core.Services;
 namespace CDArchive.App.Converters;
 
 /// <summary>
-/// Returns <see cref="Visibility.Visible"/> for a <see cref="TrackPieceRef"/>
-/// whose resolved path defines variants but identifies none — the
-/// "variant available but unchosen" state — otherwise
-/// <see cref="Visibility.Collapsed"/>. Drives the unchosen-variant flag on the
-/// TrackEditor's piece-refs list.
+/// Returns <see cref="Visibility.Visible"/> when the bound value's resolved
+/// path defines variants but identifies none — the "variant available but
+/// unchosen" state — otherwise <see cref="Visibility.Collapsed"/>. Accepts a
+/// single <see cref="TrackPieceRef"/> (TrackEditor piece-refs list) or a whole
+/// <see cref="AlbumTrack"/> (AlbumEditor track list — flagged when ANY of its
+/// refs needs a variant). Drives the unchosen-variant flag.
 /// </summary>
 /// <remarks>
 /// Reads <see cref="PieceReferenceIndex.Current"/> (a static accessor, not a DI
@@ -23,9 +24,16 @@ public class RefNeedsVariantConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         var idx = PieceReferenceIndex.Current;
-        if (idx is not null && value is TrackPieceRef pr && idx.NeedsVariantIdentification(pr))
-            return Visibility.Visible;
-        return Visibility.Collapsed;
+        if (idx is null) return Visibility.Collapsed;
+
+        bool needs = value switch
+        {
+            TrackPieceRef pr => idx.NeedsVariantIdentification(pr),
+            AlbumTrack t     => t.PieceRefs is { Count: > 0 }
+                                && t.PieceRefs.Any(idx.NeedsVariantIdentification),
+            _                => false,
+        };
+        return needs ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

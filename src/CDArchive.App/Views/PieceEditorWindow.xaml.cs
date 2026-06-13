@@ -48,6 +48,25 @@ public partial class PieceEditorWindow : Window
     /// </summary>
     public IReadOnlyDictionary<long, int>? VariantUsageCounts { get; set; }
 
+    private Action<VariantInfo>? _showVariantUsages;
+
+    /// <summary>
+    /// Optional callback the caller supplies to display which album track
+    /// recordings identify a given variant. When set, the variant section's
+    /// "Recordings…" button is shown; clicking it invokes this with the
+    /// selected variant. Null = button hidden (callers without album context).
+    /// </summary>
+    public Action<VariantInfo>? ShowVariantUsages
+    {
+        get => _showVariantUsages;
+        set
+        {
+            _showVariantUsages = value;
+            ShowVariantUsagesButton.Visibility =
+                value is null ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
     /// <summary>
     /// The piece being edited (or newly created).
     /// </summary>
@@ -658,6 +677,25 @@ public partial class PieceEditorWindow : Window
 
         _vm.Variants.Remove(variant);
         RefreshVariantList();
+    }
+
+    private void OnShowVariantUsagesClick(object sender, RoutedEventArgs e)
+    {
+        if (_showVariantUsages is null) return;
+        if (SelectedVariant is not { } variant)
+        {
+            MessageBox.Show(this, "Select a variant first.",
+                "Recordings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (variant.Id == 0)
+        {
+            MessageBox.Show(this,
+                "This variant hasn't been saved yet, so no recordings can reference it.",
+                "Recordings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        _showVariantUsages(variant);
     }
 
     private void OnMoveVariantUpClick(object sender, RoutedEventArgs e)

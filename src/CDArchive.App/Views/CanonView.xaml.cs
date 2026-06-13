@@ -845,6 +845,44 @@ public partial class CanonView : UserControl
 
     // ── Edit: piece ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Opens the <see cref="PieceAlbumsWindow"/> listing the album / loose-track
+    /// recordings that identify <paramref name="variant"/>. Wired into the piece
+    /// editor's "Recordings…" button so the user can locate (and later clear) the
+    /// selections that block a variant delete. Owned by the editor window so it
+    /// stacks above the open modal.
+    /// </summary>
+    private async Task ShowVariantUsagesAsync(Window owner, VariantInfo variant)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        try
+        {
+            var hits = await vm.GetVariantUsageHitsAsync(variant.Id);
+            if (hits.Count == 0)
+            {
+                MessageBox.Show(owner,
+                    $"No recordings currently identify the variant \"{variant.Description}\".",
+                    "Recordings", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dlg = new PieceAlbumsWindow(
+                $"Recordings using variant: {variant.Description}", hits, vm.Player)
+            {
+                Owner = owner
+            };
+            // Informational from this context — playback is handled inside the
+            // window; we don't open the album editor on top of the open piece
+            // editor (that mid-edit modal stack would be confusing).
+            dlg.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(owner, ex.Message, "Recordings",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private async Task EditPieceAsync(CanonPiece piece)
     {
         if (DataContext is not CanonViewModel vm) return;
@@ -861,6 +899,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this),
             VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
+        window.ShowVariantUsages = v => _ = ShowVariantUsagesAsync(window, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditPieceAsync(piece, snapshot);
@@ -887,6 +926,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this),
             VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
+        window.ShowVariantUsages = v => _ = ShowVariantUsagesAsync(window, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditVersionAsync(versionNode);
@@ -914,6 +954,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this),
             VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
+        window.ShowVariantUsages = v => _ = ShowVariantUsagesAsync(window, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditSubpieceAsync(subpiece);

@@ -178,6 +178,10 @@ public partial class PieceAlbumsWindow : Window
         public List<TrackHitNode> TrackHits { get; } = new();
         public string Display { get; }
 
+        /// <summary>True when any child track-hit identifies no variant for a
+        /// variant-bearing piece — surfaces the ⚑ on the album row too.</summary>
+        public bool NeedsVariant => TrackHits.Any(t => t.NeedsVariant);
+
         public AlbumNode(CanonAlbum album)
         {
             Album = album;
@@ -196,6 +200,10 @@ public partial class PieceAlbumsWindow : Window
         public PieceAlbumHit Hit { get; }
         public CanonAlbum Album { get; }
         public string Display { get; }
+
+        /// <summary>True when this ref's piece has variants but none chosen.</summary>
+        public bool NeedsVariant =>
+            PieceReferenceIndex.Current?.NeedsVariantIdentification(Hit.Ref) ?? false;
 
         public TrackHitNode(PieceAlbumHit hit, CanonAlbum album)
         {
@@ -218,6 +226,10 @@ public partial class PieceAlbumsWindow : Window
     {
         public PieceAlbumHit Hit { get; }
         public string Display { get; }
+
+        /// <summary>True when this ref's piece has variants but none chosen.</summary>
+        public bool NeedsVariant =>
+            PieceReferenceIndex.Current?.NeedsVariantIdentification(Hit.Ref) ?? false;
 
         public LooseTrackNode(PieceAlbumHit hit)
         {
