@@ -38,6 +38,17 @@ public partial class PieceEditorWindow : Window
     private readonly PieceEditorViewModel _vm = new();
 
     /// <summary>
+    /// Optional per-variant usage counts (variant <c>Id</c> → number of album
+    /// track recordings that identify it), supplied by the caller from
+    /// <see cref="Core.Services.ICanonDataService.GetReferencedVariantCountsAsync"/>.
+    /// When set, <see cref="OnRemoveVariantClick"/> blocks removal of an in-use
+    /// variant at click time with a friendly message, rather than letting the
+    /// piece save fail later with the FK-Restrict diagnostic. Null = no check
+    /// (the save-time pre-flight remains the backstop).
+    /// </summary>
+    public IReadOnlyDictionary<long, int>? VariantUsageCounts { get; set; }
+
+    /// <summary>
     /// The piece being edited (or newly created).
     /// </summary>
     public CanonPiece Piece => _piece;
@@ -627,6 +638,24 @@ public partial class PieceEditorWindow : Window
     private void OnRemoveVariantClick(object sender, RoutedEventArgs e)
     {
         if (SelectedVariant is not { } variant) return;
+
+        // Block removal of a variant that album track recordings still
+        // identify — the FK is Restrict, so removing it would fail at save.
+        // Surfacing it here (rather than at save) lets the user act before
+        // losing other edits.
+        if (variant.Id != 0 && VariantUsageCounts is not null &&
+            VariantUsageCounts.TryGetValue(variant.Id, out var count) && count > 0)
+        {
+            MessageBox.Show(this,
+                $"\"{variant.Description}\" is identified on {count} album track recording(s) " +
+                "and can't be removed.\n\nClear the variant from those recordings first " +
+                "(Tracks → the track's piece-ref → Details…), then remove it here.",
+                "Variant in use",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         _vm.Variants.Remove(variant);
         RefreshVariantList();
     }

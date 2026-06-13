@@ -1126,6 +1126,20 @@ public partial class SqliteCanonDataService
     /// are removed. Deleting a join row never trips the variant-side Restrict
     /// FK — the join row owns that FK, it isn't its target.
     /// </summary>
+    public async Task<IReadOnlyDictionary<long, int>> GetReferencedVariantCountsAsync()
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+        var grouped = await db.AlbumTrackPieceRefVariants.AsNoTracking()
+            .GroupBy(x => x.VariantId)
+            .Select(g => new { VariantId = g.Key, Count = g.Count() })
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        return grouped.ToDictionary(x => x.VariantId, x => x.Count);
+    }
+
     private static void MergeRefVariants(
         AlbumTrackPieceRefRow refRow, IReadOnlyList<long> desired, CanonDbContext db)
     {

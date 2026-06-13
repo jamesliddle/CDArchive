@@ -1047,6 +1047,14 @@ public partial class CanonViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Per-variant usage counts (variant <c>Id</c> → recordings that identify
+    /// it), handed to the piece editor so it can block removal of an in-use
+    /// variant at click time. Thin passthrough to the data service.
+    /// </summary>
+    public Task<IReadOnlyDictionary<long, int>> GetReferencedVariantCountsAsync()
+        => _canonDataService.GetReferencedVariantCountsAsync();
+
+    /// <summary>
     /// Applies the composer's <c>preferredPrefixes</c> to each target piece's
     /// <see cref="CanonPiece.CatalogInfo"/>, and emits a <see cref="PieceRename"/>
     /// for every piece whose display title changed as a result. Two renames are

@@ -307,6 +307,34 @@ public class AlbumTrackRefVariantTests
     }
 
     [Fact]
+    public async Task GetReferencedVariantCounts_ReflectsSelectionsAndClears()
+    {
+        var (svc, piece) = await SeedConcertoAsync();
+        var kreisler = piece.Variants!.Single(v => v.Description == "Kreisler cadenza");
+
+        // No selections yet → empty.
+        Assert.Empty(await svc.GetReferencedVariantCountsAsync());
+
+        var album = BuildAlbumWithRef("VC counts", new TrackPieceRef
+        {
+            Composer   = "Beethoven, Ludwig van",
+            PieceTitle = "Violin Concerto",
+            Variants   = new List<VariantReference> { new() { Id = kreisler.Id } },
+        });
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { album });
+
+        var counts = await svc.GetReferencedVariantCountsAsync();
+        Assert.Equal(1, counts[kreisler.Id]);
+
+        // Clear the selection → count drops back to empty.
+        var reloaded = (await svc.LoadAlbumsAsync()).Single();
+        RefFor(reloaded).Variants = null;
+        await svc.SaveAlbumsAsync(new List<CanonAlbum> { reloaded });
+
+        Assert.Empty(await svc.GetReferencedVariantCountsAsync());
+    }
+
+    [Fact]
     public async Task NeedsVariantIdentification_TrueWhenAvailableButUnchosen()
     {
         var (_, piece) = await SeedConcertoAsync();

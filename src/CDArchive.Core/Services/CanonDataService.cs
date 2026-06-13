@@ -306,4 +306,13 @@ public class CanonDataService : ICanonDataService
         if (albums      is not null) await SaveAlbumsAsync(albums).ConfigureAwait(false);
         if (looseTracks is not null) await SaveLooseTracksAsync(looseTracks).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// JSON has no relational variant-reference join, so the editor's in-use
+    /// check is a runtime-SQLite concern only. Returns empty — the JSON service
+    /// is used for explicit import/export, never as the runtime data path.
+    /// </summary>
+    public Task<IReadOnlyDictionary<long, int>> GetReferencedVariantCountsAsync() =>
+        Task.FromResult<IReadOnlyDictionary<long, int>>(
+            new Dictionary<long, int>());
 }

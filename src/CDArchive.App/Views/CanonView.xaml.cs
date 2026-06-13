@@ -858,7 +858,8 @@ public partial class CanonView : UserControl
         var window = new PieceEditorWindow(vm.PickLists, piece.Composer ?? "", piece, composerNames,
             composerCatalogs: composerCatalogs)
         {
-            Owner = Window.GetWindow(this)
+            Owner = Window.GetWindow(this),
+            VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
@@ -883,7 +884,8 @@ public partial class CanonView : UserControl
             inheritedComposers: parentPiece.Composers,
             composerCatalogs: composerCatalogs)
         {
-            Owner = Window.GetWindow(this)
+            Owner = Window.GetWindow(this),
+            VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
@@ -909,7 +911,8 @@ public partial class CanonView : UserControl
             composerCatalogs: composerCatalogs,
             ancestorRoles: ancestorRoles)
         {
-            Owner = Window.GetWindow(this)
+            Owner = Window.GetWindow(this),
+            VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
 
         if (ShowDialogWithExpansionGuard(window) == true)
