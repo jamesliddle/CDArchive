@@ -48,15 +48,21 @@ public partial class PieceEditorWindow : Window
     /// </summary>
     public IReadOnlyDictionary<long, int>? VariantUsageCounts { get; set; }
 
-    private Action<VariantInfo>? _showVariantUsages;
+    private Action<Window, VariantInfo>? _showVariantUsages;
 
     /// <summary>
     /// Optional callback the caller supplies to display which album track
     /// recordings identify a given variant. When set, the variant section's
-    /// "Recordings…" button is shown; clicking it invokes this with the
-    /// selected variant. Null = button hidden (callers without album context).
+    /// "Recordings…" button is shown; clicking it invokes this with the editor
+    /// window (as the modal owner) and the selected variant. Null = button
+    /// hidden (callers without album context).
+    /// <para>
+    /// Propagated unchanged to nested subpiece / version editors this window
+    /// opens, so the feature is consistent however the user drills in — the
+    /// owner argument makes each nested editor own its own usages dialog.
+    /// </para>
     /// </summary>
-    public Action<VariantInfo>? ShowVariantUsages
+    public Action<Window, VariantInfo>? ShowVariantUsages
     {
         get => _showVariantUsages;
         set
@@ -388,6 +394,7 @@ public partial class PieceEditorWindow : Window
             inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs,
             ancestorRoles: AncestorRolesForChildren()) { Owner = this };
+        InheritVariantContext(editor);
         if (editor.ShowDialog() == true)
         {
             _vm.Subpieces.Add(editor.Piece);
@@ -415,6 +422,7 @@ public partial class PieceEditorWindow : Window
             inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs,
             ancestorRoles: AncestorRolesForChildren()) { Owner = this };
+        InheritVariantContext(editor);
         if (editor.ShowDialog() == true)
             RefreshSubpieceList();
     }
@@ -695,7 +703,21 @@ public partial class PieceEditorWindow : Window
                 "Recordings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-        _showVariantUsages(variant);
+        _showVariantUsages(this, variant);
+    }
+
+    /// <summary>
+    /// Copies the variant Recordings/usage wiring onto a nested child editor
+    /// (Add/Edit Subpiece, Add/Edit Version) so the feature is present however
+    /// the user drills in — not only when the editor is opened directly from
+    /// the Canon tree. <see cref="PieceEditorWindow"/> is one window class
+    /// opened from several call sites; only the Canon edit flows set this
+    /// context, so propagating it here keeps nested editing consistent.
+    /// </summary>
+    private void InheritVariantContext(PieceEditorWindow child)
+    {
+        child.VariantUsageCounts = VariantUsageCounts;
+        child.ShowVariantUsages  = ShowVariantUsages;
     }
 
     private void OnMoveVariantUpClick(object sender, RoutedEventArgs e)
@@ -1103,6 +1125,7 @@ public partial class PieceEditorWindow : Window
             inheritedComposer: ComposerCombo.Text,
             inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs) { Owner = this };
+        InheritVariantContext(editor);
         if (editor.ShowDialog() == true)
         {
             _vm.Versions.Add(newVersion);
@@ -1124,6 +1147,7 @@ public partial class PieceEditorWindow : Window
             inheritedComposer: ComposerCombo.Text,
             inheritedComposers: _vm.Composers.Count > 0 ? _vm.Composers : null,
             composerCatalogs: _composerCatalogs) { Owner = this };
+        InheritVariantContext(editor);
         if (editor.ShowDialog() == true) RefreshVersionList();
     }
 

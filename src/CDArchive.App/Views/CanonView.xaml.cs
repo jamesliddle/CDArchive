@@ -909,7 +909,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this),
             VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
-        window.ShowVariantUsages = v => _ = ShowVariantUsagesAsync(window, v);
+        window.ShowVariantUsages = (owner, v) => _ = ShowVariantUsagesAsync(owner, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditPieceAsync(piece, snapshot);
@@ -936,7 +936,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this),
             VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
-        window.ShowVariantUsages = v => _ = ShowVariantUsagesAsync(window, v);
+        window.ShowVariantUsages = (owner, v) => _ = ShowVariantUsagesAsync(owner, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditVersionAsync(versionNode);
@@ -964,7 +964,7 @@ public partial class CanonView : UserControl
             Owner = Window.GetWindow(this),
             VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
-        window.ShowVariantUsages = v => _ = ShowVariantUsagesAsync(window, v);
+        window.ShowVariantUsages = (owner, v) => _ = ShowVariantUsagesAsync(owner, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditSubpieceAsync(subpiece);
