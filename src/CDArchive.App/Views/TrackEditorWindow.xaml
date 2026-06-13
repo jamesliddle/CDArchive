@@ -85,8 +85,17 @@
                                  MouseDoubleClick="OnPieceRefDoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding DisplaySummary}"
-                                               TextWrapping="Wrap" />
+                                    <DockPanel LastChildFill="True">
+                                        <!-- Unchosen-variant flag: the ref's piece
+                                             has variants but none are identified. -->
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   Text="⚑" Margin="0,0,5,0"
+                                                   Foreground="#C77A00"
+                                                   ToolTip="This piece has variants — none identified. Use Details… to pick."
+                                                   Visibility="{Binding Converter={StaticResource RefNeedsVariant}}" />
+                                        <TextBlock Text="{Binding DisplaySummary}"
+                                                   TextWrapping="Wrap" />
+                                    </DockPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>

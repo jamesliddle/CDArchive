@@ -723,48 +723,11 @@ public partial class CanonView : UserControl
     /// flow used by <see cref="AlbumsView"/> so saves persist back to storage and
     /// the Canon-side cross-reference index is refreshed.
     /// </summary>
-    private async Task OpenAlbumEditorAsync(CanonAlbum album)
-    {
-        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
-        // Ensure we're editing the live in-memory instance (not a stale copy from the index).
-        if (albumsVm.AllAlbums.Count == 0) await albumsVm.LoadDataCommand.ExecuteAsync(null);
-
-        // Resolve the live AllAlbums instance. Reference-equality alone is NOT
-        // enough: the `album` passed in comes from PieceReferenceIndex hits,
-        // and the index is frequently built from a DIFFERENT album instance
-        // set than albumsVm.AllAlbums. That happens on the normal startup
-        // order — CanonView is the default view, so CanonViewModel.LoadDataAsync
-        // runs while albumsVm.HasLoaded is still false and
-        // GetContainersForRebuildAsync does its own fresh DB load (instance
-        // set A) for the index, while AllAlbums later loads set B.
-        //
-        // Pre-fix, the reference-equality miss left `liveAlbum` pointing at the
-        // index's set-A instance, which isn't in AllAlbums. The IndexOf below
-        // then returned -1 and the edited clone was ADDED as a second album —
-        // AllAlbums ended up with the original (still carrying the old piece
-        // ref) PLUS the edited clone. The next RebuildContainers walked both,
-        // so the removed piece-ref's badge never decremented (its hit survived
-        // on the duplicate original) even though the new ref's badge went up.
-        // Symptom: "new count increments, old count stays" until a full reload.
-        //
-        // ResolveLiveAlbum falls back to IdentityKey, resolving `album` to the
-        // matching AllAlbums instance so the editor mutates the live instance
-        // and the IndexOf replace below swaps it in place — no duplicate.
-        var liveAlbum = albumsVm.ResolveLiveAlbum(album);
-
-        var (pieces, pickLists) = await albumsVm.LoadEditorDataAsync();
-        var dlg = new AlbumEditorWindow(pickLists, pieces, albumsVm.Player, liveAlbum)
-        {
-            Owner = Window.GetWindow(this)
-        };
-        if (dlg.ShowDialog() != true || dlg.Result is not CanonAlbum result) return;
-
-        var idx = albumsVm.AllAlbums.IndexOf(liveAlbum);
-        if (idx >= 0) albumsVm.AllAlbums[idx] = result;
-        else          albumsVm.AllAlbums.Add(result);
-        albumsVm.ApplyFilter();
-        await albumsVm.SaveAsync(pickLists);
-    }
+    private Task OpenAlbumEditorAsync(CanonAlbum album, Window? owner = null) =>
+        VariantUsages.OpenAlbumEditorAsync(
+            owner ?? Window.GetWindow(this)!,
+            album,
+            App.ServiceProvider.GetRequiredService<AlbumsViewModel>());
 
     // ── Context menu: handlers ────────────────────────────────────────────────
 
@@ -845,6 +808,20 @@ public partial class CanonView : UserControl
 
     // ── Edit: piece ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Opens the <see cref="PieceAlbumsWindow"/> listing the album / loose-track
+    /// recordings that identify <paramref name="variant"/>. Wired into the piece
+    /// editor's "Recordings…" button so the user can locate (and later clear) the
+    /// selections that block a variant delete. Owned by the editor window so it
+    /// stacks above the open modal.
+    /// </summary>
+    private async Task ShowVariantUsagesAsync(Window owner, VariantInfo variant)
+    {
+        if (DataContext is not CanonViewModel vm) return;
+        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+        await VariantUsages.ShowAsync(owner, variant, vm, albumsVm);
+    }
+
     private async Task EditPieceAsync(CanonPiece piece)
     {
         if (DataContext is not CanonViewModel vm) return;
@@ -858,8 +835,10 @@ public partial class CanonView : UserControl
         var window = new PieceEditorWindow(vm.PickLists, piece.Composer ?? "", piece, composerNames,
             composerCatalogs: composerCatalogs)
         {
-            Owner = Window.GetWindow(this)
+            Owner = Window.GetWindow(this),
+            VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
+        window.ShowVariantUsages = (owner, v) => _ = ShowVariantUsagesAsync(owner, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditPieceAsync(piece, snapshot);
@@ -883,8 +862,10 @@ public partial class CanonView : UserControl
             inheritedComposers: parentPiece.Composers,
             composerCatalogs: composerCatalogs)
         {
-            Owner = Window.GetWindow(this)
+            Owner = Window.GetWindow(this),
+            VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
+        window.ShowVariantUsages = (owner, v) => _ = ShowVariantUsagesAsync(owner, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditVersionAsync(versionNode);
@@ -909,8 +890,10 @@ public partial class CanonView : UserControl
             composerCatalogs: composerCatalogs,
             ancestorRoles: ancestorRoles)
         {
-            Owner = Window.GetWindow(this)
+            Owner = Window.GetWindow(this),
+            VariantUsageCounts = await vm.GetReferencedVariantCountsAsync(),
         };
+        window.ShowVariantUsages = (owner, v) => _ = ShowVariantUsagesAsync(owner, v);
 
         if (ShowDialogWithExpansionGuard(window) == true)
             await vm.CompleteEditSubpieceAsync(subpiece);

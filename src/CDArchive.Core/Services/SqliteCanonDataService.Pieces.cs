@@ -278,6 +278,7 @@ public partial class SqliteCanonDataService
 
     private static CanonPieceVersion MapVersionRowToModelShallow(PieceVersionRow r) => new()
     {
+        Id                      = r.Id,
         Description             = r.Description,
         Title                   = r.Title,
         TitleEnglish            = r.TitleEnglish,
@@ -340,6 +341,7 @@ public partial class SqliteCanonDataService
 
     private static VariantInfo MapVariant(PieceVariantRow r) => new()
     {
+        Id              = r.Id,
         Description     = r.Description,
         LongDescription = r.LongDescription,
     };
@@ -494,6 +496,48 @@ public partial class SqliteCanonDataService
             .Where(e => e.State == EntityState.Deleted && e.Entity.Id != 0)
             .Select(e => e.Entity.Id)
             .ToList();
+
+        // Pre-flight: a variant the user removed from a piece (so ReconcileVariants
+        // queued its row for deletion) may still be identified on an album-track
+        // recording. album_track_piece_ref_variants.variant_id is OnDelete:Restrict,
+        // so the SaveChanges below would fail with a raw "FOREIGN KEY constraint
+        // failed". Catch it here and surface which variants are blocking, the same
+        // friendly-diagnostic style as the piece-delete paths (M3).
+        var pendingVariantDeleteIds = db.ChangeTracker.Entries<PieceVariantRow>()
+            .Where(e => e.State == EntityState.Deleted && e.Entity.Id != 0)
+            .Select(e => e.Entity.Id)
+            .ToList();
+        if (pendingVariantDeleteIds.Count > 0)
+        {
+            var blockedVariantIds = await db.AlbumTrackPieceRefVariants.AsNoTracking()
+                .Where(x => pendingVariantDeleteIds.Contains(x.VariantId))
+                .Select(x => x.VariantId)
+                .Distinct()
+                .ToListAsync().ConfigureAwait(false);
+            if (blockedVariantIds.Count > 0)
+            {
+                // Detach the doomed variant deletes so a retry in the same scope
+                // doesn't re-trigger the same failure.
+                foreach (var entry in db.ChangeTracker.Entries<PieceVariantRow>()
+                                        .Where(e => e.State == EntityState.Deleted &&
+                                                    blockedVariantIds.Contains(e.Entity.Id))
+                                        .ToList())
+                    entry.State = EntityState.Unchanged;
+
+                var descs = await db.PieceVariants.AsNoTracking()
+                    .Where(v => blockedVariantIds.Contains(v.Id))
+                    .Select(v => v.Description)
+                    .ToListAsync().ConfigureAwait(false);
+                var names = string.Join(", ",
+                    descs.Where(d => !string.IsNullOrEmpty(d)).Select(d => $"'{d}'").Take(3));
+                var nameClause = names.Length > 0 ? $" ({names}…)" : "";
+
+                throw new InvalidOperationException(
+                    $"Cannot delete {blockedVariantIds.Count} variant(s){nameClause} — they are still " +
+                    "identified on one or more album track recordings. Clear those variant " +
+                    "selections first.");
+            }
+        }
 
         try
         {
@@ -1121,33 +1165,76 @@ public partial class SqliteCanonDataService
         return match?.Id ?? fallbackComposerId;
     }
 
+    // ── Variants ───────────────────────────────────────────────────────────
+    // Variants must preserve stable IDs across saves so album-track refs that
+    // identify which variant a recording uses keep resolving. Reconcile by id
+    // (same contract as markers): input variants with a non-zero Id update the
+    // existing row in place; Id == 0 becomes a new row; existing rows whose id
+    // doesn't appear in the input are removed.
+
     private static void ReplaceVariantsPiece(PieceRow row, List<VariantInfo>? variants, CanonDbContext db)
     {
-        foreach (var existing in row.Variants.ToList())
-            db.PieceVariants.Remove(existing);
-        row.Variants.Clear();
-        if (variants is null) return;
-        for (int i = 0; i < variants.Count; i++)
-            row.Variants.Add(new PieceVariantRow
-            {
-                Position        = i,
-                Description     = variants[i].Description,
-                LongDescription = variants[i].LongDescription,
-            });
+        ReconcileVariants(row.Variants, variants, db,
+            attachToOwner: v => row.Variants.Add(v));
     }
 
     private static void ReplaceVariantsVersion(PieceVersionRow row, List<VariantInfo>? variants, CanonDbContext db)
     {
-        foreach (var existing in row.Variants.ToList())
-            db.PieceVariants.Remove(existing);
-        row.Variants.Clear();
-        if (variants is null) return;
-        for (int i = 0; i < variants.Count; i++)
-            row.Variants.Add(new PieceVariantRow
+        ReconcileVariants(row.Variants, variants, db,
+            attachToOwner: v => row.Variants.Add(v));
+    }
+
+    /// <summary>
+    /// Reconciles a list of existing <see cref="PieceVariantRow"/>s against an
+    /// incoming list of <see cref="VariantInfo"/>s, preserving row IDs by
+    /// matching on <see cref="VariantInfo.Id"/>. Removes orphans, updates
+    /// matched rows in place, and adds genuinely new rows. The
+    /// <paramref name="attachToOwner"/> callback adds new rows to the owning
+    /// piece/version's navigation collection so EF assigns the correct FK
+    /// (and satisfies the exactly-one-owner CHECK constraint) on save.
+    /// </summary>
+    private static void ReconcileVariants(
+        List<PieceVariantRow> existing,
+        List<VariantInfo>? incoming,
+        CanonDbContext db,
+        Action<PieceVariantRow> attachToOwner)
+    {
+        // Snapshot before pass 1 mutates `existing` via attachToOwner — same
+        // trap as ReconcileMarkers: without the snapshot, pass 2's orphan walk
+        // would pick up the freshly-added (temporary-id) rows and try to Delete
+        // a never-persisted entity, which EF rejects.
+        var originalExisting = existing.ToList();
+        var existingById = originalExisting.ToDictionary(v => v.Id);
+        var keepIds = new HashSet<long>();
+
+        if (incoming is not null)
+        {
+            for (int i = 0; i < incoming.Count; i++)
             {
-                Position        = i,
-                Description     = variants[i].Description,
-                LongDescription = variants[i].LongDescription,
-            });
+                var src = incoming[i];
+                PieceVariantRow rowVar;
+                if (src.Id != 0 && existingById.TryGetValue(src.Id, out var matched))
+                {
+                    rowVar = matched;
+                    keepIds.Add(rowVar.Id);
+                }
+                else
+                {
+                    rowVar = new PieceVariantRow();
+                    attachToOwner(rowVar);
+                }
+
+                rowVar.Position        = i;
+                rowVar.Description     = src.Description;
+                rowVar.LongDescription = src.LongDescription;
+            }
+        }
+
+        foreach (var orphan in originalExisting)
+        {
+            if (keepIds.Contains(orphan.Id)) continue;
+            db.PieceVariants.Remove(orphan);
+            existing.Remove(orphan);
+        }
     }
 }

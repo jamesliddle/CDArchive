@@ -99,15 +99,30 @@
                 <!-- Album row: expand triangle (only when there are children) + summary text. -->
                 <HierarchicalDataTemplate DataType="{x:Type local:PieceAlbumsWindow+AlbumNode}"
                                           ItemsSource="{Binding TrackHits}">
-                    <TextBlock Text="{Binding Display}" FontSize="11" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="#C77A00"
+                                   ToolTip="A track on this album has variants with none identified"
+                                   Visibility="{Binding NeedsVariant, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding Display}" FontSize="11" />
+                    </StackPanel>
                 </HierarchicalDataTemplate>
                 <!-- Loose track row: no children → no expander. -->
                 <DataTemplate DataType="{x:Type local:PieceAlbumsWindow+LooseTrackNode}">
-                    <TextBlock Text="{Binding Display}" FontSize="11" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="#C77A00"
+                                   ToolTip="This piece has variants — none identified for this recording"
+                                   Visibility="{Binding NeedsVariant, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding Display}" FontSize="11" />
+                    </StackPanel>
                 </DataTemplate>
                 <!-- Track-hit child of an album: indented under its album row. -->
                 <DataTemplate DataType="{x:Type local:PieceAlbumsWindow+TrackHitNode}">
-                    <TextBlock Text="{Binding Display}" FontSize="11" Foreground="#444" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="#C77A00"
+                                   ToolTip="This piece has variants — none identified for this recording"
+                                   Visibility="{Binding NeedsVariant, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding Display}" FontSize="11" Foreground="#444" />
+                    </StackPanel>
                 </DataTemplate>
             </TreeView.Resources>
         </TreeView>

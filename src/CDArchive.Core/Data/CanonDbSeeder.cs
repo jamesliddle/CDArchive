@@ -32,6 +32,10 @@ public class CanonDbSeeder
     // TrackPieceRef.StartMarker/EndMarker (which may carry a model marker by
     // Id or by Kind+Value match) to the persisted row's auto-assigned id.
     private readonly Dictionary<MusicalMarker, PieceMarkerRow> _markerRowByModel = new();
+    // Variant-instance → row, used by ResolvePieceRefs to translate a ref's
+    // VariantReference list (matched against the resolved path's available
+    // variants) to the persisted variant rows' auto-assigned ids.
+    private readonly Dictionary<VariantInfo, PieceVariantRow> _variantRowByModel = new(ReferenceEqualityComparer.Instance);
 
     // Shares resolution logic (title variants, set recursion, strict+loose
     // subpiece matching) with the runtime badge pipeline.
@@ -511,12 +515,19 @@ public class CanonDbSeeder
     {
         if (src is null) return;
         for (int i = 0; i < src.Count; i++)
-            target.Add(new PieceVariantRow
+        {
+            var row = new PieceVariantRow
             {
                 Position        = i,
                 Description     = src[i].Description,
                 LongDescription = src[i].LongDescription,
-            });
+            };
+            target.Add(row);
+            // Track the model→row mapping so a track ref that identifies this
+            // variant can rebind to the row's auto-assigned id (the JSON id is
+            // stale after a reseed — same rebind contract as markers).
+            _variantRowByModel[src[i]] = row;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -690,7 +701,7 @@ public class CanonDbSeeder
                 ? ResolveMarker(endPieceRow, pr.EndMarker)
                 : ResolveMarker(resolved.Value.piece, pr.EndMarker);
 
-            trackRow.PieceRefs.Add(new AlbumTrackPieceRefRow
+            var refRow = new AlbumTrackPieceRefRow
             {
                 Position      = position++,
                 Piece         = resolved.Value.piece,
@@ -699,7 +710,9 @@ public class CanonDbSeeder
                 StartMarker   = startMarkerRow,
                 EndMarker     = endMarkerRow,
                 DisplayLabel  = pr.DisplayLabel,
-            });
+            };
+            ResolveRefVariants(refRow, pr);
+            trackRow.PieceRefs.Add(refRow);
         }
 
         // If the track had refs but none resolved, preserve a trace in the description.
@@ -707,6 +720,42 @@ public class CanonDbSeeder
             string.IsNullOrWhiteSpace(trackRow.Description))
         {
             trackRow.Description = track.PieceRefs[0].DisplaySummary;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a ref's <see cref="TrackPieceRef.Variants"/> against the variants
+    /// available on the resolved path (leaf + ancestors + version), then attaches
+    /// a join row per matched variant. Each reference resolves by id first,
+    /// falling back to description (the id is stale after a reseed). Off-path /
+    /// unresolvable references are dropped. Duplicates collapse.
+    /// </summary>
+    private void ResolveRefVariants(AlbumTrackPieceRefRow refRow, TrackPieceRef pr)
+    {
+        if (pr.Variants is not { Count: > 0 }) return;
+
+        var available = _resolver.CollectAvailableVariants(pr);
+        if (available.Count == 0) return;
+
+        var seen = new HashSet<PieceVariantRow>();
+        int position = 0;
+        foreach (var vref in pr.Variants)
+        {
+            VariantInfo? match = vref.Id != 0
+                ? available.FirstOrDefault(a => a.Id == vref.Id)
+                : null;
+            match ??= !string.IsNullOrWhiteSpace(vref.Description)
+                ? available.FirstOrDefault(a =>
+                      string.Equals(a.Description, vref.Description, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (match is null) continue;
+            if (!_variantRowByModel.TryGetValue(match, out var variantRow)) continue;
+            if (!seen.Add(variantRow)) continue;
+            refRow.Variants.Add(new AlbumTrackPieceRefVariantRow
+            {
+                Variant  = variantRow,
+                Position = position++,
+            });
         }
     }
 

@@ -35,6 +35,7 @@ public partial class TracksViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<AlbumTrackRow> _rows = [];
     [ObservableProperty] private string _filterText = "";
     [ObservableProperty] private ProvisionalFilter _provisionalFilter = ProvisionalFilter.All;
+    [ObservableProperty] private bool _onlyNeedsVariant;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = "";
 
@@ -113,13 +114,24 @@ public partial class TracksViewModel : ObservableObject
     {
         var albumRows = _albumsVm.AllAlbums
             .SelectMany(album => album.Discs.SelectMany(disc =>
-                disc.Tracks.Select(track => new AlbumTrackRow(album, disc, track, FormatPiece(track)))));
+                disc.Tracks.Select(track => new AlbumTrackRow(
+                    album, disc, track, FormatPiece(track), NeedsVariant(track)))));
 
         var looseRows = _looseTracks
-            .Select(track => new AlbumTrackRow(album: null, disc: null, track, FormatPiece(track)));
+            .Select(track => new AlbumTrackRow(
+                album: null, disc: null, track, FormatPiece(track), NeedsVariant(track)));
 
         _allRows = albumRows.Concat(looseRows).ToList();
     }
+
+    /// <summary>
+    /// True when any of the track's refs points at a piece / version / movement
+    /// that defines variants but identifies none. Computed once per row build
+    /// against the live resolver (no per-keystroke re-resolution).
+    /// </summary>
+    private bool NeedsVariant(AlbumTrack track)
+        => track.PieceRefs is { Count: > 0 }
+        && track.PieceRefs.Any(r => _refIndex.NeedsVariantIdentification(r));
 
     /// <summary>Backwards-compatible alias — callers that built only album rows still work.</summary>
     public void RebuildRowsFromAlbums() => RebuildRows();
@@ -362,6 +374,7 @@ public partial class TracksViewModel : ObservableObject
 
     partial void OnFilterTextChanged(string value) => ApplyFilter();
     partial void OnProvisionalFilterChanged(ProvisionalFilter value) => ApplyFilter();
+    partial void OnOnlyNeedsVariantChanged(bool value) => ApplyFilter();
 
     public void ApplyFilter()
     {
@@ -383,11 +396,14 @@ public partial class TracksViewModel : ObservableObject
             _                             => filtered,
         };
 
+        if (OnlyNeedsVariant)
+            filtered = filtered.Where(r => r.NeedsVariantIdentification);
+
         // M7: reset in place — ApplyFilterAndSort fires on every keystroke
         // in the filter textbox.
         Rows.Reset(ApplySort(filtered));
 
-        StatusMessage = filter.Length > 0 || ProvisionalFilter != ProvisionalFilter.All
+        StatusMessage = filter.Length > 0 || ProvisionalFilter != ProvisionalFilter.All || OnlyNeedsVariant
             ? $"{Rows.Count} of {_allRows.Count} track(s)"
             : $"{_allRows.Count} track(s)";
     }

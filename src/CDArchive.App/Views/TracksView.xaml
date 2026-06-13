@@ -66,6 +66,13 @@
                         <ComboBoxItem Content="Provisional" />
                         <ComboBoxItem Content="Accepted" />
                     </ComboBox>
+
+                    <CheckBox x:Name="NeedsVariantCheck" FontSize="11"
+                              Content="Needs variant" VerticalAlignment="Center"
+                              Margin="16,0,0,0"
+                              ToolTip="Show only tracks whose piece has variants but none identified for the recording"
+                              Checked="OnNeedsVariantFilterChanged"
+                              Unchecked="OnNeedsVariantFilterChanged" />
                 </StackPanel>
 
             </DockPanel>
@@ -189,11 +196,21 @@
                                     HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Piece}"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding Piece}"
-                                           Foreground="{Binding IsProvisional,
-                                                        Converter={StaticResource ProvisionalBrush}}" />
+                                <DockPanel LastChildFill="True">
+                                    <!-- Unchosen-variant flag: piece has variants but
+                                         none identified for this recording. -->
+                                    <TextBlock DockPanel.Dock="Left"
+                                               Text="⚑" FontSize="11" Margin="0,0,5,0"
+                                               Foreground="#C77A00"
+                                               ToolTip="This piece has variants — none identified for this recording"
+                                               Visibility="{Binding NeedsVariantIdentification,
+                                                            Converter={StaticResource BoolToVis}}" />
+                                    <TextBlock Text="{Binding Piece}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Piece}"
+                                               Foreground="{Binding IsProvisional,
+                                                            Converter={StaticResource ProvisionalBrush}}" />
+                                </DockPanel>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>

@@ -72,11 +72,17 @@ public partial class SqliteCanonDataService
             .ToDictionaryAsync(m => m.Id)
             .ConfigureAwait(false);
 
+        // Variants indexed by id so BuildTrackPieceRef can resolve a ref's
+        // variant join rows back to descriptions (fallback matcher on import).
+        var variantRowById = await db.PieceVariants.AsNoTracking()
+            .ToDictionaryAsync(v => v.Id)
+            .ConfigureAwait(false);
+
         var albumRows = await db.Albums
             .AsNoTracking()
             .Include(a => a.Volumes)
             .Include(a => a.Performers)
-            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
+            .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs).ThenInclude(r => r.Variants)
             .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
             // AsSplitQuery breaks the otherwise-Cartesian load into one SELECT
             // per Include path. Without it, EF would issue a single query with
@@ -93,7 +99,7 @@ public partial class SqliteCanonDataService
         {
             var model = MapAlbumRowToModel(ar, pieceRowById, versionRowById,
                                            pieceModelByRowId, versionModelByRowId,
-                                           composerNameById, markerRowById);
+                                           composerNameById, markerRowById, variantRowById);
             _albumIds.AddOrUpdate(model, new IdHandle { Id = ar.Id });
             result.Add(model);
         }
@@ -107,7 +113,8 @@ public partial class SqliteCanonDataService
         Dictionary<long, CanonPiece> pieceModelByRowId,
         Dictionary<long, CanonPieceVersion> versionModelByRowId,
         Dictionary<long, string> composerNameById,
-        Dictionary<long, PieceMarkerRow> markerRowById)
+        Dictionary<long, PieceMarkerRow> markerRowById,
+        Dictionary<long, PieceVariantRow> variantRowById)
     {
         var album = new CanonAlbum
         {
@@ -209,7 +216,7 @@ public partial class SqliteCanonDataService
                         var refModel = BuildTrackPieceRef(pr,
                             pieceRowById, versionRowById,
                             pieceModelByRowId, versionModelByRowId,
-                            composerNameById, markerRowById);
+                            composerNameById, markerRowById, variantRowById);
                         if (refModel is not null) refs.Add(refModel);
                     }
                     if (refs.Count > 0) track.PieceRefs = refs;
@@ -260,7 +267,8 @@ public partial class SqliteCanonDataService
         Dictionary<long, CanonPiece> pieceModelByRowId,
         Dictionary<long, CanonPieceVersion> versionModelByRowId,
         Dictionary<long, string> composerNameById,
-        Dictionary<long, PieceMarkerRow> markerRowById)
+        Dictionary<long, PieceMarkerRow> markerRowById,
+        Dictionary<long, PieceVariantRow> variantRowById)
     {
         var startWalk = WalkUpToTop(refRow.PieceId, pieceRowById, versionRowById, pieceModelByRowId);
         if (startWalk is null) return null;
@@ -302,11 +310,36 @@ public partial class SqliteCanonDataService
             SubpiecePath       = path.Count > 0 ? path : null,
             EndSubpiecePath    = endPath,
             VersionDescription = versionDescription,
+            VersionId          = refRow.VersionId ?? 0,
             DisplayLabel       = refRow.DisplayLabel,
             StartMarker        = BuildMarkerReference(refRow.StartMarkerId, markerRowById),
             EndMarker          = BuildMarkerReference(refRow.EndMarkerId,   markerRowById),
+            Variants           = BuildVariantReferences(refRow.Variants, variantRowById),
         };
         return trackRef;
+    }
+
+    /// <summary>
+    /// Rebuilds the <see cref="VariantReference"/> list from a ref's join rows,
+    /// carrying each variant's description as a fallback matcher. Returns null
+    /// when the ref identifies no variants (the common case).
+    /// </summary>
+    private static List<VariantReference>? BuildVariantReferences(
+        List<AlbumTrackPieceRefVariantRow> joinRows,
+        Dictionary<long, PieceVariantRow> variantRowById)
+    {
+        if (joinRows is not { Count: > 0 }) return null;
+        var list = new List<VariantReference>(joinRows.Count);
+        foreach (var jr in joinRows.OrderBy(x => x.Position))
+        {
+            variantRowById.TryGetValue(jr.VariantId, out var vr);
+            list.Add(new VariantReference
+            {
+                Id          = jr.VariantId,
+                Description = vr?.Description,
+            });
+        }
+        return list.Count > 0 ? list : null;
     }
 
     /// <summary>
@@ -492,7 +525,7 @@ public partial class SqliteCanonDataService
                 .Where(a => matchedExistingRowIds.Contains(a.Id))
                 .Include(a => a.Volumes)
                 .Include(a => a.Performers)
-                .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs)
+                .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.PieceRefs).ThenInclude(r => r.Variants)
                 .Include(a => a.Discs).ThenInclude(d => d.Tracks).ThenInclude(t => t.Performers)
                 .AsSplitQuery()
                 .ToListAsync()
@@ -1050,6 +1083,7 @@ public partial class SqliteCanonDataService
                 if (resolution is null) continue;
                 var r = resolution.Value;
 
+                AlbumTrackPieceRefRow refRow;
                 if (existingByPosition.TryGetValue(slot, out var er))
                 {
                     er.PieceId       = r.PieceId;
@@ -1059,10 +1093,11 @@ public partial class SqliteCanonDataService
                     er.EndMarkerId   = r.EndMarkerId;
                     er.DisplayLabel  = r.DisplayLabel;
                     matched.Add(er.Id);
+                    refRow = er;
                 }
                 else
                 {
-                    track.PieceRefs.Add(new AlbumTrackPieceRefRow
+                    refRow = new AlbumTrackPieceRefRow
                     {
                         Position      = slot,
                         PieceId       = r.PieceId,
@@ -1071,8 +1106,10 @@ public partial class SqliteCanonDataService
                         StartMarkerId = r.StartMarkerId,
                         EndMarkerId   = r.EndMarkerId,
                         DisplayLabel  = r.DisplayLabel,
-                    });
+                    };
+                    track.PieceRefs.Add(refRow);
                 }
+                MergeRefVariants(refRow, r.VariantIds, db);
                 slot++;
             }
         }
@@ -1083,6 +1120,58 @@ public partial class SqliteCanonDataService
     }
 
     /// <summary>
+    /// Reconciles a ref's variant join rows in place against the desired
+    /// <c>piece_variants</c> ids. Matched rows are kept (position updated),
+    /// new ids are added, and join rows whose variant is no longer identified
+    /// are removed. Deleting a join row never trips the variant-side Restrict
+    /// FK — the join row owns that FK, it isn't its target.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<long, int>> GetReferencedVariantCountsAsync()
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+        var grouped = await db.AlbumTrackPieceRefVariants.AsNoTracking()
+            .GroupBy(x => x.VariantId)
+            .Select(g => new { VariantId = g.Key, Count = g.Count() })
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        return grouped.ToDictionary(x => x.VariantId, x => x.Count);
+    }
+
+    private static void MergeRefVariants(
+        AlbumTrackPieceRefRow refRow, IReadOnlyList<long> desired, CanonDbContext db)
+    {
+        var existing = refRow.Variants.ToList();
+        var existingByVariantId = new Dictionary<long, AlbumTrackPieceRefVariantRow>();
+        foreach (var x in existing) existingByVariantId.TryAdd(x.VariantId, x);
+        var keep = new HashSet<long>();
+
+        for (int i = 0; i < desired.Count; i++)
+        {
+            var vid = desired[i];
+            if (existingByVariantId.TryGetValue(vid, out var jr))
+            {
+                jr.Position = i;
+                keep.Add(jr.Id);
+            }
+            else
+            {
+                refRow.Variants.Add(new AlbumTrackPieceRefVariantRow
+                {
+                    VariantId = vid,
+                    Position  = i,
+                });
+            }
+        }
+
+        foreach (var orphan in existing)
+            if (orphan.Id != 0 && !keep.Contains(orphan.Id))
+                db.AlbumTrackPieceRefVariants.Remove(orphan);
+    }
+
+    /// <summary>
     /// Resolves a <see cref="TrackPieceRef"/> against the live piece tree,
     /// returning the row-id bundle to write into an <see cref="AlbumTrackPieceRefRow"/>.
     /// Returns null when the ref doesn't resolve (caller skips the row, matching
@@ -1090,12 +1179,13 @@ public partial class SqliteCanonDataService
     /// time; the seeder is the path that surfaces them).
     /// </summary>
     private readonly record struct PieceRefResolution(
-        long    PieceId,
-        long?   VersionId,
-        long?   EndPieceId,
-        long?   StartMarkerId,
-        long?   EndMarkerId,
-        string? DisplayLabel);
+        long          PieceId,
+        long?         VersionId,
+        long?         EndPieceId,
+        long?         StartMarkerId,
+        long?         EndMarkerId,
+        string?       DisplayLabel,
+        IReadOnlyList<long> VariantIds);
 
     private static PieceRefResolution? ResolvePieceRef(
         TrackPieceRef pieceRef,
@@ -1134,7 +1224,40 @@ public partial class SqliteCanonDataService
             endPieceRowId,
             pieceRef.StartMarker is { Id: > 0 } sm ? sm.Id : null,
             pieceRef.EndMarker   is { Id: > 0 } em ? em.Id : null,
-            pieceRef.DisplayLabel);
+            pieceRef.DisplayLabel,
+            ResolveVariantRowIds(pieceRef, resolver));
+    }
+
+    /// <summary>
+    /// Resolves a ref's <see cref="VariantReference"/> list to <c>piece_variants</c>
+    /// row ids, validated against the variants actually available on the resolved
+    /// path (leaf + ancestors + version). Each reference resolves by id first,
+    /// falling back to description; unresolvable / off-path references are dropped.
+    /// Duplicates are collapsed, original order preserved.
+    /// </summary>
+    private static IReadOnlyList<long> ResolveVariantRowIds(
+        TrackPieceRef pieceRef, PieceReferenceIndex resolver)
+    {
+        if (pieceRef.Variants is not { Count: > 0 }) return Array.Empty<long>();
+
+        var available = resolver.CollectAvailableVariants(pieceRef);
+        if (available.Count == 0) return Array.Empty<long>();
+
+        var ids = new List<long>(pieceRef.Variants.Count);
+        var seen = new HashSet<long>();
+        foreach (var vr in pieceRef.Variants)
+        {
+            VariantInfo? match = vr.Id != 0
+                ? available.FirstOrDefault(a => a.Id == vr.Id)
+                : null;
+            match ??= !string.IsNullOrWhiteSpace(vr.Description)
+                ? available.FirstOrDefault(a =>
+                      string.Equals(a.Description, vr.Description, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (match is { Id: > 0 } && seen.Add(match.Id))
+                ids.Add(match.Id);
+        }
+        return ids;
     }
 
     /// <summary>
@@ -1259,7 +1382,7 @@ public partial class SqliteCanonDataService
                             }
                         }
 
-                        tr.PieceRefs.Add(new AlbumTrackPieceRefRow
+                        var refRow = new AlbumTrackPieceRefRow
                         {
                             Position      = p++,
                             PieceId       = pieceRowId,
@@ -1272,7 +1395,15 @@ public partial class SqliteCanonDataService
                             StartMarkerId = pieceRef.StartMarker is { Id: > 0 } sm ? sm.Id : null,
                             EndMarkerId   = pieceRef.EndMarker   is { Id: > 0 } em ? em.Id : null,
                             DisplayLabel  = pieceRef.DisplayLabel,
-                        });
+                        };
+                        var variantIds = ResolveVariantRowIds(pieceRef, resolver);
+                        for (int vi = 0; vi < variantIds.Count; vi++)
+                            refRow.Variants.Add(new AlbumTrackPieceRefVariantRow
+                            {
+                                VariantId = variantIds[vi],
+                                Position  = vi,
+                            });
+                        tr.PieceRefs.Add(refRow);
                     }
                 }
 

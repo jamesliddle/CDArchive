@@ -47,4 +47,13 @@ public interface ICanonDataService
         List<CanonAlbum>? albums = null,
         List<AlbumTrack>? looseTracks = null,
         CanonPickLists? pickLists = null);
+
+    /// <summary>
+    /// Returns, per <c>piece_variants.Id</c>, how many album-track recordings
+    /// currently identify that variant (rows in <c>album_track_piece_ref_variants</c>).
+    /// Variants absent from the result are unreferenced. Lets the piece editor
+    /// block removal of an in-use variant at click time rather than letting the
+    /// save fail later with the FK-Restrict diagnostic.
+    /// </summary>
+    Task<IReadOnlyDictionary<long, int>> GetReferencedVariantCountsAsync();
 }

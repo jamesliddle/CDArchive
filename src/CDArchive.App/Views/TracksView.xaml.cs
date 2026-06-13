@@ -59,6 +59,12 @@ public partial class TracksView : UserControl
         };
     }
 
+    private void OnNeedsVariantFilterChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is TracksViewModel vm)
+            vm.OnlyNeedsVariant = NeedsVariantCheck.IsChecked == true;
+    }
+
     // H36 (TracksView slice): OnRefreshClick / OnContextApproveTrack /
     // OnContextRejectTrack retired — XAML binds to LoadDataCommand /
     // ApproveTracksCommand / RejectTracksCommand on the VM.

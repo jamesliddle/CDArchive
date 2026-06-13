@@ -374,6 +374,40 @@ public class PieceReferenceIndex
     }
 
     /// <summary>
+    /// Collects every <see cref="VariantInfo"/> available to a resolved ref,
+    /// in path order: the top-level piece, the referenced version (if any),
+    /// then each subpiece walked down to the leaf. Variants can live above the
+    /// leaf — e.g. an opera's alternate ending sits on the top piece while a
+    /// track refs a single scene — so the whole resolved path contributes.
+    /// Returns an empty list when the ref doesn't resolve or no node on the
+    /// path carries variants. Drives the piece-ref editor's variant picker
+    /// (hidden when empty) and the "variant available but unchosen" indicator.
+    /// </summary>
+    public IReadOnlyList<VariantInfo> CollectAvailableVariants(TrackPieceRef pr)
+    {
+        if (!TryResolve(pr, _byComposerTitle, out var piece, out _, out var version,
+                        out var ancestorSubpieces))
+            return Array.Empty<VariantInfo>();
+
+        var result = new List<VariantInfo>();
+        if (piece.Variants is { Count: > 0 })   result.AddRange(piece.Variants);
+        if (version?.Variants is { Count: > 0 }) result.AddRange(version.Variants);
+        foreach (var sub in ancestorSubpieces)
+            if (sub.Variants is { Count: > 0 })  result.AddRange(sub.Variants);
+        return result;
+    }
+
+    /// <summary>
+    /// True when <paramref name="pr"/> resolves to a path that defines one or
+    /// more variants but the ref itself identifies none — the "variant available
+    /// but unchosen" state. Drives the unchosen-ref indicator and the
+    /// missing-variant filter/report. "No variant identified" is a valid state,
+    /// so this is a findability signal, not an error.
+    /// </summary>
+    public bool NeedsVariantIdentification(TrackPieceRef pr)
+        => pr.Variants is not { Count: > 0 } && CollectAvailableVariants(pr).Count > 0;
+
+    /// <summary>
     /// Resolves <paramref name="pr"/> and credits every bucket that should receive the hit.
     /// Extracted so the PieceRefs loop and the description-fallback path share one code path.
     /// <para>
@@ -662,11 +696,17 @@ public class PieceReferenceIndex
         var p = entry.Piece;
 
         List<CanonPiece>? subpieces;
-        if (!string.IsNullOrWhiteSpace(pr.VersionDescription))
+        if (pr.VersionId != 0 || !string.IsNullOrWhiteSpace(pr.VersionDescription))
         {
             if (p.Versions is null) return false;
-            version = p.Versions.FirstOrDefault(v =>
-                string.Equals(v.Description, pr.VersionDescription, StringComparison.OrdinalIgnoreCase));
+            // Prefer the stable id; fall back to description (JSON import / post-reseed).
+            version = (pr.VersionId != 0
+                          ? p.Versions.FirstOrDefault(v => v.Id == pr.VersionId)
+                          : null)
+                      ?? (!string.IsNullOrWhiteSpace(pr.VersionDescription)
+                          ? p.Versions.FirstOrDefault(v =>
+                                string.Equals(v.Description, pr.VersionDescription, StringComparison.OrdinalIgnoreCase))
+                          : null);
             if (version is null) return false;
             subpieces = version.Subpieces;
         }

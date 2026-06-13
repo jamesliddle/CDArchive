@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using CDArchive.Core.Models;
+using CDArchive.Core.Services;
 
 namespace CDArchive.App.Views;
 
@@ -51,6 +52,45 @@ public partial class PieceRefDetailsWindow : Window
         ResolveTarget(allPieces);
         InitRangeUI();
         InitMarkerCombos();
+        InitVariantChecklist(allPieces);
+    }
+
+    // ── Variants ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Populates the variant checklist from the variants available along the
+    /// ref's resolved path (leaf + ancestors + version), reusing the same
+    /// collector the save path uses so the picker offers exactly what will
+    /// persist. The whole section stays collapsed when no variants apply.
+    /// Current selections are pre-ticked, matched by id then description.
+    /// </summary>
+    private void InitVariantChecklist(IReadOnlyList<CanonPiece> allPieces)
+    {
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
+        resolver.BuildResolver(allPieces);
+        var available = resolver.CollectAvailableVariants(_ref);
+        if (available.Count == 0) return;   // section stays Collapsed
+
+        VariantSection.Visibility = Visibility.Visible;
+
+        foreach (var variant in available)
+        {
+            bool isSelected = _ref.Variants is { Count: > 0 } && _ref.Variants.Any(vr =>
+                (vr.Id != 0 && vr.Id == variant.Id) ||
+                (vr.Id == 0 && !string.IsNullOrWhiteSpace(vr.Description) &&
+                 string.Equals(vr.Description, variant.Description, StringComparison.OrdinalIgnoreCase)));
+
+            VariantList.Children.Add(new CheckBox
+            {
+                Content   = variant.Description,
+                Tag       = variant,
+                IsChecked = isSelected,
+                FontSize  = 11,
+                Margin    = new Thickness(0, 2, 0, 2),
+                ToolTip   = string.IsNullOrWhiteSpace(variant.LongDescription)
+                                ? null : variant.LongDescription,
+            });
+        }
     }
 
     // ── Resolution ───────────────────────────────────────────────────────────
@@ -318,6 +358,16 @@ public partial class PieceRefDetailsWindow : Window
 
         _ref.StartMarker = ToMarkerReference(StartMarkerCombo.SelectedItem);
         _ref.EndMarker   = ToMarkerReference(EndMarkerCombo.SelectedItem);
+
+        // Variants: collect the ticked entries (in checklist order). When none
+        // are ticked, store null — "no variant identified" is a valid state.
+        var chosen = new List<VariantReference>();
+        foreach (var child in VariantList.Children)
+        {
+            if (child is not CheckBox { IsChecked: true, Tag: VariantInfo v }) continue;
+            chosen.Add(new VariantReference { Id = v.Id, Description = v.Description });
+        }
+        _ref.Variants = chosen.Count > 0 ? chosen : null;
 
         Saved = true;
         DialogResult = true;

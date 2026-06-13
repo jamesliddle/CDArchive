@@ -13,6 +13,26 @@ namespace CDArchive.App.Views;
 
 public partial class AlbumEditorWindow : Window
 {
+    // ── Re-entrancy guard ─────────────────────────────────────────────────────
+    // Tracks how many AlbumEditorWindows are currently shown. Used by
+    // VariantUsages to refuse opening a *second*, independent AlbumEditor on top
+    // of one already in the modal stack (e.g. AlbumEditor → Edit Track → Edit
+    // Root Piece → Recordings → Open Album). That nested clone-and-save would
+    // orphan the outer editor's album instance — on the outer OK its stale clone
+    // would be re-Added as a duplicate and overwrite the nested edit. Editing
+    // the same album at two stack levels has no safe merge, so we block it.
+    private static int _openCount;
+    public static bool IsAnyOpen => _openCount > 0;
+
+    private bool _counted;
+
+    /// <summary>Wires open-count tracking; call once per ctor after InitializeComponent.</summary>
+    private void TrackOpenLifetime()
+    {
+        Loaded += (_, _) => { if (!_counted) { _counted = true; _openCount++; } };
+        Closed += (_, _) => { if (_counted) { _counted = false; _openCount--; } };
+    }
+
     private readonly CanonPickLists          _pickLists;
     private readonly IReadOnlyList<CanonPiece> _allPieces;
     // PlayerViewModel for the right-click "Play track" / "Play from here"
@@ -80,6 +100,7 @@ public partial class AlbumEditorWindow : Window
     public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonPiece> allPieces, PlayerViewModel player, CanonAlbum? album = null)
     {
         InitializeComponent();
+        TrackOpenLifetime();
         DataContext = _vm;
         _pickLists = pickLists;
         _allPieces = allPieces;
@@ -116,6 +137,7 @@ public partial class AlbumEditorWindow : Window
     public AlbumEditorWindow(CanonPickLists pickLists, IReadOnlyList<CanonAlbum> albums, IReadOnlyList<CanonPiece> allPieces, PlayerViewModel player)
     {
         InitializeComponent();
+        TrackOpenLifetime();
         DataContext = _vm;
         _pickLists  = pickLists;
         _allPieces  = allPieces;

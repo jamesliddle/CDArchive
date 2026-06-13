@@ -688,7 +688,14 @@ public partial class TrackEditorWindow : Window
             composerCatalogs: composerCatalogs)
         {
             Owner = this,
+            VariantUsageCounts = await canonVm.GetReferencedVariantCountsAsync(),
         };
+        // Same variant Recordings/usage wiring the Canon tree editors get, so
+        // the feature is consistent from this entry point too (and propagates
+        // to nested subpiece / version editors via InheritVariantContext).
+        var albumsVm = App.ServiceProvider.GetRequiredService<AlbumsViewModel>();
+        dlg.ShowVariantUsages = (owner, v) =>
+            _ = Helpers.VariantUsages.ShowAsync(owner, v, canonVm, albumsVm);
 
         if (dlg.ShowDialog() != true) return;
 

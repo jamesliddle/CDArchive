@@ -51,6 +51,23 @@
                    FontSize="10" Foreground="#888" Margin="0,2,0,0"
                    TextWrapping="Wrap" />
 
+        <!-- Variants identified on this recording (only shown when the resolved
+             piece / version / movement defines variants) -->
+        <StackPanel x:Name="VariantSection" Visibility="Collapsed">
+            <TextBlock Text="Variant(s) used on this recording" FontWeight="SemiBold"
+                       FontSize="10" Foreground="#555" Margin="0,14,0,4" />
+            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FCFCFC"
+                    Padding="8,6" MaxHeight="160">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="VariantList" />
+                </ScrollViewer>
+            </Border>
+            <TextBlock x:Name="VariantHint"
+                       FontSize="10" Foreground="#888" Margin="0,4,0,0"
+                       TextWrapping="Wrap"
+                       Text="Tick the variant(s) this recording uses. Leaving all unticked is fine — unidentified refs can be found later." />
+        </StackPanel>
+
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="OK" Width="80" Padding="0,6"
                     IsDefault="True" Click="OnOkClick" />

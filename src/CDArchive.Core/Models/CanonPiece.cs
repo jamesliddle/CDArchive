@@ -1134,6 +1134,18 @@ public class RoleEntry
 /// </summary>
 public class VariantInfo
 {
+    /// <summary>
+    /// Stable id assigned by SQLite. Zero on a freshly-constructed variant
+    /// that hasn't been persisted yet; populated on first save and preserved
+    /// across subsequent loads/edits. Track-piece references store this id
+    /// (resolving by id first, falling back to <see cref="Description"/> when
+    /// the id is absent — e.g. after a fresh reseed reassigns row ids).
+    /// Mirrors <see cref="MusicalMarker.Id"/>.
+    /// </summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Id { get; set; }
+
     /// <summary>Short label shown in the list, e.g. "Autograph ending".</summary>
     [JsonPropertyName("description")]
     public string Description { get; set; } = "";
@@ -1476,6 +1488,18 @@ public class VersionDisplayNode
 
 public class CanonPieceVersion
 {
+    /// <summary>
+    /// Stable id assigned by SQLite. Zero on a freshly-constructed version that
+    /// hasn't been persisted yet; populated on first save and preserved across
+    /// subsequent loads/edits. Track-piece references store this id (resolving
+    /// by id first, falling back to <see cref="Description"/> when the id is
+    /// absent — e.g. after a fresh reseed reassigns row ids). Mirrors
+    /// <see cref="MusicalMarker.Id"/>.
+    /// </summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Id { get; set; }
+
     /// <summary>Free-text label identifying this version (e.g. "Original version", "arr. for string quartet").</summary>
     [JsonPropertyName("description")]
     public string? Description { get; set; }

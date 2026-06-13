@@ -35,6 +35,7 @@ public class CanonDbContext : DbContext
     public DbSet<AlbumDiscRow>               AlbumDiscs              => Set<AlbumDiscRow>();
     public DbSet<AlbumTrackRow>              AlbumTracks             => Set<AlbumTrackRow>();
     public DbSet<AlbumTrackPieceRefRow>      AlbumTrackPieceRefs     => Set<AlbumTrackPieceRefRow>();
+    public DbSet<AlbumTrackPieceRefVariantRow> AlbumTrackPieceRefVariants => Set<AlbumTrackPieceRefVariantRow>();
     public DbSet<AlbumPerformerRow>          AlbumPerformers         => Set<AlbumPerformerRow>();
 
     // ── Markers (track anchors: tempo / first-line / rehearsal mark / bar number) ───
@@ -676,6 +677,33 @@ public class CanonDbContext : DbContext
 
             b.HasIndex(x => new { x.TrackId, x.Position });
             b.HasIndex(x => x.PieceId);
+        });
+
+        mb.Entity<AlbumTrackPieceRefVariantRow>(b =>
+        {
+            b.ToTable("album_track_piece_ref_variants");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).HasColumnName("id");
+            b.Property(x => x.RefId).HasColumnName("ref_id");
+            b.Property(x => x.VariantId).HasColumnName("variant_id");
+            b.Property(x => x.Position).HasColumnName("position");
+
+            // The join row dies with its ref.
+            b.HasOne(x => x.Ref)
+                .WithMany(r => r.Variants)
+                .HasForeignKey(x => x.RefId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict: a variant a recording still identifies can't be deleted
+            // out from under it. The piece-save path pre-flights this and
+            // surfaces a friendly message rather than a raw FK failure.
+            b.HasOne(x => x.Variant)
+                .WithMany()
+                .HasForeignKey(x => x.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => new { x.RefId, x.Position });
+            b.HasIndex(x => x.VariantId);
         });
 
         mb.Entity<AlbumPerformerRow>(b =>

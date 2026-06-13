@@ -78,10 +78,39 @@ public class TrackPieceRef
     /// this holds the version's <see cref="CanonPieceVersion.Description"/> so the
     /// reference can distinguish "Piano Sonata Op. 27 No. 2 (arr. for orchestra)" from
     /// the original.  null means the reference is to the main (unversioned) text.
+    /// <para>
+    /// Kept as a human-readable fallback / display aid alongside
+    /// <see cref="VersionId"/>; resolution prefers the stable id when present.
+    /// </para>
     /// </summary>
     [JsonPropertyName("version_description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? VersionDescription { get; set; }
+
+    /// <summary>
+    /// Stable id of the referenced <see cref="CanonPieceVersion"/>. Zero means
+    /// the ref is to the main (unversioned) text, or that resolution should fall
+    /// back to <see cref="VersionDescription"/> (e.g. after a fresh reseed
+    /// reassigns row ids). Preferred over <see cref="VersionDescription"/> when
+    /// non-zero. Mirrors the <see cref="MusicalMarker.Id"/> + description-fallback
+    /// pattern.
+    /// </summary>
+    [JsonPropertyName("version_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long VersionId { get; set; }
+
+    /// <summary>
+    /// Which variant(s) of the referenced piece / version / movement this
+    /// recording uses. Null or empty means no variant has been identified —
+    /// a valid-but-findable state (the recording may use a variant the user
+    /// hasn't pinned down yet). A ref can carry several variants at once
+    /// (e.g. a cadenza choice plus an ending choice). Each entry resolves by
+    /// <see cref="VariantReference.Id"/> first, falling back to
+    /// <see cref="VariantReference.Description"/>.
+    /// </summary>
+    [JsonPropertyName("variants")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<VariantReference>? Variants { get; set; }
 
     // ── Computed helpers ─────────────────────────────────────────────────────
 
@@ -120,6 +149,19 @@ public class TrackPieceRef
             sb.Append(" through ").Append(string.Join(" › ", EndSubpiecePath));
         if (EndMarker is not null)
             sb.Append(" [to ").Append(EndMarker).Append(']');
+        // Chosen variant(s) — e.g. "… [Autograph ending]" or
+        // "… [Kreisler cadenza; shortened ending]". A user-supplied DisplayLabel
+        // (handled above) is returned verbatim, so this only decorates the
+        // decomposed summary.
+        if (Variants is { Count: > 0 })
+        {
+            var labels = Variants
+                .Select(v => v.Description ?? v.ToString())
+                .Where(s => !string.IsNullOrWhiteSpace(s));
+            var joined = string.Join("; ", labels);
+            if (joined.Length > 0)
+                sb.Append(" [").Append(joined).Append(']');
+        }
         return sb.ToString();
     }
 
@@ -134,6 +176,36 @@ public class TrackPieceRef
     /// <summary>True if the ref pins a specific marker as its start.</summary>
     [JsonIgnore]
     public bool HasMarkerAnchor => StartMarker is not null || EndMarker is not null;
+
+    /// <summary>True if at least one variant has been identified on this ref.</summary>
+    [JsonIgnore]
+    public bool HasVariantSelection => Variants is { Count: > 0 };
+}
+
+/// <summary>
+/// A reference from a <see cref="TrackPieceRef"/> to a specific
+/// <see cref="VariantInfo"/> on the resolved piece / version / movement.
+/// <para>
+/// Resolution order mirrors <see cref="MarkerReference"/>: <see cref="Id"/>
+/// first (the only thing the runtime resolver needs once the canon is loaded);
+/// <see cref="Description"/> is the fallback matcher used during JSON import or
+/// after a fresh reseed reassigns variant row ids.
+/// </para>
+/// </summary>
+public class VariantReference
+{
+    /// <summary>Stable variant id, the primary lookup key at runtime.</summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Id { get; set; }
+
+    /// <summary>Variant description to match if <see cref="Id"/> can't be resolved.</summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; set; }
+
+    public override string ToString()
+        => !string.IsNullOrEmpty(Description) ? Description! : (Id != 0 ? $"#{Id}" : "");
 }
 
 // ── Referential-integrity support types ─────────────────────────────────────
