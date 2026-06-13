@@ -237,6 +237,7 @@ public partial class PieceEditorViewModel : ObservableObject
     /// </summary>
     private static VariantInfo CloneVariant(VariantInfo v) => new()
     {
+        Id              = v.Id,
         Description     = v.Description,
         LongDescription = v.LongDescription,
     };

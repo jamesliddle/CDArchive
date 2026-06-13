@@ -740,7 +740,7 @@ public class PieceEditorViewModelTests
     {
         // Variants are deep-cloned so user edits in the editor don't mutate
         // the source piece's variant list until OK is clicked.
-        var sourceVariant = new VariantInfo { Description = "original", LongDescription = "long" };
+        var sourceVariant = new VariantInfo { Id = 42, Description = "original", LongDescription = "long" };
         var piece = new CanonPiece
         {
             Variants = new List<VariantInfo> { sourceVariant },
@@ -748,6 +748,10 @@ public class PieceEditorViewModelTests
 
         var vm = new PieceEditorViewModel();
         vm.LoadListsFromPiece(piece);
+
+        // The clone must carry the stable Id so the editor's eventual save
+        // reconciles in place rather than churning the variant row id.
+        Assert.Equal(42L, vm.Variants[0].Id);
 
         // Mutating the VM's variant must not affect the source.
         vm.Variants[0].Description = "MUTATED";
