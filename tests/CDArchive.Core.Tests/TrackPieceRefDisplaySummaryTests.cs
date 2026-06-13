@@ -58,6 +58,60 @@ public class TrackPieceRefDisplaySummaryTests
     }
 
     [Fact]
+    public void Variants_AppendedAsBracketedSuffix()
+    {
+        var refr = new TrackPieceRef
+        {
+            Composer   = "Beethoven, Ludwig van",
+            PieceTitle = "Violin Concerto",
+            Variants   = new List<VariantReference>
+            {
+                new() { Id = 5, Description = "Kreisler cadenza" },
+                new() { Id = 9, Description = "shortened ending" },
+            },
+        };
+
+        Assert.Equal(
+            "Beethoven, Ludwig van – Violin Concerto [Kreisler cadenza; shortened ending]",
+            refr.DisplaySummary);
+        Assert.Equal(
+            "Violin Concerto [Kreisler cadenza; shortened ending]",
+            refr.DisplaySummaryWithoutComposer);
+    }
+
+    [Fact]
+    public void Variants_OnAMovement_SuffixFollowsSubpath()
+    {
+        var refr = new TrackPieceRef
+        {
+            Composer     = "Beethoven, Ludwig van",
+            PieceTitle   = "Violin Concerto",
+            SubpiecePath = new List<string> { "Rondo" },
+            Variants     = new List<VariantReference> { new() { Id = 9, Description = "shortened ending" } },
+        };
+
+        Assert.Equal(
+            "Violin Concerto: Rondo [shortened ending]",
+            refr.DisplaySummaryWithoutComposer);
+    }
+
+    [Fact]
+    public void Variants_DisplayLabelOverride_StaysVerbatim_NoSuffix()
+    {
+        // A user-supplied label owns the wording entirely; the variant suffix
+        // is not appended on top of it.
+        var refr = new TrackPieceRef
+        {
+            Composer     = "Mozart, Wolfgang Amadeus",
+            PieceTitle   = "Symphony No. 40",
+            DisplayLabel = "Sinfonie g-moll (CD title)",
+            Variants     = new List<VariantReference> { new() { Id = 1, Description = "v" } },
+        };
+
+        Assert.Equal("Sinfonie g-moll (CD title)", refr.DisplaySummary);
+    }
+
+    [Fact]
     public void AlbumTrack_WithoutComposer_JoinsRefs_AndFallsBackToDescription()
     {
         var catalogued = new AlbumTrack

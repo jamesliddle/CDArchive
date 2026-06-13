@@ -149,6 +149,19 @@ public class TrackPieceRef
             sb.Append(" through ").Append(string.Join(" › ", EndSubpiecePath));
         if (EndMarker is not null)
             sb.Append(" [to ").Append(EndMarker).Append(']');
+        // Chosen variant(s) — e.g. "… [Autograph ending]" or
+        // "… [Kreisler cadenza; shortened ending]". A user-supplied DisplayLabel
+        // (handled above) is returned verbatim, so this only decorates the
+        // decomposed summary.
+        if (Variants is { Count: > 0 })
+        {
+            var labels = Variants
+                .Select(v => v.Description ?? v.ToString())
+                .Where(s => !string.IsNullOrWhiteSpace(s));
+            var joined = string.Join("; ", labels);
+            if (joined.Length > 0)
+                sb.Append(" [").Append(joined).Append(']');
+        }
         return sb.ToString();
     }
 
