@@ -31,12 +31,14 @@ public sealed class AlbumTrackRow
     /// <paramref name="disc"/> when projecting a loose track — the row's
     /// display fields render empty for Album / Disc / Track in that case.
     /// </summary>
-    public AlbumTrackRow(CanonAlbum? album, AlbumDisc? disc, AlbumTrack track, string piece)
+    public AlbumTrackRow(CanonAlbum? album, AlbumDisc? disc, AlbumTrack track, string piece,
+                         bool needsVariantIdentification = false)
     {
         Album = album;
         Disc  = disc;
         Track = track;
         Piece = piece;
+        NeedsVariantIdentification = needsVariantIdentification;
     }
 
     /// <summary>True when this row projects a loose track.</summary>
@@ -112,4 +114,13 @@ public sealed class AlbumTrackRow
     }
 
     public bool IsProvisional => Track.IsProvisional;
+
+    /// <summary>
+    /// True when at least one of the track's refs points at a piece / version /
+    /// movement that defines variants but identifies none. Computed once at
+    /// row-build time against the live <see cref="Core.Services.PieceReferenceIndex"/>
+    /// (same no-re-resolution-on-filter contract as <see cref="Piece"/>). Drives
+    /// the unchosen-variant indicator and the "needs variant" filter.
+    /// </summary>
+    public bool NeedsVariantIdentification { get; }
 }

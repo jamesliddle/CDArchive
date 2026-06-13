@@ -307,6 +307,52 @@ public class AlbumTrackRefVariantTests
     }
 
     [Fact]
+    public async Task NeedsVariantIdentification_TrueWhenAvailableButUnchosen()
+    {
+        var (_, piece) = await SeedConcertoAsync();
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
+        resolver.BuildResolver(new List<CanonPiece> { piece });
+
+        // Whole piece HAS variants, none chosen → needs identification.
+        var unchosen = new TrackPieceRef
+        {
+            Composer = "Beethoven, Ludwig van", PieceTitle = "Violin Concerto",
+        };
+        Assert.True(resolver.NeedsVariantIdentification(unchosen));
+
+        // Same ref, a variant chosen → no longer needs it.
+        var chosen = new TrackPieceRef
+        {
+            Composer = "Beethoven, Ludwig van", PieceTitle = "Violin Concerto",
+            Variants = new List<VariantReference> { new() { Description = "Kreisler cadenza" } },
+        };
+        Assert.False(resolver.NeedsVariantIdentification(chosen));
+    }
+
+    [Fact]
+    public async Task NeedsVariantIdentification_FalseWhenPathHasNoVariants()
+    {
+        var svc = NewService();
+        await svc.SaveComposersAsync(new List<CanonComposer>
+        {
+            new() { Name = "Beethoven, Ludwig van", SortName = "Beethoven" },
+        });
+        await svc.SavePiecesAsync(new List<CanonPiece>
+        {
+            new() { Composer = "Beethoven, Ludwig van", Title = "Egmont Overture" },
+        });
+        var piece = (await svc.LoadPiecesAsync()).Single();
+
+        var resolver = new PieceReferenceIndex(registerAsCurrent: false);
+        resolver.BuildResolver(new List<CanonPiece> { piece });
+
+        Assert.False(resolver.NeedsVariantIdentification(new TrackPieceRef
+        {
+            Composer = "Beethoven, Ludwig van", PieceTitle = "Egmont Overture",
+        }));
+    }
+
+    [Fact]
     public async Task JoinTable_Exists_AfterInit_AndReinitIsIdempotent()
     {
         var dbPath = NewDbPath();

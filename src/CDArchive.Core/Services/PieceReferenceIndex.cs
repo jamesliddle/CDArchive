@@ -398,6 +398,16 @@ public class PieceReferenceIndex
     }
 
     /// <summary>
+    /// True when <paramref name="pr"/> resolves to a path that defines one or
+    /// more variants but the ref itself identifies none — the "variant available
+    /// but unchosen" state. Drives the unchosen-ref indicator and the
+    /// missing-variant filter/report. "No variant identified" is a valid state,
+    /// so this is a findability signal, not an error.
+    /// </summary>
+    public bool NeedsVariantIdentification(TrackPieceRef pr)
+        => pr.Variants is not { Count: > 0 } && CollectAvailableVariants(pr).Count > 0;
+
+    /// <summary>
     /// Resolves <paramref name="pr"/> and credits every bucket that should receive the hit.
     /// Extracted so the PieceRefs loop and the description-fallback path share one code path.
     /// <para>

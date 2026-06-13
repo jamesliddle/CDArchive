@@ -21,6 +21,7 @@
              converter; this is the framework one. -->
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <conv:IsProvisionalToBrushConverter x:Key="ProvisionalBrush" />
+        <conv:RefNeedsVariantConverter x:Key="RefNeedsVariant" />
 
         <!-- ── Status brushes (consumed by ConversionStatusToColorConverter
              and ValidationSeverityToColorConverter) ──────────────────────
