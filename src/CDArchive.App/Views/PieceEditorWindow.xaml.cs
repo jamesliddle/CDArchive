@@ -1185,7 +1185,4 @@ public partial class PieceEditorWindow : Window
             CopyPieceToVersion();
         DialogResult = true;
     }
-
-    private static string? NullIfEmpty(string? s) =>
-        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

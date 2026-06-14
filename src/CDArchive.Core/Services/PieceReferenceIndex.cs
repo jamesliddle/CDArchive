@@ -66,10 +66,6 @@ public class PieceReferenceIndex
     private Dictionary<string, List<PieceAlbumHit>> _hitsForComposer =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // Version is identified by (parent piece, description) in refs; this maps
-    // (piece, description) → version instance for resolution.
-    private readonly Dictionary<(CanonPiece, string), CanonPieceVersion> _versionLookup = new();
-
     // Composer → (normalized title → IndexEntry). Populated on Rebuild and reused
     // by the public TryResolve API so external callers (e.g. CanonDbSeeder) share
     // the same resolution semantics as the badge-hit pipeline.

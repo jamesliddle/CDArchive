@@ -10,7 +10,6 @@ namespace CDArchive.App.ViewModels;
 public partial class CatalogueViewModel : ObservableObject
 {
     private readonly ICataloguingService _cataloguingService;
-    private readonly IArchiveSettings _settings;
     private readonly CompositeCatalogueReference _reference;
 
     [ObservableProperty]
@@ -52,11 +51,10 @@ public partial class CatalogueViewModel : ObservableObject
     [ObservableProperty]
     private string _referenceSource = "";
 
-    public CatalogueViewModel(ICataloguingService cataloguingService, IArchiveSettings settings,
+    public CatalogueViewModel(ICataloguingService cataloguingService,
         IArchiveScannerService scannerService, CompositeCatalogueReference reference)
     {
         _cataloguingService = cataloguingService;
-        _settings = settings;
         _scannerService = scannerService;
         _reference = reference;
     }
