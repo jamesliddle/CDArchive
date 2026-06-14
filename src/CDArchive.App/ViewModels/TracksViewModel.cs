@@ -362,14 +362,6 @@ public partial class TracksViewModel : ObservableObject
     public Task<(IReadOnlyList<CanonPiece> Pieces, CanonPickLists PickLists)> LoadEditorDataAsync()
         => _albumsVm.LoadEditorDataAsync();
 
-    /// <summary>Replaces an album in <see cref="AlbumsViewModel.AllAlbums"/> with the editor's clone.</summary>
-    public void ReplaceAlbum(CanonAlbum oldAlbum, CanonAlbum newAlbum)
-    {
-        var idx = _albumsVm.AllAlbums.IndexOf(oldAlbum);
-        if (idx >= 0) _albumsVm.AllAlbums[idx] = newAlbum;
-        else          _albumsVm.AllAlbums.Add(newAlbum);
-    }
-
     // ── Filtering / sort ─────────────────────────────────────────────────────
 
     partial void OnFilterTextChanged(string value) => ApplyFilter();
