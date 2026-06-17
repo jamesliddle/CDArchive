@@ -17,6 +17,22 @@ public partial class AlbumsViewModel : ObservableObject
     private readonly PieceReferenceIndex _refIndex;
     private readonly IDialogService _dialogs;
     private readonly ILogger<AlbumsViewModel> _logger;
+    private readonly IArchiveSettings? _settings;
+
+    /// <summary>Whether the Albums list shows cover-art thumbnails (settings-driven).</summary>
+    [ObservableProperty] private bool _showArtwork = true;
+
+    /// <summary>Thumbnail box size (DIP) for the Albums list, from settings.</summary>
+    [ObservableProperty] private double _artworkBoxSize = 34;
+
+    /// <summary>Re-reads the Albums-list artwork settings (show + size). Called at
+    /// construction and by <c>SettingsViewModel</c> after a save.</summary>
+    public void RefreshArtworkOptions()
+    {
+        if (_settings is null) return;
+        ShowArtwork    = _settings.ShowAlbumListArtwork;
+        ArtworkBoxSize = Helpers.ArtworkSizes.ListBox(_settings.AlbumListArtworkSize);
+    }
 
     /// <summary>
     /// Exposed so the Albums view's code-behind can hand it through to
@@ -45,13 +61,16 @@ public partial class AlbumsViewModel : ObservableObject
         PieceReferenceIndex refIndex,
         PlayerViewModel player,
         IDialogService dialogs,
-        ILogger<AlbumsViewModel>? logger = null)
+        ILogger<AlbumsViewModel>? logger = null,
+        IArchiveSettings? settings = null)
     {
         _svc = svc;
         _refIndex = refIndex;
         Player = player;
         _dialogs = dialogs;
         _logger = logger ?? NullLogger<AlbumsViewModel>.Instance;
+        _settings = settings;
+        RefreshArtworkOptions();
     }
 
     // ── Data access ──────────────────────────────────────────────────────────

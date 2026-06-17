@@ -13,11 +13,12 @@
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
 
     <Window.Resources>
-        <!-- Navigation RadioButton Style -->
+        <!-- Light-rail navigation item: glyph + label in a pill that fills with
+             the accent tint when selected. The MDL2 glyph for each item is
+             supplied via Tag (e.g. Tag="&#xE716;") so one template serves all. -->
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="#CCCCCC" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Padding" Value="20,12" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="GroupName" Value="Navigation" />
             <Setter Property="Template">
@@ -25,20 +26,29 @@
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="BorderElement"
                                 Background="Transparent"
-                                Padding="{TemplateBinding Padding}"
-                                BorderThickness="3,0,0,0"
-                                BorderBrush="Transparent">
-                            <ContentPresenter VerticalAlignment="Center" />
+                                CornerRadius="7"
+                                Padding="11,8"
+                                Margin="8,1">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="Glyph"
+                                           Text="{TemplateBinding Tag}"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="16"
+                                           Width="24"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           VerticalAlignment="Center" />
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BorderElement" Property="Background" Value="#3E3E42" />
-                                <Setter Property="Foreground" Value="White" />
+                                <Setter TargetName="BorderElement" Property="Background" Value="{StaticResource HoverFillBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="BorderElement" Property="Background" Value="#3E3E42" />
-                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="#007ACC" />
-                                <Setter Property="Foreground" Value="White" />
+                                <Setter TargetName="BorderElement" Property="Background" Value="{StaticResource AccentTintBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -48,50 +58,63 @@
     </Window.Resources>
 
     <DockPanel>
-        <!-- Left Navigation Panel -->
-        <Border DockPanel.Dock="Left" Width="200" Background="#2D2D30">
+        <!-- Left Navigation Panel (light rail — Option A) -->
+        <Border DockPanel.Dock="Left" Width="212"
+                Background="{StaticResource RailBackgroundBrush}"
+                BorderBrush="{StaticResource SubtleBorderBrush}"
+                BorderThickness="0,0,1,0">
             <DockPanel>
-                <!-- App Title -->
-                <TextBlock DockPanel.Dock="Top"
-                           Text="CD Archive"
-                           Foreground="White"
-                           FontSize="20"
-                           FontWeight="SemiBold"
-                           Margin="20,20,20,25"
-                           HorizontalAlignment="Center" />
-
-                <Separator DockPanel.Dock="Top"
-                           Background="#444448"
-                           Margin="15,0,15,10" />
+                <!-- App Title with accent disc glyph -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
+                            Margin="18,20,18,18">
+                    <TextBlock Text="&#xE90B;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="20"
+                               Foreground="{StaticResource AccentBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,9,0" />
+                    <TextBlock Text="CD Archive"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
 
                 <!-- Navigation Buttons -->
                 <StackPanel DockPanel.Dock="Top">
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xE716;"
                                  Content="Composers and Authors"
                                  IsChecked="True"
                                  Command="{Binding NavigateToCanonCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xE8F1;"
                                  Content="Albums"
                                  Command="{Binding NavigateToAlbumsCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xEC4F;"
                                  Content="Tracks"
                                  Command="{Binding NavigateToTracksCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xE8B5;"
                                  Content="iTunes Library"
                                  Command="{Binding NavigateToItunesImportCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xE895;"
                                  Content="JSON Import / Export"
                                  Command="{Binding NavigateToImportExportCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xE8FD;"
                                  Content="Pick Lists"
                                  Command="{Binding NavigateToPickListsCommand}" />
 
                     <RadioButton Style="{StaticResource NavButtonStyle}"
+                                 Tag="&#xE713;"
                                  Content="Settings"
                                  Command="{Binding NavigateToSettingsCommand}" />
                 </StackPanel>
@@ -102,18 +125,18 @@
         </Border>
 
         <!-- Right Content Area -->
-        <Border Background="#F5F5F5">
+        <Border Background="{StaticResource PageBackgroundBrush}">
             <DockPanel Margin="0">
                 <!-- View Title Header -->
                 <Border DockPanel.Dock="Top"
-                        Background="White"
-                        BorderBrush="#E0E0E0"
+                        Background="{StaticResource SurfaceBrush}"
+                        BorderBrush="{StaticResource SubtleBorderBrush}"
                         BorderThickness="0,0,0,1"
-                        Padding="25,15">
+                        Padding="25,16">
                     <TextBlock Text="{Binding CurrentViewTitle}"
-                               FontSize="22"
+                               FontSize="20"
                                FontWeight="SemiBold"
-                               Foreground="#333333" />
+                               Foreground="{StaticResource TextPrimaryBrush}" />
                 </Border>
 
                 <!-- Persistent player bar at the bottom — singleton VM, survives navigation. -->

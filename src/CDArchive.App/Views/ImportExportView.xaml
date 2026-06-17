@@ -11,8 +11,8 @@
 
         <!-- Export section -->
         <TextBlock Text="Export" FontSize="13" FontWeight="SemiBold"
-                   Foreground="#333" Margin="0,0,0,8" />
-        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="10" Margin="0,0,0,12">
+                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,12">
             Save the current data to a JSON file of your choosing.
             The default filename and location match the canonical data files.
         </TextBlock>
@@ -35,8 +35,8 @@
 
         <!-- Import section -->
         <TextBlock Text="Import" FontSize="13" FontWeight="SemiBold"
-                   Foreground="#333" Margin="0,0,0,8" />
-        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="10" Margin="0,0,0,12">
+                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,12">
             Merge records from a JSON file into the current data.
             Only records not already present will be added — existing records are never modified.
             Composers are matched by name; pieces are matched by composer + title.
@@ -55,8 +55,8 @@
 
         <!-- Restore section -->
         <TextBlock Text="Restore" FontSize="13" FontWeight="SemiBold"
-                   Foreground="#333" Margin="0,0,0,8" />
-        <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="10" Margin="0,0,0,12">
+                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,12">
             Overwrite the canonical data files with files you select.
             Use this to restore from a backup. The current data will be replaced.
         </TextBlock>
@@ -67,10 +67,10 @@
                 ToolTip="Replace the canonical JSON files with files you choose" />
 
         <!-- Status bar -->
-        <Border Margin="0,24,0,0" Background="#F0F4F8" BorderBrush="#D0D8E0"
+        <Border Margin="0,24,0,0" Background="{StaticResource StatusBarBrush}" BorderBrush="{StaticResource SubtleBorderBrush}"
                 BorderThickness="1" CornerRadius="3" Padding="12,8">
             <TextBlock Text="{Binding StatusMessage}" FontSize="10"
-                       Foreground="#333" TextWrapping="Wrap" />
+                       Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
         </Border>
 
     </StackPanel>

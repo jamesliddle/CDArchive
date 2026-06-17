@@ -10,7 +10,7 @@
     <Window.Resources>
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="#555" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="FontSize" Value="10" />
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
@@ -87,7 +87,7 @@
                 <TextBlock Grid.Row="1" Text="Other Contributors" Style="{StaticResource FieldLabel}"
                            VerticalAlignment="Top" Margin="0,6,8,0" />
                 <Border Grid.Row="1" Grid.Column="1" Margin="0,3"
-                        BorderThickness="1" BorderBrush="#CCC">
+                        BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}">
                     <StackPanel>
                         <DockPanel MinHeight="20" MaxHeight="72">
                             <StackPanel DockPanel.Dock="Right" Orientation="Vertical">
@@ -101,11 +101,11 @@
                             <ListBox x:Name="ComposerCreditList" FontSize="10" BorderThickness="0"
                                      MouseDoubleClick="OnComposerCreditDoubleClick" />
                         </DockPanel>
-                        <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
+                        <Border BorderThickness="0,1,0,0" BorderBrush="{StaticResource SubtleBorderBrush}" />
                         <DockPanel Margin="4,4,4,4">
                             <Button DockPanel.Dock="Right" Content="Add" Padding="8,3" FontSize="9"
                                     Margin="4,0,0,0" Click="OnAddComposerCreditClick" />
-                            <TextBlock VerticalAlignment="Center" FontSize="9" Foreground="#888"
+                            <TextBlock VerticalAlignment="Center" FontSize="9" Foreground="{StaticResource TextTertiaryBrush}"
                                        Text="Add composers with creative roles (orch., arr., etc.)" />
                         </DockPanel>
                     </StackPanel>
@@ -148,7 +148,7 @@
                              Width="60"
                              Text="{Binding Number, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock Text="Music No." VerticalAlignment="Center"
-                               Foreground="#555" FontSize="10" Margin="14,0,8,0" />
+                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="14,0,8,0" />
                     <TextBox x:Name="MusicNumberBox" Style="{StaticResource FieldBox}"
                              Width="60"
                              Text="{Binding MusicNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -176,7 +176,7 @@
                            VerticalAlignment="Top" Margin="0,6,8,0" />
                 <StackPanel Grid.Row="10" Grid.Column="1" Orientation="Vertical">
                 <Border Margin="0,3"
-                        BorderThickness="1" BorderBrush="#CCC">
+                        BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}">
                     <StackPanel>
                         <DockPanel MinHeight="20" MaxHeight="72">
                             <Button DockPanel.Dock="Right" Content="✕" Padding="6,3" FontSize="9"
@@ -185,7 +185,7 @@
                                     Click="OnRemoveCatalogClick" />
                             <ListBox x:Name="CatalogList" FontSize="10" BorderThickness="0" />
                         </DockPanel>
-                        <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
+                        <Border BorderThickness="0,1,0,0" BorderBrush="{StaticResource SubtleBorderBrush}" />
                         <Grid Margin="4,4,4,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="80" />
@@ -201,7 +201,7 @@
                                       x:Name="CatalogNumberBox"
                                       ToolTip="Catalogue number, e.g. 2" />
                             <TextBlock Grid.Column="2" Text="#" VerticalAlignment="Center"
-                                       Margin="4,0,4,0" Foreground="#888" />
+                                       Margin="4,0,4,0" Foreground="{StaticResource TextTertiaryBrush}" />
                             <TextBox  Grid.Column="3" Style="{StaticResource FieldBox}"
                                       x:Name="CatalogSubnumberBox"
                                       ToolTip="Optional sub-number, e.g. 1 in &quot;Op. 2 #1&quot;" />
@@ -234,7 +234,7 @@
                     <!-- Piece instruments (left) with edit buttons above -->
                     <DockPanel Grid.Column="0">
                         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,2">
-                            <TextBlock Text="Piece" FontSize="10" Foreground="#888"
+                            <TextBlock Text="Piece" FontSize="10" Foreground="{StaticResource TextTertiaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,8,0" />
                             <Button Content="Edit" Padding="6,1" FontSize="10" Margin="0,0,4,0"
                                     Click="OnEditInstrumentClick" />
@@ -246,7 +246,7 @@
                                     Click="OnMoveInstrumentDownClick" />
                         </StackPanel>
                         <ListBox x:Name="InstrumentsList" FontSize="10"
-                                 BorderThickness="1" BorderBrush="#CCC"
+                                 BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                                  MouseDoubleClick="OnInstrumentDoubleClick" />
                     </DockPanel>
                     <!-- Arrow buttons (centre) -->
@@ -261,9 +261,9 @@
                     <!-- Available instruments (right) -->
                     <DockPanel Grid.Column="2">
                         <TextBlock DockPanel.Dock="Top" Text="Available" FontSize="10"
-                                   Foreground="#888" Margin="0,0,0,2" />
+                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,2" />
                         <ListBox x:Name="AvailableInstrumentsList" FontSize="10"
-                                 BorderThickness="1" BorderBrush="#CCC"
+                                 BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                                  MouseDoubleClick="OnAvailableInstrumentDoubleClick" />
                     </DockPanel>
                 </Grid>
@@ -295,11 +295,11 @@
                  that displays the kind in each row label. Add a kind=Tempo entry for tempo
                  indications; kind=FirstLine for vocal incipits; etc. -->
             <TextBlock Text="Markers" FontWeight="SemiBold" FontSize="10"
-                       Foreground="#555" Margin="0,14,0,2" />
-            <TextBlock FontSize="10" Foreground="#888" Margin="0,0,0,6"
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,2" />
+            <TextBlock FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,6"
                        Text="Tempo indications, first-line incipits, rehearsal marks, bar numbers — anything that anchors an album track to a specific point. Album tracks can pin start/end to any of these." />
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}"
                     Padding="6" MinHeight="80">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
@@ -316,7 +316,7 @@
                                 Margin="0,4,0,0" Click="OnMoveMarkerDownClick" />
                     </StackPanel>
                     <ListBox x:Name="MarkerList" FontSize="10" MinHeight="60"
-                             BorderThickness="1" BorderBrush="#CCC"
+                             BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                              MouseDoubleClick="OnMarkerDoubleClick" />
                 </DockPanel>
             </Border>
@@ -324,13 +324,13 @@
             <!-- Subpieces (movements) section -->
             <DockPanel Margin="0,14,0,6" LastChildFill="False">
                 <TextBlock Text="Subpieces" FontWeight="SemiBold" FontSize="10"
-                           Foreground="#555" VerticalAlignment="Center" />
+                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
                 <CheckBox x:Name="NumberedSubpiecesCheck" Content="Numbered" FontSize="9"
-                          Foreground="#666" Margin="14,0,0,0" VerticalAlignment="Center"
+                          Foreground="{StaticResource TextSecondaryBrush}" Margin="14,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding NumberedSubpieces, Mode=TwoWay}"
                           Checked="OnNumberedSubpiecesChanged"
                           Unchecked="OnNumberedSubpiecesChanged" />
-                <TextBlock Text="Start:" FontSize="9" Foreground="#666"
+                <TextBlock Text="Start:" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"
                            Margin="12,0,4,0" VerticalAlignment="Center" />
                 <TextBox x:Name="SubpiecesStartBox" Width="36" FontSize="9" Padding="2,1"
                          VerticalAlignment="Center" Margin="0,2"
@@ -338,7 +338,7 @@
                          TextChanged="OnSubpiecesStartChanged" />
             </DockPanel>
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}"
                     Padding="6" MinHeight="80">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
@@ -355,7 +355,7 @@
                                 Margin="0,4,0,0" Click="OnMoveSubpieceDownClick" />
                     </StackPanel>
                     <ListBox x:Name="SubpieceList" FontSize="10" MinHeight="60"
-                             BorderThickness="1" BorderBrush="#CCC"
+                             BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                              MouseDoubleClick="OnSubpieceDoubleClick" />
                 </DockPanel>
             </Border>
@@ -363,10 +363,10 @@
             <!-- Versions section — hidden when editing a version (versions cannot have versions) -->
             <TextBlock x:Name="VersionsSectionHeader"
                        Text="Versions" FontWeight="SemiBold" FontSize="10"
-                       Foreground="#555" Margin="0,14,0,6" />
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,6" />
 
             <Border x:Name="VersionsSectionPanel"
-                    BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                    BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}"
                     Padding="6" MinHeight="60">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
@@ -378,15 +378,15 @@
                         <Button Content="Down"   Padding="8,3" FontSize="9" Margin="0,4,0,0" Click="OnMoveVersionDownClick" />
                     </StackPanel>
                     <ListBox x:Name="VersionList" FontSize="10" MinHeight="40"
-                             BorderThickness="1" BorderBrush="#CCC"
+                             BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                              MouseDoubleClick="OnVersionDoubleClick" />
                 </DockPanel>
             </Border>
             <!-- Roles section -->
             <TextBlock Text="Roles" FontWeight="SemiBold" FontSize="10"
-                       Foreground="#555" Margin="0,14,0,6" />
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,6" />
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}"
                     Padding="6" MinHeight="60">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
@@ -398,16 +398,16 @@
                         <Button Content="Down"   Padding="8,3" FontSize="9" Margin="0,4,0,0" Click="OnMoveRoleDownClick" />
                     </StackPanel>
                     <ListBox x:Name="RoleList" FontSize="10" MinHeight="40"
-                             BorderThickness="1" BorderBrush="#CCC"
+                             BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                              MouseDoubleClick="OnRoleDoubleClick" />
                 </DockPanel>
             </Border>
 
             <!-- Variants section -->
             <TextBlock Text="Variants" FontWeight="SemiBold" FontSize="10"
-                       Foreground="#555" Margin="0,14,0,6" />
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,6" />
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}"
                     Padding="6" MinHeight="60">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="6,0,0,0">
@@ -425,7 +425,7 @@
                                 Click="OnShowVariantUsagesClick" />
                     </StackPanel>
                     <ListBox x:Name="VariantList" FontSize="10" MinHeight="40"
-                             BorderThickness="1" BorderBrush="#CCC"
+                             BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}"
                              MouseDoubleClick="OnVariantDoubleClick" />
                 </DockPanel>
             </Border>

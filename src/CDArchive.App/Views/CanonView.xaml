@@ -17,9 +17,9 @@
     <DockPanel>
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom"
-                Background="#E8E8E8" Padding="10,6"
-                BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555555" />
+                Background="{StaticResource StatusBarBrush}" Padding="10,6"
+                BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
         </Border>
 
         <DockPanel Margin="5,10,5,5">
@@ -58,7 +58,9 @@
 
                 <!-- ── Row 0: Refresh · New Composer · Delete Composer · Sort Composers · Filter ── -->
                 <Button Grid.Row="0" Grid.Column="0"
-                        Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
+                        Style="{StaticResource IconButton}"
+                        Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                        Width="32" Height="28"
                         Command="{Binding LoadDataCommand}"
                         ToolTip="Reload all data from the database" />
 
@@ -68,11 +70,11 @@
 
                 <Button Grid.Row="0" Grid.Column="4"
                         Content="Delete Composer" Padding="12,4" FontSize="10" Height="28"
-                        Foreground="#D32F2F"
+                        Foreground="{StaticResource DangerBrush}"
                         Click="OnDeleteComposerClick" />
 
                 <TextBlock Grid.Row="0" Grid.Column="6"
-                           Text="Sort Composers:" FontSize="10" Foreground="#555"
+                           Text="Sort Composers:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="0" Grid.Column="7"
                           FontSize="10" Height="23"
@@ -86,14 +88,14 @@
                 </ComboBox>
 
                 <TextBlock Grid.Row="0" Grid.Column="9"
-                           Text="Filter:" FontSize="10" Foreground="#555"
+                           Text="Filter:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Grid.Row="0" Grid.Column="10"
                          Text="{Binding ComposerFilter, UpdateSourceTrigger=PropertyChanged}"
                          FontSize="11" Padding="6,4" />
 
                 <TextBlock Grid.Row="0" Grid.Column="12"
-                           Text="Show:" FontSize="10" Foreground="#555"
+                           Text="Show:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="0" Grid.Column="13"
                           FontSize="10" Height="23"
@@ -114,11 +116,11 @@
                 <Button Grid.Row="2" Grid.Column="4"
                         x:Name="DeletePieceButton" Content="Delete Piece"
                         Padding="12,4" FontSize="10" Height="28"
-                        IsEnabled="False" Foreground="#D32F2F"
+                        IsEnabled="False" Foreground="{StaticResource DangerBrush}"
                         Click="OnDeletePieceClick" />
 
                 <TextBlock Grid.Row="2" Grid.Column="6"
-                           Text="Sort Pieces:" FontSize="10" Foreground="#555"
+                           Text="Sort Pieces:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="2" Grid.Column="7"
                           FontSize="10" Height="23"
@@ -132,7 +134,7 @@
                 </ComboBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="12"
-                           Text="Show:" FontSize="10" Foreground="#555"
+                           Text="Show:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Grid.Row="2" Grid.Column="13"
                           FontSize="10" Height="23"
@@ -145,7 +147,7 @@
             </Grid>
 
             <!-- ── Single unified tree panel ── -->
-            <Border BorderThickness="1" BorderBrush="#E0E0E0" Background="White">
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource SurfaceBrush}">
                 <DockPanel>
 
                     <!-- Composer column headers -->
@@ -161,7 +163,7 @@
 
                         <Border Grid.Column="1" x:Name="LHdrPieces">
                             <TextBlock Text="Pieces" FontSize="10" FontWeight="SemiBold"
-                                       Foreground="#555" TextAlignment="Right" Margin="0,0,8,0" />
+                                       Foreground="{StaticResource TextSecondaryBrush}" TextAlignment="Right" Margin="0,0,8,0" />
                         </Border>
 
                         <GridSplitter Grid.Column="2" Width="4" Background="Transparent"
@@ -170,11 +172,11 @@
 
                         <Border Grid.Column="3" x:Name="LHdrName">
                             <TextBlock Text="Name" FontSize="10" FontWeight="SemiBold"
-                                       Foreground="#555" />
+                                       Foreground="{StaticResource TextSecondaryBrush}" />
                         </Border>
                     </Grid>
 
-                    <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0"
+                    <Border DockPanel.Dock="Top" BorderBrush="{StaticResource SubtleBorderBrush}"
                             BorderThickness="0,0,0,1" Margin="0,0,0,2" />
 
                     <!-- ── Unified tree: Composer → Piece → Subpiece/Version ── -->
@@ -187,7 +189,7 @@
                          realized at construction — tens of thousands of WPF
                          containers on a fully-loaded catalogue. -->
                     <TreeView x:Name="ComposerTree"
-                              BorderThickness="0" Background="White"
+                              BorderThickness="0" Background="{StaticResource SurfaceBrush}"
                               FontSize="11"
                               AlternationCount="2"
                               SelectedItemChanged="OnComposerTreeSelectionChanged"
@@ -235,7 +237,7 @@
                                  IsExpanded read-only; toggling is done by OnExpanderBorderMouseDown. -->
                             <Style x:Key="ExpanderArrow" TargetType="Path">
                                 <Setter Property="Data"                Value="M 0,0 L 6,4 L 0,8 Z" />
-                                <Setter Property="Fill"                Value="#888" />
+                                <Setter Property="Fill"                Value="{StaticResource TextTertiaryBrush}" />
                                 <Setter Property="Width"               Value="10" />
                                 <Setter Property="Height"              Value="10" />
                                 <Setter Property="HorizontalAlignment" Value="Center" />
@@ -287,10 +289,10 @@
                                                     <Setter TargetName="Bd" Property="Background" Value="{StaticResource ZebraRowBrush}" />
                                                 </MultiTrigger>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="#E8F0FE" />
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionBrush}" />
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="#F0F0F0" />
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverFillBrush}" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -310,7 +312,7 @@
                                     <Border Width="65">
                                         <TextBlock Text="{Binding Composer.PieceCount}"
                                                    TextAlignment="Right" Margin="0,0,8,0"
-                                                   Foreground="#888888" FontSize="10" />
+                                                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" />
                                     </Border>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Composer.Name}"
@@ -318,10 +320,10 @@
                                                    Foreground="{Binding Composer.IsProvisional,
                                                                 Converter={StaticResource ProvisionalBrush}}" />
                                         <TextBlock Text="{Binding Composer.LifeSpan}"
-                                                   Foreground="#888888" FontSize="10"
+                                                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="10"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
                                         <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                                   Foreground="#2E7D32" FontSize="9"
+                                                   Foreground="{StaticResource ApprovedBadgeBrush}" FontSize="9"
                                                    Margin="6,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
@@ -360,10 +362,10 @@
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
-                                               FontSize="9" Foreground="#888"
+                                               FontSize="9" Foreground="{StaticResource TextTertiaryBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -390,7 +392,7 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="10" Foreground="#444">
+                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Piece.ToolTipText}"
@@ -399,10 +401,10 @@
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Piece.Category}"
-                                               FontSize="9" Foreground="#999"
+                                               FontSize="9" Foreground="{StaticResource TextTertiaryBrush}"
                                                Margin="10,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -422,9 +424,9 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="Original"
-                                               FontSize="10" Foreground="#555" />
+                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -444,9 +446,9 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="10" Foreground="#666" FontStyle="Italic" />
+                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontStyle="Italic" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -464,9 +466,9 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="10" Foreground="#777" FontStyle="Italic" />
+                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontStyle="Italic" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -491,7 +493,7 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="10" Foreground="#444"
+                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                                                FontStyle="Italic">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
@@ -501,10 +503,10 @@
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
-                                               FontSize="9" Foreground="#888"
+                                               FontSize="9" Foreground="{StaticResource TextTertiaryBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>
@@ -524,7 +526,7 @@
                                     </Border>
                                     <Border Width="4" />
                                     <TextBlock Text="{Binding DisplayTitle}"
-                                               FontSize="10" Foreground="#333">
+                                               FontSize="10" Foreground="{StaticResource TextPrimaryBrush}">
                                         <TextBlock.ToolTip>
                                             <ToolTip MaxWidth="600">
                                                 <TextBlock Text="{Binding Piece.ToolTipText}"
@@ -533,10 +535,10 @@
                                         </TextBlock.ToolTip>
                                     </TextBlock>
                                     <TextBlock Text="{Binding Catalog}"
-                                               FontSize="9" Foreground="#888"
+                                               FontSize="9" Foreground="{StaticResource TextTertiaryBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Converter={StaticResource HitBadge}}"
-                                               FontSize="9" Foreground="#2E7D32"
+                                               FontSize="9" Foreground="{StaticResource ApprovedBadgeBrush}"
                                                Margin="8,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </HierarchicalDataTemplate>

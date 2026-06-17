@@ -12,32 +12,29 @@
         ShowInTaskbar="False">
 
     <Window.Resources>
-        <!-- Section header background. Sits inside the scroll viewport so
-             it doesn't actually pin during scroll (WPF's StickyHeader
-             require third-party controls). Visual cue still useful. -->
-        <SolidColorBrush x:Key="SectionHeaderBrush" Color="#EEF2F7" />
+        <!-- SectionHeaderBrush now lives in Themes/Theme.xaml (shared). The
+             section-header reference below resolves to it at app scope. -->
 
-        <!-- Per-row card border. Same accent the editor windows use. -->
+        <!-- Per-row card border. -->
         <SolidColorBrush x:Key="CardBorderBrush" Color="#D0D0D0" />
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FAFAFA" />
 
-        <!-- Confidence formatting brush -->
-        <SolidColorBrush x:Key="LowConfidenceBrush"  Color="#B36A00" />
+        <!-- Confidence formatting brush (green = high-confidence match). -->
         <SolidColorBrush x:Key="HighConfidenceBrush" Color="#1F7A1F" />
     </Window.Resources>
 
     <DockPanel>
 
         <!-- Bottom action bar (fixed) -->
-        <Border DockPanel.Dock="Bottom" Background="#F4F4F4"
-                BorderBrush="#D0D0D0" BorderThickness="0,1,0,0" Padding="12,8">
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource StatusBarBrush}"
+                BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,1,0,0" Padding="12,8">
             <DockPanel>
                 <!-- Live progress band shown while planner is running -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                             Visibility="{Binding IsPlanning, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="Planning…" FontSize="11" Foreground="#555"
+                    <TextBlock Text="Planning…" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <TextBlock FontSize="11" Foreground="#555" VerticalAlignment="Center">
+                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
                         <Run Text="Albums "/>
                         <Run Text="{Binding Progress.AlbumsResolved, Mode=OneWay, FallbackValue=0}"/>
                         <Run Text="/"/>
@@ -72,10 +69,10 @@
         </Border>
 
         <!-- Top "Jump to" toolbar (fixed) -->
-        <Border DockPanel.Dock="Top" Background="#F8F8F8"
-                BorderBrush="#D0D0D0" BorderThickness="0,0,0,1" Padding="12,6">
+        <Border DockPanel.Dock="Top" Background="{StaticResource StatusBarBrush}"
+                BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Jump to:" FontSize="11" Foreground="#555"
+                <TextBlock Text="Jump to:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="0,0,12,0" />
                 <Button Padding="6,2" Margin="0,0,6,0" FontSize="11"
                         Click="OnJumpToAlbums">
@@ -89,13 +86,13 @@
         <!-- Zero-hit banner: surfaces clearly when no album in this import
              got any MB match, so the user doesn't have to scroll through
              empty cards to realise something's wrong. -->
-        <Border DockPanel.Dock="Top" Background="#FFF0F0" BorderBrush="#E5A0A0"
+        <Border DockPanel.Dock="Top" Background="{StaticResource ErrorBgBrush}" BorderBrush="{StaticResource ErrorBorderBrush}"
                 BorderThickness="0,0,0,1" Padding="14,10"
                 Visibility="{Binding AllAlbumsLackCandidates, Converter={StaticResource BoolToVis}}">
             <StackPanel>
-                <TextBlock FontWeight="SemiBold" FontSize="10" Foreground="#7A1F1F"
+                <TextBlock FontWeight="SemiBold" FontSize="10" Foreground="{StaticResource ErrorTextBrush}"
                            Text="No MusicBrainz matches" Margin="0,0,0,4" />
-                <TextBlock FontSize="11" Foreground="#7A1F1F" TextWrapping="Wrap">
+                <TextBlock FontSize="11" Foreground="{StaticResource ErrorTextBrush}" TextWrapping="Wrap">
                     MusicBrainz returned zero candidates for every album in this import.
                     Possible causes: query format mismatch, no network access, or these
                     releases really aren't in MB. Try Settings → "Test MusicBrainz
@@ -138,7 +135,7 @@
                                     </Grid.RowDefinitions>
 
                                     <!-- iTunes side -->
-                                    <TextBlock Grid.Row="0" FontSize="11" Foreground="#444">
+                                    <TextBlock Grid.Row="0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
                                         <Run Text="iTunes: "/>
                                         <Run Text="{Binding Proposal.ItunesAlbumTitle, Mode=OneWay}"
                                              FontWeight="SemiBold"/>
@@ -152,7 +149,7 @@
                                     <!-- MB candidate selector -->
                                     <DockPanel Grid.Row="1" Margin="0,4,0,0"
                                                Visibility="{Binding HasCandidates, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="MB:" FontSize="11" Foreground="#444"
+                                        <TextBlock Text="MB:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center" Margin="0,0,6,0" />
                                         <ComboBox Width="500" FontSize="11"
                                                   ItemsSource="{Binding Candidates}"
@@ -174,7 +171,7 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
                                         <!-- Confidence badge -->
-                                        <TextBlock Margin="10,0,0,0" FontSize="10" Foreground="#666"
+                                        <TextBlock Margin="10,0,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"
                                                    Text="{Binding SelectedCandidate.Confidence, StringFormat='conf: {0:P0}', Mode=OneWay, FallbackValue=''}" />
                                         <!-- MBID linkage chip — read-only, click to open -->
@@ -196,7 +193,7 @@
                                         <CheckBox Content="Recording session" FontSize="11"
                                                   IsChecked="{Binding ApplyRecordingSession, Mode=TwoWay}"
                                                   ToolTip="Apply recording dates / venue / engineers / producers." />
-                                        <TextBlock Margin="14,0,0,0" FontSize="10" Foreground="#888"
+                                        <TextBlock Margin="14,0,0,0" FontSize="10" Foreground="{StaticResource TextTertiaryBrush}"
                                                    VerticalAlignment="Center"
                                                    Text="Loading details…"
                                                    Visibility="{Binding IsLoadingDetail, Converter={StaticResource BoolToVis}}" />
@@ -206,7 +203,7 @@
                                          per-row detail fetch completes. Driven by HasDetail
                                          so the row stays compact until MB returns data. -->
                                     <Border Grid.Row="3" Margin="0,8,0,0" Padding="10,6"
-                                            Background="#FBFCFE" BorderBrush="#D8E3EE"
+                                            Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource SubtleBorderBrush}"
                                             BorderThickness="1"
                                             Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}">
                                         <Grid>
@@ -230,22 +227,22 @@
 
                                             <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                                                        FontWeight="SemiBold" FontSize="11"
-                                                       Foreground="#374A5F" Margin="0,0,0,4"
+                                                       Foreground="{StaticResource InfoTextBrush}" Margin="0,0,0,4"
                                                        Text="Selected candidate" />
 
                                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Title"
-                                                       FontSize="11" Foreground="#666" />
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBlock Grid.Row="1" Grid.Column="1" FontSize="11"
                                                        Text="{Binding SelectedCandidateDetail.Title, Mode=OneWay}" />
 
                                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Artist"
-                                                       FontSize="11" Foreground="#666" />
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBlock Grid.Row="2" Grid.Column="1" FontSize="11"
                                                        TextWrapping="Wrap"
                                                        Text="{Binding SelectedCandidateDetail.ArtistCredit, Mode=OneWay}" />
 
                                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Label / CatNo"
-                                                       FontSize="11" Foreground="#666" />
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBlock Grid.Row="3" Grid.Column="1" FontSize="11">
                                                 <Run Text="{Binding SelectedCandidateDetail.Label, Mode=OneWay}"/>
                                                 <Run Text="  "/>
@@ -253,12 +250,12 @@
                                             </TextBlock>
 
                                             <TextBlock Grid.Row="4" Grid.Column="0" Text="Barcode"
-                                                       FontSize="11" Foreground="#666" />
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBlock Grid.Row="4" Grid.Column="1" FontSize="11"
                                                        Text="{Binding SelectedCandidateDetail.Barcode, Mode=OneWay}" />
 
                                             <TextBlock Grid.Row="5" Grid.Column="0" Text="Date / Country"
-                                                       FontSize="11" Foreground="#666" />
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBlock Grid.Row="5" Grid.Column="1" FontSize="11">
                                                 <Run Text="{Binding SelectedCandidateDetail.Date, Mode=OneWay}"/>
                                                 <Run Text="  "/>
@@ -266,7 +263,7 @@
                                             </TextBlock>
 
                                             <TextBlock Grid.Row="6" Grid.Column="0" Text="Discs / Tracks"
-                                                       FontSize="11" Foreground="#666" />
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBlock Grid.Row="6" Grid.Column="1" FontSize="11">
                                                 <Run Text="{Binding SelectedCandidateDetail.DiscCount, Mode=OneWay}"/>
                                                 <Run Text=" disc(s), "/>
@@ -277,7 +274,7 @@
                                             <!-- Recording session(s) — typically one entry; lists multiple
                                                  when MB credits per-track sessions. -->
                                             <TextBlock Grid.Row="7" Grid.Column="0" Text="Sessions"
-                                                       FontSize="11" Foreground="#666"
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                                        VerticalAlignment="Top" Margin="0,2,0,0" />
                                             <ItemsControl Grid.Row="7" Grid.Column="1"
                                                           ItemsSource="{Binding SelectedCandidateDetail.RecordingEvents, Mode=OneWay}">
@@ -296,7 +293,7 @@
 
                                             <!-- Performer credits with role + instrument. -->
                                             <TextBlock Grid.Row="8" Grid.Column="0" Text="Credits"
-                                                       FontSize="11" Foreground="#666"
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                                        VerticalAlignment="Top" Margin="0,2,0,0" />
                                             <ItemsControl Grid.Row="8" Grid.Column="1"
                                                           ItemsSource="{Binding SelectedCandidateDetail.Credits, Mode=OneWay}">
@@ -318,7 +315,7 @@
                                                  extra discs, etc.) make this the clearest visual
                                                  verification the user can do before applying. -->
                                             <TextBlock Grid.Row="9" Grid.Column="0" Text="Tracks"
-                                                       FontSize="11" Foreground="#666"
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                                        VerticalAlignment="Top" Margin="0,4,0,0" />
                                             <Grid Grid.Row="9" Grid.Column="1" Margin="0,2,0,0">
                                                 <Grid.ColumnDefinitions>
@@ -332,11 +329,11 @@
                                                 </Grid.RowDefinitions>
 
                                                 <TextBlock Grid.Row="0" Grid.Column="0"
-                                                           FontSize="10" Foreground="#888"
+                                                           FontSize="10" Foreground="{StaticResource TextTertiaryBrush}"
                                                            FontWeight="SemiBold" Margin="0,0,0,2"
                                                            Text="iTunes (your import selection)" />
                                                 <TextBlock Grid.Row="0" Grid.Column="2"
-                                                           FontSize="10" Foreground="#888"
+                                                           FontSize="10" Foreground="{StaticResource TextTertiaryBrush}"
                                                            FontWeight="SemiBold" Margin="0,0,0,2"
                                                            Text="MusicBrainz release" />
 
@@ -381,7 +378,7 @@
 
                                     <!-- No-match indicator -->
                                     <TextBlock Grid.Row="1" Margin="0,4,0,0" FontSize="11"
-                                               Foreground="#888" FontStyle="Italic"
+                                               Foreground="{StaticResource TextTertiaryBrush}" FontStyle="Italic"
                                                Text="MusicBrainz found no candidates for this album."
                                                Visibility="{Binding LacksCandidates, Converter={StaticResource BoolToVis}}" />
                                 </Grid>
@@ -391,16 +388,16 @@
                 </ItemsControl>
 
                 <!-- ── Warnings ──────────────────────────────────────────── -->
-                <Border Background="#FFF7E6" BorderBrush="#E5C885" BorderThickness="1"
+                <Border Background="{StaticResource WarningBgBrush}" BorderBrush="{StaticResource WarningBorderBrush}" BorderThickness="1"
                         Padding="10,6" Margin="0,8,0,0"
                         Visibility="{Binding HasWarnings, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
                         <TextBlock Text="Warnings" FontWeight="SemiBold" FontSize="11"
-                                   Foreground="#7A5500" Margin="0,0,0,4" />
+                                   Foreground="{StaticResource WarningTextBrush}" Margin="0,0,0,4" />
                         <ItemsControl ItemsSource="{Binding Warnings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="11" Foreground="#7A5500"
+                                    <TextBlock FontSize="11" Foreground="{StaticResource WarningTextBrush}"
                                                TextWrapping="Wrap" Margin="0,1">
                                         <Run Text="·"/>
                                         <Run Text=" "/>

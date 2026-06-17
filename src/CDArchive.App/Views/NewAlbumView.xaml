@@ -12,7 +12,7 @@
         <TextBlock Text="Album Name"
                    FontSize="12"
                    FontWeight="SemiBold"
-                   Foreground="#333333"
+                   Foreground="{StaticResource TextPrimaryBrush}"
                    Margin="0,0,0,5" />
         <TextBox Text="{Binding AlbumName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                  FontSize="12"
@@ -23,7 +23,7 @@
         <TextBlock Text="Disc Count"
                    FontSize="12"
                    FontWeight="SemiBold"
-                   Foreground="#333333"
+                   Foreground="{StaticResource TextPrimaryBrush}"
                    Margin="0,0,0,5" />
         <TextBox Text="{Binding DiscCount, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                  FontSize="12"
@@ -38,8 +38,8 @@
                 FontSize="12"
                 Padding="20,8"
                 HorizontalAlignment="Left"
-                Background="#007ACC"
-                Foreground="White"
+                Background="{StaticResource AccentBrush}"
+                Foreground="{StaticResource TextOnAccentBrush}"
                 BorderThickness="0"
                 Cursor="Hand"
                 Margin="0,0,0,20" />
@@ -49,14 +49,14 @@
                       Margin="0,0,0,15">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Background="#FFF3CD"
-                            BorderBrush="#FFECB5"
+                    <Border Background="{StaticResource WarningBgBrush}"
+                            BorderBrush="{StaticResource WarningBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="4"
                             Padding="12,8"
                             Margin="0,0,0,5">
                         <TextBlock Text="{Binding}"
-                                   Foreground="#856404"
+                                   Foreground="{StaticResource WarningTextBrush}"
                                    FontSize="11"
                                    TextWrapping="Wrap" />
                     </Border>
@@ -71,10 +71,10 @@
                    Margin="0,5,0,0">
             <TextBlock.Style>
                 <Style TargetType="TextBlock">
-                    <Setter Property="Foreground" Value="#D32F2F" />
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsSuccess}" Value="True">
-                            <Setter Property="Foreground" Value="#2E7D32" />
+                            <Setter Property="Foreground" Value="{StaticResource ApprovedBadgeBrush}" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

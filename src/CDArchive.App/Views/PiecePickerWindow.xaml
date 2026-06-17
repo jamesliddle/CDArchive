@@ -35,12 +35,12 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Text="Composer:" VerticalAlignment="Center"
-                       FontSize="11" Foreground="#555" Margin="0,0,6,0" />
+                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" />
             <ComboBox Grid.Column="1" x:Name="ComposerBox" FontSize="11"
                       SelectionChanged="OnComposerFilterChanged" />
 
             <TextBlock Grid.Column="3" Text="Sort:" VerticalAlignment="Center"
-                       FontSize="11" Foreground="#555" Margin="0,0,6,0" />
+                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" />
             <ComboBox Grid.Column="4" x:Name="SortBox" FontSize="11"
                       SelectionChanged="OnSortChanged">
                 <ComboBoxItem Content="Catalogue" IsSelected="True" />
@@ -50,7 +50,7 @@
             </ComboBox>
 
             <TextBlock Grid.Column="6" Text="Search:" VerticalAlignment="Center"
-                       FontSize="11" Foreground="#555" Margin="0,0,6,0" />
+                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" />
             <TextBox Grid.Column="7" x:Name="SearchBox" FontSize="11" Padding="4,4"
                      VerticalContentAlignment="Center"
                      TextChanged="OnSearchChanged" />
@@ -58,11 +58,11 @@
 
         <!-- Hint -->
         <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6"
-                   FontSize="9" Foreground="#888" TextWrapping="Wrap"
+                   FontSize="9" Foreground="{StaticResource TextTertiaryBrush}" TextWrapping="Wrap"
                    Text="Select a piece for a whole-work link, or expand to select a specific movement or version." />
 
         <!-- Tree -->
-        <Border BorderThickness="1" BorderBrush="#CCC" Background="White">
+        <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource SurfaceBrush}">
             <!-- Rework H34: virtualization is the WPF default. Pre-fix this
                  tree set IsVirtualizing="False"; the picker's PickerNode
                  view-model holds IsExpanded directly (vs binding through
@@ -71,7 +71,7 @@
                  no working state in the WPF container that the recycler
                  could lose. -->
             <TreeView x:Name="PieceTree"
-                      BorderThickness="0" Background="White"
+                      BorderThickness="0" Background="{StaticResource SurfaceBrush}"
                       FontSize="11"
                       SelectedItemChanged="OnTreeSelectionChanged"
                       MouseDoubleClick="OnTreeDoubleClick"
@@ -84,7 +84,7 @@
                          ToggleButton.IsChecked ↔ TreeViewItem.IsExpanded binding). -->
                     <Style x:Key="ExpanderArrow" TargetType="Path">
                         <Setter Property="Data"                Value="M 0,0 L 6,4 L 0,8 Z" />
-                        <Setter Property="Fill"                Value="#888" />
+                        <Setter Property="Fill"                Value="{StaticResource TextTertiaryBrush}" />
                         <Setter Property="Width"               Value="10" />
                         <Setter Property="Height"              Value="10" />
                         <Setter Property="HorizontalAlignment" Value="Center" />
@@ -121,10 +121,10 @@
                                             <Setter TargetName="ItemsHost" Property="Visibility" Value="Visible" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="#E8F0FE" />
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentTintBrush}" />
                                         </Trigger>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="#F0F0F0" />
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverFillBrush}" />
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -143,10 +143,10 @@
                             <TextBlock Text="{Binding Name}"
                                        FontWeight="SemiBold" />
                             <TextBlock Text="{Binding LifeSpan}"
-                                       Foreground="#888" FontSize="10"
+                                       Foreground="{StaticResource TextTertiaryBrush}" FontSize="10"
                                        Margin="6,0,0,0" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding PieceCountLabel}"
-                                       Foreground="#AAA" FontSize="9"
+                                       Foreground="{StaticResource TextTertiaryBrush}" FontSize="9"
                                        Margin="8,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
@@ -163,7 +163,7 @@
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
                             <TextBlock Text="{Binding DisplayTitle}"
-                                       FontSize="11" Foreground="#333">
+                                       FontSize="11" Foreground="{StaticResource TextPrimaryBrush}">
                                 <TextBlock.ToolTip>
                                     <ToolTip MaxWidth="600">
                                         <TextBlock Text="{Binding ToolTipText}"
@@ -172,7 +172,7 @@
                                 </TextBlock.ToolTip>
                             </TextBlock>
                             <TextBlock Text="{Binding Catalog}"
-                                       FontSize="9" Foreground="#888"
+                                       FontSize="9" Foreground="{StaticResource TextTertiaryBrush}"
                                        Margin="8,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
@@ -188,7 +188,7 @@
                                       Visibility="{Binding HasChildren,
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
-                            <TextBlock Text="Original" FontSize="11" Foreground="#555" />
+                            <TextBlock Text="Original" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
 
@@ -204,7 +204,7 @@
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
                             <TextBlock Text="{Binding DisplayTitle}"
-                                       FontSize="11" Foreground="#4472C4" FontStyle="Italic" />
+                                       FontSize="11" Foreground="{StaticResource AccentBrush}" FontStyle="Italic" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
 
@@ -220,7 +220,7 @@
                                                    Converter={StaticResource BoolToVis}}" />
                             </Grid>
                             <TextBlock Text="{Binding DisplayTitle}"
-                                       FontSize="10" Foreground="#444" />
+                                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
                         </StackPanel>
                     </HierarchicalDataTemplate>
 

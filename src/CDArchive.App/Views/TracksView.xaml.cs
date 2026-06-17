@@ -37,7 +37,32 @@ public partial class TracksView : UserControl
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (DataContext is TracksViewModel vm)
+        {
+            vm.PropertyChanged -= OnVmArtworkPropertyChanged;
+            vm.PropertyChanged += OnVmArtworkPropertyChanged;
+            ApplyArtworkColumn(vm);
             await vm.LoadDataCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is TracksViewModel vm)
+            vm.PropertyChanged -= OnVmArtworkPropertyChanged;
+    }
+
+    private void OnVmArtworkPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is TracksViewModel vm &&
+            (e.PropertyName is nameof(TracksViewModel.ShowArtwork) or nameof(TracksViewModel.ArtworkBoxSize)))
+            ApplyArtworkColumn(vm);
+    }
+
+    /// <summary>Width of the cover-art column from the settings-driven VM state:
+    /// box + margin when on, 0 when off (a GridViewColumn has no Visibility).</summary>
+    private void ApplyArtworkColumn(TracksViewModel vm)
+    {
+        ArtworkColumn.Width = vm.ShowArtwork ? vm.ArtworkBoxSize + 12 : 0;
     }
 
     // ── Toolbar handlers ──────────────────────────────────────────────────────

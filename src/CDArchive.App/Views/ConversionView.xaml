@@ -21,8 +21,8 @@
                         Command="{Binding LoadAlbumsCommand}"
                         FontSize="12"
                         Padding="20,8"
-                        Background="#007ACC"
-                        Foreground="White"
+                        Background="{StaticResource AccentBrush}"
+                        Foreground="{StaticResource TextOnAccentBrush}"
                         BorderThickness="0"
                         Cursor="Hand"
                         Margin="0,0,12,0" />
@@ -42,8 +42,8 @@
                         Command="{Binding ConvertCommand}"
                         FontSize="12"
                         Padding="20,8"
-                        Background="#2E7D32"
-                        Foreground="White"
+                        Background="{StaticResource ApprovedBadgeBrush}"
+                        Foreground="{StaticResource TextOnAccentBrush}"
                         BorderThickness="0"
                         Cursor="Hand"
                         Margin="0,0,12,0" />
@@ -52,8 +52,8 @@
                         Command="{Binding CancelCommand}"
                         FontSize="12"
                         Padding="20,8"
-                        Background="#D32F2F"
-                        Foreground="White"
+                        Background="{StaticResource DangerBrush}"
+                        Foreground="{StaticResource TextOnAccentBrush}"
                         BorderThickness="0"
                         Cursor="Hand" />
             </StackPanel>
@@ -61,14 +61,14 @@
             <!-- Overall Progress Bar -->
             <TextBlock Text="Overall Progress"
                        FontSize="10"
-                       Foreground="#777777"
+                       Foreground="{StaticResource TextSecondaryBrush}"
                        Margin="0,0,0,4" />
             <ProgressBar Value="{Binding OverallProgress}"
                          Minimum="0"
                          Maximum="100"
                          Height="20"
-                         Foreground="#007ACC"
-                         Background="#E0E0E0"
+                         Foreground="{StaticResource AccentBrush}"
+                         Background="{StaticResource SubtleBorderBrush}"
                          BorderThickness="0" />
         </StackPanel>
 
@@ -76,7 +76,7 @@
         <TextBlock DockPanel.Dock="Bottom"
                    Text="{Binding StatusMessage}"
                    FontSize="11"
-                   Foreground="#555555"
+                   Foreground="{StaticResource TextSecondaryBrush}"
                    Margin="0,10,0,0" />
 
         <!-- Jobs DataGrid -->
@@ -86,11 +86,11 @@
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
+                  GridLinesVisibility="None"
                   BorderThickness="1"
-                  BorderBrush="#E0E0E0"
-                  Background="White"
-                  RowBackground="White"
+                  BorderBrush="{StaticResource SubtleBorderBrush}"
+                  Background="{StaticResource SurfaceBrush}"
+                  RowBackground="{StaticResource SurfaceBrush}"
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
                   FontSize="11"
                   Margin="0,12,0,0">
@@ -114,8 +114,8 @@
                                          Minimum="0"
                                          Maximum="100"
                                          Height="14"
-                                         Foreground="#007ACC"
-                                         Background="#E0E0E0"
+                                         Foreground="{StaticResource AccentBrush}"
+                                         Background="{StaticResource SubtleBorderBrush}"
                                          BorderThickness="0" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

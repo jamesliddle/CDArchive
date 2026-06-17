@@ -24,6 +24,22 @@ public partial class TracksViewModel : ObservableObject
     private readonly PieceReferenceIndex _refIndex;
     private readonly IDialogService _dialogs;
     private readonly ILogger<TracksViewModel> _logger;
+    private readonly IArchiveSettings? _settings;
+
+    /// <summary>Whether the Tracks list shows cover-art thumbnails (settings-driven).</summary>
+    [ObservableProperty] private bool _showArtwork;
+
+    /// <summary>Thumbnail box size (DIP) for the Tracks list, from settings.</summary>
+    [ObservableProperty] private double _artworkBoxSize = 24;
+
+    /// <summary>Re-reads the Tracks-list artwork settings (show + size). Called at
+    /// construction and by <c>SettingsViewModel</c> after a save.</summary>
+    public void RefreshArtworkOptions()
+    {
+        if (_settings is null) return;
+        ShowArtwork    = _settings.ShowTrackListArtwork;
+        ArtworkBoxSize = Helpers.ArtworkSizes.ListBox(_settings.TrackListArtworkSize);
+    }
 
     // Loose tracks (singletons with no owning album). Loaded alongside albums
     // and folded into the row list. Persisted separately via SaveLooseTracksAsync.
@@ -57,7 +73,8 @@ public partial class TracksViewModel : ObservableObject
         PieceReferenceIndex refIndex,
         PlayerViewModel player,
         IDialogService dialogs,
-        ILogger<TracksViewModel>? logger = null)
+        ILogger<TracksViewModel>? logger = null,
+        IArchiveSettings? settings = null)
     {
         _albumsVm = albumsVm;
         _svc      = svc;
@@ -65,6 +82,8 @@ public partial class TracksViewModel : ObservableObject
         Player    = player;
         _dialogs  = dialogs;
         _logger   = logger ?? NullLogger<TracksViewModel>.Instance;
+        _settings = settings;
+        RefreshArtworkOptions();
     }
 
     /// <summary>Public read-only access to the loose-track list (for tests and the view).</summary>

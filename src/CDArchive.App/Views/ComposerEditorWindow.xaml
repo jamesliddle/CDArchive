@@ -10,7 +10,7 @@
     <Window.Resources>
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="#555" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="FontSize" Value="10" />
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
@@ -121,9 +121,9 @@
 
             <!-- Aliases / AKAs section -->
             <TextBlock Text="Aliases / AKAs" FontWeight="SemiBold" FontSize="10"
-                       Foreground="#555" Margin="0,14,0,6" />
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,6" />
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA" Padding="6">
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}" Padding="6">
                 <StackPanel>
                     <DockPanel MinHeight="20" MaxHeight="80">
                         <Button DockPanel.Dock="Right" Content="✕" Padding="6,3" FontSize="9"
@@ -133,7 +133,7 @@
                         <ListBox x:Name="AliasList" FontSize="10" BorderThickness="0"
                                  ItemsSource="{Binding Aliases}" />
                     </DockPanel>
-                    <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
+                    <Border BorderThickness="0,1,0,0" BorderBrush="{StaticResource SubtleBorderBrush}" />
                     <DockPanel Margin="4,4,4,4">
                         <Button DockPanel.Dock="Right" Content="Add" Padding="8,3" FontSize="9"
                                 Margin="4,0,0,0" Click="OnAddAliasClick" />
@@ -145,11 +145,11 @@
 
             <!-- Catalogues section -->
             <TextBlock Text="Catalogues" FontWeight="SemiBold" FontSize="10"
-                       Foreground="#555" Margin="0,14,0,6" />
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,6" />
             <TextBlock Text="List the catalogue prefixes used for this composer, in order of display preference — the first match is shown. Leave empty to allow all prefixes with no preferred order."
-                       FontSize="9" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,4" />
+                       FontSize="9" Foreground="{StaticResource TextTertiaryBrush}" TextWrapping="Wrap" Margin="0,0,0,4" />
 
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA" Padding="6">
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}" Padding="6">
                 <StackPanel>
                     <DockPanel MinHeight="20" MaxHeight="80">
                         <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top" Margin="2">
@@ -166,7 +166,7 @@
                         <ListBox x:Name="CatalogList" FontSize="10" BorderThickness="0"
                                  ItemsSource="{Binding CatalogPrefixes}" />
                     </DockPanel>
-                    <Border BorderThickness="0,1,0,0" BorderBrush="#E0E0E0" />
+                    <Border BorderThickness="0,1,0,0" BorderBrush="{StaticResource SubtleBorderBrush}" />
                     <DockPanel Margin="4,4,4,4">
                         <Button DockPanel.Dock="Right" Content="Add" Padding="8,3" FontSize="9"
                                 Margin="4,0,0,0" Click="OnAddCatalogClick" />

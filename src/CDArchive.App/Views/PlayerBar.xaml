@@ -10,15 +10,16 @@
 
     <UserControl.Resources>
 
-        <!-- Borderless transport-icon button. Icon glyphs are rendered in Segoe UI Symbol. -->
+        <!-- Borderless transport-icon button. Glyphs are Segoe MDL2 Assets
+             (crisper than the Segoe UI Symbol Unicode arrows at any DPI). -->
         <Style x:Key="TransportButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Foreground" Value="#333333" />
-            <Setter Property="FontFamily" Value="Segoe UI Symbol" />
-            <Setter Property="FontSize" Value="20" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="15" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Width" Value="40" />
+            <Setter Property="Width" Value="38" />
             <Setter Property="Height" Value="32" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -26,16 +27,17 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="BorderElement"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="4">
+                                CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BorderElement" Property="Background" Value="#E5E5E5" />
+                                <Setter TargetName="BorderElement" Property="Background" Value="{StaticResource HoverFillBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="BorderElement" Property="Background" Value="#CCCCCC" />
+                                <Setter TargetName="BorderElement" Property="Background" Value="{StaticResource SelectionBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Cursor" Value="Arrow" />
@@ -50,15 +52,44 @@
             </Setter>
         </Style>
 
-        <!-- Play/Pause swaps glyph based on IsPlaying. Default = ▶ (play). -->
-        <Style x:Key="PlayPauseButtonStyle"
-               TargetType="Button"
-               BasedOn="{StaticResource TransportButtonStyle}">
-            <Setter Property="Content" Value="▶" />
-            <Setter Property="FontSize" Value="22" />
+        <!-- Play/Pause: accent-filled circular button, swaps glyph on IsPlaying.
+             Default = Play (MDL2 E768); Pause = E769. -->
+        <Style x:Key="PlayPauseButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource TextOnAccentBrush}" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Content" Value="&#xE768;" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BorderElement"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="19">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BorderElement" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BorderElement" Property="Background" Value="{StaticResource AccentPressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow" />
+                                <Setter TargetName="BorderElement" Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsPlaying}" Value="True">
-                    <Setter Property="Content" Value="⏸" />
+                    <Setter Property="Content" Value="&#xE769;" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -78,29 +109,65 @@
         </Style>
     </UserControl.Style>
 
-    <Border Background="White"
-            BorderBrush="#E0E0E0"
+    <Border Background="{StaticResource SurfaceBrush}"
+            BorderBrush="{StaticResource SubtleBorderBrush}"
             BorderThickness="0,1,0,0"
             Padding="20,10">
 
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Transport buttons (left): prev-track · seek-back · play/pause ·
-                 seek-forward · next-track. The prev/next buttons use the
-                 ⏮ / ⏭ glyphs (two triangles + bar) and disable when there's no
-                 adjacent track. The seek buttons use the circular-arrow
-                 SeekGlyph showing the step count. -->
-            <StackPanel Grid.Column="0"
+            <!-- Cover-art slot (left). Shows the resolved album cover when one
+                 exists on disk (cover.jpg / folder.jpg / … in the album folder),
+                 falling back to a music-note placeholder glyph otherwise. Shown
+                 only when a track is loaded. -->
+            <Border Grid.Column="0"
+                    Width="{Binding ArtworkBoxSize}" Height="{Binding ArtworkBoxSize}"
+                    CornerRadius="5"
+                    Background="{StaticResource RailBackgroundBrush}"
+                    BorderBrush="{StaticResource SubtleBorderBrush}"
+                    BorderThickness="1"
+                    ClipToBounds="True"
+                    VerticalAlignment="Center"
+                    Margin="0,0,14,0"
+                    Visibility="{Binding CoverSlotVisible, Converter={StaticResource BoolToVis}}"
+                    ToolTipService.IsEnabled="{Binding HasArtwork}"
+                    ToolTipService.InitialShowDelay="350"
+                    ToolTipService.ShowDuration="120000"
+                    ToolTipService.Placement="Top">
+                <Border.ToolTip>
+                    <ToolTip Style="{StaticResource ArtworkPreviewToolTip}"
+                             Content="{Binding PlacementTarget.DataContext.CurrentArtwork, RelativeSource={RelativeSource Self}}" />
+                </Border.ToolTip>
+                <Grid>
+                    <TextBlock Text="&#xEC4F;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="18"
+                               Foreground="{StaticResource TextTertiaryBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                    <Image Source="{Binding CurrentArtwork,
+                                    Converter={StaticResource AlbumArtwork}, ConverterParameter=96}"
+                           Stretch="UniformToFill"
+                           Visibility="{Binding HasArtwork, Converter={StaticResource BoolToVis}}" />
+                </Grid>
+            </Border>
+
+            <!-- Transport buttons: prev-track · seek-back · play/pause ·
+                 seek-forward · next-track. Prev/next use MDL2 E892/E893 and
+                 disable when there's no adjacent track. The seek buttons use
+                 the circular-arrow SeekGlyph showing the step count. -->
+            <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="0,0,20,0">
                 <Button Style="{StaticResource TransportButtonStyle}"
-                        Content="⏮"
+                        Content="&#xE892;"
                         ToolTip="Previous track (restarts the current track when past the restart threshold)"
                         IsEnabled="{Binding CanPreviousTrack}"
                         Command="{Binding PreviousTrackCommand}" />
@@ -112,6 +179,7 @@
                 </Button>
                 <Button Style="{StaticResource PlayPauseButtonStyle}"
                         ToolTip="Play / Pause"
+                        Margin="2,0"
                         IsEnabled="{Binding IsTrackLoaded}"
                         Command="{Binding PlayPauseCommand}" />
                 <Button Style="{StaticResource TransportButtonStyle}"
@@ -121,7 +189,7 @@
                     <controls:SeekGlyph Seconds="{Binding SeekForwardSeconds}" Mirror="True" />
                 </Button>
                 <Button Style="{StaticResource TransportButtonStyle}"
-                        Content="⏭"
+                        Content="&#xE893;"
                         ToolTip="Next track"
                         IsEnabled="{Binding HasNextTrack}"
                         Command="{Binding NextTrackCommand}" />
@@ -130,14 +198,15 @@
             <!-- Right controls: volume. ("Stop after current track" is now a
                  persisted player setting on the Settings screen, not a
                  transport-bar toggle.) -->
-            <StackPanel Grid.Column="2"
+            <StackPanel Grid.Column="3"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="20,0,0,0">
-                <TextBlock Text="🔈" FontFamily="Segoe UI Symbol" FontSize="14"
-                           Foreground="#555" VerticalAlignment="Center"
-                           Margin="10,0,4,0" />
+                <TextBlock Text="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                           Margin="10,0,8,0" />
                 <Slider Width="100"
+                        Style="{StaticResource SlimSlider}"
                         Minimum="0" Maximum="1"
                         SmallChange="0.05" LargeChange="0.1"
                         TickFrequency="0.1"
@@ -148,7 +217,7 @@
             </StackPanel>
 
             <!-- Track info (top) + progress slider with time labels (bottom) -->
-            <Grid Grid.Column="1" VerticalAlignment="Center">
+            <Grid Grid.Column="2" VerticalAlignment="Center">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -171,10 +240,10 @@
                     <controls:MarqueeTextBlock Text="{Binding TrackTitleLine}"
                                                FontWeight="SemiBold"
                                                FontSize="13"
-                                               Foreground="#333333" />
+                                               Foreground="{StaticResource TextPrimaryBrush}" />
                     <controls:MarqueeTextBlock Text="{Binding TrackDetailLine}"
                                                FontSize="11"
-                                               Foreground="#555555"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
                                                Margin="0,1,0,0"
                                                Visibility="{Binding HasTrackDetail,
                                                             Converter={StaticResource BoolToVis}}" />
@@ -182,7 +251,7 @@
                          file path" setting. -->
                     <controls:MarqueeTextBlock Text="{Binding PlayingFilePath}"
                                                FontSize="10"
-                                               Foreground="#888888"
+                                               Foreground="{StaticResource TextTertiaryBrush}"
                                                Margin="0,1,0,0"
                                                Visibility="{Binding ShowFilePath,
                                                             Converter={StaticResource BoolToVis}}" />
@@ -202,17 +271,19 @@
                     <TextBlock Grid.Column="0"
                                Text="{Binding ElapsedDisplay}"
                                FontSize="11"
-                               Foreground="#666666"
+                               Foreground="{StaticResource TextTertiaryBrush}"
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0" />
 
                     <Slider x:Name="ProgressSlider"
                             Grid.Column="1"
+                            Style="{StaticResource SlimSlider}"
                             Minimum="0"
                             Maximum="{Binding DurationSeconds}"
                             Value="{Binding SliderValue, Mode=TwoWay}"
                             IsEnabled="{Binding IsTrackLoaded}"
+                            IsMoveToPointEnabled="True"
                             VerticalAlignment="Center"
                             Thumb.DragStarted="ProgressSlider_DragStarted"
                             Thumb.DragCompleted="ProgressSlider_DragCompleted"
@@ -221,7 +292,7 @@
                     <TextBlock Grid.Column="2"
                                Text="{Binding RemainingDisplay}"
                                FontSize="11"
-                               Foreground="#666666"
+                               Foreground="{StaticResource TextTertiaryBrush}"
                                HorizontalAlignment="Left"
                                VerticalAlignment="Center"
                                Margin="8,0,0,0" />

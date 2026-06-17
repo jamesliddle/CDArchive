@@ -12,7 +12,7 @@
         <!-- Selector row -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,16">
             <TextBlock Text="Pick List:" VerticalAlignment="Center"
-                       FontSize="11" Foreground="#555" Margin="0,0,10,0" />
+                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
             <ComboBox FontSize="11" Width="200"
                       ItemsSource="{x:Static vm:PickListsViewModel.PickListNames}"
                       SelectedIndex="{Binding SelectedListIndex}" />
@@ -23,7 +23,7 @@
             <Button DockPanel.Dock="Left" Content="Save" Width="80" Padding="0,6"
                     Command="{Binding SaveCommand}" />
             <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center"
-                       FontSize="10" Foreground="#555" Margin="12,0,0,0"
+                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="12,0,0,0"
                        TextWrapping="Wrap" />
         </DockPanel>
 

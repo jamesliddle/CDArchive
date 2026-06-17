@@ -43,6 +43,12 @@ public class ArchiveAudioLocatorTests : IDisposable
         public bool ApplyMbPerformerCredits       { get; set; } = true;
         public bool ApplyMbRecordingSessions      { get; set; } = true;
         public bool ApplyMbCanonicalWorkStructure { get; set; } = true;
+        public bool ShowAlbumListArtwork { get; set; } = true;
+        public bool ShowTrackListArtwork { get; set; }
+        public bool ShowPlayerArtwork    { get; set; } = true;
+        public ArtworkSize AlbumListArtworkSize { get; set; } = ArtworkSize.Medium;
+        public ArtworkSize TrackListArtworkSize { get; set; } = ArtworkSize.Small;
+        public ArtworkSize PlayerArtworkSize    { get; set; } = ArtworkSize.Medium;
         public void Save() { }
         public void Initialize() { }
     }

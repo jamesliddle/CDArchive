@@ -18,13 +18,13 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="Description" VerticalAlignment="Center"
-                       Foreground="#555" FontSize="10" Margin="0,0,8,0" />
+                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,8,0" />
             <TextBox   Grid.Row="0" Grid.Column="1" x:Name="DescriptionBox"
                        FontSize="11" Padding="4,3" Margin="0,3"
                        Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <TextBlock Grid.Row="1" Text="Long Description" VerticalAlignment="Top"
-                       Foreground="#555" FontSize="10" Margin="0,6,8,0" />
+                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,6,8,0" />
             <TextBox   Grid.Row="1" Grid.Column="1" x:Name="LongDescriptionBox"
                        FontSize="11" Padding="4,3" Margin="0,6,0,0"
                        AcceptsReturn="True" TextWrapping="Wrap"

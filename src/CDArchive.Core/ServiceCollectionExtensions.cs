@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IArchiveSettings, ArchiveSettings>();
         services.AddSingleton<IArchiveAudioLocator, ArchiveAudioLocator>();
+        services.AddSingleton<IAlbumArtworkLocator, AlbumArtworkLocator>();
         // NAudio raises PlaybackStopped on a pool thread; the player marshals
         // its public events through a captured SynchronizationContext so WPF
         // consumers see them on the UI thread. The App is responsible for

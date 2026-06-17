@@ -195,7 +195,7 @@
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top"
                                    Text="Album-level performers appear on all tracks unless overridden per-track."
-                                   FontSize="9" Foreground="#888" TextWrapping="Wrap"
+                                   FontSize="9" Foreground="{StaticResource TextTertiaryBrush}" TextWrapping="Wrap"
                                    Margin="0,0,0,6" />
                         <Grid Height="175">
                             <Grid.ColumnDefinitions>
@@ -204,7 +204,7 @@
                             </Grid.ColumnDefinitions>
 
                             <ListView x:Name="PerformerList" Grid.Column="0" FontSize="11"
-                                      BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                      BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Margin="0,0,8,0"
                                       AlternationCount="2"
                                       ItemContainerStyle="{StaticResource ZebraListViewItemStyle}"
                                       ItemsSource="{Binding Performers}"
@@ -254,7 +254,7 @@
                                 <Button x:Name="RemovePerformerButton" Content="Remove"
                                         Style="{StaticResource ListActionButtonStyle}"
                                         IsEnabled="False" Click="OnRemovePerformer" />
-                                <Border Height="1" Background="#DDD" Margin="0,4,0,8" />
+                                <Border Height="1" Background="{StaticResource SubtleBorderBrush}" Margin="0,4,0,8" />
                                 <Button x:Name="PerformerUpButton" Content="Up"
                                         Style="{StaticResource ListActionButtonStyle}"
                                         IsEnabled="False" Click="OnPerformerMoveUp" />
@@ -338,7 +338,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ListBox x:Name="SessionEngineerList" Grid.Column="0" FontSize="11"
-                                     BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                     BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Margin="0,0,8,0"
                                      ItemsSource="{Binding SessionEngineers}"
                                      SelectionChanged="OnSessionEngineerSelectionChanged"
                                      MouseDoubleClick="OnSessionEngineerDoubleClick" />
@@ -352,7 +352,7 @@
                                 <Button x:Name="RemoveSessionEngineerButton" Content="Remove"
                                         Style="{StaticResource ListActionButtonStyle}"
                                         IsEnabled="False" Click="OnRemoveSessionEngineer" />
-                                <Border Height="1" Background="#DDD" Margin="0,4,0,4" />
+                                <Border Height="1" Background="{StaticResource SubtleBorderBrush}" Margin="0,4,0,4" />
                                 <Button x:Name="SessionEngineerUpButton" Content="Up"
                                         Style="{StaticResource ListActionButtonStyle}"
                                         IsEnabled="False" Click="OnSessionEngineerMoveUp" />
@@ -371,7 +371,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ListBox x:Name="SessionProducerList" Grid.Column="0" FontSize="11"
-                                     BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                     BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Margin="0,0,8,0"
                                      ItemsSource="{Binding SessionProducers}"
                                      SelectionChanged="OnSessionProducerSelectionChanged"
                                      MouseDoubleClick="OnSessionProducerDoubleClick" />
@@ -385,7 +385,7 @@
                                 <Button x:Name="RemoveSessionProducerButton" Content="Remove"
                                         Style="{StaticResource ListActionButtonStyle}"
                                         IsEnabled="False" Click="OnRemoveSessionProducer" />
-                                <Border Height="1" Background="#DDD" Margin="0,4,0,4" />
+                                <Border Height="1" Background="{StaticResource SubtleBorderBrush}" Margin="0,4,0,4" />
                                 <Button x:Name="SessionProducerUpButton" Content="Up"
                                         Style="{StaticResource ListActionButtonStyle}"
                                         IsEnabled="False" Click="OnSessionProducerMoveUp" />
@@ -406,7 +406,7 @@
                         </Grid.ColumnDefinitions>
 
                         <ListView x:Name="TrackList" Grid.Column="0" FontSize="11"
-                                  BorderThickness="1" BorderBrush="#CCC" Margin="0,0,8,0"
+                                  BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Margin="0,0,8,0"
                                   AlternationCount="2"
                                   ItemContainerStyle="{StaticResource ZebraListViewItemStyle}"
                                   SelectionMode="Extended"
@@ -467,7 +467,7 @@
                                                 <DockPanel LastChildFill="True">
                                                     <TextBlock DockPanel.Dock="Left"
                                                                Text="⚑" Margin="0,0,5,0"
-                                                               Foreground="#C77A00"
+                                                               Foreground="{StaticResource ProvisionalBadgeBrush}"
                                                                ToolTip="This piece has variants — none identified for this recording"
                                                                Visibility="{Binding Track, Converter={StaticResource RefNeedsVariant}}" />
                                                     <TextBlock Text="{Binding Track.DisplaySummary}"

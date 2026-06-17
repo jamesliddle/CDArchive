@@ -12,7 +12,7 @@
             <Setter Property="FontSize" Value="10" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="Background" Value="#5C6BC0" />
+            <Setter Property="Background" Value="{StaticResource SecondaryAccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
@@ -20,7 +20,7 @@
         <Style x:Key="ActionButtonStyle" TargetType="Button">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="20,8" />
-            <Setter Property="Background" Value="#007ACC" />
+            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
@@ -52,8 +52,8 @@
 
         <!-- Bulk Edit Fields -->
         <Border DockPanel.Dock="Top"
-                Background="White"
-                BorderBrush="#E0E0E0"
+                Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource SubtleBorderBrush}"
                 BorderThickness="1"
                 Padding="12"
                 Margin="0,0,0,12"
@@ -135,7 +135,7 @@
                     Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}}" />
             <TextBlock Text="{Binding StatusMessage}"
                        FontSize="11"
-                       Foreground="#555555"
+                       Foreground="{StaticResource TextSecondaryBrush}"
                        VerticalAlignment="Center" />
         </DockPanel>
 
@@ -146,11 +146,11 @@
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
+                  GridLinesVisibility="None"
                   BorderThickness="1"
-                  BorderBrush="#E0E0E0"
-                  Background="White"
-                  RowBackground="White"
+                  BorderBrush="{StaticResource SubtleBorderBrush}"
+                  Background="{StaticResource SurfaceBrush}"
+                  RowBackground="{StaticResource SurfaceBrush}"
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
                   FontSize="11"
                   CanUserSortColumns="False">

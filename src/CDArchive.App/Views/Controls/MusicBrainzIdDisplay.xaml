@@ -14,11 +14,11 @@
     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                 Visibility="{Binding ElementName=Root, Path=HasId,
                              Converter={StaticResource BoolToVis}}">
-        <TextBlock Text="MusicBrainz ID" Foreground="#555" FontSize="11"
+        <TextBlock Text="MusicBrainz ID" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
                    VerticalAlignment="Center" Margin="0,0,8,0" />
         <TextBlock x:Name="IdDisplayText"
                    FontFamily="Consolas, Cascadia Mono, monospace"
-                   FontSize="11" Foreground="#333"
+                   FontSize="11" Foreground="{StaticResource TextPrimaryBrush}"
                    VerticalAlignment="Center"
                    ToolTip="{Binding ElementName=Root, Path=Mbid}" />
         <Button Content="📋" Width="22" Height="22" Padding="0" FontSize="11"

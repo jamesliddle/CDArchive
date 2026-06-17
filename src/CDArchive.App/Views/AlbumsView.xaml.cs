@@ -36,7 +36,35 @@ public partial class AlbumsView : UserControl
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (DataContext is AlbumsViewModel vm)
+        {
+            vm.PropertyChanged -= OnVmArtworkPropertyChanged;
+            vm.PropertyChanged += OnVmArtworkPropertyChanged;
+            ApplyArtworkColumn(vm);
             await vm.LoadDataCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        // The VM is a singleton but this view is recreated per navigation —
+        // drop the subscription so the detached view can be collected.
+        if (DataContext is AlbumsViewModel vm)
+            vm.PropertyChanged -= OnVmArtworkPropertyChanged;
+    }
+
+    private void OnVmArtworkPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is AlbumsViewModel vm &&
+            (e.PropertyName is nameof(AlbumsViewModel.ShowArtwork) or nameof(AlbumsViewModel.ArtworkBoxSize)))
+            ApplyArtworkColumn(vm);
+    }
+
+    /// <summary>Sets the cover-art column width from the settings-driven VM state:
+    /// box + margin when on, 0 when off (GridViewColumn has no Visibility, so a
+    /// zero width hides it). The cell Border binds its own size to ArtworkBoxSize.</summary>
+    private void ApplyArtworkColumn(AlbumsViewModel vm)
+    {
+        ArtworkColumn.Width = vm.ShowArtwork ? vm.ArtworkBoxSize + 12 : 0;
     }
 
     // ── Toolbar: filter ───────────────────────────────────────────────────────
