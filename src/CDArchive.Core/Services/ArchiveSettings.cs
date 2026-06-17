@@ -58,6 +58,14 @@ public class ArchiveSettings : IArchiveSettings
     public bool ApplyMbRecordingSessions       { get; set; } = true;
     public bool ApplyMbCanonicalWorkStructure  { get; set; } = true;
 
+    // Cover-art display.
+    public bool ShowAlbumListArtwork { get; set; } = true;
+    public bool ShowTrackListArtwork { get; set; } = false;
+    public bool ShowPlayerArtwork    { get; set; } = true;
+    public ArtworkSize AlbumListArtworkSize { get; set; } = ArtworkSize.Medium;
+    public ArtworkSize TrackListArtworkSize { get; set; } = ArtworkSize.Small;
+    public ArtworkSize PlayerArtworkSize    { get; set; } = ArtworkSize.Medium;
+
     /// <summary>
     /// Production ctor used by DI. Reads no I/O — the host must call
     /// <see cref="Initialize"/> once before consumers read property values.
@@ -137,6 +145,20 @@ public class ArchiveSettings : IArchiveSettings
                 ApplyMbRecordingSessions = ars;
             if (TryReadBool(root, nameof(SettingsData.ApplyMbCanonicalWorkStructure)) is { } acw)
                 ApplyMbCanonicalWorkStructure = acw;
+
+            // Cover-art display block (each parsed independently — M10 pattern).
+            if (TryReadBool(root, nameof(SettingsData.ShowAlbumListArtwork)) is { } sala)
+                ShowAlbumListArtwork = sala;
+            if (TryReadBool(root, nameof(SettingsData.ShowTrackListArtwork)) is { } stla)
+                ShowTrackListArtwork = stla;
+            if (TryReadBool(root, nameof(SettingsData.ShowPlayerArtwork)) is { } spa)
+                ShowPlayerArtwork = spa;
+            if (TryReadArtworkSize(root, nameof(SettingsData.AlbumListArtworkSize)) is { } alas)
+                AlbumListArtworkSize = alas;
+            if (TryReadArtworkSize(root, nameof(SettingsData.TrackListArtworkSize)) is { } tlas)
+                TrackListArtworkSize = tlas;
+            if (TryReadArtworkSize(root, nameof(SettingsData.PlayerArtworkSize)) is { } pas)
+                PlayerArtworkSize = pas;
         }
         catch (Exception ex)
         {
@@ -177,6 +199,25 @@ public class ArchiveSettings : IArchiveSettings
             JsonValueKind.False => false,
             _                   => null,
         };
+    }
+
+    /// <summary>Tolerant parse of an <see cref="ArtworkSize"/> — accepts the
+    /// string form ("Small"/"Medium"/"Large", case-insensitive) or an integer;
+    /// unknown values return null so the caller keeps its default.</summary>
+    private ArtworkSize? TryReadArtworkSize(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var el)) return null;
+        switch (el.ValueKind)
+        {
+            case JsonValueKind.String:
+                return Enum.TryParse<ArtworkSize>(el.GetString(), ignoreCase: true, out var parsed)
+                    ? parsed : null;
+            case JsonValueKind.Number:
+                return el.TryGetInt32(out var n) && Enum.IsDefined(typeof(ArtworkSize), n)
+                    ? (ArtworkSize)n : null;
+            default:
+                return null;
+        }
     }
 
     /// <summary>
@@ -254,6 +295,12 @@ public class ArchiveSettings : IArchiveSettings
             ApplyMbPerformerCredits            = ApplyMbPerformerCredits,
             ApplyMbRecordingSessions           = ApplyMbRecordingSessions,
             ApplyMbCanonicalWorkStructure      = ApplyMbCanonicalWorkStructure,
+            ShowAlbumListArtwork               = ShowAlbumListArtwork,
+            ShowTrackListArtwork               = ShowTrackListArtwork,
+            ShowPlayerArtwork                  = ShowPlayerArtwork,
+            AlbumListArtworkSize               = AlbumListArtworkSize,
+            TrackListArtworkSize               = TrackListArtworkSize,
+            PlayerArtworkSize                  = PlayerArtworkSize,
         }, options);
 
         // Atomic write: temp sibling in the same directory (same volume → atomic
@@ -302,5 +349,12 @@ public class ArchiveSettings : IArchiveSettings
         public bool? ApplyMbPerformerCredits       { get; set; }
         public bool? ApplyMbRecordingSessions      { get; set; }
         public bool? ApplyMbCanonicalWorkStructure { get; set; }
+
+        public bool? ShowAlbumListArtwork { get; set; }
+        public bool? ShowTrackListArtwork { get; set; }
+        public bool? ShowPlayerArtwork    { get; set; }
+        public ArtworkSize? AlbumListArtworkSize { get; set; }
+        public ArtworkSize? TrackListArtworkSize { get; set; }
+        public ArtworkSize? PlayerArtworkSize    { get; set; }
     }
 }

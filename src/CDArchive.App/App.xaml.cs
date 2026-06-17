@@ -96,6 +96,11 @@ public partial class App : Application
             // startup, the user just sees the defaults until they fix it.
             ServiceProvider.GetRequiredService<IArchiveSettings>().Initialize();
 
+            // Construct the album-artwork locator singleton now so its static
+            // Current accessor (used by the XAML cover-art converters, which
+            // can't be DI-injected) is set before any list/player renders.
+            ServiceProvider.GetRequiredService<IAlbumArtworkLocator>();
+
             var mainWindow = new MainWindow
             {
                 DataContext = ServiceProvider.GetRequiredService<MainViewModel>()

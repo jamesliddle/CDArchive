@@ -7,6 +7,7 @@
              xmlns:helpers="clr-namespace:CDArchive.App.Helpers"
              mc:Ignorable="d"
              Loaded="OnLoaded"
+             Unloaded="OnUnloaded"
              d:DataContext="{d:DesignInstance Type=vm:TracksViewModel}">
 
     <UserControl.Resources>
@@ -29,8 +30,8 @@
 
         <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
         <Border DockPanel.Dock="Top"
-                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1"
-                Background="White" Padding="0,0,0,10" Margin="0,0,0,10">
+                BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,0,0,1"
+                Background="{StaticResource SurfaceBrush}" Padding="0,0,0,10" Margin="0,0,0,10">
             <DockPanel>
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
@@ -44,22 +45,24 @@
                             Margin="0,0,12,0" IsEnabled="False"
                             ToolTip="Edit the selected track (or bulk-edit the multi-selection)"
                             Click="OnEditTracksClick" />
-                    <Button Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
+                    <Button Style="{StaticResource IconButton}"
+                            Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                            Width="32" Height="28"
                             ToolTip="Reload all data from the database"
                             Command="{Binding LoadDataCommand}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Filter:" FontSize="11" VerticalAlignment="Center"
-                               Foreground="#555" Margin="0,0,8,0" />
+                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />
                     <TextBox x:Name="FilterBox"
-                             Width="280" FontSize="11" Padding="4,4"
+                             Width="280" FontSize="11"
                              VerticalContentAlignment="Center"
                              TextChanged="OnFilterTextChanged" />
 
-                    <TextBlock Text="Show:" FontSize="11" Foreground="#555"
+                    <TextBlock Text="Show:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center" Margin="16,0,8,0" />
-                    <ComboBox x:Name="ShowCombo" FontSize="10" Height="23" Width="100"
+                    <ComboBox x:Name="ShowCombo" FontSize="11" Width="110"
                               SelectedIndex="0"
                               SelectionChanged="OnShowFilterChanged">
                         <ComboBoxItem Content="All" />
@@ -80,16 +83,16 @@
 
         <!-- ── Status bar ──────────────────────────────────────────────────── -->
         <Border DockPanel.Dock="Bottom"
-                Background="#F0F4F8" BorderBrush="#D0D8E0" BorderThickness="0,1,0,0"
+                Background="{StaticResource StatusBarBrush}" BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,1,0,0"
                 Padding="10,5">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
         </Border>
 
         <!-- ── Tracks list ─────────────────────────────────────────────────── -->
         <ListView x:Name="TrackList"
                   FontSize="11"
                   BorderThickness="0"
-                  Background="White"
+                  Background="{StaticResource SurfaceBrush}"
                   helpers:AutoSelectFirst.Enabled="True"
                   ItemsSource="{Binding Rows}"
                   SelectionMode="Extended"
@@ -140,8 +143,8 @@
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#CCE5FF" />
-                            <Setter Property="Foreground" Value="#000" />
+                            <Setter Property="Background" Value="{StaticResource SelectionBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
@@ -158,6 +161,46 @@
 
             <ListView.View>
                 <GridView>
+
+                    <!-- Cover-art thumbnail (settings-driven; column width set in
+                         code-behind, 0 when off). Resolves from the row's album;
+                         loose tracks (no album) show the placeholder. -->
+                    <GridViewColumn x:Name="ArtworkColumn" Header="" Width="0">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Width="{Binding DataContext.ArtworkBoxSize, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                        Height="{Binding DataContext.ArtworkBoxSize, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                        CornerRadius="4"
+                                        Background="{StaticResource RailBackgroundBrush}"
+                                        BorderBrush="{StaticResource SubtleBorderBrush}"
+                                        BorderThickness="1"
+                                        ClipToBounds="True"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,1"
+                                        Visibility="{Binding DataContext.ShowArtwork, RelativeSource={RelativeSource AncestorType=ListView}, Converter={StaticResource BoolToVis}}"
+                                        ToolTipService.IsEnabled="{Binding Converter={StaticResource AlbumHasArtwork}}"
+                                        ToolTipService.InitialShowDelay="350"
+                                        ToolTipService.ShowDuration="120000"
+                                        ToolTipService.Placement="Right">
+                                    <Border.ToolTip>
+                                        <ToolTip Style="{StaticResource ArtworkPreviewToolTip}"
+                                                 Content="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
+                                    </Border.ToolTip>
+                                    <Grid>
+                                        <TextBlock Text="&#xEC4F;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource TextTertiaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        <Image Source="{Binding Converter={StaticResource AlbumArtwork},
+                                                        ConverterParameter=96}"
+                                               Stretch="UniformToFill" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
 
                     <GridViewColumn Header="Disc" Width="50"
                                     HeaderContainerStyle="{StaticResource RightAlignedHeader}"
@@ -201,7 +244,7 @@
                                          none identified for this recording. -->
                                     <TextBlock DockPanel.Dock="Left"
                                                Text="⚑" FontSize="11" Margin="0,0,5,0"
-                                               Foreground="#C77A00"
+                                               Foreground="{StaticResource ProvisionalBadgeBrush}"
                                                ToolTip="This piece has variants — none identified for this recording"
                                                Visibility="{Binding NeedsVariantIdentification,
                                                             Converter={StaticResource BoolToVis}}" />

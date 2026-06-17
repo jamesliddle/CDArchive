@@ -34,6 +34,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private readonly IAudioPlayerService _player;
     private readonly IArchiveAudioLocator _locator;
+    private readonly IAlbumArtworkLocator? _artworkLocator;
     private readonly IArchiveSettings _settings;
     private readonly ICanonDataService _data;
     private readonly ILogger<PlayerViewModel> _logger;
@@ -125,7 +126,37 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     /// <summary>true when the player has a track loaded; drives bar enabled/greyed state.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CoverSlotVisible))]
     private bool _isTrackLoaded;
+
+    /// <summary>
+    /// Resolved cover art for the current track (embedded-tag art preferred,
+    /// then a folder image), or null when none (or a loose track is playing).
+    /// The player bar binds an Image to this via the AlbumArtwork converter and
+    /// falls back to a placeholder glyph when null (see <see cref="HasArtwork"/>).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasArtwork))]
+    private AlbumArtwork? _currentArtwork;
+
+    /// <summary>True when cover art was resolved for the current track — drives
+    /// the player bar's image-vs-placeholder swap.</summary>
+    public bool HasArtwork => CurrentArtwork is not null;
+
+    /// <summary>Whether the player bar shows a cover-art thumbnail at all
+    /// (settings-driven). When off, the cover slot is hidden entirely.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CoverSlotVisible))]
+    private bool _showArtwork = true;
+
+    /// <summary>Side length (DIP) of the player cover thumbnail, from the
+    /// player artwork-size setting.</summary>
+    [ObservableProperty]
+    private double _artworkBoxSize = 40;
+
+    /// <summary>Drives the cover slot's visibility: a track is loaded AND the
+    /// player-artwork setting is on.</summary>
+    public bool CoverSlotVisible => IsTrackLoaded && ShowArtwork;
 
     /// <summary>Seek-back step in seconds (settings-driven) — shown in the back glyph.</summary>
     public int SeekBackSeconds => Math.Clamp(_settings.SeekBackwardSeconds, 1, 60);
@@ -219,13 +250,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         IArchiveAudioLocator locator,
         IArchiveSettings settings,
         ICanonDataService data,
-        ILogger<PlayerViewModel>? logger = null)
+        ILogger<PlayerViewModel>? logger = null,
+        IAlbumArtworkLocator? artworkLocator = null)
     {
         _player   = player;
         _locator  = locator;
         _settings = settings;
         _data     = data;
         _logger   = logger ?? NullLogger<PlayerViewModel>.Instance;
+        _artworkLocator = artworkLocator;
 
         // Restore persisted volume before the user can move the slider; the
         // engine carries it forward to every track Loaded later.
@@ -238,9 +271,19 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _player.PlaybackEnded    += OnPlaybackEnded;
         _player.TrackTransitioned += OnTrackTransitioned;
 
+        RefreshArtworkOptions();
+
         // Best-effort, fire-and-forget: warm the composer-dates cache for the
         // hover tooltip. Failures are non-fatal — the tooltip just omits dates.
         _ = LoadComposerLifespansAsync();
+    }
+
+    /// <summary>Re-reads the player cover-art settings (show + size). Called at
+    /// construction and after a settings save so a change applies immediately.</summary>
+    public void RefreshArtworkOptions()
+    {
+        ShowArtwork    = _settings.ShowPlayerArtwork;
+        ArtworkBoxSize = Helpers.ArtworkSizes.PlayerBox(_settings.PlayerArtworkSize);
     }
 
     private async Task LoadComposerLifespansAsync()
@@ -349,6 +392,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         Composer     = firstRef?.Composer;
         Performers   = FormatPerformers(track.Performers);
         Album        = null;
+        // Loose tracks have no album folder, but their own file may carry
+        // embedded cover art (read directly from the override path's tags).
+        CurrentArtwork = _artworkLocator?.ResolveFromTrack(track);
         TrackTooltip = BuildTrackTooltip(
             albumTitle: null, track.PieceRefs, track.Description, track.Performers,
             LookupComposerLifespan);
@@ -519,6 +565,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         Composer     = firstRef?.Composer;
         Performers   = FormatPerformers(effectivePerformers);
         Album        = album.DisplayTitle;
+        CurrentArtwork = _artworkLocator?.Resolve(album, entry.Disc, entry.Track);
         TrackTooltip = BuildTrackTooltip(
             album.DisplayTitle, entry.Track.PieceRefs, entry.Track.Description, effectivePerformers,
             LookupComposerLifespan);
@@ -541,6 +588,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     public void OnSettingsChanged()
     {
         RefreshCaptionOptions();
+        RefreshArtworkOptions();
         OnPropertyChanged(nameof(SeekBackSeconds));
         OnPropertyChanged(nameof(SeekForwardSeconds));
         UpdatePreviousNavState();

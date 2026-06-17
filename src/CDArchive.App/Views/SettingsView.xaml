@@ -32,7 +32,7 @@
                        Text="Archive Root Path"
                        FontSize="12"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
+                       Foreground="{StaticResource TextPrimaryBrush}"
                        VerticalAlignment="Center" />
             <TextBox Grid.Row="0" Grid.Column="1"
                      Text="{Binding ArchiveRootPath, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
@@ -44,9 +44,6 @@
                     Command="{Binding BrowseArchivePathCommand}"
                     FontSize="11"
                     Padding="15,6"
-                    Background="#555555"
-                    Foreground="White"
-                    BorderThickness="0"
                     Cursor="Hand" />
 
             <!-- FFmpeg Path -->
@@ -54,7 +51,7 @@
                        Text="FFmpeg Path"
                        FontSize="12"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
+                       Foreground="{StaticResource TextPrimaryBrush}"
                        VerticalAlignment="Center" />
             <TextBox Grid.Row="2" Grid.Column="1"
                      Text="{Binding FfmpegPath, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
@@ -66,9 +63,6 @@
                     Command="{Binding BrowseFfmpegPathCommand}"
                     FontSize="11"
                     Padding="15,6"
-                    Background="#555555"
-                    Foreground="White"
-                    BorderThickness="0"
                     Cursor="Hand" />
 
             <!-- MP3 Bitrate -->
@@ -76,7 +70,7 @@
                        Text="MP3 Bitrate"
                        FontSize="12"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
+                       Foreground="{StaticResource TextPrimaryBrush}"
                        VerticalAlignment="Center" />
             <ComboBox Grid.Row="4" Grid.Column="1"
                       SelectedItem="{Binding Mp3Bitrate, Mode=TwoWay}"
@@ -95,7 +89,7 @@
                        Text="Player Format"
                        FontSize="12"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
+                       Foreground="{StaticResource TextPrimaryBrush}"
                        VerticalAlignment="Center"
                        ToolTip="Format the music player prefers when both FLAC and MP3 exist for a track. Falls back to the other format if the preferred one is missing." />
             <ComboBox Grid.Row="6" Grid.Column="1"
@@ -163,10 +157,55 @@
                       SelectedItem="{Binding PreviousRestartThresholdSeconds, Mode=TwoWay}" />
         </Grid>
 
+        <!-- Album artwork display -->
+        <GroupBox Header="Album Artwork" Margin="0,30,0,0" Padding="10" FontSize="11">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12">
+                    Show cover-art thumbnails (embedded tag art first, otherwise a
+                    folder image) in each place, at the chosen size. Turn a place
+                    off to hide its thumbnails entirely.
+                </TextBlock>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <CheckBox Grid.Row="0" Grid.Column="0" Content="Album list" VerticalAlignment="Center"
+                              IsChecked="{Binding ShowAlbumListArtwork, Mode=TwoWay}" />
+                    <ComboBox Grid.Row="0" Grid.Column="1" Width="120" FontSize="11"
+                              IsEnabled="{Binding ShowAlbumListArtwork}"
+                              ItemsSource="{x:Static vm:SettingsViewModel.ArtworkSizeOptions}"
+                              SelectedItem="{Binding AlbumListArtworkSize, Mode=TwoWay}" />
+
+                    <CheckBox Grid.Row="2" Grid.Column="0" Content="Track list" VerticalAlignment="Center"
+                              IsChecked="{Binding ShowTrackListArtwork, Mode=TwoWay}" />
+                    <ComboBox Grid.Row="2" Grid.Column="1" Width="120" FontSize="11"
+                              IsEnabled="{Binding ShowTrackListArtwork}"
+                              ItemsSource="{x:Static vm:SettingsViewModel.ArtworkSizeOptions}"
+                              SelectedItem="{Binding TrackListArtworkSize, Mode=TwoWay}" />
+
+                    <CheckBox Grid.Row="4" Grid.Column="0" Content="Player bar" VerticalAlignment="Center"
+                              IsChecked="{Binding ShowPlayerArtwork, Mode=TwoWay}" />
+                    <ComboBox Grid.Row="4" Grid.Column="1" Width="120" FontSize="11"
+                              IsEnabled="{Binding ShowPlayerArtwork}"
+                              ItemsSource="{x:Static vm:SettingsViewModel.ArtworkSizeOptions}"
+                              SelectedItem="{Binding PlayerArtworkSize, Mode=TwoWay}" />
+                </Grid>
+            </StackPanel>
+        </GroupBox>
+
         <!-- MusicBrainz import enrichment section (slice 6) -->
         <GroupBox Header="MusicBrainz Import Enrichment" Margin="0,30,0,0" Padding="10" FontSize="11">
             <StackPanel>
-                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="#555" Margin="0,0,0,10">
+                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10">
                     When enabled, the iTunes import flow runs an optional
                     pre-pass that queries MusicBrainz for album, composer, and
                     work metadata. A review pane lets you accept or reject each
@@ -210,7 +249,7 @@
 
                     <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
                                Text="Default apply state in review pane:"
-                               FontSize="10" Foreground="#555" Margin="0,6,0,4" />
+                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,4" />
 
                     <CheckBox Grid.Row="3" Grid.ColumnSpan="2"
                               Content="Album metadata (Label / Catalogue Number / Barcode)"
@@ -231,12 +270,12 @@
                      Lets the user verify MB is reachable + the query format
                      works against real data, independent of the iTunes import
                      workflow. -->
-                <Border BorderBrush="#D0D0D0" BorderThickness="0,1,0,0"
+                <Border BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,1,0,0"
                         Padding="0,10,0,0" Margin="0,10,0,0">
                     <StackPanel>
                         <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="10"
-                                   Foreground="#555" Margin="0,0,0,4" />
-                        <TextBlock TextWrapping="Wrap" FontSize="9" Foreground="#666" Margin="0,0,0,6">
+                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock TextWrapping="Wrap" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6">
                             Runs a real MusicBrainz release-search ("Beethoven Symphony 9, Karajan")
                             and reports the outcome. Use this to verify connectivity + query format
                             when imports yield no matches.
@@ -245,7 +284,7 @@
                                 Command="{Binding TestMbConnectivityCommand}"
                                 FontSize="10" Padding="10,4" HorizontalAlignment="Left" />
                         <TextBlock Text="{Binding MbConnectivityStatus}"
-                                   TextWrapping="Wrap" FontSize="9" Foreground="#444"
+                                   TextWrapping="Wrap" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"
                                    Margin="0,6,0,0" />
                     </StackPanel>
                 </Border>
@@ -258,8 +297,8 @@
                 FontSize="12"
                 Padding="20,8"
                 HorizontalAlignment="Left"
-                Background="#007ACC"
-                Foreground="White"
+                Background="{StaticResource AccentBrush}"
+                Foreground="{StaticResource TextOnAccentBrush}"
                 BorderThickness="0"
                 Cursor="Hand"
                 Margin="0,25,0,15" />
@@ -267,7 +306,7 @@
         <!-- Status Message -->
         <TextBlock Text="{Binding StatusMessage}"
                    FontSize="12"
-                   Foreground="#555555"
+                   Foreground="{StaticResource TextSecondaryBrush}"
                    TextWrapping="Wrap" />
     </StackPanel>
     </ScrollViewer>

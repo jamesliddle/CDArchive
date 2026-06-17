@@ -82,6 +82,29 @@ public interface IArchiveSettings
     /// MB and iTunes disagree on count.</summary>
     bool ApplyMbCanonicalWorkStructure { get; set; }
 
+    // ── Cover-art display (per surface) ──────────────────────────────────────
+    // Each surface can show or hide cover-art thumbnails independently, with a
+    // small / medium / large size. The pixel dimensions are a view concern.
+
+    /// <summary>Show cover-art thumbnails in the Albums list. Defaults true.</summary>
+    bool ShowAlbumListArtwork { get; set; }
+
+    /// <summary>Show cover-art thumbnails in the Tracks list. Defaults false
+    /// (the tracks list is dense; the user opts in).</summary>
+    bool ShowTrackListArtwork { get; set; }
+
+    /// <summary>Show the cover-art thumbnail in the player bar. Defaults true.</summary>
+    bool ShowPlayerArtwork { get; set; }
+
+    /// <summary>Thumbnail size in the Albums list. Defaults Medium.</summary>
+    ArtworkSize AlbumListArtworkSize { get; set; }
+
+    /// <summary>Thumbnail size in the Tracks list. Defaults Small.</summary>
+    ArtworkSize TrackListArtworkSize { get; set; }
+
+    /// <summary>Thumbnail size in the player bar. Defaults Medium.</summary>
+    ArtworkSize PlayerArtworkSize { get; set; }
+
     void Save();
 
     /// <summary>

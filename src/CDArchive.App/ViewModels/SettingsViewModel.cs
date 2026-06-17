@@ -69,6 +69,18 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _applyMbRecordingSessions      = true;
     [ObservableProperty] private bool _applyMbCanonicalWorkStructure = true;
 
+    // ── Cover-art display ────────────────────────────────────────────────────
+    [ObservableProperty] private bool _showAlbumListArtwork = true;
+    [ObservableProperty] private bool _showTrackListArtwork;
+    [ObservableProperty] private bool _showPlayerArtwork = true;
+    [ObservableProperty] private ArtworkSize _albumListArtworkSize = ArtworkSize.Medium;
+    [ObservableProperty] private ArtworkSize _trackListArtworkSize = ArtworkSize.Small;
+    [ObservableProperty] private ArtworkSize _playerArtworkSize    = ArtworkSize.Medium;
+
+    /// <summary>The three size choices, for the size dropdowns.</summary>
+    public static IReadOnlyList<ArtworkSize> ArtworkSizeOptions { get; } =
+        new[] { ArtworkSize.Small, ArtworkSize.Medium, ArtworkSize.Large };
+
     [ObservableProperty]
     private string _statusMessage = "";
 
@@ -89,19 +101,25 @@ public partial class SettingsViewModel : ObservableObject
     public event Action? BrowseArchivePathRequested;
     public event Action? BrowseFfmpegPathRequested;
 
-    // Optional — when present, a settings save pings the player so the
-    // "show playing file path" toggle takes effect on the current track
-    // immediately rather than only on the next one.
+    // Optional — when present, a settings save pings the player + lists so
+    // toggles (file-path caption, cover-art show/size) take effect immediately
+    // rather than only on the next track / next reload.
     private readonly PlayerViewModel? _player;
+    private readonly AlbumsViewModel? _albums;
+    private readonly TracksViewModel? _tracks;
 
     public SettingsViewModel(
         IArchiveSettings settings,
         IMusicBrainzImportEnricher? mbEnricher = null,
-        PlayerViewModel? player = null)
+        PlayerViewModel? player = null,
+        AlbumsViewModel? albums = null,
+        TracksViewModel? tracks = null)
     {
         _settings = settings;
         _mbEnricher = mbEnricher;
         _player = player;
+        _albums = albums;
+        _tracks = tracks;
 
         ArchiveRootPath = _settings.ArchiveRootPath;
         FfmpegPath = _settings.FfmpegPath;
@@ -119,6 +137,13 @@ public partial class SettingsViewModel : ObservableObject
         ApplyMbPerformerCredits       = _settings.ApplyMbPerformerCredits;
         ApplyMbRecordingSessions      = _settings.ApplyMbRecordingSessions;
         ApplyMbCanonicalWorkStructure = _settings.ApplyMbCanonicalWorkStructure;
+
+        ShowAlbumListArtwork = _settings.ShowAlbumListArtwork;
+        ShowTrackListArtwork = _settings.ShowTrackListArtwork;
+        ShowPlayerArtwork    = _settings.ShowPlayerArtwork;
+        AlbumListArtworkSize = _settings.AlbumListArtworkSize;
+        TrackListArtworkSize = _settings.TrackListArtworkSize;
+        PlayerArtworkSize    = _settings.PlayerArtworkSize;
     }
 
     [RelayCommand]
@@ -143,11 +168,21 @@ public partial class SettingsViewModel : ObservableObject
             _settings.ApplyMbRecordingSessions      = ApplyMbRecordingSessions;
             _settings.ApplyMbCanonicalWorkStructure = ApplyMbCanonicalWorkStructure;
 
+            _settings.ShowAlbumListArtwork = ShowAlbumListArtwork;
+            _settings.ShowTrackListArtwork = ShowTrackListArtwork;
+            _settings.ShowPlayerArtwork    = ShowPlayerArtwork;
+            _settings.AlbumListArtworkSize = AlbumListArtworkSize;
+            _settings.TrackListArtworkSize = TrackListArtworkSize;
+            _settings.PlayerArtworkSize    = PlayerArtworkSize;
+
             _settings.Save();
 
             // Apply player settings (caption line, seek-step glyphs, restart
-            // threshold) to the currently-playing track now, not just the next.
+            // threshold, cover art) to the currently-playing track now, not just
+            // the next; refresh the album / track list artwork columns too.
             _player?.OnSettingsChanged();
+            _albums?.RefreshArtworkOptions();
+            _tracks?.RefreshArtworkOptions();
 
             StatusMessage = "Settings saved successfully.";
         }

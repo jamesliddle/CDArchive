@@ -43,7 +43,7 @@
                     ToolTip="Run the MusicBrainz enrichment pre-pass before importing. Enable in Settings → MusicBrainz Import Enrichment." />
 
             <TextBlock Grid.Column="6"
-                       Text="Filter:" FontSize="10" Foreground="#555"
+                       Text="Filter:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                        VerticalAlignment="Center" Margin="0,0,8,0" />
             <TextBox Grid.Column="7"
                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
@@ -52,12 +52,12 @@
             <CheckBox Grid.Column="8"
                       Content="Hide already imported"
                       IsChecked="{Binding HideAlreadyImported, Mode=TwoWay}"
-                      FontSize="10" Foreground="#555"
+                      FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                       VerticalAlignment="Center" Margin="16,0,0,0"
                       ToolTip="Hide iTunes tracks already in the Album Catalogue (matched on album title + disc # + track #)." />
             <TextBlock Grid.Column="9"
                        VerticalAlignment="Center" Margin="16,0,0,0"
-                       FontSize="10" Foreground="#555">
+                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
                 <Run Text="{Binding ShownCount, Mode=OneWay}" />
                 <Run Text=" of " />
                 <Run Text="{Binding TotalCount, Mode=OneWay}" />
@@ -66,9 +66,9 @@
 
         <!-- Status bar -->
         <Border DockPanel.Dock="Bottom"
-                Background="#E8E8E8" Padding="10,6"
-                BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555" />
+                Background="{StaticResource StatusBarBrush}" Padding="10,6"
+                BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
         </Border>
 
         <!-- Tracks DataGrid -->
@@ -81,8 +81,7 @@
                   IsReadOnly="True"
                   SelectionMode="Extended"
                   SelectionUnit="FullRow"
-                  GridLinesVisibility="Horizontal"
-                  HorizontalGridLinesBrush="#EEEEEE"
+                  GridLinesVisibility="None"
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
                   FontSize="11"
                   Sorting="OnGridSorting">
@@ -93,9 +92,9 @@
                  looked unselected. Pin both active and inactive selection to the
                  same light-blue used elsewhere in the app. -->
             <DataGrid.Resources>
-                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"                          Color="#CCE5FF" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"                          Color="{StaticResource SelectionColor}" />
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}"                      Color="Black" />
-                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}"         Color="#CCE5FF" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}"         Color="{StaticResource SelectionColor}" />
                 <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}"     Color="Black" />
             </DataGrid.Resources>
             <DataGrid.Columns>

@@ -7,6 +7,7 @@
              xmlns:helpers="clr-namespace:CDArchive.App.Helpers"
              mc:Ignorable="d"
              Loaded="OnLoaded"
+             Unloaded="OnUnloaded"
              d:DataContext="{d:DesignInstance Type=vm:AlbumsViewModel}">
 
     <UserControl.Resources>
@@ -42,8 +43,8 @@
 
         <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
         <Border DockPanel.Dock="Top"
-                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1"
-                Background="White" Padding="0,0,0,10" Margin="0,0,0,10">
+                BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,0,0,1"
+                Background="{StaticResource SurfaceBrush}" Padding="0,0,0,10" Margin="0,0,0,10">
             <DockPanel>
 
                 <!-- Action buttons (right-docked so filter expands to fill) -->
@@ -65,7 +66,9 @@
                             Margin="0,0,6,0"
                             ToolTip="Validate all track-to-piece links against the current Canon"
                             Command="{Binding CheckReferencesCommand}" />
-                    <Button Content="↻" Padding="8,4" FontSize="14" Width="32" Height="28"
+                    <Button Style="{StaticResource IconButton}"
+                            Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                            Width="32" Height="28"
                             ToolTip="Reload all data from the database"
                             Command="{Binding LoadDataCommand}" />
                 </StackPanel>
@@ -73,15 +76,15 @@
                 <!-- Filter (left side, fills remaining space) -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Filter:" FontSize="11" VerticalAlignment="Center"
-                               Foreground="#555" Margin="0,0,8,0" />
+                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />
                     <TextBox x:Name="FilterBox"
-                             Width="240" FontSize="11" Padding="4,4"
+                             Width="240" FontSize="11"
                              VerticalContentAlignment="Center"
                              TextChanged="OnFilterTextChanged" />
 
-                    <TextBlock Text="Show:" FontSize="11" Foreground="#555"
+                    <TextBlock Text="Show:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center" Margin="16,0,8,0" />
-                    <ComboBox x:Name="ShowCombo" FontSize="10" Height="23" Width="100"
+                    <ComboBox x:Name="ShowCombo" FontSize="11" Width="110"
                               SelectedIndex="0"
                               SelectionChanged="OnShowFilterChanged">
                         <ComboBoxItem Content="All" />
@@ -95,16 +98,16 @@
 
         <!-- ── Status bar ──────────────────────────────────────────────────── -->
         <Border DockPanel.Dock="Bottom"
-                Background="#F0F4F8" BorderBrush="#D0D8E0" BorderThickness="0,1,0,0"
+                Background="{StaticResource StatusBarBrush}" BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="0,1,0,0"
                 Padding="10,5">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="#555" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
         </Border>
 
         <!-- ── Album list ───────────────────────────────────────────────────── -->
         <ListView x:Name="AlbumList"
                   FontSize="11"
                   BorderThickness="0"
-                  Background="White"
+                  Background="{StaticResource SurfaceBrush}"
                   helpers:AutoSelectFirst.Enabled="True"
                   ItemsSource="{Binding Albums}"
                   SelectedItem="{Binding SelectedAlbum, Mode=TwoWay}"
@@ -155,8 +158,8 @@
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#CCE5FF" />
-                            <Setter Property="Foreground" Value="#000" />
+                            <Setter Property="Background" Value="{StaticResource SelectionBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
@@ -173,6 +176,49 @@
 
             <ListView.View>
                 <GridView>
+
+                    <!-- Cover-art thumbnail. Resolves the album's cover (embedded
+                         tag art first, then a folder image); placeholder otherwise.
+                         The column width + box size are settings-driven: the box
+                         binds ArtworkBoxSize; code-behind sets the column width
+                         (0 when artwork is off). -->
+                    <GridViewColumn x:Name="ArtworkColumn" Header="" Width="46"
+                                    HeaderContainerStyle="{StaticResource LeftAlignedHeader}">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Width="{Binding DataContext.ArtworkBoxSize, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                        Height="{Binding DataContext.ArtworkBoxSize, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                        CornerRadius="4"
+                                        Background="{StaticResource RailBackgroundBrush}"
+                                        BorderBrush="{StaticResource SubtleBorderBrush}"
+                                        BorderThickness="1"
+                                        ClipToBounds="True"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,1"
+                                        Visibility="{Binding DataContext.ShowArtwork, RelativeSource={RelativeSource AncestorType=ListView}, Converter={StaticResource BoolToVis}}"
+                                        ToolTipService.IsEnabled="{Binding Converter={StaticResource AlbumHasArtwork}}"
+                                        ToolTipService.InitialShowDelay="350"
+                                        ToolTipService.ShowDuration="120000"
+                                        ToolTipService.Placement="Right">
+                                    <Border.ToolTip>
+                                        <ToolTip Style="{StaticResource ArtworkPreviewToolTip}"
+                                                 Content="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
+                                    </Border.ToolTip>
+                                    <Grid>
+                                        <TextBlock Text="&#xEC4F;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="14"
+                                                   Foreground="{StaticResource TextTertiaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        <Image Source="{Binding Converter={StaticResource AlbumArtwork},
+                                                        ConverterParameter=96}"
+                                               Stretch="UniformToFill" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
 
                     <GridViewColumn Header="Title" Width="320"
                                     HeaderContainerStyle="{StaticResource LeftAlignedHeader}">

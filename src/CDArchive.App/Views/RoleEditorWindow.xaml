@@ -10,7 +10,7 @@
     <Window.Resources>
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="#555" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>

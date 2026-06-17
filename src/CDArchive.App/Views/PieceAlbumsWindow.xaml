@@ -23,10 +23,10 @@
             <Button Content="Close" Width="80" Padding="0,6" Margin="0,0,8,0"
                     DockPanel.Dock="Right" IsCancel="True" />
             <TextBlock x:Name="StatusText" VerticalAlignment="Center"
-                       Foreground="#666" FontSize="10" />
+                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
         </DockPanel>
 
-        <TreeView x:Name="HitTree" BorderBrush="#CCC" BorderThickness="1"
+        <TreeView x:Name="HitTree" BorderBrush="{StaticResource SubtleBorderBrush}" BorderThickness="1"
                   AlternationCount="2"
                   SelectedItemChanged="OnTreeSelectionChanged"
                   MouseDoubleClick="OnTreeDoubleClick">
@@ -57,7 +57,7 @@
                                                     Background="Transparent"
                                                     MouseLeftButtonDown="OnExpanderHit">
                                                 <Path x:Name="Expander"
-                                                      Data="M 0,0 L 6,4 L 0,8 Z" Fill="#888"
+                                                      Data="M 0,0 L 6,4 L 0,8 Z" Fill="{StaticResource TextTertiaryBrush}"
                                                       Width="10" Height="10"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center"
@@ -89,7 +89,7 @@
                                         <Setter TargetName="Bd" Property="Background" Value="{StaticResource ZebraRowBrush}" />
                                     </MultiTrigger>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="Bd" Property="Background" Value="#CCE5FF" />
+                                        <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -100,7 +100,7 @@
                 <HierarchicalDataTemplate DataType="{x:Type local:PieceAlbumsWindow+AlbumNode}"
                                           ItemsSource="{Binding TrackHits}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="#C77A00"
+                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="{StaticResource ProvisionalBadgeBrush}"
                                    ToolTip="A track on this album has variants with none identified"
                                    Visibility="{Binding NeedsVariant, Converter={StaticResource BoolToVis}}" />
                         <TextBlock Text="{Binding Display}" FontSize="11" />
@@ -109,7 +109,7 @@
                 <!-- Loose track row: no children → no expander. -->
                 <DataTemplate DataType="{x:Type local:PieceAlbumsWindow+LooseTrackNode}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="#C77A00"
+                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="{StaticResource ProvisionalBadgeBrush}"
                                    ToolTip="This piece has variants — none identified for this recording"
                                    Visibility="{Binding NeedsVariant, Converter={StaticResource BoolToVis}}" />
                         <TextBlock Text="{Binding Display}" FontSize="11" />
@@ -118,10 +118,10 @@
                 <!-- Track-hit child of an album: indented under its album row. -->
                 <DataTemplate DataType="{x:Type local:PieceAlbumsWindow+TrackHitNode}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="#C77A00"
+                        <TextBlock Text="⚑" FontSize="11" Margin="0,0,5,0" Foreground="{StaticResource ProvisionalBadgeBrush}"
                                    ToolTip="This piece has variants — none identified for this recording"
                                    Visibility="{Binding NeedsVariant, Converter={StaticResource BoolToVis}}" />
-                        <TextBlock Text="{Binding Display}" FontSize="11" Foreground="#444" />
+                        <TextBlock Text="{Binding Display}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
                     </StackPanel>
                 </DataTemplate>
             </TreeView.Resources>

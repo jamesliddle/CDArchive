@@ -41,7 +41,7 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding AmbiguousDisplay}"
                                            TextWrapping="Wrap" Padding="4,2"
-                                           Foreground="#555" />
+                                           Foreground="{StaticResource TextSecondaryBrush}" />
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>

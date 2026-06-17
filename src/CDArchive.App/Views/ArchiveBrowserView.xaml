@@ -14,14 +14,14 @@
                     Command="{Binding ScanCommand}"
                     FontSize="12"
                     Padding="20,8"
-                    Background="#007ACC"
-                    Foreground="White"
+                    Background="{StaticResource AccentBrush}"
+                    Foreground="{StaticResource TextOnAccentBrush}"
                     BorderThickness="0"
                     Cursor="Hand" />
 
             <TextBlock Text="Scanning..."
                        FontSize="12"
-                       Foreground="#555555"
+                       Foreground="{StaticResource TextSecondaryBrush}"
                        VerticalAlignment="Center"
                        Margin="15,0,0,0"
                        Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}" />
@@ -31,7 +31,7 @@
         <TextBlock DockPanel.Dock="Bottom"
                    Text="{Binding StatusMessage}"
                    FontSize="11"
-                   Foreground="#555555"
+                   Foreground="{StaticResource TextSecondaryBrush}"
                    Margin="0,10,0,0" />
 
         <!-- Albums DataGrid -->
@@ -41,11 +41,11 @@
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
+                  GridLinesVisibility="None"
                   BorderThickness="1"
-                  BorderBrush="#E0E0E0"
-                  Background="White"
-                  RowBackground="White"
+                  BorderBrush="{StaticResource SubtleBorderBrush}"
+                  Background="{StaticResource SurfaceBrush}"
+                  RowBackground="{StaticResource SurfaceBrush}"
                   AlternatingRowBackground="{StaticResource ZebraRowBrush}"
                   FontSize="11">
             <DataGrid.Columns>

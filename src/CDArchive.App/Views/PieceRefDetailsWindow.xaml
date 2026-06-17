@@ -10,12 +10,12 @@
 
         <!-- Summary banner (read-only) -->
         <TextBlock Text="Reference" FontWeight="SemiBold" FontSize="10"
-                   Foreground="#555" Margin="0,0,0,4" />
-        <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FAFAFA"
+                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+        <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource PageBackgroundBrush}"
                 Padding="8" Margin="0,0,0,8">
             <TextBlock x:Name="SummaryText"
                        FontSize="11" TextWrapping="Wrap"
-                       Foreground="#222" />
+                       Foreground="{StaticResource TextPrimaryBrush}" />
         </Border>
 
         <!-- Range -->
@@ -25,45 +25,45 @@
 
         <DockPanel x:Name="RangePanel" LastChildFill="True" Margin="0,6,0,0" IsEnabled="False">
             <TextBlock Text="End subpiece:" VerticalAlignment="Center"
-                       FontSize="10" Foreground="#555"
+                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                        DockPanel.Dock="Left" Margin="0,0,8,0" />
             <ComboBox x:Name="EndSubpieceCombo" FontSize="10" Padding="4,3"
                       SelectionChanged="OnEndSubpieceChanged" />
         </DockPanel>
         <TextBlock x:Name="RangeNote"
-                   FontSize="10" Foreground="#888" Margin="0,4,0,0"
+                   FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,4,0,0"
                    TextWrapping="Wrap"
                    Text="The range covers every leaf subpiece from the start path through the chosen end subpiece, inclusive." />
 
         <!-- Start marker -->
         <TextBlock Text="Start marker" FontWeight="SemiBold" FontSize="10"
-                   Foreground="#555" Margin="0,14,0,4" />
+                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,4" />
         <ComboBox x:Name="StartMarkerCombo" FontSize="10" Padding="4,3" />
         <TextBlock x:Name="StartMarkerHint"
-                   FontSize="10" Foreground="#888" Margin="0,2,0,0"
+                   FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,2,0,0"
                    TextWrapping="Wrap" />
 
         <!-- End marker -->
         <TextBlock Text="End marker" FontWeight="SemiBold" FontSize="10"
-                   Foreground="#555" Margin="0,12,0,4" />
+                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4" />
         <ComboBox x:Name="EndMarkerCombo" FontSize="10" Padding="4,3" />
         <TextBlock x:Name="EndMarkerHint"
-                   FontSize="10" Foreground="#888" Margin="0,2,0,0"
+                   FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,2,0,0"
                    TextWrapping="Wrap" />
 
         <!-- Variants identified on this recording (only shown when the resolved
              piece / version / movement defines variants) -->
         <StackPanel x:Name="VariantSection" Visibility="Collapsed">
             <TextBlock Text="Variant(s) used on this recording" FontWeight="SemiBold"
-                       FontSize="10" Foreground="#555" Margin="0,14,0,4" />
-            <Border BorderThickness="1" BorderBrush="#D0D0D0" Background="#FCFCFC"
+                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,14,0,4" />
+            <Border BorderThickness="1" BorderBrush="{StaticResource SubtleBorderBrush}" Background="{StaticResource SurfaceBrush}"
                     Padding="8,6" MaxHeight="160">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="VariantList" />
                 </ScrollViewer>
             </Border>
             <TextBlock x:Name="VariantHint"
-                       FontSize="10" Foreground="#888" Margin="0,4,0,0"
+                       FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,4,0,0"
                        TextWrapping="Wrap"
                        Text="Tick the variant(s) this recording uses. Leaving all unticked is fine — unidentified refs can be found later." />
         </StackPanel>

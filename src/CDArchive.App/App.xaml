@@ -6,6 +6,15 @@
              xmlns:conv="clr-namespace:CDArchive.App.Converters"
              xmlns:helpers="clr-namespace:CDArchive.App.Helpers">
     <Application.Resources>
+        <ResourceDictionary>
+            <!-- ── Theme dictionary (feature/ui-upgrade) ──────────────────────
+                 Palette brushes + implicit control styles live here so they
+                 cascade app-wide. Merged first so the keys below + every view
+                 resolve against it. -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
         <!-- ── Typography ─────────────────────────────────────────────────
              Segoe UI Variable is the Win11 system font (gracefully falls
              back to Segoe UI on Win10). Window roots set
@@ -22,32 +31,47 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <conv:IsProvisionalToBrushConverter x:Key="ProvisionalBrush" />
         <conv:RefNeedsVariantConverter x:Key="RefNeedsVariant" />
+        <!-- Album cover art → ImageSource. Accepts a CanonAlbum (album lists,
+             resolves art) or a resolved AlbumArtwork (player bar). Embedded-tag
+             art is preferred over a folder image; both decode small + cache. -->
+        <conv:AlbumArtworkConverter x:Key="AlbumArtwork" />
+        <!-- True when art exists — gates the hover-preview tooltip. -->
+        <conv:AlbumHasArtworkConverter x:Key="AlbumHasArtwork" />
 
-        <!-- ── Status brushes (consumed by ConversionStatusToColorConverter
-             and ValidationSeverityToColorConverter) ──────────────────────
-             Previously hardcoded in C# as Colors.Gray / DodgerBlue / etc.
-             (L29). Lives here so a palette change touches XAML, not code. -->
-        <SolidColorBrush x:Key="StatusBrushPending"    Color="Gray" />
-        <SolidColorBrush x:Key="StatusBrushInProgress" Color="DodgerBlue" />
-        <SolidColorBrush x:Key="StatusBrushCompleted" Color="Green" />
-        <SolidColorBrush x:Key="StatusBrushFailed"    Color="Red" />
-        <SolidColorBrush x:Key="SeverityBrushWarning" Color="Orange" />
-        <SolidColorBrush x:Key="SeverityBrushError"   Color="Red" />
+        <!-- Hover-preview tooltip: shows the cover at a 512px decode in a small
+             card. Each usage sets Content to the album / track.Album /
+             CurrentArtwork; the template resolves it via the AlbumArtwork
+             converter. Defined here (not Themes/Theme.xaml) so the StaticResource
+             reference to AlbumArtwork above resolves. -->
+        <Style x:Key="ArtworkPreviewToolTip" TargetType="ToolTip">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HasDropShadow" Value="False" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{StaticResource SurfaceBrush}"
+                                BorderBrush="{StaticResource StrongBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="4">
+                            <Image Source="{Binding Content,
+                                            RelativeSource={RelativeSource TemplatedParent},
+                                            Converter={StaticResource AlbumArtwork}, ConverterParameter=512}"
+                                   MaxWidth="480" MaxHeight="480"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <!-- ── Semantic accent brushes ────────────────────────────────────
-             Named so the most-used hex literals across views have one
-             place to change. The bulk hex-literal sweep is deferred (see
-             Rework.md H35); the foundation exists. -->
-        <SolidColorBrush x:Key="AccentBrush"          Color="#007ACC" />
-        <SolidColorBrush x:Key="ProvisionalBadgeBrush" Color="#E65100" />
-        <SolidColorBrush x:Key="ApprovedBadgeBrush"   Color="#2E7D32" />
-        <SolidColorBrush x:Key="DangerBrush"          Color="#D32F2F" />
-
-        <!-- iTunes-style very-light-gray alternating row background.
-             Consumed by ListView ItemContainerStyles via
-             ItemsControl.AlternationIndex MultiTriggers and by DataGrid
-             via AlternatingRowBackground. -->
-        <SolidColorBrush x:Key="ZebraRowBrush"        Color="#F4F4F4" />
+        <!-- NOTE: the palette brushes (StatusBrush*, SeverityBrush*,
+             AccentBrush, ProvisionalBadgeBrush, ApprovedBadgeBrush,
+             DangerBrush, ZebraRowBrush) now live in Themes/Theme.xaml so
+             they share one source of truth with the control styles. -->
 
         <!-- Reusable zebra-stripe ItemContainerStyle for ListViews that
              don't need the larger MinHeight/Padding setup AlbumsView and
@@ -106,5 +130,6 @@
         <DataTemplate DataType="{x:Type vm:PickListsViewModel}">
             <views:PickListsView />
         </DataTemplate>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
